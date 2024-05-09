@@ -1,0 +1,74 @@
+﻿@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Justify="Justify.Center">
+            <MudText Align="Align.Center" Typo="Typo.h3">Klauen Behandlung</MudText>
+            <MudSpacer></MudSpacer>
+
+            <MudGrid Justify="Justify.Center">
+                <MudItem xs="6">
+                    @if (Planned_Claw_Treatment.Claw_Finding_LV)
+                    {
+                        <button type="button" id="LV_HOOF_Block" class="Show_Hoof_Input"></button>
+                    }
+                    else
+                    {
+                        <button type="button" id="LV_HOOF_Standart" class="Show_Hoof_Input"></button>
+                    }
+                </MudItem>
+                    <MudItem xs="6">
+                        @if (Planned_Claw_Treatment.Claw_Finding_RV)
+                    {
+                        <button type="button" id="RV_HOOF_Block" class="Show_Hoof_Input"></button>
+                    }
+                    else
+                    {
+                        <button type="button" id="RV_HOOF_Standart" class="Show_Hoof_Input"></button>
+                    }
+                    </MudItem>
+                    <MudItem xs="6">
+                        @if (Planned_Claw_Treatment.Claw_Finding_LH)
+                    {
+                        <button type="button" id="LH_HOOF_Block" class="Show_Hoof_Input"></button>
+                    }
+                    else
+                    {
+                        <button type="button" id="LH_HOOF_Standart" class="Show_Hoof_Input"></button>
+                    }
+                    </MudItem>
+                    <MudItem xs="6">
+                        @if (Planned_Claw_Treatment.Claw_Finding_RH)
+                    {
+                        <button type="button" id="RH_HOOF_Block" class="Show_Hoof_Input"></button>
+                    }
+                    else
+                    {
+                        <button type="button" id="RH_HOOF_Standart" class="Show_Hoof_Input"></button>
+                    }                               
+                    </MudItem>
+                </MudGrid>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@CloseModal">Schließen</MudButton>
+            </MudStack>
+        </DialogContent>
+    </MudDialog>
+
+    @code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+
+    [Parameter]
+    public Planned_Treatment_Claw Planned_Claw_Treatment { get; set; } = new Planned_Treatment_Claw();
+
+    public bool showTreatmentModal = false;
+
+    protected override void OnInitialized()
+    {
+        DateTime currentDateTime = DateTime.Today;
+    }
+
+    public void CloseModal()
+    {
+        MudDialog.Close();
+    }
+}
+

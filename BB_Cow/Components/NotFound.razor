@@ -1,0 +1,11 @@
+﻿@inject NavigationManager NavManager
+<div style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 80vh;">
+        <img src="/images/waiting_dark.png" alt="Wartendes Bild" style="max-width: 35%; height: auto; margin-top: 20px;" />
+    <MudText Typo="Typo.h4"><b>Seite nicht gefunden</b></MudText>
+    <a href="/"><b>Zurück zur Startseite</b></a>
+</div>
+
+@code {
+    [CascadingParameter(Name = "IsDarkMode")]
+    public bool IsDarkMode { get; set; }
+}

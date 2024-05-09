@@ -1,0 +1,19 @@
+﻿@code {
+    private bool _isOpen = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Task.Delay(2000); 
+        _isOpen = false;
+    }
+}
+
+<MudDialog @bind-IsOpen="_isOpen">
+    <DialogContent>
+        <MudGrid Justify="Justify.Center">
+            <MudItem>
+                <MudProgressCircular Class="align-self-center" Color="Color.Primary" Indeterminate="true" />
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+</MudDialog>

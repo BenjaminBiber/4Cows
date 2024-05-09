@@ -1,0 +1,41 @@
+﻿@using MudBlazor
+@inherits LayoutComponentBase
+
+<PageTitle>4Cows</PageTitle>
+<MudThemeProvider IsDarkMode="@_isDarkMode"/>
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+            @Body
+
+
+@code {
+    bool open = false;
+    private MudTheme _theme = new();
+    private bool _isDarkMode = false;
+    public TimeSpan _startSpan = new TimeSpan(7, 0, 0);
+    public TimeSpan _endSpan = new TimeSpan(19, 0, 0);
+
+
+    void ToggleDrawer()
+    {
+        open = !open;
+    }
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        DarkSwitch();
+    }
+
+    void DarkSwitch()
+    {
+        if (DateTime.Now.TimeOfDay > _endSpan)
+        {
+            _isDarkMode = true;
+        }
+        else
+        {
+            _isDarkMode = false;
+        }
+    }
+}

@@ -1,0 +1,47 @@
+﻿@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudText Typo="Typo.h4" Class="mb-2">Speichern!</MudText>
+        <MudText Typo="Typo.h6" Class="mb-8">Möchten Sie die Behandlung wirklich Speichern?</MudText>
+
+        <MudGrid Justify="Justify.FlexEnd">
+            <MudButton Color="Color.Default" Variant="Variant.Filled" Class="mr-8 mb-4" OnClick="ExitConfirmation">Abbrechen!</MudButton>
+            <MudButton Color="Color.Success" Variant="Variant.Filled" Class="mb-4" OnClick="ConfirmDelete">Speichern!</MudButton>
+        </MudGrid>
+    </DialogContent>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+
+    [Parameter]
+    public bool ConfirmBool { get; set; }
+
+    protected override void OnInitialized()
+    {
+    }
+
+    private void ConfirmDelete()
+    {
+        ConfirmBool = true;
+        CloseModalButton();
+    }
+
+    private void ExitConfirmation()
+    {
+        ConfirmBool = false;
+        CloseModalButton();
+    }
+
+    public void CloseModal()
+    {
+        MudDialog.Close(DialogResult.Ok(false));
+    }
+
+    public void CloseModalButton()
+    {
+        MudDialog.Close(DialogResult.Ok(ConfirmBool));
+    }
+}
+

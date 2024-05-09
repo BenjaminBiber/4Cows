@@ -1,0 +1,142 @@
+﻿@inject ISnackbar Snackbar
+
+
+<MudDialog>
+    <DialogContent>
+            <MudStack>
+                <MudText Align="Align.Center" Typo="Typo.h3">Klauen Behandlung hinzufügen</MudText>
+
+                <MudNumericField @bind-Value="Claw_Treatment.Collar_Number" Label="Halsbandnummer:" Variant="Variant.Text" />
+
+                <MudDatePicker Label="Behandlungsdatum:" Editable="true" @bind-Date="NullDate" />
+            <MudContainer MaxWidth="MaxWidth.ExtraSmall" id="Claw_Treatment_Modal" class="@(showTreatmentModal ? "showTreatmentModal" : "hideTreatmentModal")">
+                        <MudStack Justify="Justify.Center" >
+                        <MudText Align="Align.Center" Typo="Typo.h5">@($"Klauen Behandlung {currentClaw}")</MudText>
+                        @if (currentClaw == "LV")
+                        {
+                            <MudAutocomplete T="string" Label="Befund:" @bind-Value="Claw_Treatment.Claw_Finding_LV" SearchFunc="@Search_Claw_Treatment_Claw_Finding" CoerceValue="true" />
+                            <MudCheckBox Label="Verband:" @bind-Value="@Claw_Treatment.Bandage_LV" Size="Size.Medium" Color="Color.Primary"></MudCheckBox>
+                            <MudCheckBox Label="Klotz:" @bind-Value="@Claw_Treatment.Block_LV" Size="Size.Medium" Color="Color.Primary"></MudCheckBox>
+                        }
+                        else if (currentClaw == "LH")
+                        {
+                        <MudAutocomplete T="string" Label="Befund:" @bind-Value="Claw_Treatment.Claw_Finding_LH" SearchFunc="@Search_Claw_Treatment_Claw_Finding" CoerceValue="true" />
+                        <MudCheckBox Label="Verband:" @bind-Value="@Claw_Treatment.Bandage_LH" Size="Size.Medium" Color="Color.Primary"></MudCheckBox>
+                        <MudCheckBox Label="Klotz:" @bind-Value="@Claw_Treatment.Block_LH" Size="Size.Medium" Color="Color.Primary"></MudCheckBox>
+                        }
+                        else if (currentClaw == "RV")
+                        {
+                        <MudAutocomplete T="string" Label="Befund:" @bind-Value="Claw_Treatment.Claw_Finding_RV" SearchFunc="@Search_Claw_Treatment_Claw_Finding" CoerceValue="true" />
+                        <MudCheckBox Label="Verband:" @bind-Value="@Claw_Treatment.Bandage_RV" Size="Size.Medium" Color="Color.Primary"></MudCheckBox>
+                        <MudCheckBox Label="Klotz:" @bind-Value="@Claw_Treatment.Block_RV" Size="Size.Medium" Color="Color.Primary"></MudCheckBox>
+                        }
+                        else if (currentClaw == "RH")
+                        {
+                        <MudAutocomplete T="string" Label="Befund:" @bind-Value="Claw_Treatment.Claw_Finding_RH" SearchFunc="@Search_Claw_Treatment_Claw_Finding" CoerceValue="true" />
+                        <MudCheckBox Label="Verband:" @bind-Value="@Claw_Treatment.Bandage_RH" Size="Size.Medium" Color="Color.Primary"></MudCheckBox>
+                        <MudCheckBox Label="Klotz:" @bind-Value="@Claw_Treatment.Block_RH" Size="Size.Medium" Color="Color.Primary"></MudCheckBox>
+                        }
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="CloseClawTreatmentModal">Schließen</MudButton>
+            </MudStack>
+            </MudContainer>
+                        <div id="HOOF_Input_Grid">
+                            <button type="button" id="LV_HOOF" class="HOOF_Input" onclick="@(() => SetCurrentClaw("LV"))"></button>
+                            <button type="button" id="RV_HOOF" class="HOOF_Input" onclick="@(() => SetCurrentClaw("RV"))"></button>
+                            <button type="button" id="LH_HOOF" class="HOOF_Input" onclick="@(() => SetCurrentClaw("LH"))"></button>
+                            <button type="button" id="RH_HOOF" class="HOOF_Input" onclick="@(() => SetCurrentClaw("RH"))"></button>
+                        </div>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@SaveClawTreatmentModalInput">Speichern</MudButton>
+            </MudStack>
+    </DialogContent>
+</MudDialog>
+
+
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+
+    [Parameter]
+    public Treatment_Claw Claw_Treatment { get; set; } = new Treatment_Claw();
+
+    public DateTime? NullDate;
+    public string currentClaw = "";
+    public bool SaveSuccesfulBool;
+    public bool showTreatmentModal = false;
+
+    protected override void OnInitialized()
+    {
+        NullDate = DateTime.Today;
+    }
+
+    public void SetCurrentClaw(string InputClaw)
+    {
+        currentClaw = InputClaw;
+        showTreatmentModal = true;
+    }
+
+    public void CloseClawTreatmentModal()
+    {
+        showTreatmentModal = false;
+    }
+
+    public void SaveClawTreatmentModalInput()
+    {
+        Snackbar.Configuration.SnackbarVariant = Variant.Outlined;
+        Snackbar.Configuration.MaxDisplayedSnackbars = 10;
+        if (TestForNullInput())
+        {
+            Claw_Treatment.Treatment_Date = NullDate.Value;
+            SaveSuccesfulBool = Claw_Treatment_Static.InsertData(Claw_Treatment);
+            MudDialog.Close();
+            Claw_Treatment_Static.StaticTreatments.Add(Claw_Treatment);
+            Claw_Treatment = new Treatment_Claw();
+            Claw_Treatment.Treatment_Date = DateTime.Now;
+            if (SaveSuccesfulBool)
+            {
+                Snackbar.Add($"Speichern erfolgreich!", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add($"Speichern fehlgeschlagen!", Severity.Error);
+            }
+        }
+        else
+        {
+            Snackbar.Add($"Alle Felder müssen ausgefüllt werden!", Severity.Error);
+        }
+    }
+
+    private bool TestForNullInput()
+    {
+        var returnBool = false;
+        if (string.IsNullOrEmpty(Claw_Treatment.Claw_Finding_LV))
+        {
+            Claw_Treatment.Claw_Finding_LV = "Pflege";
+        }
+        if (string.IsNullOrEmpty(Claw_Treatment.Claw_Finding_RV))
+        {
+            Claw_Treatment.Claw_Finding_RV = "Pflege";
+        }
+        if (string.IsNullOrEmpty(Claw_Treatment.Claw_Finding_LH))
+        {
+            Claw_Treatment.Claw_Finding_LH = "Pflege";
+        }
+        if (string.IsNullOrEmpty(Claw_Treatment.Claw_Finding_RH))
+        {
+            Claw_Treatment.Claw_Finding_RH = "Pflege";
+        }
+        returnBool = Claw_Treatment.Collar_Number != 0 && NullDate != null && !string.IsNullOrEmpty(Claw_Treatment.Claw_Finding_LV) && !string.IsNullOrEmpty(Claw_Treatment.Claw_Finding_LH) && !string.IsNullOrEmpty(Claw_Treatment.Claw_Finding_RV) && !string.IsNullOrEmpty(Claw_Treatment.Claw_Finding_RH);
+        return returnBool;
+    }
+
+    private async Task<IEnumerable<string>> Search_Claw_Treatment_Claw_Finding(string value)
+    {
+        await Task.Delay(0);
+        if (string.IsNullOrEmpty(value))
+        {
+            return Claw_Treatment_Static.StaticClawFindingList;
+        }
+        return Claw_Treatment_Static.StaticClawFindingList.Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
+    }
+}
+

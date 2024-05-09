@@ -1,0 +1,149 @@
+﻿@inject ISnackbar Snackbar
+
+
+<MudDialog>
+    <DialogContent>
+            <MudStack>
+                <MudText Align="Align.Center" Typo="Typo.h3">Kuh Behandlung hinzufügen</MudText>
+
+            <MudGrid>
+                @foreach (var number in numbers)
+                {
+                    <MudItem xs="12">
+                        <MudNumericField Immediate="true" @bind-Value="number.Value" OnKeyDown="(KeyboardEventArgs e) => GetEarNumber(number, e)" Label="Halsbandnummer:" Variant="Variant.Text" />
+                        <MudNumericField Immediate="true" @bind-Value="number.EarValue" Label="Ohrmarkennummer:" Variant="Variant.Text" />
+
+                    </MudItem>
+                }
+                <MudItem xs="5"></MudItem>
+                <MudItem xs="2">
+                    <MudIconButton Icon="@Icons.Material.Filled.Add" OnClick="AddNumberField" />
+                </MudItem>
+                <MudItem xs="5"></MudItem>
+            </MudGrid>
+                <MudDatePicker Label="Verabreichungsdatum:" Editable="true" @bind-Date="NullDate" />
+
+                <MudAutocomplete T="string" Label="Medikament:" @bind-Value="Cow_Treatment.Medicine_Name" SearchFunc="@Search_Cow_Treatment_Medicaments" CoerceValue="true" />
+
+                <MudAutocomplete T="string" Label="Wie / Wo:" @bind-Value="Cow_Treatment.WhereHow" SearchFunc="@Search_Cow_Treatment_WhereHow" CoerceValue="true" />
+
+                <MudNumericField @bind-Value="Cow_Treatment.Medicine_Dosage" Label="Menge:" Variant="Variant.Text" />
+
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@SaveCowTreatmentModalInput">Speichern</MudButton>
+
+            </MudStack>
+    </DialogContent>
+</MudDialog>
+
+
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+    [Parameter]
+    public Treatment_Cow Cow_Treatment { get; set; } = new Treatment_Cow();
+    public DateTime? NullDate;
+    public bool SaveSuccesfulBool;
+
+    protected override void OnInitialized()
+    {
+        if(Cow_Treatment.Collar_Number != 0)
+        {
+            numbers.Add(new NumberEntry(Cow_Treatment.Collar_Number, Cow_Treatment.Ear_Number));
+        }
+        else
+        {
+            numbers.Add(new NumberEntry());
+        }
+        NullDate = DateTime.Now;
+        Cow_Treatment_Static.GetAllData();
+    }
+
+    List<NumberEntry> numbers = new List<NumberEntry>();
+
+    private void AddNumberField()
+    {
+        numbers.Add(new NumberEntry());
+    }
+
+    public void GetEarNumber(NumberEntry entry, KeyboardEventArgs e)
+    {
+        var index = numbers.IndexOf(entry);
+        List<Treatment_Cow> test = Cow_Treatment_Static.StaticTreatments;
+        numbers[index].EarValue = Cow_Treatment_Static.StaticTreatments.Where(x => x.Collar_Number == entry.Value).OrderByDescending(x => x.Administration_Date).Select(x => x.Ear_Number).FirstOrDefault();
+        if (e.Key == "Enter")
+        {
+            numbers.Add(new NumberEntry());
+        }
+        StateHasChanged();
+    }
+
+    public void SaveCowTreatmentModalInput()
+    {
+        Snackbar.Configuration.SnackbarVariant = Variant.Outlined;
+        Snackbar.Configuration.MaxDisplayedSnackbars = 10;
+        foreach (var number in numbers)
+        {
+            if (number.Value.HasValue && number.Value != 0 && number.EarValue.HasValue && number.EarValue != 0)
+            {
+                var newTreatment = new Treatment_Cow
+                    {
+                        Collar_Number = number.Value.Value,
+                        Ear_Number = number.EarValue.Value,
+                        Medicine_Name = Cow_Treatment.Medicine_Name,
+                        Medicine_Dosage = Cow_Treatment.Medicine_Dosage,
+                        WhereHow = Cow_Treatment.WhereHow,
+                        Administration_Date = NullDate.Value
+                    };
+
+                bool saveSuccessful = Cow_Treatment_Static.InsertData(newTreatment);
+                if (!saveSuccessful)
+                {
+                    Snackbar.Add($"Speichern fehlgeschlagen bei Halsbandnummer {number.Value}!", Severity.Error);
+                    return;
+                }
+                else
+                {
+                    Snackbar.Add($"Alle Behandlungen erfolgreich gespeichert!", Severity.Success);
+                }
+            }
+            else
+            {
+                Snackbar.Add($"Speichern fehlgeschlagen, Hals- & Ohrmarkennummer dürfen nicht 0 sein!", Severity.Error);
+                return;
+            }
+        }
+
+        Cow_Treatment = new Treatment_Cow() { Administration_Date = DateTime.Now };
+        MudDialog.Close();
+    }
+
+
+    private bool TestForNullInput()
+    {
+        var returnBool = false;
+        returnBool = Cow_Treatment.Collar_Number != 0 && NullDate != null && !string.IsNullOrEmpty(Cow_Treatment.Medicine_Name) && Cow_Treatment.Medicine_Dosage != 0 && !string.IsNullOrEmpty(Cow_Treatment.WhereHow);
+        return returnBool;
+    }
+
+    private async Task<IEnumerable<string>> Search_Cow_Treatment_Medicaments(string value)
+    {
+        await Task.Delay(0);
+        if (string.IsNullOrEmpty(value))
+        {
+            return Cow_Treatment_Static.StaticCowMedicineTreatmentList;
+        }
+        return Cow_Treatment_Static.StaticCowMedicineTreatmentList.Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
+    }
+
+    private async Task<IEnumerable<string>> Search_Cow_Treatment_WhereHow(string value)
+    {
+        await Task.Delay(0);
+        if (string.IsNullOrEmpty(value) || Cow_Treatment_Static.StaticCowWhereHowList.Count == 0)
+        {
+            return Cow_Treatment_Static.StaticCowWhereHowList;
+        }
+        return Cow_Treatment_Static.StaticCowWhereHowList.Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
+    }
+
+}
+

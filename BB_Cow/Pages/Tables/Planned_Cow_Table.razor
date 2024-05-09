@@ -1,0 +1,129 @@
+﻿@page "/geplante_Kuh_Daten"
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@using BB_Cow.Components
+
+<MudGrid Justify="Justify.FlexEnd">
+    <MudIconButton Icon="@Icons.Material.Filled.AddCircle" Color="Color.Secondary" Size="Size.Large" OnClick="OpenPlannedDialog"></MudIconButton>
+</MudGrid>
+<MudSpacer></MudSpacer>
+<MudText Typo="Typo.h3">geplante Kuh Behandlungen</MudText>
+<MudTable Items="@Planned_Treatments" Hover="true" Striped="@true" Filter="(Func<Planned_Treatment_Cow, bool>)FilterFunc1Planned" @bind-SelectedItem="selectedPlannedCow">
+    <ToolBarContent>
+        <MudText Typo="Typo.h6">geplante Kuh Behandlungen</MudText>
+        <MudSpacer />
+        <MudTextField @bind-Value="plannedCowString" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh>Halsbandnummer</MudTh>
+        <MudTh>Ohrmarkennummer</MudTh>
+        <MudTh>Datum</MudTh>
+        <MudTh>Medikament</MudTh>
+        <MudTh>Wie/Wo</MudTh>
+        <MudTh>Menge</MudTh>
+        <MudTh>Behandelt</MudTh>
+        <MudTh></MudTh>
+
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Halsbandnummer">@context.Collar_Number</MudTd>
+        <MudTd DataLabel="Ohrmarkennummer">@context.Ear_Number</MudTd>
+            <MudTd DataLabel="Datum">@context.Administration_Date</MudTd>
+            <MudTd DataLabel="Medikament">@context.Medicine_Name</MudTd>
+            <MudTd DataLabel="Wie/Wo">@context.WhereHow</MudTd>
+            <MudTd DataLabel="Menge">@context.Medicine_Dosage</MudTd>
+            <MudTd><MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="@(() => AddCowTreatment(context))">Behandlung abschließen</MudButton></MudTd>
+        <MudTd><MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="@(() => RemovePlannedCowDialog(context))">Behandlung entfernen</MudButton></MudTd>
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager />
+        </PagerContent>
+    </MudTable>
+
+@code {
+    private string plannedCowString = "";
+    public Planned_Treatment_Cow selectedPlannedCow = null;
+    private IEnumerable<Planned_Treatment_Cow> Planned_Treatments = new List<Planned_Treatment_Cow>();
+
+    private bool FilterFunc1Planned(Planned_Treatment_Cow Treatment_Cow) => FilterFuncPlanned(Treatment_Cow, plannedCowString);
+
+    private bool FilterFuncPlanned(Planned_Treatment_Cow Treatment_Cow, string searchString)
+    {
+        if (string.IsNullOrWhiteSpace(searchString))
+            return true;
+        if (Treatment_Cow.Collar_Number.ToString() == searchString)
+            return true;
+        return false;
+    }
+
+    protected override void OnInitialized()
+    {
+        Planned_Cow_Treatment_Static.GetAllData();
+        Planned_Treatments = Planned_Cow_Treatment_Static.StaticTreatments;
+    }
+
+    private void OpenPlannedDialog()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        DialogService.Show<Add_Planned_Cow_Treatment_Dialog>("", options);
+    }
+
+    async Task AddCowTreatment(Planned_Treatment_Cow Planned_Cow_Treatment)
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<Confirm_Planned_Treatment_Cow_Add_Dialog>("", options);
+        var result = await dialog.Result;
+        if(result.Data != null)
+        {
+            if ((bool)result.Data && result.Data != null)
+            {
+                var Cow_Treatment = new Treatment_Cow();
+                Cow_Treatment.Collar_Number = Planned_Cow_Treatment.Collar_Number;
+                Cow_Treatment.Administration_Date = Planned_Cow_Treatment.Administration_Date;
+                Cow_Treatment.Medicine_Dosage = Planned_Cow_Treatment.Medicine_Dosage;
+                Cow_Treatment.Medicine_Name = Planned_Cow_Treatment.Medicine_Name;
+                Cow_Treatment.WhereHow = Planned_Cow_Treatment.WhereHow;
+                Cow_Treatment.Ear_Number = Planned_Cow_Treatment.Ear_Number;
+                var options1 = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+                var parameters = new DialogParameters<Add_Cow_Treatment_Dialog> { { x => x.Cow_Treatment, Cow_Treatment } };
+                await DialogService.ShowAsync<Add_Cow_Treatment_Dialog>("", parameters, options1);
+                Planned_Cow_Treatment_Static.RemoveByID(Planned_Cow_Treatment.Planned_Cow_Treatment_ID);
+                Snackbar.Add("Speichern abgeschlossen", Severity.Success);
+                Planned_Cow_Treatment_Static.StaticTreatments.Remove(Planned_Cow_Treatment);
+
+            }
+            else
+            {
+                Snackbar.Add("Löschen abgebrochen", Severity.Warning);
+            }
+        }
+
+        StateHasChanged();
+    }
+
+    async Task RemovePlannedCowDialog(Planned_Treatment_Cow Planned_Cow_Treatment)
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<Confirm_Planned_Treatment_Delete>("", options);
+        var result = await dialog.Result;
+        if (result.Data == null)
+        {
+
+        }
+        else
+        {
+
+            if ((bool)result.Data && result.Data != null)
+            {
+                Planned_Cow_Treatment_Static.RemoveByID(Planned_Cow_Treatment.Planned_Cow_Treatment_ID);
+                Snackbar.Add("Löschen abgeschlossen", Severity.Success);
+                Planned_Cow_Treatment_Static.StaticTreatments.Remove(Planned_Cow_Treatment);
+            }
+            else
+            {
+                Snackbar.Add("Löschen abgebrochen", Severity.Warning);
+            }
+            StateHasChanged();
+        }
+    }
+}
