@@ -97,11 +97,6 @@
                         Snackbar.Add($"Alle Behandlungen erfolgreich gespeichert!", Severity.Success);
                     }
                 }
-                else
-                {
-                    Snackbar.Add($"Speichern fehlgeschlagen, Hals- & Ohrmarkennummer dürfen nicht 0 sein!", Severity.Error);
-                    return;
-                }
             }
 
             if (allSavedSuccessfully)
