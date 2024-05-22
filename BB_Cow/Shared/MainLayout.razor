@@ -1,6 +1,7 @@
-﻿@using MudBlazor
+﻿@using BB_Cow.Components
+@using MudBlazor
 @inherits LayoutComponentBase
-
+@inject IDialogService DialogService;
 <PageTitle>4Cows</PageTitle>
 <MudThemeProvider IsDarkMode="@_isDarkMode"/>
 <MudDialogProvider />
@@ -14,8 +15,9 @@
         <MudToggleIconButton @bind-Toggled="@_isDarkMode"
                              Icon="@Icons.Material.Filled.LightMode" Color="@Color.Inherit" Title="LightMode"
                              ToggledIcon="@Icons.Material.Filled.DarkMode" ToggledColor="@Color.Primary" ToggledTitle="DarkMode" />
+        <MudIconButton Icon="@Icons.Material.Outlined.Info" OnClick="OpenVersionDialog" Color="Color.Inherit"></MudIconButton>
     </MudAppBar>
-    <MudDrawer @bind-Open="@open" Variant="@DrawerVariant.Temporary" Elevation="3">
+    <MudDrawer @bind-Open="@open" Variant="@DrawerVariant.Temporary" Color="@Color.Inherit" Elevation="3">
         <MudDrawerHeader>
             <div style="display: flex; align-items: center;">
                     <img src="/logo.png" style="width: 30%; aspect-ratio: 1 / 1;" />
@@ -70,5 +72,10 @@
         {
             _isDarkMode = false;
         }
+    }
+
+    void OpenVersionDialog(){
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        DialogService.Show<Version_Dialog>("Software Version", options);
     }
 }
