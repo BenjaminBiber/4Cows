@@ -48,7 +48,7 @@
     {
         NullDate = DateTime.Now;
         numbers.Add(new NumberEntry());
-        Cow_Treatment_Static.GetAllData();
+        CowTreatmentService.GetAllData();
     }
 
     List<NumberEntry> numbers = new List<NumberEntry>();
@@ -61,8 +61,8 @@
     public void GetEarNumber(NumberEntry entry, KeyboardEventArgs e)
     {
         var index = numbers.IndexOf(entry);
-        List<Treatment_Cow> test = Cow_Treatment_Static.StaticTreatments;
-        numbers[index].EarValue = Cow_Treatment_Static.StaticTreatments.Where(x => x.Collar_Number == entry.Value).OrderByDescending(x => x.Administration_Date).Select(x => x.Ear_Number).FirstOrDefault();
+        List<Treatment_Cow> test = CowTreatmentService.StaticTreatments;
+        numbers[index].EarValue = CowTreatmentService.StaticTreatments.Where(x => x.Collar_Number == entry.Value).OrderByDescending(x => x.Administration_Date).Select(x => x.Ear_Number).FirstOrDefault();
         if (e.Key == "Enter")
         {
             numbers.Add(new NumberEntry());
@@ -129,19 +129,19 @@
         await Task.Delay(0);
         if (string.IsNullOrEmpty(value))
         {
-            return Cow_Treatment_Static.StaticCowMedicineTreatmentList;
+            return CowTreatmentService.StaticCowMedicineTreatmentList;
         }
-        return Cow_Treatment_Static.StaticCowMedicineTreatmentList.Concat(Planned_Cow_Treatment_Static.StaticCowMedicineTreatmentList).Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
+        return CowTreatmentService.StaticCowMedicineTreatmentList.Concat(Planned_Cow_Treatment_Static.StaticCowMedicineTreatmentList).Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
     }
 
     private async Task<IEnumerable<string>> Search_Cow_Treatment_WhereHow(string value)
     {
         await Task.Delay(0);
-        if (string.IsNullOrEmpty(value) || Cow_Treatment_Static.StaticCowWhereHowList.Count == 0)
+        if (string.IsNullOrEmpty(value) || CowTreatmentService.StaticCowWhereHowList.Count == 0)
         {
-            return Cow_Treatment_Static.StaticCowWhereHowList;
+            return CowTreatmentService.StaticCowWhereHowList;
         }
-        return Cow_Treatment_Static.StaticCowWhereHowList.Concat(Planned_Cow_Treatment_Static.StaticCowMedicineTreatmentList).Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
+        return CowTreatmentService.StaticCowWhereHowList.Concat(Planned_Cow_Treatment_Static.StaticCowMedicineTreatmentList).Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
     }
 
 }

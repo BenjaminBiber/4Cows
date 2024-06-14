@@ -8,8 +8,10 @@
 
   <ItemGroup>
     <Folder Include="Models\" />
-    <Folder Include="SQL\" />
-    <Folder Include="Services\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MySqlConnector" Version="2.3.7" />
   </ItemGroup>
 
 </Project>

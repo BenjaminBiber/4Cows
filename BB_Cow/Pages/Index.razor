@@ -351,10 +351,10 @@ else
     private int indexValue = -1; 
     public ChartOptions Options = new ChartOptions();
 
-    public List<Treatment_Cow> CowList = Cow_Treatment_Static.StaticTreatments;
-    public List<Treatment_Claw> ClawList = Claw_Treatment_Static.StaticTreatments; 
+    public List<Treatment_Cow> CowList = CowTreatmentService.StaticTreatments;
+    public List<Treatment_Claw> ClawList = ClawTreatmentService.StaticTreatments; 
     public List<Planned_Treatment_Cow> Planned_CowList = Planned_Cow_Treatment_Static.StaticTreatments;
-    public List<Planned_Treatment_Claw> Planned_ClawList = Planned_Claw_Treatment_Static.StaticTreatments;
+    public List<Planned_Treatment_Claw> Planned_ClawList = PClawTreatmentService.StaticTreatments;
 
     public List<ChartSeries> Series = new List<ChartSeries>() { };
     public string[] XAxisLabels = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez" };
@@ -364,10 +364,10 @@ else
     {
         try
         {
-            Cow_Treatment_Static.GetAllData();
-            Claw_Treatment_Static.GetAllData();
+            CowTreatmentService.GetAllData();
+            ClawTreatmentService.GetAllData();
             Planned_Cow_Treatment_Static.GetAllData();
-            Planned_Claw_Treatment_Static.GetAllData();
+            PClawTreatmentService.GetAllData();
 
             _options.YAxisTicks = 5;
             Series.Add(new ChartSeries()

@@ -43,8 +43,8 @@
 
     protected override async Task OnInitializedAsync()
     {
-        Planned_Claw_Treatment_Static.GetAllData();
-        Treatment_Claws = Planned_Claw_Treatment_Static.StaticTreatments;
+        PClawTreatmentService.GetAllData();
+        Treatment_Claws = PClawTreatmentService.StaticTreatments;
     }
     private bool ClawFilterFunc1(Planned_Treatment_Claw Treatment_Cow) => FilterFuncClaw(Treatment_Cow, searchClaw);
 
@@ -60,7 +60,7 @@
     private void OpenClawInformation(Planned_Treatment_Claw Claw_Treatment)
     {
         var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
-        Claw_Treatment_Static.GetAllData();
+        ClawTreatmentService.GetAllData();
         var parameters = new DialogParameters<Show_Planned_Treatment_Claw_Dialog> { { x => x.Planned_Claw_Treatment, Claw_Treatment } };
         DialogService.Show<Show_Planned_Treatment_Claw_Dialog>("", parameters, options);
     }
@@ -85,8 +85,8 @@
                 var options1 = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
                 var parameters = new DialogParameters<Add_Claw_Treatment_Dialog> { { x => x.Claw_Treatment, Claw_Treatment } };
                 DialogService.Show<Add_Claw_Treatment_Dialog>("", parameters, options1);
-                Planned_Claw_Treatment_Static.RemoveByID(Planned_Claw_Treatment.Planned_Claw_Treatment_ID);
-                Planned_Claw_Treatment_Static.StaticTreatments.Remove(Planned_Claw_Treatment);
+                PClawTreatmentService.RemoveByID(Planned_Claw_Treatment.Planned_Claw_Treatment_ID);
+                PClawTreatmentService.StaticTreatments.Remove(Planned_Claw_Treatment);
                 Snackbar.Add("Speichern abgeschlossen", Severity.Success);
 
             }
@@ -119,9 +119,9 @@
 
             if ((bool)result.Data && result.Data != null)
             {
-                Planned_Claw_Treatment_Static.RemoveByID(Planned_Claw_Treatment.Planned_Claw_Treatment_ID);
+                PClawTreatmentService.RemoveByID(Planned_Claw_Treatment.Planned_Claw_Treatment_ID);
                 Snackbar.Add("Löschen abgeschlossen", Severity.Success);
-                Planned_Claw_Treatment_Static.StaticTreatments.Remove(Planned_Claw_Treatment);
+                PClawTreatmentService.StaticTreatments.Remove(Planned_Claw_Treatment);
 
             }
             else
