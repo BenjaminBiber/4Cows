@@ -42,7 +42,7 @@
 
     protected override void OnInitialized()
     {
-        Treatment_Claws = Claw_Treatment_Static.StaticTreatments.Where(x => (x.Bandage_LH || x.Bandage_LV || x.Bandage_RV || x.Bandage_RH) && !x.IsBandageRemoved).OrderBy(x => x.Treatment_Date);
+        Treatment_Claws = ClawTreatmentService.StaticTreatments.Where(x => (x.Bandage_LH || x.Bandage_LV || x.Bandage_RV || x.Bandage_RH) && !x.IsBandageRemoved).OrderBy(x => x.Treatment_Date);
     }
     private bool ClawFilterFunc1(Treatment_Claw Treatment_Cow) => FilterFuncClaw(Treatment_Cow, searchClaw);
 
@@ -58,7 +58,7 @@
     private void OpenClawInformation(Treatment_Claw Claw_Treatment)
     {
         var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
-        Claw_Treatment_Static.GetAllData();
+        ClawTreatmentService.GetAllData();
         var parameters = new DialogParameters<Show_Claw_Treatment_Dialog> { { x => x.Claw_Treatment, Claw_Treatment } };
         DialogService.Show<Show_Claw_Treatment_Dialog>("", parameters, options);
     }
@@ -71,7 +71,7 @@
 
     private void RemoveBandage(Treatment_Claw Claw_Treatment)
     {
-        if(Claw_Treatment_Static.RemoveBandage(Claw_Treatment.Claw_Treatment_ID))
+        if(ClawTreatmentService.RemoveBandage(Claw_Treatment.Claw_Treatment_ID))
         {
             Snackbar.Add($"Verband erfolgreich entfernt!", Severity.Success);
         }

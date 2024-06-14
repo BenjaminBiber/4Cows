@@ -53,8 +53,8 @@
 
     protected override void OnInitialized()
     {
-        Cow_Treatment_Static.GetAllData();
-        Treatment_Cows = Cow_Treatment_Static.StaticTreatments.OrderByDescending(x => x.Administration_Date);
+        CowTreatmentService.GetAllData();
+        Treatment_Cows = CowTreatmentService.StaticTreatments.OrderByDescending(x => x.Administration_Date);
     }
 
     private void OpenCowDialog()

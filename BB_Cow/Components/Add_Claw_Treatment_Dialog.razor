@@ -86,9 +86,9 @@
         if (TestForNullInput())
         {
             Claw_Treatment.Treatment_Date = NullDate.Value;
-            SaveSuccesfulBool = Claw_Treatment_Static.InsertData(Claw_Treatment);
+            SaveSuccesfulBool = ClawTreatmentService.InsertData(Claw_Treatment);
             MudDialog.Close();
-            Claw_Treatment_Static.StaticTreatments.Add(Claw_Treatment);
+            ClawTreatmentService.StaticTreatments.Add(Claw_Treatment);
             Claw_Treatment = new Treatment_Claw();
             Claw_Treatment.Treatment_Date = DateTime.Now;
             if (SaveSuccesfulBool)
@@ -134,9 +134,9 @@
         await Task.Delay(0);
         if (string.IsNullOrEmpty(value))
         {
-            return Claw_Treatment_Static.StaticClawFindingList;
+            return ClawTreatmentService.StaticClawFindingList;
         }
-        return Claw_Treatment_Static.StaticClawFindingList.Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
+        return ClawTreatmentService.StaticClawFindingList.Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
     }
 }
 

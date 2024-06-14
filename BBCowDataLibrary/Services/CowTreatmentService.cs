@@ -1,18 +1,19 @@
 ﻿using BB_Cow.Class;
+using BBCowDataLibrary.SQL;
 using MySqlConnector;
 using System.Linq;
 
 namespace BB_Cow.Services
 {
-    public static class Cow_Treatment_Static
+    public static class CowTreatmentService
     {
         public static List<Treatment_Cow> StaticTreatments { get; set; } = new();
         public static List<string> StaticCowMedicineTreatmentList { get; set; } = new();
         public static List<string> StaticCowWhereHowList { get; set; } = new();
 
-        public static void GetAllData()
+        public static async Task GetAllData()
         {
-            StaticTreatments = DatabaseService.ReadData(@"SELECT * FROM Cow_Treatment;", reader =>
+            StaticTreatments = await DatabaseService.ReadDataAsync(@"SELECT * FROM Cow_Treatment;", reader =>
             {
                 var treatment = new Treatment_Cow
                 {
@@ -32,10 +33,10 @@ namespace BB_Cow.Services
 
         }
 
-        public static bool InsertData(Treatment_Cow cow_Treatment)
+        public static async Task<bool> InsertData(Treatment_Cow cow_Treatment)
         {
             bool isSuccess = false;
-            DatabaseService.ExecuteQuery(command =>
+            await DatabaseService.ExecuteQueryAsync(async command =>
             {
                 command.CommandText = @"INSERT INTO `Cow_Treatment` (`Collar_Number`, `Administration_Date`, `Medicine_Dosage`, `Medicine_Name`, `WhereHow`, `Ear_Number`) VALUES (@Collar_Number, @Administration_Date, @Medicine_Dosage, @Medicine_Name, @WhereHow, @Ear_Number);";
                 command.Parameters.AddWithValue("@Collar_Number", cow_Treatment.Collar_Number);
@@ -44,14 +45,16 @@ namespace BB_Cow.Services
                 command.Parameters.AddWithValue("@Medicine_Name", cow_Treatment.Medicine_Name);
                 command.Parameters.AddWithValue("@WhereHow", cow_Treatment.WhereHow);
                 command.Parameters.AddWithValue("@Ear_Number", cow_Treatment.Ear_Number);
-                isSuccess = command.ExecuteNonQuery() > 0;
+                isSuccess = (await command.ExecuteNonQueryAsync()) > 0;
             });
             return isSuccess;
         }
 
-        public static Treatment_Cow GetByID(int id)
+        public static async Task<Treatment_Cow> GetByID(int id)
         {
-            return DatabaseService.ReadData($"SELECT * FROM Cow_Treatment WHERE Cow_Treatment_ID = {id};", reader =>
+            var query = $"SELECT * FROM Cow_Treatment WHERE Cow_Treatment_ID = {id};";
+
+            var treatments = await DatabaseService.ReadDataAsync(query, reader =>
             {
                 var treatment = new Treatment_Cow
                 {
@@ -62,10 +65,12 @@ namespace BB_Cow.Services
                     Medicine_Name = reader.GetString("Medicine_Name"),
                     WhereHow = reader.GetString("WhereHow"),
                     Ear_Number = reader.GetInt32("Ear_Number")
-
                 };
                 return treatment;
-            }).FirstOrDefault();
+            });
+
+            return treatments.FirstOrDefault() ?? new Treatment_Cow(); ;
         }
+
     }
 }

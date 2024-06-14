@@ -1,6 +1,9 @@
 ﻿using MySqlConnector;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
-namespace BB_Cow.Services
+namespace BBCowDataLibrary.SQL
 {
     public static class DatabaseService
     {
@@ -13,28 +16,28 @@ namespace BB_Cow.Services
             Port = 3306
         }.ConnectionString;
 
-        public static MySqlConnection OpenConnection()
+        public static async Task<MySqlConnection> OpenConnectionAsync()
         {
             var connection = new MySqlConnection(connectionString);
-            connection.Open();
+            await connection.OpenAsync();
             return connection;
         }
 
-        public static void ExecuteQuery(Action<MySqlCommand> commandAction)
+        public static async Task ExecuteQueryAsync(Func<MySqlCommand, Task> commandAction)
         {
-            using var connection = OpenConnection();
+            using var connection = await OpenConnectionAsync();
             using var command = connection.CreateCommand();
-            commandAction(command);
+            await commandAction(command);
         }
 
-        public static List<T> ReadData<T>(string query, Func<MySqlDataReader, T> readAction)
+        public static async Task<List<T>> ReadDataAsync<T>(string query, Func<MySqlDataReader, T> readAction)
         {
             var items = new List<T>();
-            ExecuteQuery(command =>
+            await ExecuteQueryAsync(async command =>
             {
                 command.CommandText = query;
-                using var reader = command.ExecuteReader();
-                while (reader.Read())
+                using var reader = await command.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
                 {
                     items.Add(readAction(reader));
                 }
