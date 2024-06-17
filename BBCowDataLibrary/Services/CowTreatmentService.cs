@@ -5,13 +5,13 @@ using System.Linq;
 
 namespace BB_Cow.Services
 {
-    public static class CowTreatmentService
+    public class CowTreatmentService
     {
-        public static List<Treatment_Cow> StaticTreatments { get; set; } = new();
-        public static List<string> StaticCowMedicineTreatmentList { get; set; } = new();
-        public static List<string> StaticCowWhereHowList { get; set; } = new();
+        public List<Treatment_Cow> StaticTreatments { get; set; } = new();
+        public List<string> StaticCowMedicineTreatmentList { get; set; } = new();
+        public List<string> StaticCowWhereHowList { get; set; } = new();
 
-        public static async Task GetAllData()
+        public async Task GetAllData()
         {
             StaticTreatments = await DatabaseService.ReadDataAsync(@"SELECT * FROM Cow_Treatment;", reader =>
             {
@@ -33,7 +33,7 @@ namespace BB_Cow.Services
 
         }
 
-        public static async Task<bool> InsertData(Treatment_Cow cow_Treatment)
+        public async Task<bool> InsertData(Treatment_Cow cow_Treatment)
         {
             bool isSuccess = false;
             await DatabaseService.ExecuteQueryAsync(async command =>
@@ -50,7 +50,7 @@ namespace BB_Cow.Services
             return isSuccess;
         }
 
-        public static async Task<Treatment_Cow> GetByID(int id)
+        public async Task<Treatment_Cow> GetByID(int id)
         {
             var query = $"SELECT * FROM Cow_Treatment WHERE Cow_Treatment_ID = {id};";
 

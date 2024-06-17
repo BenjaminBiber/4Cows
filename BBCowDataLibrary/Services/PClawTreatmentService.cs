@@ -4,13 +4,13 @@ using MySqlConnector;
 
 namespace BB_Cow.Services
 {
-    public static class PClawTreatmentService
+    public  class PClawTreatmentService
     {
-        public static List<Planned_Treatment_Claw> StaticTreatments { get; set; } = new();
+        public  List<Planned_Treatment_Claw> Treatments { get; set; } = new();
 
-        public static async Task GetAllData()
+        public  async Task GetAllData()
         {
-            StaticTreatments = await DatabaseService.ReadDataAsync(@"SELECT * FROM Planned_Claw_Treatment;", reader =>
+            Treatments = await DatabaseService.ReadDataAsync(@"SELECT * FROM Planned_Claw_Treatment;", reader =>
             {
                 var treatment = new Planned_Treatment_Claw
                 {
@@ -27,7 +27,7 @@ namespace BB_Cow.Services
             });
         }
 
-        public static async Task<bool> InsertData(Planned_Treatment_Claw claw_Treatment)
+        public  async Task<bool> InsertData(Planned_Treatment_Claw claw_Treatment)
         {
             bool isSuccess = false;
             await DatabaseService.ExecuteQueryAsync(async command =>
@@ -45,7 +45,7 @@ namespace BB_Cow.Services
             return isSuccess;
         }
 
-        public static async Task<bool> RemoveByID(int id)
+        public  async Task<bool> RemoveByID(int id)
         {
             bool isSuccess = false;
             await DatabaseService.ExecuteQueryAsync(async command =>

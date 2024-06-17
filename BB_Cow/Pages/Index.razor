@@ -1,7 +1,7 @@
 ﻿@page "/"
 @inject IDialogService DialogService
 @inject IJSRuntime JSRuntime
-@using BB_Cow.Services
+@using BBCowDataLibrary.Services
 @using BB_Cow.Components
 @inject ISnackbar Snackbar
 
@@ -351,9 +351,9 @@ else
     private int indexValue = -1; 
     public ChartOptions Options = new ChartOptions();
 
-    public List<Treatment_Cow> CowList = CowTreatmentService.StaticTreatments;
-    public List<Treatment_Claw> ClawList = ClawTreatmentService.StaticTreatments; 
-    public List<Planned_Treatment_Cow> Planned_CowList = Planned_Cow_Treatment_Static.StaticTreatments;
+    public List<Treatment_Cow> CowList = cowTreatmentService.StaticTreatments;
+    public List<Treatment_Claw> ClawList = clawTreatmentService.StaticTreatments; 
+    public List<Planned_Treatment_Cow> Planned_CowList = P.StaticTreatments;
     public List<Planned_Treatment_Claw> Planned_ClawList = PClawTreatmentService.StaticTreatments;
 
     public List<ChartSeries> Series = new List<ChartSeries>() { };
