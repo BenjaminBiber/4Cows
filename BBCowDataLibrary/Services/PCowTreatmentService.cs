@@ -7,15 +7,15 @@ using System.Threading.Tasks;
 
 namespace BB_Cow.Services
 {
-    public static class PCowTreatmentService
+    public  class PCowTreatmentService
     {
-        public static List<Planned_Treatment_Cow> StaticTreatments { get; set; } = new();
-        public static List<string> StaticCowMedicineTreatmentList { get; set; } = new();
-        public static List<string> StaticCowWhereHowList { get; set; } = new();
+        public  List<Planned_Treatment_Cow> Treatments { get; set; } = new();
+        public  List<string> CowMedicineTreatmentList { get; set; } = new();
+        public  List<string> CowWhereHowList { get; set; } = new();
 
-        public static async Task GetAllDataAsync()
+        public  async Task GetAllDataAsync()
         {
-            StaticTreatments = await DatabaseService.ReadDataAsync(@"SELECT * FROM planned_Cow_Treatment;", reader =>
+            Treatments = await DatabaseService.ReadDataAsync(@"SELECT * FROM planned_Cow_Treatment;", reader =>
             {
                 var treatment = new Planned_Treatment_Cow
                 {
@@ -32,11 +32,11 @@ namespace BB_Cow.Services
                 return treatment;
             });
 
-            StaticCowMedicineTreatmentList = StaticTreatments.Select(t => t.Medicine_Name).Distinct().ToList();
-            StaticCowWhereHowList = StaticTreatments.Select(t => t.WhereHow).Distinct().ToList();
+            CowMedicineTreatmentList = Treatments.Select(t => t.Medicine_Name).Distinct().ToList();
+            CowWhereHowList = Treatments.Select(t => t.WhereHow).Distinct().ToList();
         }
 
-        public static async Task<bool> InsertDataAsync(Planned_Treatment_Cow cow_Treatment)
+        public  async Task<bool> InsertDataAsync(Planned_Treatment_Cow cow_Treatment)
         {
             bool isSuccess = false;
             await DatabaseService.ExecuteQueryAsync(async command =>
@@ -55,7 +55,7 @@ namespace BB_Cow.Services
             return isSuccess;
         }
 
-        public static async Task<bool> RemoveByIDAsync(int id)
+        public  async Task<bool> RemoveByIDAsync(int id)
         {
             bool isSuccess = false;
             await DatabaseService.ExecuteQueryAsync(async command =>
