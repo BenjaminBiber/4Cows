@@ -2,6 +2,8 @@
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @using BB_Cow.Components
+@using BB_Cow.Components.Dialogs
+@inject PCowTreatmentService pCowTreatmentService
 
 <MudGrid Justify="Justify.FlexEnd">
     <MudIconButton Icon="@Icons.Material.Filled.AddCircle" Color="Color.Secondary" Size="Size.Large" OnClick="OpenPlannedDialog"></MudIconButton>
@@ -56,10 +58,10 @@
         return false;
     }
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        Planned_Cow_Treatment_Static.GetAllData();
-        Planned_Treatments = Planned_Cow_Treatment_Static.StaticTreatments;
+        await pCowTreatmentService.GetAllDataAsync();
+        Planned_Treatments = pCowTreatmentService.Treatments;
     }
 
     private void OpenPlannedDialog()
@@ -87,9 +89,9 @@
                 var options1 = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
                 var parameters = new DialogParameters<Add_Cow_Treatment_Dialog> { { x => x.Cow_Treatment, Cow_Treatment } };
                 await DialogService.ShowAsync<Add_Cow_Treatment_Dialog>("", parameters, options1);
-                Planned_Cow_Treatment_Static.RemoveByID(Planned_Cow_Treatment.Planned_Cow_Treatment_ID);
+                await pCowTreatmentService.RemoveByIDAsync(Planned_Cow_Treatment.Planned_Cow_Treatment_ID);
                 Snackbar.Add("Speichern abgeschlossen", Severity.Success);
-                Planned_Cow_Treatment_Static.StaticTreatments.Remove(Planned_Cow_Treatment);
+                pCowTreatmentService.Treatments.Remove(Planned_Cow_Treatment);
 
             }
             else
@@ -115,9 +117,9 @@
 
             if ((bool)result.Data && result.Data != null)
             {
-                Planned_Cow_Treatment_Static.RemoveByID(Planned_Cow_Treatment.Planned_Cow_Treatment_ID);
+                await pCowTreatmentService.RemoveByIDAsync(Planned_Cow_Treatment.Planned_Cow_Treatment_ID);
                 Snackbar.Add("Löschen abgeschlossen", Severity.Success);
-                Planned_Cow_Treatment_Static.StaticTreatments.Remove(Planned_Cow_Treatment);
+                pCowTreatmentService.Treatments.Remove(Planned_Cow_Treatment);
             }
             else
             {

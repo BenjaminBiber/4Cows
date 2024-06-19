@@ -1,9 +1,13 @@
 ﻿@page "/"
 @inject IDialogService DialogService
 @inject IJSRuntime JSRuntime
-@using BBCowDataLibrary.Services
 @using BB_Cow.Components
+@using BB_Cow.Components.Dialogs
 @inject ISnackbar Snackbar
+@inject CowTreatmentService cowTreatmentService
+@inject PCowTreatmentService pCowTreatmentService
+@inject PClawTreatmentService pClawTreatmentService
+@inject ClawTreatmentService clawTreatmentService
 
 @if(hasLoaded)
 {
@@ -181,7 +185,7 @@
                         <MudElement HtmlTag="a" href="/geplante_Kuh_Daten">
                         <MudPaper Elevation="5" Class="pa-4" Style="height: 14em;">
                             <MudText Align="Align.Center" Typo="Typo.h6">geplante Kuh Behandlungen:</MudText>
-                            <MudText Color="Color.Secondary" Align="Align.Center" Typo="Typo.h2"><b>@(Planned_CowList.Count() == null ? 0 : Planned_CowList.Count())</b></MudText>
+                            <MudText Color="Color.Secondary" Align="Align.Center" Typo="Typo.h2"><b>@(Planned_CowList.Count() < 1 ? 0 : Planned_CowList.Count())</b></MudText>
                         </MudPaper>
                             </MudElement>
                     </MudItem>
@@ -351,10 +355,10 @@ else
     private int indexValue = -1; 
     public ChartOptions Options = new ChartOptions();
 
-    public List<Treatment_Cow> CowList = cowTreatmentService.StaticTreatments;
-    public List<Treatment_Claw> ClawList = clawTreatmentService.StaticTreatments; 
-    public List<Planned_Treatment_Cow> Planned_CowList = P.StaticTreatments;
-    public List<Planned_Treatment_Claw> Planned_ClawList = PClawTreatmentService.StaticTreatments;
+    public List<Treatment_Cow> CowList = new List<Treatment_Cow>();
+    public List<Treatment_Claw> ClawList = new List<Treatment_Claw>(); 
+    public List<Planned_Treatment_Cow> Planned_CowList = new List<Planned_Treatment_Cow>();
+    public List<Planned_Treatment_Claw> Planned_ClawList = new List<Planned_Treatment_Claw>();
 
     public List<ChartSeries> Series = new List<ChartSeries>() { };
     public string[] XAxisLabels = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez" };
@@ -362,12 +366,17 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        CowList = cowTreatmentService.Treatments;
+        ClawList = clawTreatmentService.Treatments;
+        Planned_CowList = pCowTreatmentService.Treatments;
+        Planned_ClawList = pClawTreatmentService.Treatments;
+
         try
         {
-            CowTreatmentService.GetAllData();
-            ClawTreatmentService.GetAllData();
-            Planned_Cow_Treatment_Static.GetAllData();
-            PClawTreatmentService.GetAllData();
+            await cowTreatmentService.GetAllDataAsync();
+            await clawTreatmentService.GetAllDataAsync();
+            await pCowTreatmentService.GetAllDataAsync();
+            await pClawTreatmentService.GetAllDataAsync();
 
             _options.YAxisTicks = 5;
             Series.Add(new ChartSeries()

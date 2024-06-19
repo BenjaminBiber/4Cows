@@ -1,5 +1,5 @@
 ﻿@inject ISnackbar Snackbar
-
+@inject PClawTreatmentService pClawTreatmentService
 
 <MudDialog>
     <DialogContent>
@@ -73,16 +73,16 @@
         NullDate = DateTime.Today;
     }
 
-    public void SaveClawTreatmentModalInput()
+    public async Task SaveClawTreatmentModalInput()
     {
         Snackbar.Configuration.SnackbarVariant = Variant.Outlined;
         Snackbar.Configuration.MaxDisplayedSnackbars = 10;
         if (TestForNullInput())
         {    
         Planned_Claw_Treatment.Treatment_Date = NullDate.Value;
-            SaveSuccesfulBool = PClawTreatmentService.InsertData(Planned_Claw_Treatment);
+            SaveSuccesfulBool = await pClawTreatmentService.InsertDataAsync(Planned_Claw_Treatment);
             MudDialog.Close();
-            PClawTreatmentService.StaticTreatments.Add(Planned_Claw_Treatment);
+            pClawTreatmentService.Treatments.Add(Planned_Claw_Treatment);
             Planned_Claw_Treatment = new Planned_Treatment_Claw();
             Planned_Claw_Treatment.Treatment_Date = DateTime.Now;
             if (SaveSuccesfulBool)
