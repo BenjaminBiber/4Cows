@@ -1,6 +1,5 @@
 ﻿using MySqlConnector;
 using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace BBCowDataLibrary.SQL
@@ -23,6 +22,19 @@ namespace BBCowDataLibrary.SQL
             return connection;
         }
 
+        public static async Task<bool> IsConfigured()
+        {
+            try
+            {
+                using var connection = await OpenConnectionAsync();
+                return true;
+            }
+            catch (MySqlException ex)
+            {
+                return false;
+            }
+        }
+
         public static async Task ExecuteQueryAsync(Func<MySqlCommand, Task> commandAction)
         {
             using var connection = await OpenConnectionAsync();
@@ -33,16 +45,29 @@ namespace BBCowDataLibrary.SQL
         public static async Task<List<T>> ReadDataAsync<T>(string query, Func<MySqlDataReader, T> readAction)
         {
             var items = new List<T>();
-            await ExecuteQueryAsync(async command =>
+            if(await IsConfigured())
             {
-                command.CommandText = query;
-                using var reader = await command.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
+                try
                 {
-                    items.Add(readAction(reader));
+                    await ExecuteQueryAsync(async command =>
+                    {
+                        command.CommandText = query;
+                        using var reader = await command.ExecuteReaderAsync();
+                        while (await reader.ReadAsync())
+                        {
+                            items.Add(readAction(reader));
+                        }
+                    });
+                    return items;
+
                 }
-            });
-            return items;
+                catch (MySqlException ex)
+                {
+                    Console.WriteLine(ex);
+                    return new List<T>();
+                }
+            }
+            return new List<T>();
         }
     }
 }

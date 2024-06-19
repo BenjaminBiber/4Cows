@@ -2,18 +2,18 @@
 @inherits LayoutComponentBase
 
 <PageTitle>4Cows</PageTitle>
-<MudThemeProvider IsDarkMode="@_isDarkMode"/>
+<MudThemeProvider IsDarkMode="@_isDarkMode" Theme="CustomTheme" />
 <MudDialogProvider />
 <MudSnackbarProvider />
 
 <MudLayout>
      <CascadingValue Value="@_isDarkMode" Name="IsDarkMode"/>
-    <MudAppBar Elevation="3">
+    <MudAppBar Elevation="3" Color="Color.Primary">
         <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" />
         <MudSpacer />
         <MudToggleIconButton @bind-Toggled="@_isDarkMode"
                              Icon="@Icons.Material.Filled.LightMode" Color="@Color.Inherit" Title="LightMode"
-                             ToggledIcon="@Icons.Material.Filled.DarkMode" ToggledColor="@Color.Primary" ToggledTitle="DarkMode" />
+                             ToggledIcon="@Icons.Material.Filled.DarkMode" ToggledColor="@Color.Tertiary" ToggledTitle="DarkMode" />
     </MudAppBar>
     <MudDrawer @bind-Open="@open" Variant="@DrawerVariant.Temporary" Elevation="3">
         <MudDrawerHeader>
@@ -71,4 +71,56 @@
             _isDarkMode = false;
         }
     }
+
+    MudTheme CustomTheme = new()
+        {
+            Palette = new PaletteLight()
+            {
+                Primary = "#60ADC9",
+                TextPrimary = "#404040",
+                TextSecondary = "#EEBE88",
+                Success = "#00C853",
+                SuccessLighten = "#E3F0CC",
+                Warning = "#DC8F00",
+                WarningLighten = "#FFDD9E",
+                Error = "#E00F03",
+                ErrorLighten = "#FAB7B7",
+                TableHover = "#E8E8E8",
+                GrayLight = "#D1D1D1",
+                GrayDark = "#8C8C8C",
+                White = "#FFFFFF",
+                PrimaryLighten = "#acc1c8",
+                Secondary = "#8DC2B0",
+                Tertiary = "#619B98"
+            },
+            PaletteDark = new PaletteDark()
+            {
+                Primary = "#60ADC9",
+                TextPrimary = "#ffffff",
+                TextSecondary = "#FFFFFF",
+                Success = "#00C853",
+                SuccessLighten = "#E3F0CC",
+                Warning = "#DC8F00",
+                WarningLighten = "#FFDD9E",
+                Error = "#E00F03",
+                ErrorLighten = "#FAB7B7",
+                TableHover = "#53545e",
+                GrayLight = "#82838d",
+                GrayDark = "#FFFFFF",
+                White = "#FFFFFF",
+                PrimaryLighten = "#FFD2AD",
+                Surface = "#393A46",
+                Secondary = "#8DC2B0",
+                AppbarBackground = "#60ADC9",
+                Tertiary = "619B98"
+            },
+            Typography = new Typography()
+            {
+                Button = new Button()
+                {
+                    TextTransform = "none",
+                }
+            },
+
+        };
 }
