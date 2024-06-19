@@ -1,7 +1,8 @@
 ﻿@page "/Klauen_Daten"
 @inject IDialogService DialogService
 @using BB_Cow.Components
-
+@using BB_Cow.Components.Dialogs
+@inject ClawTreatmentService clawTreatmentService
 <MudGrid Justify="Justify.FlexEnd">
     <MudIconButton Icon="@Icons.Material.Filled.AddCircle" Color="Color.Secondary" Size="Size.Large" OnClick="OpenClawDialog"></MudIconButton>
 </MudGrid>
@@ -35,8 +36,8 @@
 
     protected override async Task OnInitializedAsync()
     {
-        ClawTreatmentService.GetAllData();
-        Treatment_Claws = ClawTreatmentService.StaticTreatments;
+        await clawTreatmentService.GetAllDataAsync();
+        Treatment_Claws = clawTreatmentService.Treatments;
     }
     private bool ClawFilterFunc1(Treatment_Claw Treatment_Cow) => FilterFuncClaw(Treatment_Cow, searchClaw);
 
@@ -49,10 +50,10 @@
         return false;
     }
 
-    private void OpenClawInformation(Treatment_Claw Claw_Treatment)
+    private async Task OpenClawInformation(Treatment_Claw Claw_Treatment)
     {
         var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
-        ClawTreatmentService.GetAllData();
+        await clawTreatmentService.GetAllDataAsync();
         var parameters = new DialogParameters<Show_Claw_Treatment_Dialog> { { x => x.Claw_Treatment, Claw_Treatment } };
         DialogService.Show<Show_Claw_Treatment_Dialog>("", parameters, options);
     }

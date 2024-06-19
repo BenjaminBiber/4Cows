@@ -7,12 +7,12 @@ namespace BB_Cow.Services
 {
     public class ClawTreatmentService
     {
-        public List<Treatment_Claw> StaticTreatments { get; set; } = new();
-        public List<string> StaticClawFindingList { get; set; } = new();
+        public List<Treatment_Claw> Treatments { get; set; } = new();
+        public List<string> ClawFindingList { get; set; } = new();
 
-        public async Task GetAllData()
+        public async Task GetAllDataAsync()
         {
-            StaticTreatments = await DatabaseService.ReadDataAsync(@"SELECT * FROM `Claw_Treatment`;",reader =>
+            Treatments = await DatabaseService.ReadDataAsync(@"SELECT * FROM `Claw_Treatment`;",reader =>
             {
                 var treatment = new Treatment_Claw
                 {
@@ -35,10 +35,10 @@ namespace BB_Cow.Services
                 };
                 return treatment;
             });
-            StaticClawFindingList = StaticTreatments.SelectMany(t => new[] { t.Claw_Finding_LV, t.Claw_Finding_LH, t.Claw_Finding_RV, t.Claw_Finding_RH }).Distinct().ToList();
+            ClawFindingList = Treatments.SelectMany(t => new[] { t.Claw_Finding_LV, t.Claw_Finding_LH, t.Claw_Finding_RV, t.Claw_Finding_RH }).Distinct().ToList();
         }
 
-        public static async Task<bool> InsertData(Treatment_Claw claw_Treatment)
+        public async Task<bool> InsertDataAsync(Treatment_Claw claw_Treatment)
         {
             bool isSuccess = false;
             await DatabaseService.ExecuteQueryAsync( async command =>
@@ -64,7 +64,7 @@ namespace BB_Cow.Services
             return isSuccess;
         }
 
-        public static async Task<Treatment_Claw> GetByID(int id)
+        public async Task<Treatment_Claw> GetByIDAsync(int id)
         {
             var treatments =  await DatabaseService.ReadDataAsync($"SELECT * FROM `Claw_Treatment` WHERE Claw_Treatment_ID = {id};", reader =>
             {
@@ -93,7 +93,7 @@ namespace BB_Cow.Services
             return treatments.FirstOrDefault() ?? new Treatment_Claw();
         }
 
-        public static async Task<bool> RemoveBandage(int id)
+        public async Task<bool> RemoveBandageAsync(int id)
         {
             bool isSuccess = false;
             await DatabaseService.ExecuteQueryAsync(async command =>

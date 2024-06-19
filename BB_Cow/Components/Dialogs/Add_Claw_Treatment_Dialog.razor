@@ -1,5 +1,5 @@
 ﻿@inject ISnackbar Snackbar
-
+@inject ClawTreatmentService clawTreatmentService
 
 <MudDialog>
     <DialogContent>
@@ -79,16 +79,16 @@
         showTreatmentModal = false;
     }
 
-    public void SaveClawTreatmentModalInput()
+    public async Task SaveClawTreatmentModalInput()
     {
         Snackbar.Configuration.SnackbarVariant = Variant.Outlined;
         Snackbar.Configuration.MaxDisplayedSnackbars = 10;
         if (TestForNullInput())
         {
             Claw_Treatment.Treatment_Date = NullDate.Value;
-            SaveSuccesfulBool = ClawTreatmentService.InsertData(Claw_Treatment);
+            SaveSuccesfulBool = await clawTreatmentService.InsertDataAsync(Claw_Treatment);
             MudDialog.Close();
-            ClawTreatmentService.StaticTreatments.Add(Claw_Treatment);
+            clawTreatmentService.Treatments.Add(Claw_Treatment);
             Claw_Treatment = new Treatment_Claw();
             Claw_Treatment.Treatment_Date = DateTime.Now;
             if (SaveSuccesfulBool)
@@ -134,9 +134,9 @@
         await Task.Delay(0);
         if (string.IsNullOrEmpty(value))
         {
-            return ClawTreatmentService.StaticClawFindingList;
+            return clawTreatmentService.ClawFindingList;
         }
-        return ClawTreatmentService.StaticClawFindingList.Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
+        return clawTreatmentService.ClawFindingList.Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
     }
 }
 

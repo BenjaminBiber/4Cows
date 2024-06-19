@@ -8,7 +8,7 @@ namespace BB_Cow.Services
     {
         public  List<Planned_Treatment_Claw> Treatments { get; set; } = new();
 
-        public  async Task GetAllData()
+        public  async Task GetAllDataAsync()
         {
             Treatments = await DatabaseService.ReadDataAsync(@"SELECT * FROM Planned_Claw_Treatment;", reader =>
             {
@@ -27,7 +27,7 @@ namespace BB_Cow.Services
             });
         }
 
-        public  async Task<bool> InsertData(Planned_Treatment_Claw claw_Treatment)
+        public  async Task<bool> InsertDataAsync(Planned_Treatment_Claw claw_Treatment)
         {
             bool isSuccess = false;
             await DatabaseService.ExecuteQueryAsync(async command =>
@@ -45,7 +45,7 @@ namespace BB_Cow.Services
             return isSuccess;
         }
 
-        public  async Task<bool> RemoveByID(int id)
+        public  async Task<bool> RemoveByIDAsync(int id)
         {
             bool isSuccess = false;
             await DatabaseService.ExecuteQueryAsync(async command =>

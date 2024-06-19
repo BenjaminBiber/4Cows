@@ -7,13 +7,13 @@ namespace BB_Cow.Services
 {
     public class CowTreatmentService
     {
-        public List<Treatment_Cow> StaticTreatments { get; set; } = new();
-        public List<string> StaticCowMedicineTreatmentList { get; set; } = new();
-        public List<string> StaticCowWhereHowList { get; set; } = new();
+        public List<Treatment_Cow> Treatments { get; set; } = new();
+        public List<string> CowMedicineTreatmentList { get; set; } = new();
+        public List<string> CowWhereHowList { get; set; } = new();
 
-        public async Task GetAllData()
+        public async Task GetAllDataAsync()
         {
-            StaticTreatments = await DatabaseService.ReadDataAsync(@"SELECT * FROM Cow_Treatment;", reader =>
+            Treatments = await DatabaseService.ReadDataAsync(@"SELECT * FROM Cow_Treatment;", reader =>
             {
                 var treatment = new Treatment_Cow
                 {
@@ -28,12 +28,12 @@ namespace BB_Cow.Services
                 return treatment;
             });
 
-            StaticCowMedicineTreatmentList = StaticTreatments.Select(t => t.Medicine_Name).Distinct().ToList();
-            StaticCowWhereHowList = StaticTreatments.Select(t => t.WhereHow).Distinct().ToList();
+            CowMedicineTreatmentList = Treatments.Select(t => t.Medicine_Name).Distinct().ToList();
+            CowWhereHowList = Treatments.Select(t => t.WhereHow).Distinct().ToList();
 
         }
 
-        public async Task<bool> InsertData(Treatment_Cow cow_Treatment)
+        public async Task<bool> InsertDataAsync(Treatment_Cow cow_Treatment)
         {
             bool isSuccess = false;
             await DatabaseService.ExecuteQueryAsync(async command =>
@@ -50,7 +50,7 @@ namespace BB_Cow.Services
             return isSuccess;
         }
 
-        public async Task<Treatment_Cow> GetByID(int id)
+        public async Task<Treatment_Cow> GetByIDAsync(int id)
         {
             var query = $"SELECT * FROM Cow_Treatment WHERE Cow_Treatment_ID = {id};";
 
