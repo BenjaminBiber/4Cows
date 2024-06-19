@@ -38,7 +38,7 @@
         <MudTd><MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="@(() => RemovePlannedCowDialog(context))">Behandlung entfernen</MudButton></MudTd>
         </RowTemplate>
         <PagerContent>
-            <MudTablePager />
+            <MudTablePager RowsPerPageString="Behandlungen pro Seite" PageSizeOptions="new int[]{25, 50, 100}" />
         </PagerContent>
     </MudTable>
 

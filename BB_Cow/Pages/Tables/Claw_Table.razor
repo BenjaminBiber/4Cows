@@ -26,7 +26,7 @@
             <MudTd><MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="@(() => OpenClawInformation(context))">Behandlung öffnen</MudButton></MudTd>
         </RowTemplate>
         <PagerContent>
-            <MudTablePager />
+            <MudTablePager RowsPerPageString="Behandlungen pro Seite" PageSizeOptions="new int[]{25, 50, 100}" />
         </PagerContent>
     </MudTable>
 @code {
