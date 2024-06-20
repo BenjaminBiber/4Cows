@@ -1,4 +1,5 @@
 ﻿using BB_Cow.Services;
+using BBCowDataLibrary.SQL;
 using Microsoft.Extensions.Caching.Memory;
 using MudBlazor.Services;
 
@@ -12,6 +13,7 @@ namespace LP4U
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
+            DatabaseService.GetDBStringFromCSV();
         }
 
         public void ConfigureServices(IServiceCollection services)
