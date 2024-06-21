@@ -2,9 +2,17 @@
 @inject IDialogService DialogService
 @using BB_Cow.Components
 @using BB_Cow.Components.Dialogs
+@using OfficeOpenXml
 @inject ClawTreatmentService clawTreatmentService
+@inject IJSRuntime JS
+
 <MudGrid Justify="Justify.FlexEnd">
+    <MudTooltip Text="Behandlungen als Excel exportieren">
+        <MudIconButton Icon="@Icons.Material.Filled.Download" Color="Color.Secondary" Size="Size.Large" OnClick="DownloadFile"></MudIconButton>
+    </MudTooltip>
+    <MudTooltip Text="Neue Behandlung hinzufügen">
     <MudIconButton Icon="@Icons.Material.Filled.AddCircle" Color="Color.Secondary" Size="Size.Large" OnClick="OpenClawDialog"></MudIconButton>
+    </MudTooltip>
 </MudGrid>
 <MudSpacer></MudSpacer>
 <MudText Typo="Typo.h3">Klauen Behandlungen</MudText>
@@ -32,7 +40,7 @@
 @code {
     private Treatment_Claw selectedClaw = null;
     private string searchClaw = "";
-    private IEnumerable<Treatment_Claw> Treatment_Claws = new List<Treatment_Claw>();
+    private List<Treatment_Claw> Treatment_Claws = new List<Treatment_Claw>();
 
     protected override async Task OnInitializedAsync()
     {
@@ -62,5 +70,61 @@
     {
         var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
         DialogService.Show<Add_Claw_Treatment_Dialog>("", options);
+    }
+
+
+    private async Task DownloadFile()
+    {
+        var data = new List<string> { "Eintrag 1", "Eintrag 2", "Eintrag 3" };
+        var excelData = ExportDataToExcel();
+
+        var base64 = Convert.ToBase64String(excelData);
+
+        await JS.InvokeVoidAsync("downloadFile", $"Klauenbehandlungen Export {DateTime.Now.ToString("dd-MM-yyyy")}.xlsx", base64);
+    }
+
+    private byte[] ExportDataToExcel()
+    {
+        using (var package = new ExcelPackage())
+        {
+            var worksheet = package.Workbook.Worksheets.Add("Sheet1");
+
+            worksheet.Cells[1, 1].Value = "Halsbandnummer";
+            worksheet.Cells[1, 2].Value = "Datum";
+            worksheet.Cells[1, 3].Value = "Behandlung LV";
+            worksheet.Cells[1, 4].Value = "Verband LV";
+            worksheet.Cells[1, 5].Value = "Klotz LV";
+            worksheet.Cells[1, 6].Value = "Behandlung RV";
+            worksheet.Cells[1, 7].Value = "Verband RV";
+            worksheet.Cells[1, 8].Value = "Klotz RV";
+            worksheet.Cells[1, 9].Value = "Behandlung LH";
+            worksheet.Cells[1, 10].Value = "Verband LH";
+            worksheet.Cells[1, 11].Value = "Klotz LH";
+            worksheet.Cells[1, 12].Value = "Behandlung RH";
+            worksheet.Cells[1, 13].Value = "Verband RH";
+            worksheet.Cells[1, 14].Value = "Klotz RH";
+            worksheet.Cells[1, 15].Value = "Wurde Verband entfernt?";
+
+            for (int i = 0; i < Treatment_Claws.Count; i++)
+            {
+                worksheet.Cells[i + 2, 1].Value = Treatment_Claws[i].Collar_Number;
+                worksheet.Cells[i + 2, 2].Value = Treatment_Claws[i].Treatment_Date;
+                worksheet.Cells[i + 2, 3].Value = Treatment_Claws[i].Claw_Finding_LV;
+                worksheet.Cells[i + 2, 4].Value = Treatment_Claws[i].Bandage_LV ? "Verband" : "Kein Verband";
+                worksheet.Cells[i + 2, 5].Value = Treatment_Claws[i].Block_LV ? "Klotz" : "Kein Klotz";
+                worksheet.Cells[i + 2, 6].Value = Treatment_Claws[i].Claw_Finding_RV;
+                worksheet.Cells[i + 2, 7].Value = Treatment_Claws[i].Bandage_RV ? "Verband" : "Kein Verband";
+                worksheet.Cells[i + 2, 8].Value = Treatment_Claws[i].Block_RV ? "Klotz" : "Kein Klotz";
+                worksheet.Cells[i + 2, 9].Value = Treatment_Claws[i].Claw_Finding_LH;
+                worksheet.Cells[i + 2, 10].Value = Treatment_Claws[i].Bandage_LH ? "Verband" : "Kein Verband";
+                worksheet.Cells[i + 2, 11].Value = Treatment_Claws[i].Block_LH ? "Klotz" : "Kein Klotz";
+                worksheet.Cells[i + 2, 12].Value = Treatment_Claws[i].Claw_Finding_RH;
+                worksheet.Cells[i + 2, 13].Value = Treatment_Claws[i].Bandage_RH ? "Verband" : "Kein Verband";
+                worksheet.Cells[i + 2, 14].Value = Treatment_Claws[i].Block_RH ? "Klotz" : "Kein Klotz";
+                worksheet.Cells[i + 2, 15].Value = Treatment_Claws[i].IsBandageRemoved ? "Verbände wurden entfernt" : "Verbände noch vorhanden";
+            }
+
+            return package.GetAsByteArray();
+        }
     }
 }
