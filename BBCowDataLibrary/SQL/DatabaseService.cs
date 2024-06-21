@@ -1,6 +1,7 @@
 ﻿using Microsoft.VisualBasic.FileIO;
 using MySqlConnector;
 using System;
+using System.IO;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using static System.Runtime.InteropServices.JavaScript.JSType;
@@ -68,37 +69,45 @@ namespace BBCowDataLibrary.SQL
 
         public static void GetDBStringFromCSV()
         {
-            var userPath = @$"C:\Users\{Environment.UserName}\4Cows\DbString.csv";
-            try
+            var userPath = @$"C:\Users\{Environment.UserName}\4Cows";
+            if(!Directory.Exists(userPath))
             {
-                using (TextFieldParser parser = new TextFieldParser(userPath))
+                Directory.CreateDirectory(userPath);
+            }
+            if(File.Exists($@"{userPath}\DbString.csv"))
+            {
+                userPath = userPath + @"\DbString.csv";
+                try
                 {
-                    parser.TextFieldType = FieldType.Delimited;
-                    parser.SetDelimiters(";");
-
-                    while (!parser.EndOfData)
+                    using (TextFieldParser parser = new TextFieldParser(userPath))
                     {
-                        string[] fields = parser.ReadFields();
-                        if (fields.Count() > 0 && fields != null)
+                        parser.TextFieldType = FieldType.Delimited;
+                        parser.SetDelimiters(";");
+
+                        while (!parser.EndOfData)
                         {
-                            if (Regex.IsMatch(fields[0], @"^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"))
+                            string[] fields = parser.ReadFields();
+                            if (fields.Count() > 0 && fields != null)
                             {
-                                connectionString = new MySqlConnectionStringBuilder
+                                if (Regex.IsMatch(fields[0], @"^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"))
                                 {
-                                    Server = fields[0],
-                                    UserID = fields[1] ?? "",
-                                    Password = fields[2] ?? "",
-                                    Database = fields[3] ?? "",
-                                    Port = 3306
-                                }.ConnectionString;
+                                    connectionString = new MySqlConnectionStringBuilder
+                                    {
+                                        Server = fields[0],
+                                        UserID = fields[1] ?? "",
+                                        Password = fields[2] ?? "",
+                                        Database = fields[3] ?? "",
+                                        Port = 3306
+                                    }.ConnectionString;
+                                }
                             }
                         }
                     }
                 }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Fehler beim Lesen der Datei: {ex.Message}");
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Fehler beim Lesen der Datei: {ex.Message}");
+                }
             }
         }
     }
