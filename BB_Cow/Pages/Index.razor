@@ -1,9 +1,13 @@
 ﻿@page "/"
 @inject IDialogService DialogService
 @inject IJSRuntime JSRuntime
-@using BB_Cow.Services
 @using BB_Cow.Components
+@using BB_Cow.Components.Dialogs
 @inject ISnackbar Snackbar
+@inject CowTreatmentService cowTreatmentService
+@inject PCowTreatmentService pCowTreatmentService
+@inject PClawTreatmentService pClawTreatmentService
+@inject ClawTreatmentService clawTreatmentService
 
 @if(hasLoaded)
 {
@@ -154,7 +158,7 @@
                         <MudElement HtmlTag="a" href="/Kuh_Daten">
                         <MudPaper Elevation="5" Class="pa-4" Style="height: 14em;">
                             <MudText  Align="Align.Center" Typo="Typo.h6">Kuh Behandlungen:</MudText>
-                            <MudText Color="Color.Warning" Align="Align.Center" Class="align-self-md-end" Typo="Typo.h2"><b>@CowList.Count</b></MudText>
+                            <MudText Color="Color.Info" Align="Align.Center" Class="align-self-md-end" Typo="Typo.h2"><b>@CowList.Count</b></MudText>
                         </MudPaper>
                             </MudElement>
                     </MudItem>
@@ -163,7 +167,7 @@
                         <MudElement HtmlTag="a" href="/Klauen_Daten">
                         <MudPaper Elevation="5" Class="pa-4" Style="height: 14em;">
                             <MudText Align="Align.Center" Typo="Typo.h6">Klauen Behandlungen:</MudText>
-                            <MudText Color="Color.Tertiary" Align="Align.Center" Typo="Typo.h2"><b>@ClawList.Count</b></MudText>
+                            <MudText Color="Color.Info" Align="Align.Center" Typo="Typo.h2"><b>@ClawList.Count</b></MudText>
                         </MudPaper>
                             </MudElement>
                     </MudItem>
@@ -181,7 +185,7 @@
                         <MudElement HtmlTag="a" href="/geplante_Kuh_Daten">
                         <MudPaper Elevation="5" Class="pa-4" Style="height: 14em;">
                             <MudText Align="Align.Center" Typo="Typo.h6">geplante Kuh Behandlungen:</MudText>
-                            <MudText Color="Color.Secondary" Align="Align.Center" Typo="Typo.h2"><b>@(Planned_CowList.Count() == null ? 0 : Planned_CowList.Count())</b></MudText>
+                            <MudText Color="Color.Info" Align="Align.Center" Typo="Typo.h2"><b>@(Planned_CowList.Count() < 1 ? 0 : Planned_CowList.Count())</b></MudText>
                         </MudPaper>
                             </MudElement>
                     </MudItem>
@@ -190,14 +194,14 @@
                             <MudElement HtmlTag="a" href="/Verband_Daten">
                                 <MudPaper Elevation="5" Class="pa-4" Style="height: 14em;">
                                     <MudText Align="Align.Center" Typo="Typo.h6"> Verbände:</MudText>
-                                    <MudText Color="Color.Primary" Align="Align.Center" Typo="Typo.h2"><b>@ClawList.Where(x => (x.Bandage_LH || x.Bandage_LV || x.Bandage_RV || x.Bandage_RH) && !x.IsBandageRemoved).Count()</b></MudText>
+                                    <MudText Color="Color.Info" Align="Align.Center" Typo="Typo.h2"><b>@ClawList.Where(x => (x.Bandage_LH || x.Bandage_LV || x.Bandage_RV || x.Bandage_RH) && !x.IsBandageRemoved).Count()</b></MudText>
                                 </MudPaper>
                             </MudElement>
                         </MudItem>
                     <MudItem xs="3" lg="3" Style="width:100%; height:100%">
                         <MudElement HtmlTag="a" href="/Kuh_Daten">                        <MudPaper Elevation="5" Class="pa-4" Style="height: 14em;">
                             <MudText Align="Align.Center" Typo="Typo.h6">Meist verwendetes Medikament:</MudText>
-                            <MudText Color="Color.Success" Align="Align.Center" Typo="Typo.h5">
+                            <MudText Color="Color.Info" Align="Align.Center" Typo="Typo.h5">
                                 <b>
                                      @(CowList.GroupBy(obj => obj.Medicine_Name)
                                 .OrderByDescending(group => group.Count())
@@ -212,7 +216,7 @@
                             <MudElement HtmlTag="a" href="/Klauen_Daten">
                         <MudPaper Elevation="5" Class="pa-4" Style="height: 14em;">
                             <MudText Align="Align.Center" Typo="Typo.h6">Meist behandelte Klauenfund:</MudText>
-                            <MudText Color="Color.Error" Align="Align.Center" Typo="Typo.h5">
+                            <MudText Color="Color.Info" Align="Align.Center" Typo="Typo.h5">
                                 <b>
                                     @(ClawList
                                         .SelectMany(obj => new[] { obj.Claw_Finding_LH, obj.Claw_Finding_LV, obj.Claw_Finding_RH, obj.Claw_Finding_RV })
@@ -231,7 +235,7 @@
                             <MudElement HtmlTag="a" href="/Klauen_Daten">
                             <MudPaper Elevation="5" Class="pa-4" Style="height: 14em;">
                                 <MudText Align="Align.Center" Typo="Typo.h6">Kuh mit den meisten Klauen Behandlungen:</MudText>
-                                <MudText Color="Color.Primary" Align="Align.Center" Typo="Typo.h5">
+                                    <MudText Color="Color.Info" Align="Align.Center" Typo="Typo.h5">
                                     <b>
                                         @(ClawList.GroupBy(obj => obj.Collar_Number)
                                             .OrderByDescending(group => group.Count())
@@ -252,19 +256,19 @@
             {
                 <MudGrid>
                     <MudItem sm="6" xs="6" lg="12" Style="width:100%; height:100%">
-                        <MudButton StartIcon="@Icons.Material.Filled.BackupTable" Style="height: 6em;" IconColor="Color.Surface" Align="Align.Center" Variant="Variant.Filled" Color="Color.Warning" FullWidth="true" OnClick="OpenCowDialog">Kuh Behandlung hinzufügen</MudButton>
+                        <MudButton StartIcon="@Icons.Material.Filled.BackupTable" Style="height: 6em;" IconColor="Color.Surface" Align="Align.Center" Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true" OnClick="OpenCowDialog">Kuh Behandlung hinzufügen</MudButton>
                     </MudItem>
 
                     <MudItem sm="6" xs="6" lg="12" Style="width:100%; height:100%">
-                        <MudButton StartIcon="@Icons.Material.Filled.Construction" Style="height: 6em;" IconColor="Color.Surface" Align="Align.Center" Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true" OnClick="OpenPlannedDialog">geplante Kuh Behandlung hinzufügen</MudButton>
+                            <MudButton StartIcon="@Icons.Material.Filled.Construction" Style="height: 6em;" IconColor="Color.Surface" Align="Align.Center" Variant="Variant.Filled" Color="Color.Tertiary" FullWidth="true" OnClick="OpenPlannedDialog">geplante Kuh Behandlung hinzufügen</MudButton>
                     </MudItem>
 
                     <MudItem sm="6" xs="6" lg="12" Style="width:100%; height:100%">
-                        <MudButton StartIcon="@Icons.Material.Filled.Pets" Style="height: 6em;" IconColor="Color.Surface" Align="Align.Center" Variant="Variant.Filled" Color="Color.Tertiary" FullWidth="true" OnClick="OpenClawDialog">Klauen Behandlung hinzufügen</MudButton>
+                        <MudButton StartIcon="@Icons.Material.Filled.Pets" Style="height: 6em;" IconColor="Color.Surface" Align="Align.Center" Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true" OnClick="OpenClawDialog">Klauen Behandlung hinzufügen</MudButton>
                     </MudItem>
 
                     <MudItem sm="6" xs="6" lg="12" Style="width:100%; height:100%">
-                            <MudButton StartIcon="@Icons.Material.Filled.Plumbing" Style="height: 6em;" IconColor="Color.Surface" Align="Align.Center" Variant="Variant.Filled" Color="Color.Info" FullWidth="true" OnClick="OpenPlannedClawDialog" >geplante Klauen Behandlung hinzufügen</MudButton>
+                            <MudButton StartIcon="@Icons.Material.Filled.Plumbing" Style="height: 6em;" IconColor="Color.Surface" Align="Align.Center" Variant="Variant.Filled" Color="Color.Tertiary" FullWidth="true" OnClick="OpenPlannedClawDialog" >geplante Klauen Behandlung hinzufügen</MudButton>
                     </MudItem>
                 </MudGrid>
 
@@ -273,19 +277,19 @@
             {
                             <MudGrid>
                     <MudItem xs="6" sm="6" md="4" lg="12" Style="width:100%; height:100%">
-                        <MudButton StartIcon="@Icons.Material.Filled.BackupTable" Style="height: 5em;" IconColor="Color.Surface" Align="Align.Center" Variant="Variant.Filled" Color="Color.Warning" FullWidth="true" OnClick="OpenCowDialog">Kuh Behandlung hinzufügen</MudButton>
+                        <MudButton StartIcon="@Icons.Material.Filled.BackupTable" Style="height: 5em;" IconColor="Color.Surface" Align="Align.Center" Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true" OnClick="OpenCowDialog">Kuh Behandlung hinzufügen</MudButton>
                     </MudItem>
 
                     <MudItem xs="6" sm="6" md="4" lg="12" Style="width:100%; height:100%">
-                            <MudButton StartIcon="@Icons.Material.Filled.Construction" Style="height: 5em;" IconColor="Color.Surface" Align="Align.Center" Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true" OnClick="OpenPlannedDialog">geplante Kuh Behandlung hinzufügen</MudButton>
+                            <MudButton StartIcon="@Icons.Material.Filled.Construction" Style="height: 5em;" IconColor="Color.Surface" Align="Align.Center" Variant="Variant.Filled" Color="Color.Tertiary" FullWidth="true" OnClick="OpenPlannedDialog">geplante Kuh Behandlung hinzufügen</MudButton>
                     </MudItem>
 
                     <MudItem xs="6" sm="6" md="4" lg="12" Style="width:100%; height:100%">
-                        <MudButton StartIcon="@Icons.Material.Filled.Pets" Style="height: 5em;" IconColor="Color.Surface" Align="Align.Center" Variant="Variant.Filled" Color="Color.Tertiary" FullWidth="true" OnClick="OpenClawDialog">Klauen Behandlung hinzufügen</MudButton>
+                            <MudButton StartIcon="@Icons.Material.Filled.Pets" Style="height: 5em;" IconColor="Color.Surface" Align="Align.Center" Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true" OnClick="OpenClawDialog">Klauen Behandlung hinzufügen</MudButton>
                     </MudItem>
 
                     <MudItem xs="6" sm="6" md="4" lg="12" Style="width:100%; height:100%">
-                        <MudButton StartIcon="@Icons.Material.Filled.Plumbing" Style="height: 5em;" IconColor="Color.Surface" Align="Align.Center" Variant="Variant.Filled" Color="Color.Info" FullWidth="true" OnClick="OpenPlannedClawDialog">geplante Klauen Behandlung hinzufügen</MudButton>
+                            <MudButton StartIcon="@Icons.Material.Filled.Plumbing" Style="height: 5em;" IconColor="Color.Surface" Align="Align.Center" Variant="Variant.Filled" Color="Color.Tertiary" FullWidth="true" OnClick="OpenPlannedClawDialog">geplante Klauen Behandlung hinzufügen</MudButton>
                     </MudItem>
                 </MudGrid>
             }
@@ -351,10 +355,10 @@ else
     private int indexValue = -1; 
     public ChartOptions Options = new ChartOptions();
 
-    public List<Treatment_Cow> CowList = Cow_Treatment_Static.StaticTreatments;
-    public List<Treatment_Claw> ClawList = Claw_Treatment_Static.StaticTreatments; 
-    public List<Planned_Treatment_Cow> Planned_CowList = Planned_Cow_Treatment_Static.StaticTreatments;
-    public List<Planned_Treatment_Claw> Planned_ClawList = Planned_Claw_Treatment_Static.StaticTreatments;
+    public List<Treatment_Cow> CowList = new List<Treatment_Cow>();
+    public List<Treatment_Claw> ClawList = new List<Treatment_Claw>(); 
+    public List<Planned_Treatment_Cow> Planned_CowList = new List<Planned_Treatment_Cow>();
+    public List<Planned_Treatment_Claw> Planned_ClawList = new List<Planned_Treatment_Claw>();
 
     public List<ChartSeries> Series = new List<ChartSeries>() { };
     public string[] XAxisLabels = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez" };
@@ -362,12 +366,17 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        CowList = cowTreatmentService.Treatments;
+        ClawList = clawTreatmentService.Treatments;
+        Planned_CowList = pCowTreatmentService.Treatments;
+        Planned_ClawList = pClawTreatmentService.Treatments;
+
         try
         {
-            Cow_Treatment_Static.GetAllData();
-            Claw_Treatment_Static.GetAllData();
-            Planned_Cow_Treatment_Static.GetAllData();
-            Planned_Claw_Treatment_Static.GetAllData();
+            await cowTreatmentService.GetAllDataAsync();
+            await clawTreatmentService.GetAllDataAsync();
+            await pCowTreatmentService.GetAllDataAsync();
+            await pClawTreatmentService.GetAllDataAsync();
 
             _options.YAxisTicks = 5;
             Series.Add(new ChartSeries()

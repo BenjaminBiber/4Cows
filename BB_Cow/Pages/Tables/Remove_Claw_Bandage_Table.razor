@@ -2,8 +2,9 @@
 @using BB_Cow.Components
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
-
+@inject ClawTreatmentService clawTreatmentService
 @using BB_Cow.Class
+@using BB_Cow.Components.Dialogs
 
 <MudGrid Justify="Justify.FlexEnd">
     <MudIconButton Icon="@Icons.Material.Filled.AddCircle" Color="Color.Secondary" Size="Size.Large" OnClick="OpenClawDialog"></MudIconButton>
@@ -31,7 +32,7 @@
 
         </RowTemplate>
         <PagerContent>
-            <MudTablePager />
+            <MudTablePager RowsPerPageString="Verbände pro Seite" PageSizeOptions="new int[]{25, 50, 100}" />
         </PagerContent>
     </MudTable>
 
@@ -42,7 +43,7 @@
 
     protected override void OnInitialized()
     {
-        Treatment_Claws = Claw_Treatment_Static.StaticTreatments.Where(x => (x.Bandage_LH || x.Bandage_LV || x.Bandage_RV || x.Bandage_RH) && !x.IsBandageRemoved).OrderBy(x => x.Treatment_Date);
+        Treatment_Claws = clawTreatmentService.Treatments.Where(x => (x.Bandage_LH || x.Bandage_LV || x.Bandage_RV || x.Bandage_RH) && !x.IsBandageRemoved).OrderBy(x => x.Treatment_Date);
     }
     private bool ClawFilterFunc1(Treatment_Claw Treatment_Cow) => FilterFuncClaw(Treatment_Cow, searchClaw);
 
@@ -55,12 +56,12 @@
         return false;
     }
 
-    private void OpenClawInformation(Treatment_Claw Claw_Treatment)
+    private async Task OpenClawInformation(Treatment_Claw Claw_Treatment)
     {
         var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
-        Claw_Treatment_Static.GetAllData();
+        await clawTreatmentService.GetAllDataAsync();
         var parameters = new DialogParameters<Show_Claw_Treatment_Dialog> { { x => x.Claw_Treatment, Claw_Treatment } };
-        DialogService.Show<Show_Claw_Treatment_Dialog>("", parameters, options);
+        await DialogService.ShowAsync<Show_Claw_Treatment_Dialog>("", parameters, options);
     }
 
     private void OpenClawDialog()
@@ -69,9 +70,9 @@
         DialogService.Show<Add_Claw_Treatment_Dialog>("", options);
     }
 
-    private void RemoveBandage(Treatment_Claw Claw_Treatment)
+    private async Task RemoveBandage(Treatment_Claw Claw_Treatment)
     {
-        if(Claw_Treatment_Static.RemoveBandage(Claw_Treatment.Claw_Treatment_ID))
+        if(await clawTreatmentService.RemoveBandageAsync(Claw_Treatment.Claw_Treatment_ID))
         {
             Snackbar.Add($"Verband erfolgreich entfernt!", Severity.Success);
         }

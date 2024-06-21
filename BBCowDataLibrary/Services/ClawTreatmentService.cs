@@ -1,17 +1,18 @@
 ﻿using MySqlConnector;
 using BB_Cow.Class;
 using System.Reflection.Metadata.Ecma335;
+using BBCowDataLibrary.SQL;
 
 namespace BB_Cow.Services
 {
-    public static class Claw_Treatment_Static
+    public class ClawTreatmentService
     {
-        public static List<Treatment_Claw> StaticTreatments { get; set; } = new();
-        public static List<string> StaticClawFindingList { get; set; } = new();
+        public List<Treatment_Claw> Treatments { get; set; } = new();
+        public List<string> ClawFindingList { get; set; } = new();
 
-        public static void GetAllData()
+        public async Task GetAllDataAsync()
         {
-            StaticTreatments = DatabaseService.ReadData(@"SELECT * FROM `Claw_Treatment`;", reader =>
+            Treatments = await DatabaseService.ReadDataAsync(@"SELECT * FROM `Claw_Treatment`;",reader =>
             {
                 var treatment = new Treatment_Claw
                 {
@@ -34,13 +35,13 @@ namespace BB_Cow.Services
                 };
                 return treatment;
             });
-            StaticClawFindingList = StaticTreatments.SelectMany(t => new[] { t.Claw_Finding_LV, t.Claw_Finding_LH, t.Claw_Finding_RV, t.Claw_Finding_RH }).Distinct().ToList();
+            ClawFindingList = Treatments.SelectMany(t => new[] { t.Claw_Finding_LV, t.Claw_Finding_LH, t.Claw_Finding_RV, t.Claw_Finding_RH }).Distinct().ToList();
         }
 
-        public static bool InsertData(Treatment_Claw claw_Treatment)
+        public async Task<bool> InsertDataAsync(Treatment_Claw claw_Treatment)
         {
             bool isSuccess = false;
-            DatabaseService.ExecuteQuery(command =>
+            await DatabaseService.ExecuteQueryAsync( async command =>
             {
                 command.CommandText = @"INSERT INTO `Claw_Treatment` (`Collar_Number`, `Treatment_Date`, `Claw_Finding_LV`, `Bandage_LV`, `Block_LV`, `Claw_Finding_LH`, `Bandage_LH`, `Block_LH`, `Claw_Finding_RV`, `Bandage_RV`, `Block_RV`, `Claw_Finding_RH`, `Bandage_RH`, `Block_RH`, `IsBandageRemoved`) VALUES (@Collar_Number, @Treatment_Date, @Claw_Finding_LV, @Bandage_LV, @Block_LV, @Claw_Finding_LH, @Bandage_LH, @Block_LH, @Claw_Finding_RV, @Bandage_RV, @Block_RV, @Claw_Finding_RH, @Bandage_RH, @Block_RH, @IsBandageRemoved);";
                 command.Parameters.AddWithValue("@Collar_Number", claw_Treatment.Collar_Number);
@@ -58,14 +59,14 @@ namespace BB_Cow.Services
                 command.Parameters.AddWithValue("@Bandage_RH", claw_Treatment.Bandage_RH);
                 command.Parameters.AddWithValue("@Block_RH", claw_Treatment.Block_RH);
                 command.Parameters.AddWithValue("@IsBandageRemoved", claw_Treatment.IsBandageRemoved);
-                isSuccess = command.ExecuteNonQuery() > 0;
+                isSuccess = (await command.ExecuteNonQueryAsync()) > 0;
             });
             return isSuccess;
         }
 
-        public static Treatment_Claw GetByID(int id)
+        public async Task<Treatment_Claw> GetByIDAsync(int id)
         {
-            return DatabaseService.ReadData($"SELECT * FROM `Claw_Treatment` WHERE Claw_Treatment_ID = {id};", reader =>
+            var treatments =  await DatabaseService.ReadDataAsync($"SELECT * FROM `Claw_Treatment` WHERE Claw_Treatment_ID = {id};", reader =>
             {
                 var treatment = new Treatment_Claw
                 {
@@ -87,17 +88,19 @@ namespace BB_Cow.Services
                     IsBandageRemoved = reader.GetBoolean("IsBandageRemoved")
                 };
                 return treatment;
-            }).FirstOrDefault();
+            });
+
+            return treatments.FirstOrDefault() ?? new Treatment_Claw();
         }
 
-        public static bool RemoveBandage(int id)
+        public async Task<bool> RemoveBandageAsync(int id)
         {
             bool isSuccess = false;
-            DatabaseService.ExecuteQuery(command =>
+            await DatabaseService.ExecuteQueryAsync(async command =>
             {
                 command.CommandText = @"UPDATE `Claw_Treatment` SET `IsBandageRemoved` = true WHERE `Claw_Treatment_ID` = @id;";
                 command.Parameters.AddWithValue("@id", id);
-                isSuccess = command.ExecuteNonQuery() > 0;
+                isSuccess = (await command.ExecuteNonQueryAsync()) > 0;
             });
             return isSuccess;
         }

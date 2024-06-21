@@ -1,6 +1,9 @@
 ﻿@page "/Kuh_Daten"
 @inject IDialogService DialogService
 @using BB_Cow.Components
+@using BB_Cow.Components.Dialogs
+@inject CowTreatmentService cowTreatmentService
+
 <MudGrid Justify="Justify.FlexEnd">
     <MudIconButton Icon="@Icons.Material.Filled.AddCircle" Color="Color.Secondary" Size="Size.Large" OnClick="OpenCowDialog"></MudIconButton>
 </MudGrid>
@@ -31,7 +34,7 @@
 
         </RowTemplate>
         <PagerContent>
-            <MudTablePager />
+            <MudTablePager RowsPerPageString="Behandlungen pro Seite" PageSizeOptions="new int[]{25, 50, 100}" />
         </PagerContent>
     </MudTable>
 
@@ -51,10 +54,10 @@
         return false;
     }
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        Cow_Treatment_Static.GetAllData();
-        Treatment_Cows = Cow_Treatment_Static.StaticTreatments.OrderByDescending(x => x.Administration_Date);
+        await cowTreatmentService.GetAllDataAsync();
+        Treatment_Cows = cowTreatmentService.Treatments.OrderByDescending(x => x.Administration_Date);
     }
 
     private void OpenCowDialog()

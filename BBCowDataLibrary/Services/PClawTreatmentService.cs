@@ -1,15 +1,16 @@
 ﻿using BB_Cow.Class;
+using BBCowDataLibrary.SQL;
 using MySqlConnector;
 
 namespace BB_Cow.Services
 {
-    public static class Planned_Claw_Treatment_Static
+    public  class PClawTreatmentService
     {
-        public static List<Planned_Treatment_Claw> StaticTreatments { get; set; } = new();
+        public  List<Planned_Treatment_Claw> Treatments { get; set; } = new();
 
-        public static void GetAllData()
+        public  async Task GetAllDataAsync()
         {
-            StaticTreatments = DatabaseService.ReadData(@"SELECT * FROM Planned_Claw_Treatment;", reader =>
+            Treatments = await DatabaseService.ReadDataAsync(@"SELECT * FROM Planned_Claw_Treatment;", reader =>
             {
                 var treatment = new Planned_Treatment_Claw
                 {
@@ -26,10 +27,10 @@ namespace BB_Cow.Services
             });
         }
 
-        public static bool InsertData(Planned_Treatment_Claw claw_Treatment)
+        public  async Task<bool> InsertDataAsync(Planned_Treatment_Claw claw_Treatment)
         {
             bool isSuccess = false;
-            DatabaseService.ExecuteQuery(command =>
+            await DatabaseService.ExecuteQueryAsync(async command =>
             {
                 command.CommandText = @"INSERT INTO `Planned_Claw_Treatment` (`Collar_Number`, `Treatment_Date`, `Desciption`, `Claw_Finding_LV`, `Claw_Finding_LH`, `Claw_Finding_RV`, `Claw_Finding_RH`) VALUES (@Collar_Number, @Treatment_Date, @Description, @Claw_Finding_LV, @Claw_Finding_LH, @Claw_Finding_RV, @Claw_Finding_RH);";
                 command.Parameters.AddWithValue("@Collar_Number", claw_Treatment.Collar_Number);
@@ -39,19 +40,19 @@ namespace BB_Cow.Services
                 command.Parameters.AddWithValue("@Claw_Finding_LH", claw_Treatment.Claw_Finding_LH);
                 command.Parameters.AddWithValue("@Claw_Finding_RV", claw_Treatment.Claw_Finding_RV);
                 command.Parameters.AddWithValue("@Claw_Finding_RH", claw_Treatment.Claw_Finding_RH);
-                isSuccess = command.ExecuteNonQuery() > 0;
+                isSuccess = (await command.ExecuteNonQueryAsync()) > 0;
             });
             return isSuccess;
         }
 
-        public static bool RemoveByID(int id)
+        public  async Task<bool> RemoveByIDAsync(int id)
         {
             bool isSuccess = false;
-            DatabaseService.ExecuteQuery(command =>
+            await DatabaseService.ExecuteQueryAsync(async command =>
             {
                 command.CommandText = @"DELETE FROM `Planned_Claw_Treatment` WHERE `Planned_Claw_Treatment_ID` = @id;";
                 command.Parameters.AddWithValue("@id", id);
-                isSuccess = command.ExecuteNonQuery() > 0;
+                isSuccess = (await command.ExecuteNonQueryAsync()) > 0;
             });
             return isSuccess;
         }

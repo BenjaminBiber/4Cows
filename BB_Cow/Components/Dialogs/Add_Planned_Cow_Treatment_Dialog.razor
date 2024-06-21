@@ -1,5 +1,7 @@
 ﻿@inject ISnackbar Snackbar
 @using BB_Cow.Class
+@inject PCowTreatmentService pCowTreatmentService
+@inject CowTreatmentService cowTreatmentService
 
 <MudDialog>
     <DialogContent>
@@ -48,7 +50,7 @@
     {
         NullDate = DateTime.Now;
         numbers.Add(new NumberEntry());
-        Cow_Treatment_Static.GetAllData();
+        cowTreatmentService.GetAllDataAsync();
     }
 
     List<NumberEntry> numbers = new List<NumberEntry>();
@@ -61,8 +63,8 @@
     public void GetEarNumber(NumberEntry entry, KeyboardEventArgs e)
     {
         var index = numbers.IndexOf(entry);
-        List<Treatment_Cow> test = Cow_Treatment_Static.StaticTreatments;
-        numbers[index].EarValue = Cow_Treatment_Static.StaticTreatments.Where(x => x.Collar_Number == entry.Value).OrderByDescending(x => x.Administration_Date).Select(x => x.Ear_Number).FirstOrDefault();
+        List<Treatment_Cow> test = cowTreatmentService.Treatments;
+        numbers[index].EarValue = cowTreatmentService.Treatments.Where(x => x.Collar_Number == entry.Value).OrderByDescending(x => x.Administration_Date).Select(x => x.Ear_Number).FirstOrDefault();
         if (e.Key == "Enter")
         {
             numbers.Add(new NumberEntry());
@@ -71,7 +73,7 @@
 
     }
 
-    public void SaveCowTreatmentModalInput()
+    public async Task SaveCowTreatmentModalInput()
     {
         bool allSavedSuccessfully = true;
         if (NullDate != null && !string.IsNullOrEmpty(Planned_Cow_Treatment.Medicine_Name) && Planned_Cow_Treatment.Medicine_Dosage != 0 && !string.IsNullOrEmpty(Planned_Cow_Treatment.WhereHow))
@@ -87,7 +89,7 @@
                     Planned_Cow_Treatment.Ear_Number = number.EarValue.Value;
                     Planned_Cow_Treatment.Administration_Date = NullDate.Value;
 
-                    var saveSuccessful = Planned_Cow_Treatment_Static.InsertData(Planned_Cow_Treatment);
+                    var saveSuccessful = await pCowTreatmentService.InsertDataAsync(Planned_Cow_Treatment);
                     if (!saveSuccessful)
                     {
                         allSavedSuccessfully = false;
@@ -129,19 +131,19 @@
         await Task.Delay(0);
         if (string.IsNullOrEmpty(value))
         {
-            return Cow_Treatment_Static.StaticCowMedicineTreatmentList;
+            return cowTreatmentService.CowMedicineTreatmentList;
         }
-        return Cow_Treatment_Static.StaticCowMedicineTreatmentList.Concat(Planned_Cow_Treatment_Static.StaticCowMedicineTreatmentList).Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
+        return cowTreatmentService.CowMedicineTreatmentList.Concat(pCowTreatmentService.CowMedicineTreatmentList).Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
     }
 
     private async Task<IEnumerable<string>> Search_Cow_Treatment_WhereHow(string value)
     {
         await Task.Delay(0);
-        if (string.IsNullOrEmpty(value) || Cow_Treatment_Static.StaticCowWhereHowList.Count == 0)
+        if (string.IsNullOrEmpty(value) || cowTreatmentService.CowWhereHowList.Count == 0)
         {
-            return Cow_Treatment_Static.StaticCowWhereHowList;
+            return cowTreatmentService.CowWhereHowList;
         }
-        return Cow_Treatment_Static.StaticCowWhereHowList.Concat(Planned_Cow_Treatment_Static.StaticCowMedicineTreatmentList).Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
+        return cowTreatmentService.CowWhereHowList.Concat(pCowTreatmentService.CowMedicineTreatmentList).Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
     }
 
 }

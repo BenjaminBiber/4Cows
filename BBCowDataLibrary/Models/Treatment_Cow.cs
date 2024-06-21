@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc.RazorPages;
-using MySqlConnector;
+﻿using MySqlConnector;
 using System.Xml.Linq;
 
 namespace BB_Cow.Class
