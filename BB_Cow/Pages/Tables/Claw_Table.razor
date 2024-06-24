@@ -77,7 +77,6 @@
 
     private async Task DownloadFile()
     {
-        var data = new List<string> { "Eintrag 1", "Eintrag 2", "Eintrag 3" };
         var excelData = ExportDataToExcel();
 
         var base64 = Convert.ToBase64String(excelData);

@@ -12,7 +12,7 @@
         <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" />
         <MudSpacer />
         <MudToggleIconButton @bind-Toggled="@_isDarkMode"
-                             Icon="@Icons.Material.Filled.LightMode" Color="@Color.Surface" Title="LightMode"
+                             Icon="@Icons.Material.Filled.LightMode" Color="@Color.Default" Title="LightMode"
                              ToggledIcon="@Icons.Material.Filled.DarkMode" ToggledColor="@Color.Default" ToggledTitle="DarkMode" />
     </MudAppBar>
     <MudDrawer @bind-Open="@open" Variant="@DrawerVariant.Temporary" Elevation="3">

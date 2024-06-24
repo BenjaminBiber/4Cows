@@ -10,9 +10,16 @@
     <MudIconButton Icon="@Icons.Material.Filled.AddCircle" Color="Color.Secondary" Size="Size.Large" OnClick="OpenPlannedClawDialog"></MudIconButton>
 </MudGrid>
 <MudSpacer></MudSpacer>
-<MudText Typo="Typo.h3">geplante Klauen Behandlungen</MudText>
+<MudText Typo="Typo.h3" Class="mb-3">geplante Klauen Behandlungen</MudText>
 
 <MudTable Elevation="5" Items="@Treatment_Claws" Hover="true" Striped="@true" Filter="new Func<Planned_Treatment_Claw,bool>(ClawFilterFunc1)" @bind-SelectedItem="selectedClaw">
+    <ColGroup>
+        <col />
+        <col />
+        <col style="width:15%" />
+        <col style="width:15%" />
+        <col style="width:15%" />
+    </ColGroup>
     <ToolBarContent>
         <MudSpacer />
         <MudTextField @bind-Value="searchClaw" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
@@ -29,9 +36,9 @@
     <RowTemplate>
         <MudTd DataLabel="Halsbandnummer">@context.Collar_Number</MudTd>
         <MudTd DataLabel="Beschreibung">@context.Description</MudTd>
-        <MudTd><MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="@(() => OpenClawInformation(context))">Behandlung öffnen</MudButton></MudTd>
-        <MudTd><MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="@(() => AddClawTreatment(context))">Behandlung abschließen</MudButton></MudTd>
-        <MudTd><MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="@(() => RemovePlannedClawDialog(context))">Behandlung entfernen</MudButton></MudTd>
+        <MudTd><MudButton Color="Color.Tertiary" Variant="Variant.Filled" OnClick="@(() => OpenClawInformation(context))">Behandlung öffnen</MudButton></MudTd>
+        <MudTd><MudButton Color="Color.Secondary" Variant="Variant.Filled" OnClick="@(() => AddClawTreatment(context))">Behandlung abschließen</MudButton></MudTd>
+        <MudTd><MudButton Color="Color.Tertiary" Variant="Variant.Filled" OnClick="@(() => RemovePlannedClawDialog(context))">Behandlung entfernen</MudButton></MudTd>
 
         </RowTemplate>
         <PagerContent>
@@ -134,4 +141,5 @@
             StateHasChanged();
         }
     }
+
 }
