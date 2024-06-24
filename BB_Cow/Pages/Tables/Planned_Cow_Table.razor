@@ -72,8 +72,9 @@
 
     async Task AddCowTreatment(Planned_Treatment_Cow Planned_Cow_Treatment)
     {
-        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
-        var dialog = await DialogService.ShowAsync<Confirm_Planned_Treatment_Cow_Add_Dialog>("", options);
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, NoHeader = true };
+        var parametersGeneric = new DialogParameters<GenericDialog> { { x => x.HeaderText, "Speichern" }, { x => x.Description, "Wollen Sie die Behandlung wirklich Speichern?" }, { x => x.AcceptButtonText, "Ja" }, { x => x.CancelButtonText, "Nein" }, { x => x.ColorScheme, Color.Success } };
+        var dialog = await DialogService.ShowAsync<Confirm_Planned_Treatment_Cow_Add_Dialog>("",parametersGeneric, options);
         var result = await dialog.Result;
         if(result.Data != null)
         {
@@ -86,7 +87,7 @@
                 Cow_Treatment.Medicine_Name = Planned_Cow_Treatment.Medicine_Name;
                 Cow_Treatment.WhereHow = Planned_Cow_Treatment.WhereHow;
                 Cow_Treatment.Ear_Number = Planned_Cow_Treatment.Ear_Number;
-                var options1 = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+                var options1 = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
                 var parameters = new DialogParameters<Add_Cow_Treatment_Dialog> { { x => x.Cow_Treatment, Cow_Treatment } };
                 await DialogService.ShowAsync<Add_Cow_Treatment_Dialog>("", parameters, options1);
                 await pCowTreatmentService.RemoveByIDAsync(Planned_Cow_Treatment.Planned_Cow_Treatment_ID);
@@ -105,7 +106,9 @@
 
     async Task RemovePlannedCowDialog(Planned_Treatment_Cow Planned_Cow_Treatment)
     {
-        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var options = new DialogOptions {MaxWidth = MaxWidth.Medium, FullWidth = true, NoHeader = true };
+        var paramters = new DialogParameters<GenericDialog> { { x => x.HeaderText, "Löschen" }, { x => x.Description, "Wollen Sie die Behandlung wirklich löschen?" }, { x => x.AcceptButtonText, "Ja" }, { x => x.CancelButtonText, "Nein" }, { x => x.ColorScheme, Color.Error } };
+
         var dialog = await DialogService.ShowAsync<Confirm_Planned_Treatment_Delete>("", options);
         var result = await dialog.Result;
         if (result.Data == null)
