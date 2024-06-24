@@ -5,7 +5,7 @@ VisualStudioVersion = 17.9.34607.119
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BB_Cow", "BB_Cow\BB_Cow.csproj", "{B633687F-A707-4158-86AD-A87233F348A6}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BBCowDataLibrary", "BBCowDataLibrary\BBCowDataLibrary.csproj", "{0ED5D0E0-AFA9-4502-BAD1-82EB5448A3EC}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BBCowDataLibrary", "BBCowDataLibrary\BBCowDataLibrary.csproj", "{0ED5D0E0-AFA9-4502-BAD1-82EB5448A3EC}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

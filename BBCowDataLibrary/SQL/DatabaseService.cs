@@ -32,11 +32,21 @@ namespace BBCowDataLibrary.SQL
             }
         }
 
-        public static async Task ExecuteQueryAsync(Func<MySqlCommand, Task> commandAction)
+        public static async Task<bool> ExecuteQueryAsync(Func<MySqlCommand, Task> commandAction)
         {
-            using var connection = await OpenConnectionAsync();
-            using var command = connection.CreateCommand();
-            await commandAction(command);
+            var success = false;
+            try
+            {
+                using var connection = await OpenConnectionAsync();
+                using var command = connection.CreateCommand();
+                await commandAction(command);
+                success = true;
+            }catch(Exception ex)
+            {
+                Console.WriteLine(ex);
+                success = false;
+            }
+            return success;
         }
 
         public static async Task<List<T>> ReadDataAsync<T>(string query, Func<MySqlDataReader, T> readAction)
