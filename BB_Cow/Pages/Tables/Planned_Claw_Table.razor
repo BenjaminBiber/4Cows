@@ -77,8 +77,9 @@
 
     async Task AddClawTreatment(Planned_Treatment_Claw Planned_Claw_Treatment)
     {
-        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
-        var dialog = await DialogService.ShowAsync<Confirm_Planned_Treatment_Delete>("", options);
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, NoHeader = true};
+        var parametersGenericDialog = new DialogParameters<GenericDialog> { { x => x.HeaderText, "Speichern" }, { x => x.Description, "Wollen Sie die Behandlung wirklich Speichern?" }, { x => x.AcceptButtonText, "Ja" }, { x => x.CancelButtonText, "Nein" }, { x => x.ColorScheme, Color.Success } };
+        var dialog = await DialogService.ShowAsync<GenericDialog>("", parametersGenericDialog, options);
         var result = await dialog.Result;
         if (result.Data == null)
         {
@@ -111,14 +112,15 @@
 
     private void OpenPlannedClawDialog()
     {
-        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, NoHeader=true };
         DialogService.Show<Add_Planned_Claw_Treatment_Dialog>("", options);
     }
 
     async Task RemovePlannedClawDialog(Planned_Treatment_Claw Planned_Claw_Treatment)
     {
-        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
-        var dialog = await DialogService.ShowAsync<Confirm_Planned_Treatment_Delete>("", options);
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var parameters = new DialogParameters<GenericDialog> { { x => x.HeaderText, "Löschen" }, { x => x.Description, "Wollen Sie die Behandlung wirklich Löschen?" }, { x => x.AcceptButtonText, "Ja" }, { x => x.CancelButtonText, "Nein" }, { x => x.ColorScheme, Color.Error } };
+        var dialog = await DialogService.ShowAsync<GenericDialog>("",parameters, options);
         var result = await dialog.Result;
         if (result.Data == null)
         {

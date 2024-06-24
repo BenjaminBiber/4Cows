@@ -1,0 +1,35 @@
+﻿<MudDialog>
+    <DialogContent>
+        <MudText Typo="Typo.h3">@HeaderText</MudText>
+        @Description
+    </DialogContent>
+    <DialogActions>
+        @if(!string.IsNullOrEmpty(CancelButtonText))
+        {
+            <MudButton OnClick="Cancel">@CancelButtonText</MudButton>
+        }
+        <MudButton Color="ColorScheme" OnClick="Submit">@AcceptButtonText</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code{
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+
+    void Submit() => MudDialog.Close(DialogResult.Ok(true));
+    void Cancel() => MudDialog.Cancel();
+
+    [Parameter]
+    public string Description { get; set; } = "";
+
+    [Parameter]
+    public string HeaderText { get; set; } = "";
+
+    [Parameter]
+    public string AcceptButtonText { get; set; } = "";
+
+    [Parameter]
+    public string CancelButtonText { get; set; } = "";
+
+    [Parameter]
+    public Color ColorScheme { get; set; }
+}
