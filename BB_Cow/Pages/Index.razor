@@ -366,6 +366,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        Console.WriteLine("Liste wird geladen");
         CowList = cowTreatmentService.Treatments;
         ClawList = clawTreatmentService.Treatments;
         Planned_CowList = pCowTreatmentService.Treatments;
@@ -373,6 +374,7 @@ else
 
         try
         {
+            Console.WriteLine("Daten werden geladen");
             await cowTreatmentService.GetAllDataAsync();
             await clawTreatmentService.GetAllDataAsync();
             await pCowTreatmentService.GetAllDataAsync();
@@ -438,6 +440,7 @@ else
             catch (Exception ex)
             {
                 Console.WriteLine($"An error occurred: {ex.Message}");
+                hasLoaded = true;
             }
         }
     }

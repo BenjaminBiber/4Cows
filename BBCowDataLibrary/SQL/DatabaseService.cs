@@ -23,10 +23,14 @@ namespace BBCowDataLibrary.SQL
             try
             {
                 using var connection = await OpenConnectionAsync();
+                Console.WriteLine("Connection Opened");
+                Console.WriteLine(connection.State);
+                connection.Close();
                 return true;
             }
             catch (MySqlException ex)
             {
+                Console.WriteLine(ex);
                 return false;
             }
         }
@@ -118,6 +122,31 @@ namespace BBCowDataLibrary.SQL
                     Console.WriteLine($"Fehler beim Lesen der Datei: {ex.Message}");
                 }
             }
+            else
+            {
+                GetDBStringFromEnvironment();
+            }
+        }
+        
+        public static async Task GetDBStringFromEnvironment()
+        {
+            Console.WriteLine( "das is ne Variable: " + Environment.GetEnvironmentVariable("DB_SERVER"));
+            Console.WriteLine( "das is ne Variable: " + Environment.GetEnvironmentVariable("DB_User"));
+            Console.WriteLine( "das is ne Variable: " + Environment.GetEnvironmentVariable("DB_Password"));
+            Console.WriteLine( "das is ne Variable: " + Environment.GetEnvironmentVariable("DB_DB"));
+            connectionString = new MySqlConnectionStringBuilder
+            {
+                Server = Environment.GetEnvironmentVariable("DB_SERVER"),
+                UserID = Environment.GetEnvironmentVariable("DB_User") ?? "",
+                Password = Environment.GetEnvironmentVariable("DB_Password") ?? "",
+                Database = Environment.GetEnvironmentVariable("DB_DB") ?? "",
+                Port = 3306
+            }.ConnectionString;
+
+            Console.WriteLine(connectionString);
+            var isGood = await IsConfigured();
+            Console.WriteLine(isGood ? "Session Configured" : "Session Not Configured");
+            
         }
     }
 }

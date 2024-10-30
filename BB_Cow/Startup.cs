@@ -13,6 +13,8 @@ namespace LP4U
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
+            var builder = WebApplication.CreateBuilder();
+            builder.Configuration.AddEnvironmentVariables();
             DatabaseService.GetDBStringFromCSV();
         }
 
