@@ -129,7 +129,7 @@
         return returnBool;
     }
 
-    private async Task<IEnumerable<string>> Search_Claw_Treatment_Claw_Finding(string value)
+    private async Task<IEnumerable<string>> Search_Claw_Treatment_Claw_Finding(string value, CancellationToken token)
     {
         await Task.Delay(0);
         if (string.IsNullOrEmpty(value))

@@ -1,0 +1,20 @@
+﻿
+.modal-background {
+    position: fixed;
+    top: 0px;
+    left: 0px;
+    width: 100vw;
+    height: 100vh;
+    background-color: red;
+    z-index: 1;
+}
+
+.Modal_Content {
+    position: fixed;
+    min-width: 50%;
+    min-height: 30%;
+    background-color: yellow;
+    margin-left: 35%;
+    margin-left: 35%;
+    z-index: 2;
+}

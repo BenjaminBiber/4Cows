@@ -1,0 +1,10 @@
+﻿@page "/"
+@using _4Cows.Components
+@using Microsoft.AspNetCore.Mvc.TagHelpers
+@namespace BB_Cow.Pages
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@{
+    Layout = "_Layout";
+}
+
+<component type="typeof(App)" render-mode="ServerPrerendered" />

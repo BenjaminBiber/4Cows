@@ -126,7 +126,7 @@
 
     }
 
-    private async Task<IEnumerable<string>> Search_Cow_Treatment_Medicaments(string value)
+    private async Task<IEnumerable<string>> Search_Cow_Treatment_Medicaments(string value, CancellationToken token)
     {
         await Task.Delay(0);
         if (string.IsNullOrEmpty(value))
@@ -136,7 +136,7 @@
         return cowTreatmentService.CowMedicineTreatmentList.Concat(pCowTreatmentService.CowMedicineTreatmentList).Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
     }
 
-    private async Task<IEnumerable<string>> Search_Cow_Treatment_WhereHow(string value)
+    private async Task<IEnumerable<string>> Search_Cow_Treatment_WhereHow(string value, CancellationToken token)
     {
         await Task.Delay(0);
         if (string.IsNullOrEmpty(value) || cowTreatmentService.CowWhereHowList.Count == 0)

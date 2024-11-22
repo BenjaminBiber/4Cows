@@ -1,16 +1,14 @@
-using LP4U;
-using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Components.Web;
-using MudBlazor.Services;
+using _4Cows.Components;
 
+var builder = WebApplication.CreateBuilder(args);
 
-static IHostBuilder CreateHostBuilder(string[] args) =>
-            Host.CreateDefaultBuilder(args)
-                .ConfigureWebHostDefaults(webBuilder =>
-                {
-                    webBuilder.UseStartup<Startup>();
-                });
+// Load the Startup class.
+var startup = new Startup(builder.Configuration);
 
-CreateHostBuilder(args)
-                .Build()
-                .Run();
+// Call ConfigureServices on the Startup class.
+startup.ConfigureServices(builder.Services);
+
+var app = builder.Build();
+
+// Call Configure on the Startup class.
+startup.Configure(app, app.Environment);
