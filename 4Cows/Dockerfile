@@ -8,6 +8,7 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 COPY ["4Cows/4Cows.csproj", "4Cows/"]
+COPY ["BBCowDataLibrary/BBCowDataLibrary.csproj", "BBCowDataLibrary/"]
 RUN dotnet restore "4Cows/4Cows.csproj"
 COPY . .
 WORKDIR "/src/4Cows"
