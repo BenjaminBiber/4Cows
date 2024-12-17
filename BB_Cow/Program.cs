@@ -1,4 +1,4 @@
-using _4Cows.Components;
+using _4Cows_FE.Components;
 
 var builder = WebApplication.CreateBuilder(args);
 

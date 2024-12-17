@@ -106,7 +106,7 @@ namespace BBCowDataLibrary.SQL
                                 {
                                     connectionString = new MySqlConnectionStringBuilder
                                     {
-                                        Server = fields[0],
+                                        Server = fields[0] ?? "",
                                         UserID = fields[1] ?? "",
                                         Password = fields[2] ?? "",
                                         Database = fields[3] ?? "",
@@ -128,15 +128,11 @@ namespace BBCowDataLibrary.SQL
             }
         }
         
-        public static async Task GetDBStringFromEnvironment()
+        public static void GetDBStringFromEnvironment()
         {
-            Console.WriteLine( "das is ne Variable: " + Environment.GetEnvironmentVariable("DB_SERVER"));
-            Console.WriteLine( "das is ne Variable: " + Environment.GetEnvironmentVariable("DB_User"));
-            Console.WriteLine( "das is ne Variable: " + Environment.GetEnvironmentVariable("DB_Password"));
-            Console.WriteLine( "das is ne Variable: " + Environment.GetEnvironmentVariable("DB_DB"));
             connectionString = new MySqlConnectionStringBuilder
             {
-                Server = Environment.GetEnvironmentVariable("DB_SERVER"),
+                Server = Environment.GetEnvironmentVariable("DB_SERVER") ?? "",
                 UserID = Environment.GetEnvironmentVariable("DB_User") ?? "",
                 Password = Environment.GetEnvironmentVariable("DB_Password") ?? "",
                 Database = Environment.GetEnvironmentVariable("DB_DB") ?? "",
@@ -144,9 +140,6 @@ namespace BBCowDataLibrary.SQL
             }.ConnectionString;
 
             Console.WriteLine(connectionString);
-            var isGood = await IsConfigured();
-            Console.WriteLine(isGood ? "Session Configured" : "Session Not Configured");
-            
         }
     }
 }
