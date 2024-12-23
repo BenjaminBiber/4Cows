@@ -3,8 +3,6 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.9.34607.119
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BB_Cow", "BB_Cow\BB_Cow.csproj", "{B633687F-A707-4158-86AD-A87233F348A6}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BBCowDataLibrary", "BBCowDataLibrary\BBCowDataLibrary.csproj", "{0ED5D0E0-AFA9-4502-BAD1-82EB5448A3EC}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "4Cows-FE", "4Cows-FE\4Cows-FE.csproj", "{09DE9B8D-FE9A-4B73-8C24-2059776A2268}"
@@ -20,10 +18,6 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{B633687F-A707-4158-86AD-A87233F348A6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{B633687F-A707-4158-86AD-A87233F348A6}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{B633687F-A707-4158-86AD-A87233F348A6}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{B633687F-A707-4158-86AD-A87233F348A6}.Release|Any CPU.Build.0 = Release|Any CPU
 		{0ED5D0E0-AFA9-4502-BAD1-82EB5448A3EC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{0ED5D0E0-AFA9-4502-BAD1-82EB5448A3EC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0ED5D0E0-AFA9-4502-BAD1-82EB5448A3EC}.Release|Any CPU.ActiveCfg = Release|Any CPU

@@ -1,22 +1,24 @@
-FROM ubuntu:latest
+﻿FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
+USER $APP_UID
+WORKDIR /app
+EXPOSE 8080
+EXPOSE 8081
 
-ENV DEBIAN_FRONTEND=noninteractive
+FROM mcr.microsoft.com/dotnet/sdk:8.0.101 AS build
+ARG BUILD_CONFIGURATION=Release
+WORKDIR /src
+COPY ["4Cows-FE/4Cows-FE.csproj", "4Cows-FE/"]
+COPY ["BBCowDataLibrary/BBCowDataLibrary.csproj", "BBCowDataLibrary/"]
+RUN dotnet restore "4Cows-FE/4Cows-FE.csproj"
+COPY . .
+WORKDIR "/src/4Cows-FE"
+RUN dotnet build "4Cows-FE.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
-RUN apt-get update && \
-    apt-get install -y curl && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+FROM build AS publish
+ARG BUILD_CONFIGURATION=Release
+RUN dotnet publish "4Cows-FE.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
 
-RUN apt-get update && \
-    apt-get install -y software-properties-common && \
-    add-apt-repository ppa:dotnet/backports && \
-    apt-get update && \
-    apt-get install -y dotnet-sdk-8.0 && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
-
-COPY . /root/main
-
-EXPOSE 5107
-WORKDIR /root/main/4Cows-FE
-
-#CMD ["dotnet", "run", "4Cows-FE", "--urls", "http://0.0.0.0:5107"]
-CMD ["bash"]
+FROM base AS final
+WORKDIR /app
+COPY --from=publish /app/publish .
+ENTRYPOINT ["dotnet", "4Cows-FE.dll"]

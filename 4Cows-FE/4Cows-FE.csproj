@@ -6,7 +6,9 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <RootNamespace>_4Cows-FE</RootNamespace>
         <AssemblyName>$(AssemblyName.Replace(' ', '_'))</AssemblyName>
+        <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
         <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+        <OutputType>Exe</OutputType>
         <UserSecretsId>22056f54-a927-4fdb-9c5d-89feec646b5f</UserSecretsId>
     </PropertyGroup>
     
@@ -35,6 +37,12 @@
 
     <ItemGroup>
       <ProjectReference Include="..\BBCowDataLibrary\BBCowDataLibrary.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Content Include="..\.dockerignore">
+        <Link>.dockerignore</Link>
+      </Content>
     </ItemGroup>
 
 </Project>
