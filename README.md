@@ -12,7 +12,7 @@
 
 ## Installation
 
-Um das Projekt zu installieren wird Docker Compose empfohlen. Hierbei muss die Ip-Adresse des Servers eingefügt werden.
+Um 4Cows zu installieren wird Docker Compose empfohlen. Hierbei muss die Ip-Adresse des Servers eingefügt werden.
 
 ```docker-compse
     4Cows:
