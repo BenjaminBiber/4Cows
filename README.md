@@ -1,15 +1,54 @@
-## Allgemeine Beschreibung:
 
-Diese Anwendung ist eine ERP-Software zur Herdenverwanltung von Kühen, Schafen & Schweinen. Die zwei Hauptfunktionen, welche bei meiner Anwendung im Vordergrund stehen sind die Behandlung von Tieren mit Medikamenten und das Behandeln von Klauen.
+# 4Cows
 
-## Technische Daten:
+4Cows dient zur Dokumentation und Verwaltung von Klauen und Tierbehandlungen, mit Primären Fokus auf Rinder.
+## Funktionen
 
-Bei diesem Programm handelt es sich um eine Blazor Server App, welche die Daten auf einer MySql (MariaDB in meinem Fall) basierten Datenbank speichert. Das Install-Script für die Datenbank kann man im wwwroot Ordner der Server App finden
+- Speichern und Verwalten von Klauen- und Tierbehandlungen
+- Planen von Klauen- und Tierbehandlungen
+- Dark- & Lightmode
+- Exportieren der Klauenbehandlungen als Excel-Dokument
 
-## General Description:
 
-This application is an ERP software for herd management of cows, sheep & pigs. The two main functions that my application focuses on are the treatment of animals with medication and the treatment of hooves.
+## Installation
 
-## Technical data:
+Um das Projekt zu installieren wird Docker Compose empfohlen. Hierbei muss die Ip-Adresse des Servers eingefügt werden.
 
-This program is a Blazor Server App, which stores the data on a MySql (MariaDB in my case) based database. The install script for the database can be found in the wwwroot folder of the server app
+```docker-compse
+    4Cows:
+    container_name: 4Cows
+    image: benjaminbiber/4cows:latest
+    ports:
+      - "5750:8080"
+    environment:
+      DB_SERVER: "<IP of the Machine>"
+      DB_User: "root" 
+      DB_Password: "4cows"
+      DB_DB: "4cows"
+
+  4Cows-DB:
+    image: mariadb:latest
+    container_name: 4Cows-Db
+    environment:
+      MYSQL_ROOT_PASSWORD: 4cows
+      MYSQL_DATABASE: 4cows
+    ports:
+      - "3306:3306"
+```
+
+
+## Technologie
+
+**Frontend:** Blazor Server App mit Mudblazor
+
+**Backend:** MariaDB Datenbank
+
+
+## Roadmap
+
+- Caching mit Frozen-Dictionaries
+
+- Code-Cleanup und Refactoring der Startpage
+
+- Refactoring der Datenbankstruktur
+
