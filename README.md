@@ -34,6 +34,8 @@ Um 4Cows zu installieren wird Docker Compose empfohlen. Hierbei muss die Ip-Adre
       MYSQL_DATABASE: 4cows
     ports:
       - "3306:3306"
+    volumes:
+    - /etc/docker_vol/4cows-db:/var/lib/mysql
 ```
 
 
