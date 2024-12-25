@@ -1,4 +1,3 @@
-
 # 4Cows
 
 4Cows dient zur Dokumentation und Verwaltung von Klauen und Tierbehandlungen, mit Primären Fokus auf Rinder.
@@ -53,4 +52,8 @@ Um 4Cows zu installieren wird Docker Compose empfohlen. Hierbei muss die Ip-Adre
 - Code-Cleanup und Refactoring der Startpage
 
 - Refactoring der Datenbankstruktur
+
+- Tabelle sollen nicht die ganze Seite scrollbar machen 
+
+- Daten sollen beim neuladen ** Jeder ** Seite geladen werden
 
