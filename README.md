@@ -17,6 +17,8 @@ Um 4Cows zu installieren wird Docker Compose empfohlen. Hierbei muss die Ip-Adre
     4Cows:
     container_name: 4Cows
     image: benjaminbiber/4cows:latest
+    depends_on:
+      - 4Cows-Db
     ports:
       - "5750:8080"
     environment:
