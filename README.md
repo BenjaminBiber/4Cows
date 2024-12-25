@@ -57,3 +57,4 @@ Um 4Cows zu installieren wird Docker Compose empfohlen. Hierbei muss die Ip-Adre
 
 - Daten sollen beim neuladen ** Jeder ** Seite geladen werden
 
+- Sortier Header bei den Tabellen einbauen
