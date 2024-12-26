@@ -208,35 +208,35 @@ html,body{
 }
 
 #LV_Hoof {
-    background-image: url("../images/Hoofs/Hoof_LV.svg");
+    background-image: url("../images/Hoofs/HOOF_LV.svg");
 }
 #LH_Hoof {
-    background-image: url("../images/Hoofs/Hoof_LH.svg");
+    background-image: url("../images/Hoofs/HOOF_LH.svg");
 }
 #RV_Hoof {
-    background-image: url("../images/Hoofs/Hoof_RV.svg");
+    background-image: url("../images/Hoofs/HOOF_RV.svg");
 }
 #RH_Hoof {
-    background-image: url("../images/Hoofs/Hoof_RH.svg");
+    background-image: url("../images/Hoofs/HOOF_RH.svg");
 }
 
 #LV_Hoof:hover {
-    background-image: url("../images/Hoofs/Hoof_LV_Highlighted.svg");
+    background-image: url("../images/Hoofs/HOOF_LV_HighLighted.svg");
     transform: scale(1.05);
 }
 
 #LH_Hoof:hover {
-    background-image: url("../images/Hoofs/Hoof_LH_Highlighted.svg");
+    background-image: url("../images/Hoofs/HOOF_LH_HighLighted.svg");
     transform: scale(1.05);
 }
 
 #RV_Hoof:hover {
-    background-image: url("../images/Hoofs/Hoof_RV_Highlighted.svg");
+    background-image: url("../images/Hoofs/HOOF_RV_HighLighted.svg");
     transform: scale(1.05);
 }
 
 #RH_Hoof:hover {
-    background-image: url("../images/Hoofs/Hoof_RH_Highlighted.svg");
+    background-image: url("../images/Hoofs/HOOF_RH_HighLighted.svg");
     transform: scale(1.05);
 }
 
@@ -565,7 +565,7 @@ th, td {
 }
 
 #LV_Hoof_Standart {
-    background-image: url('../images/Hoofs/Hoof_LV_Highlighted.svg');
+    background-image: url('../images/Hoofs/HOOF_LV_HighLighted.svg');
 }
 
 #LV_Hoof_Block {
@@ -583,7 +583,7 @@ th, td {
 
 
 #RV_Hoof_Standart {
-    background-image: url('../images/Hoofs/Hoof_RV_Highlighted.svg');
+    background-image: url('../images/Hoofs/HOOF_RV_HighLighted.svg');
 }
 
 #RV_Hoof_Block {
@@ -600,7 +600,7 @@ th, td {
 
 
 #LH_Hoof_Standart {
-    background-image: url('../images/Hoofs/Hoof_LH_Highlighted.svg');
+    background-image: url('../images/Hoofs/HOOF_LH_HighLighted.svg');
 }
 
 #LH_Hoof_Block {
@@ -617,7 +617,7 @@ th, td {
 
 
 #RH_Hoof_Standart {
-    background-image: url('../images/Hoofs/Hoof_RH_Highlighted.svg');
+    background-image: url('../images/Hoofs/HOOF_RH_HighLighted.svg');
 }
 
 #RH_Hoof_Block {
