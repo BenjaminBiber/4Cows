@@ -1,3 +1,10 @@
+name: Test Secrets
+
+on:
+  push:
+    branches:
+      - main
+
 jobs:
   test-secrets:
     runs-on: ubuntu-latest
@@ -5,5 +12,4 @@ jobs:
       - name: Test Secrets
         env:
           MY_SECRET: ${{ secrets.MY_SECRET }}
-        run: |
-          echo "Secret: $MY_SECRET"
+        run: echo "Secret: $MY_SECRET"
