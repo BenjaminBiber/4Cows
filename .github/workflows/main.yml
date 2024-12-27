@@ -11,6 +11,6 @@ jobs:
     steps:
       - name: Test Secrets
         env:
-          MY_SECRET: ${{ secrets.MY_SECRET }}
+          MY_SECRET: ${{ secrets.DB_DB }}
         run: |
           echo "Secret: $MY_SECRET"
