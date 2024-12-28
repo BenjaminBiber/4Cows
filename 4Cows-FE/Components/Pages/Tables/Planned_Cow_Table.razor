@@ -99,13 +99,19 @@
 
     async Task AddCowTreatment(Planned_Treatment_Cow Planned_Cow_Treatment)
     {
-        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, NoHeader = true };
-        var parametersGeneric = new DialogParameters<GenericDialog> { { x => x.HeaderText, "Speichern" }, { x => x.Description, "Wollen Sie die Behandlung wirklich Speichern?" }, { x => x.AcceptButtonText, "Ja" }, { x => x.CancelButtonText, "Nein" }, { x => x.ColorScheme, Color.Success } };
-        var dialog = await DialogService.ShowAsync<GenericDialog>("",parametersGeneric, options);
-        var result = await dialog.Result;
-        if(result.Data != null)
+        DialogResult result = null;
+        if (!isSimpleView)
         {
-            if ((bool)result.Data && result.Data != null)
+            var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, NoHeader = true };
+            var parametersGeneric = new DialogParameters<GenericDialog> { { x => x.HeaderText, "Speichern" }, { x => x.Description, "Wollen Sie die Behandlung wirklich Speichern?" }, { x => x.AcceptButtonText, "Ja" }, { x => x.CancelButtonText, "Nein" }, { x => x.ColorScheme, Color.Success } };
+            var dialog = await DialogService.ShowAsync<GenericDialog>("",parametersGeneric, options);
+            result = await dialog.Result;
+        }
+        
+        
+        if(isSimpleView || result.Data != null)
+        {
+            if (isSimpleView || ((bool)result.Data && result.Data != null))
             {
                 var Cow_Treatment = new Treatment_Cow();
                 Cow_Treatment.Collar_Number = Planned_Cow_Treatment.Collar_Number;
