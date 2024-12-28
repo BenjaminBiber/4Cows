@@ -6,47 +6,66 @@
 @inject PCowTreatmentService pCowTreatmentService
 
 <MudGrid Justify="Justify.FlexEnd">
+    <MudSwitch @bind-Value="isSimpleView" Label="Simple Ansicht" UncheckedColor="Color.Info" Color="Color.Primary" />
     <MudIconButton Icon="@Icons.Material.Filled.AddCircle" Color="Color.Secondary" Size="Size.Large" OnClick="OpenPlannedDialog"></MudIconButton>
 </MudGrid>
-<MudSpacer></MudSpacer>
-<MudText Typo="Typo.h3">geplante Kuh Behandlungen</MudText>
+
 <MudTable Items="@Planned_Treatments" Hover="true" Striped="@true" Filter="(Func<Planned_Treatment_Cow, bool>)FilterFunc1Planned" @bind-SelectedItem="selectedPlannedCow">
+    
     <ToolBarContent>
-        <MudText Typo="Typo.h6">geplante Kuh Behandlungen</MudText>
-        <MudSpacer />
-        <MudTextField @bind-Value="plannedCowString" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+        @if (!isSimpleView)
+        {
+            <MudText Typo="Typo.h3">geplante Kuh Behandlungen</MudText>
+            <MudSpacer/>
+            <MudTextField @bind-Value="plannedCowString" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+        }
     </ToolBarContent>
+    
     <HeaderContent>
-        <MudTh>Halsbandnummer</MudTh>
-        <MudTh>Ohrmarkennummer</MudTh>
-        <MudTh>Datum</MudTh>
-        <MudTh>Medikament</MudTh>
-        <MudTh>Wie/Wo</MudTh>
-        <MudTh>Menge</MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<Planned_Treatment_Cow, object>(x=>x.Collar_Number)">Halsbandnummer</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<Planned_Treatment_Cow, object>(x=>x.Ear_Number)">Ohrmarkennummer</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<Planned_Treatment_Cow, object>(x=>x.Medicine_Name)">Medikament</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<Planned_Treatment_Cow, object>(x=>x.Medicine_Dosage)">Menge</MudTableSortLabel></MudTh>
+        
+        @if (!isSimpleView)
+        {
+            <MudTh><MudTableSortLabel SortBy="new Func<Planned_Treatment_Cow, object>(x=>x.Administration_Date)">Datum</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<Planned_Treatment_Cow, object>(x=>x.WhereHow)">Wie/Wo</MudTableSortLabel></MudTh>
+        }
+        
         <MudTh>Behandelt</MudTh>
         <MudTh></MudTh>
 
     </HeaderContent>
     <RowTemplate>
-        <MudTd DataLabel="Halsbandnummer">@context.Collar_Number</MudTd>
+        <MudTd Style="" DataLabel="Halsbandnummer">@context.Collar_Number</MudTd>
         <MudTd DataLabel="Ohrmarkennummer">@context.Ear_Number</MudTd>
+        <MudTd DataLabel="Medikament">@context.Medicine_Name</MudTd>
+        <MudTd DataLabel="Menge">@context.Medicine_Dosage</MudTd>
+        
+        @if (!isSimpleView)
+        {
             <MudTd DataLabel="Datum">@context.Administration_Date</MudTd>
-            <MudTd DataLabel="Medikament">@context.Medicine_Name</MudTd>
             <MudTd DataLabel="Wie/Wo">@context.WhereHow</MudTd>
-            <MudTd DataLabel="Menge">@context.Medicine_Dosage</MudTd>
-            <MudTd><MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="@(() => AddCowTreatment(context))">Behandlung abschließen</MudButton></MudTd>
+        }
+        <MudTd><MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="@(() => AddCowTreatment(context))">Behandlung abschließen</MudButton></MudTd>
         <MudTd><MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="@(() => RemovePlannedCowDialog(context))">Behandlung entfernen</MudButton></MudTd>
-        </RowTemplate>
-        <PagerContent>
-            <MudTablePager RowsPerPageString="Behandlungen pro Seite" PageSizeOptions="new int[]{25, 50, 100}" />
-        </PagerContent>
+    </RowTemplate>
+    
+    <PagerContent>
+        @if (!isSimpleView)
+        {
+            <MudTablePager RowsPerPageString="Behandlungen pro Seite" PageSizeOptions="new int[] { 25, 50, 100 }"/>
+        }
+    </PagerContent>
+    
     </MudTable>
 
 @code {
     private string plannedCowString = "";
     public Planned_Treatment_Cow selectedPlannedCow = null;
     private IEnumerable<Planned_Treatment_Cow> Planned_Treatments = new List<Planned_Treatment_Cow>();
-
+    private bool isSimpleView = false;
     private bool FilterFunc1Planned(Planned_Treatment_Cow Treatment_Cow) => FilterFuncPlanned(Treatment_Cow, plannedCowString);
 
     private bool FilterFuncPlanned(Planned_Treatment_Cow Treatment_Cow, string searchString)
@@ -64,10 +83,18 @@
         Planned_Treatments = pCowTreatmentService.Treatments;
     }
 
-    private void OpenPlannedDialog()
+    private async Task OpenPlannedDialog()
     {
         var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
-        DialogService.Show<Add_Planned_Cow_Treatment_Dialog>("", options);
+        var result = DialogService.Show<Add_Planned_Cow_Treatment_Dialog>("", options);
+        var resultData = await result.Result;
+
+        if (!resultData.Canceled)
+        {
+            await pCowTreatmentService.GetAllDataAsync();
+            Planned_Treatments = pCowTreatmentService.Treatments;
+        }
+        
     }
 
     async Task AddCowTreatment(Planned_Treatment_Cow Planned_Cow_Treatment)

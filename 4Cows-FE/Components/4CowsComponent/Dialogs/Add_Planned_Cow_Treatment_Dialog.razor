@@ -12,7 +12,7 @@
                 @foreach (var number in numbers)
                 {
                     <MudItem xs="12">
-                        <MudNumericField Immediate="true" @bind-Value="number.Value" OnKeyDown="(KeyboardEventArgs e) => GetEarNumber(number, e)" Label="Halsbandnummer:" Variant="Variant.Text" />
+                        <MudNumericField TextChanged="@((string s) => GetEarNumber(number))" Immediate="true" @bind-Value="number.Value" OnValue Label="Halsbandnummer:" Variant="Variant.Text" />
                         <MudNumericField Immediate="true" @bind-Value="number.EarValue" Label="Ohrmarkennummer:" Variant="Variant.Text" />
                     </MudItem>
                 }
@@ -60,17 +60,12 @@
         numbers.Add(new NumberEntry());
     }
 
-    public void GetEarNumber(NumberEntry entry, KeyboardEventArgs e)
+    public void GetEarNumber(NumberEntry entry)
     {
         var index = numbers.IndexOf(entry);
         List<Treatment_Cow> test = cowTreatmentService.Treatments;
         numbers[index].EarValue = cowTreatmentService.Treatments.Where(x => x.Collar_Number == entry.Value).OrderByDescending(x => x.Administration_Date).Select(x => x.Ear_Number).FirstOrDefault();
-        if (e.Key == "Enter")
-        {
-            numbers.Add(new NumberEntry());
-        }
         StateHasChanged();
-
     }
 
     public async Task SaveCowTreatmentModalInput()

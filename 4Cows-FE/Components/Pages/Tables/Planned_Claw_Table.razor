@@ -9,8 +9,6 @@
 <MudGrid Justify="Justify.FlexEnd">
     <MudIconButton Icon="@Icons.Material.Filled.AddCircle" Color="Color.Secondary" Size="Size.Large" OnClick="OpenPlannedClawDialog"></MudIconButton>
 </MudGrid>
-<MudSpacer></MudSpacer>
-<MudText Typo="Typo.h3" Class="mb-3">geplante Klauen Behandlungen</MudText>
 
 <MudTable Elevation="5" Items="@Treatment_Claws" Hover="true" Striped="@true" Filter="new Func<Planned_Treatment_Claw,bool>(ClawFilterFunc1)" @bind-SelectedItem="selectedClaw">
     <ColGroup>
@@ -21,12 +19,13 @@
         <col style="width:15%" />
     </ColGroup>
     <ToolBarContent>
+        <MudText Typo="Typo.h3" Class="mb-3">geplante Klauen Behandlungen</MudText>
         <MudSpacer />
         <MudTextField @bind-Value="searchClaw" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
     </ToolBarContent>
     <HeaderContent>
-        <MudTh>Halsbandnummer</MudTh>
-        <MudTh>Beschreibung</MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<Planned_Treatment_Claw, object>(x=>x.Collar_Number)">Halsbandnummer</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<Planned_Treatment_Claw, object>(x=>x.Description)">Beschreibung</MudTableSortLabel></MudTh>
         <MudTh></MudTh>
         <MudTh></MudTh>
         <MudTh></MudTh>

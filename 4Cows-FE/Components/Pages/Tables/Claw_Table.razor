@@ -19,17 +19,16 @@
     <MudIconButton Icon="@Icons.Material.Filled.AddCircle" Color="Color.Secondary" Size="Size.Large" OnClick="OpenClawDialog"></MudIconButton>
     </MudTooltip>
 </MudGrid>
-<MudSpacer></MudSpacer>
-<MudText Typo="Typo.h3">Klauen Behandlungen</MudText>
 
 <MudTable Elevation="5" Items="@Treatment_Claws" Hover="true" Striped="@true" Filter="new Func<Treatment_Claw,bool>(ClawFilterFunc1)" @bind-SelectedItem="selectedClaw">
     <ToolBarContent>
-        <MudSpacer />
+        <MudText Typo="Typo.h3">Klauen Behandlungen</MudText>
+        <MudSpacer/>
         <MudTextField @bind-Value="searchClaw" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
     </ToolBarContent>
     <HeaderContent>
-        <MudTh>Halsbandnummer</MudTh>
-        <MudTh>Datum</MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<Treatment_Claw, object>(x=>x.Collar_Number)">Halsbandnummer</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<Treatment_Claw, object>(x=>x.Treatment_Date)">Datum</MudTableSortLabel></MudTh>
         <MudTh></MudTh>
 
     </HeaderContent>
