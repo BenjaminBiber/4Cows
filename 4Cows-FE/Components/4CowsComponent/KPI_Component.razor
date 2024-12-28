@@ -1,0 +1,15 @@
+<a href="@Link">
+    <MudPaper Elevation="5" Class="pa-4" Style="height: 100%">
+        <MudText Align="Align.Center" Typo="Typo.h6">@Header</MudText>
+        <MudText Color="Color.Info" Style="font-size: 3em" Align="Align.Center" Typo="Typo.h2">
+            <b>
+               @Value
+            </b>
+        </MudText>
+    </MudPaper>
+</a>
+@code {
+    [Parameter] public string Value { get; set; } = "";
+    [Parameter] public string Header { get; set; } = "";
+    [Parameter] public string Link { get; set; } = "";
+}

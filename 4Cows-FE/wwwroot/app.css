@@ -515,6 +515,11 @@ th, td {
     overflow-y: visible;
 }
 
+.Clickable{
+    cursor: pointer;
+    pointer-events: auto;
+}
+
 .ActiveTabMarker {
     position: relative;
     z-index: 2;
@@ -666,4 +671,101 @@ th, td {
 
 #LV_HOOF_Block_Removed {
     background-image: url('../images/data_hoofs/lv_removed_block.svg');
+}
+
+/*Index*/
+
+#Index_Top{
+    padding-top: 2em;
+    display: flex;
+    height: 47dvh;
+}
+
+#KPI_Div{
+    flex-wrap: wrap;
+    gap: 2%;
+    width: 65%;
+    height: 100%;
+    display: flex;
+}
+
+.KPI-Element{
+    height: 44%;
+    aspect-ratio: 1.4/1;
+}
+
+#Action_Div{
+    width: 35%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 1.5em;
+    padding-left: 2em;
+}
+
+#Chart_Div{
+    height: 40dvh;
+    display: flex;
+}
+
+#Chart_Div_One{
+    width: 45%;
+    height: 100%;
+}
+
+#Chart_One_Paper{
+    height: 100%;
+    display: flex;
+    align-items: flex-end;
+}
+
+#Chart_Div_Two{
+    width: 47%;
+    height: 100%;
+}
+
+#CowChart{
+    height: 85%;
+}
+
+@media (max-width: 480px)
+{
+    #Index_Top{
+        height: 90dvh;
+        flex-direction: column;
+    }
+    
+    #Chart_Div{
+        display: none;
+    }
+    
+    .KPI-Element{
+        aspect-ratio: 1 / 1;
+        height: 100%;
+    }
+    
+    #KPI_Div{ 
+        width: 92vw;
+        height: 20%;
+        justify-content: space-evenly;
+        margin-bottom: 2em;
+    }
+
+    #KPI_Div .KPI-Element:nth-child(3),
+    #KPI_Div .KPI-Element:nth-child(4),
+    #KPI_Div .KPI-Element:nth-child(5),
+    #KPI_Div .KPI-Element:nth-child(6),
+    #KPI_Div .KPI-Element:nth-child(7),
+    #KPI_Div .KPI-Element:nth-child(8) {
+        display: none;
+    }
+
+
+    #Action_Div{
+        width: 92vw;
+        height: 60%;
+        padding-left: 0;
+    }
 }

@@ -2,451 +2,175 @@
 @inject IDialogService DialogService
 @inject IJSRuntime JSRuntime
 @using _4Cows_FE.Components._4CowsComponent.Dialogs
-@using _4Cows_FE.Components._4CowsComponent 
-@using _4Cows_FE.Components._4CowsComponent.Dialogs
-@using BB_Cow.Class
-@using BB_Cow.Services
+@using _4Cows_FE.Components._4CowsComponent
 @inject ISnackbar Snackbar
 @inject CowTreatmentService cowTreatmentService
 @inject PCowTreatmentService pCowTreatmentService
 @inject PClawTreatmentService pClawTreatmentService
 @inject ClawTreatmentService clawTreatmentService
 
-@if(hasLoaded)
-{
-<MudContainer Class="mt-16 px-8" MaxWidth="MaxWidth.ExtraLarge">
-    <MudGrid>
-        <MudItem sm="12" lg="8">
-            @if(viewportSize.Width <= 500)
-            {
-                <MudGrid>
-                    <MudItem xs="12" sm="6" md="4" lg="12" Style="width:100%; height:100%">
-                        <MudButton StartIcon="@Icons.Material.Filled.BackupTable" Style="height: 5em;" IconColor="Color.Surface" Align="Align.Center" Variant="Variant.Filled" Color="Color.Warning" FullWidth="true" OnClick="OpenCowDialog">Kuh Behandlung hinzufügen</MudButton>
-                    </MudItem>
-
-                    <MudItem xs="12" sm="6" md="4" lg="12" Style="width:100%; height:100%">
-                        <MudButton StartIcon="@Icons.Material.Filled.Construction" Style="height: 5em;" IconColor="Color.Surface" Align="Align.Center" Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true" OnClick="OpenPlannedDialog">geplante Kuh Behandlung hinzufügen</MudButton>
-                    </MudItem>
-
-                    <MudItem xs="12" sm="6" md="4" lg="12" Style="width:100%; height:100%">
-                        <MudButton StartIcon="@Icons.Material.Filled.Pets" Style="height: 5em;" IconColor="Color.Surface" Align="Align.Center" Variant="Variant.Filled" Color="Color.Tertiary" FullWidth="true" OnClick="OpenClawDialog">Klauen Behandlung hinzufügen</MudButton>
-                    </MudItem>
-
-                    <MudItem xs="12" sm="6" md="4" lg="12" Style="width:100%; height:100%">
-                        <MudButton StartIcon="@Icons.Material.Filled.Plumbing" Style="height: 5em;" IconColor="Color.Surface" Align="Align.Center" Variant="Variant.Filled" Color="Color.Info" FullWidth="true" OnClick="OpenPlannedClawDialog">geplante Klauen Behandlung hinzufügen</MudButton>
-                    </MudItem>
-                </MudGrid>
-
-                @if(false)
-                {
-                <MudGrid>
-                    <MudItem xs="3" lg="3" Style="width:100%; height:100%">
-                        <MudPaper Elevation="5" Class="pa-4" Style="height: 6em;">
-                            <MudText Align="Align.Center"  Typo="Typo.h3">1</MudText>
-                        </MudPaper>
-                    </MudItem>
-
-                    <MudItem xs="3" lg="3" Style="width:100%; height:100%">
-                        <MudPaper Elevation="5" Class="pa-4" Style="height: 6em;">
-                            <MudText Align="Align.Center" Typo="Typo.h3">2</MudText>
-                        </MudPaper>
-                    </MudItem>
-
-                    <MudItem xs="3" lg="3" Style="width:100%; height:100%">
-                        <MudPaper Elevation="5" Class="pa-4" Style="height: 6em;">
-                            <MudText Align="Align.Center" Typo="Typo.h3">3</MudText>
-                        </MudPaper>
-                    </MudItem>
-
-                    <MudItem xs="3" lg="3" Style="width:100%; height:100%">
-                        <MudPaper Elevation="5" Class="pa-4" Style="height: 6em;">
-                            <MudText Align="Align.Center" Typo="Typo.h3">4</MudText>
-                        </MudPaper>
-                    </MudItem>
-
-                    <MudItem xs="3" lg="3" Style="width:100%; height:100%">
-                        <MudPaper Elevation="5" Class="pa-4" Style="height: 6em;">
-                            <MudText Align="Align.Center" Typo="Typo.h3">5</MudText>
-                        </MudPaper>
-                    </MudItem>
-
-                    <MudItem xs="3" lg="3" Style="width:100%; height:100%">
-                        <MudPaper Elevation="5" Class="pa-4" Style="height: 6em;">
-                            <MudText Align="Align.Center" Typo="Typo.h3">6</MudText>
-                        </MudPaper>
-                    </MudItem>
-
-                    <MudItem xs="3" lg="3" Style="width:100%; height:100%">
-                        <MudPaper Elevation="5" Class="pa-4" Style="height: 6em;">
-                            <MudText Align="Align.Center" Typo="Typo.h3">7</MudText>
-                        </MudPaper>
-                    </MudItem>
-
-                    <MudItem xs="3" lg="3" Style="width:100%; height:100%">
-                        <MudPaper Elevation="5" Class="pa-4" Style="height: 6em;">
-                            <MudText Align="Align.Center" Typo="Typo.h3">8</MudText>
-                        </MudPaper>
-                    </MudItem>
-
-                        </MudGrid>
-                    }
-                    else
-                    {
-                        <MudGrid>
-                            <MudItem xs="12" Class="d-flex justify-center">
-                                <MudPaper Height="12em">
-                                    <img src="/images/WIP.png" style="max-width: 60%; max-height: 60%; margin: auto;" />
-                                </MudPaper>
-                            </MudItem>
-                        </MudGrid>
-                    }
-                }
-            else if(viewportSize.Width >= 500 && viewportSize.Width <= 800)
-            {
-                <MudGrid>
-                    <MudItem xs="3" lg="3" Style="width:100%; height:100%">
-                        <MudPaper Elevation="5" Class="pa-4" Style="height: 8em;">
-                            <MudText Align="Align.Center" Typo="Typo.h3">1</MudText>
-                        </MudPaper>
-                    </MudItem>
-
-                    <MudItem xs="3" lg="3" Style="width:100%; height:100%">
-                        <MudPaper Elevation="5" Class="pa-4" Style="height: 8em;">
-                            <MudText Align="Align.Center" Typo="Typo.h3">2</MudText>
-                        </MudPaper>
-                    </MudItem>
-
-                    <MudItem xs="3" lg="3" Style="width:100%; height:100%">
-                        <MudPaper Elevation="5" Class="pa-4" Style="height: 8em;">
-                            <MudText Align="Align.Center" Typo="Typo.h3">3</MudText>
-                        </MudPaper>
-                    </MudItem>
-
-                    <MudItem xs="3" lg="3" Style="width:100%; height:100%">
-                        <MudPaper Elevation="5" Class="pa-4" Style="height: 8em;">
-                            <MudText Align="Align.Center" Typo="Typo.h3">4</MudText>
-                        </MudPaper>
-                    </MudItem>
-
-                    <MudItem xs="3" lg="3" Style="width:100%; height:100%">
-                        <MudPaper Elevation="5" Class="pa-4" Style="height: 8em;">
-                            <MudText Align="Align.Center" Typo="Typo.h3">5</MudText>
-                        </MudPaper>
-                    </MudItem>
-
-                    <MudItem xs="3" lg="3" Style="width:100%; height:100%">
-                        <MudPaper Elevation="5" Class="pa-4" Style="height: 8em;">
-                            <MudText Align="Align.Center" Typo="Typo.h3">6</MudText>
-                        </MudPaper>
-                    </MudItem>
-
-                    <MudItem xs="3" lg="3" Style="width:100%; height:100%">
-                        <MudPaper Elevation="5" Class="pa-4" Style="height: 8em;">
-                            <MudText Align="Align.Center" Typo="Typo.h3">7</MudText>
-                        </MudPaper>
-                    </MudItem>
-
-                    <MudItem xs="3" lg="3" Style="width:100%; height:100%">
-                        <MudPaper Elevation="5" Class="pa-4" Style="height: 8em;">
-                            <MudText Align="Align.Center" Typo="Typo.h3">8</MudText>
-                        </MudPaper>
-                    </MudItem>
-
-                </MudGrid>
-            }
-            else
-            {
-                <MudGrid>
-                    <MudItem xs="3" lg="3" Style="width:100%; height:100%">
-                        <MudElement HtmlTag="a" href="/Kuh_Daten">
-                        <MudPaper Elevation="5" Class="pa-4" Style="height: 14em;">
-                            <MudText  Align="Align.Center" Typo="Typo.h6">Kuh Behandlungen:</MudText>
-                            <MudText Color="Color.Info" Align="Align.Center" Class="align-self-md-end" Typo="Typo.h2"><b>@CowList.Count</b></MudText>
-                        </MudPaper>
-                            </MudElement>
-                    </MudItem>
-
-                    <MudItem xs="3" lg="3" Style="width:100%; height:100%">
-                        <MudElement HtmlTag="a" href="/Klauen_Daten">
-                        <MudPaper Elevation="5" Class="pa-4" Style="height: 14em;">
-                            <MudText Align="Align.Center" Typo="Typo.h6">Klauen Behandlungen:</MudText>
-                            <MudText Color="Color.Info" Align="Align.Center" Typo="Typo.h2"><b>@ClawList.Count</b></MudText>
-                        </MudPaper>
-                            </MudElement>
-                    </MudItem>
-
-                    <MudItem xs="3" lg="3" Style="width:100%; height:100%">
-                        <MudElement HtmlTag="a" href="/geplante_Klauen_Daten">
-                            <MudPaper Elevation="5" Class="pa-4" Style="height: 14em;">
-                            <MudText Align="Align.Center" Typo="Typo.h6">geplante Klauen Behandlungen:</MudText>
-                            <MudText Color="Color.Info" Align="Align.Center" Typo="Typo.h2"><b>@Planned_ClawList.Count()</b></MudText>
-                        </MudPaper>
-                        </MudElement>
-                    </MudItem>
-
-                    <MudItem xs="3" lg="3" Style="width:100%; height:100%">
-                        <MudElement HtmlTag="a" href="/geplante_Kuh_Daten">
-                        <MudPaper Elevation="5" Class="pa-4" Style="height: 14em;">
-                            <MudText Align="Align.Center" Typo="Typo.h6">geplante Kuh Behandlungen:</MudText>
-                            <MudText Color="Color.Info" Align="Align.Center" Typo="Typo.h2"><b>@(Planned_CowList.Count() < 1 ? 0 : Planned_CowList.Count())</b></MudText>
-                        </MudPaper>
-                            </MudElement>
-                    </MudItem>
-
-                        <MudItem xs="3" lg="3" Style="width:100%; height:100%">
-                            <MudElement HtmlTag="a" href="/Verband_Daten">
-                                <MudPaper Elevation="5" Class="pa-4" Style="height: 14em;">
-                                    <MudText Align="Align.Center" Typo="Typo.h6"> Verbände:</MudText>
-                                    <MudText Color="Color.Info" Align="Align.Center" Typo="Typo.h2"><b>@ClawList.Where(x => (x.Bandage_LH || x.Bandage_LV || x.Bandage_RV || x.Bandage_RH) && !x.IsBandageRemoved).Count()</b></MudText>
-                                </MudPaper>
-                            </MudElement>
-                        </MudItem>
-                    <MudItem xs="3" lg="3" Style="width:100%; height:100%">
-                        <MudElement HtmlTag="a" href="/Kuh_Daten">                        <MudPaper Elevation="5" Class="pa-4" Style="height: 14em;">
-                            <MudText Align="Align.Center" Typo="Typo.h6">Meist verwendetes Medikament:</MudText>
-                            <MudText Color="Color.Info" Align="Align.Center" Typo="Typo.h5">
-                                <b>
-                                     @(CowList.GroupBy(obj => obj.Medicine_Name)
-                                .OrderByDescending(group => group.Count())
-                                .Select(group => group.Key)
-                                .FirstOrDefault())
-                                </b>
-                            </MudText>
-                        </MudPaper>
-                        </MudElement>
-                    </MudItem>
-                        <MudItem xs="3" lg="3" Style="width:100%; height:100%">
-                            <MudElement HtmlTag="a" href="/Klauen_Daten">
-                        <MudPaper Elevation="5" Class="pa-4" Style="height: 14em;">
-                            <MudText Align="Align.Center" Typo="Typo.h6">Meist behandelte Klauenfund:</MudText>
-                            <MudText Color="Color.Info" Align="Align.Center" Typo="Typo.h5">
-                                <b>
-                                    @(ClawList
-                                        .SelectMany(obj => new[] { obj.Claw_Finding_LH, obj.Claw_Finding_LV, obj.Claw_Finding_RH, obj.Claw_Finding_RV })
-                                        .Where(str => str != "Pflege")
-                                        .GroupBy(str => str)
-                                        .OrderByDescending(group => group.Count())
-                                        .Select(group => group.Key)
-                                        .FirstOrDefault())
-                                </b>
-                            </MudText>
-                        </MudPaper>
-                        </MudElement>
-                        </MudItem>
-
-                        <MudItem xs="3" lg="3" Style="width:100%; height:100%">
-                            <MudElement HtmlTag="a" href="/Klauen_Daten">
-                            <MudPaper Elevation="5" Class="pa-4" Style="height: 14em;">
-                                <MudText Align="Align.Center" Typo="Typo.h6">Kuh mit den meisten Klauen Behandlungen:</MudText>
-                                    <MudText Color="Color.Info" Align="Align.Center" Typo="Typo.h5">
-                                    <b>
-                                        @(ClawList.GroupBy(obj => obj.Collar_Number)
-                                            .OrderByDescending(group => group.Count())
-                                            .Select(group => group.Key)
-                                            .FirstOrDefault())
-                                    </b>
-                                </MudText>
-                            </MudPaper>
-                            </MudElement>
-                        </MudItem>
-                </MudGrid>
-            }
-
-        </MudItem>
-
-        <MudItem sm="12" xs="12" lg="4">
-            @if (viewportSize.Width >= 500 && viewportSize.Width <= 800)
-            {
-                <MudGrid>
-                    <MudItem sm="6" xs="6" lg="12" Style="width:100%; height:100%">
-                        <MudButton StartIcon="@Icons.Material.Filled.BackupTable" Style="height: 6em;" IconColor="Color.Surface" Align="Align.Center" Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true" OnClick="OpenCowDialog">Kuh Behandlung hinzufügen</MudButton>
-                    </MudItem>
-
-                    <MudItem sm="6" xs="6" lg="12" Style="width:100%; height:100%">
-                            <MudButton StartIcon="@Icons.Material.Filled.Construction" Style="height: 6em;" IconColor="Color.Surface" Align="Align.Center" Variant="Variant.Filled" Color="Color.Tertiary" FullWidth="true" OnClick="OpenPlannedDialog">geplante Kuh Behandlung hinzufügen</MudButton>
-                    </MudItem>
-
-                    <MudItem sm="6" xs="6" lg="12" Style="width:100%; height:100%">
-                        <MudButton StartIcon="@Icons.Material.Filled.Pets" Style="height: 6em;" IconColor="Color.Surface" Align="Align.Center" Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true" OnClick="OpenClawDialog">Klauen Behandlung hinzufügen</MudButton>
-                    </MudItem>
-
-                    <MudItem sm="6" xs="6" lg="12" Style="width:100%; height:100%">
-                            <MudButton StartIcon="@Icons.Material.Filled.Plumbing" Style="height: 6em;" IconColor="Color.Surface" Align="Align.Center" Variant="Variant.Filled" Color="Color.Tertiary" FullWidth="true" OnClick="OpenPlannedClawDialog" >geplante Klauen Behandlung hinzufügen</MudButton>
-                    </MudItem>
-                </MudGrid>
-
-            }
-            else if(viewportSize.Width > 800)
-            {
-                            <MudGrid>
-                    <MudItem xs="6" sm="6" md="4" lg="12" Style="width:100%; height:100%">
-                        <MudButton StartIcon="@Icons.Material.Filled.BackupTable" Style="height: 5em;" IconColor="Color.Surface" Align="Align.Center" Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true" OnClick="OpenCowDialog">Kuh Behandlung hinzufügen</MudButton>
-                    </MudItem>
-
-                    <MudItem xs="6" sm="6" md="4" lg="12" Style="width:100%; height:100%">
-                            <MudButton StartIcon="@Icons.Material.Filled.Construction" Style="height: 5em;" IconColor="Color.Surface" Align="Align.Center" Variant="Variant.Filled" Color="Color.Tertiary" FullWidth="true" OnClick="OpenPlannedDialog">geplante Kuh Behandlung hinzufügen</MudButton>
-                    </MudItem>
-
-                    <MudItem xs="6" sm="6" md="4" lg="12" Style="width:100%; height:100%">
-                            <MudButton StartIcon="@Icons.Material.Filled.Pets" Style="height: 5em;" IconColor="Color.Surface" Align="Align.Center" Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true" OnClick="OpenClawDialog">Klauen Behandlung hinzufügen</MudButton>
-                    </MudItem>
-
-                    <MudItem xs="6" sm="6" md="4" lg="12" Style="width:100%; height:100%">
-                            <MudButton StartIcon="@Icons.Material.Filled.Plumbing" Style="height: 5em;" IconColor="Color.Surface" Align="Align.Center" Variant="Variant.Filled" Color="Color.Tertiary" FullWidth="true" OnClick="OpenPlannedClawDialog">geplante Klauen Behandlung hinzufügen</MudButton>
-                    </MudItem>
-                </MudGrid>
-            }
-        </MudItem>
-        @if(viewportSize.Width >= 1024)
+<div id="Index_Top">
+    <div id="KPI_Div">
+        @foreach (var entry in KPIs)
         {
-            <MudItem lg="7">
-                <MudPaper Elevation="5" Class="pa-4" Style="height: 22.5em;">
-                    <MudChart ChartType="ChartType.Line" ChartSeries="@Series" @bind-SelectedIndex="indexValue" XAxisLabels="@XAxisLabels" Width="100%" Height="17.5em" ChartOptions="@_options" />
-                </MudPaper>
-            </MudItem>
-
-                <MudItem lg="5" Class="d-flex justify-center">
-                    <MudPaper Elevation="5" Class="pa-4" Style="height: 22.5em;">
-                        @if (false)
-                        {
-                            <MudText Align="Align.Center" Typo="Typo.h3">1</MudText>
-                        }
-                        else
-                        {
-                            <div class="d-flex justify-center align-center">
-                                <img src="/images/WIP.png" style="max-width: 60%; max-height: 60%; margin: auto;" />
-                            </div>
-                        }
-                    </MudPaper>
-                </MudItem>
-
-        }
-        else if (viewportSize.Width >= 500 && viewportSize.Width <= 800)
-        {
-                <MudItem xs="12" sm="12" Class="d-flex justify-center align-center">
-                    <MudPaper Elevation="5" Class="pa-4" Style="height: 30em;">
-                        @if (false)
-                        {
-                            <MudText Align="Align.Center" Typo="Typo.h3">1</MudText>
-                        }
-                        else
-                        {
-                            <div class="d-flex justify-center align-center">
-                                <img src="/images/WIP.png" style="max-width: 60%; max-height: 60%; margin: auto;" />
-                            </div>
-                        }
-                    </MudPaper>
-                </MudItem>
-
-        }
-    </MudGrid>
-    </MudContainer>
-}
-else
-{
-    <MudGrid Justify="Justify.Center">
-        <MudItem>
-            <div style="align-items:center;">
-                <MudProgressCircular Class="align-self-center" style="align-self:center;" Color="Color.Primary" Indeterminate="true" />
+            <div class="KPI-Element">
+                <KPI_Component Link="@entry.Value.Item1" Value="@entry.Value.Item2" Header="@entry.Key"></KPI_Component>
             </div>
-        </MudItem>
-    </MudGrid>
-}
+        }
+    </div>
+    
+    <div id="Action_Div">
+        <MudButton StartIcon="@Icons.Material.Filled.BackupTable" Style="height: 5em;" IconColor="Color.Surface" Align="Align.Center" Variant="Variant.Filled" Color="Color.Tertiary" FullWidth="true" OnClick="OpenCowDialog">Kuh Behandlung hinzufügen</MudButton>
+        <MudButton StartIcon="@Icons.Material.Filled.Construction" Style="height: 5em;" IconColor="Color.Surface" Align="Align.Center" Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true" OnClick="OpenPlannedDialog">geplante Kuh Behandlung hinzufügen</MudButton>
+        <MudButton StartIcon="@Icons.Material.Filled.Pets" Style="height: 5em;" IconColor="Color.Surface" Align="Align.Center" Variant="Variant.Filled" Color="Color.Tertiary" FullWidth="true" OnClick="OpenClawDialog">Klauen Behandlung hinzufügen</MudButton>
+        <MudButton StartIcon="@Icons.Material.Filled.Plumbing" Style="height: 5em;" IconColor="Color.Surface" Align="Align.Center" Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true" OnClick="OpenPlannedClawDialog">geplante Klauen Behandlung hinzufügen</MudButton>
+    </div>
+</div>
+<div id="Chart_Div">
+    
+    <div id="Chart_Div_One">
+        <MudPaper Elevation="5" Style="height: 100%; padding: 1%; display: flex; flex-direction: column; align-items: flex-end" id="Chart_One_Paper">
+            <div style="display: flex; justify-content: flex-end; width: 100%; position: fixed; z-index: 99">
+                <MudIconButton OnClick="OpenChartEditor" Class="Clickable" Icon="@Icons.Material.Filled.Edit" Size="Size.Medium" aria-label="edit"></MudIconButton>
+            </div>
+            <div style="position: relative; height: 100%; width: 100%;">
+                <canvas id="CowChart"></canvas>
+            </div>
+        </MudPaper>
+    </div>
+    <div id="Chart_Div_Two">
+        <MudPaper Elevation="5" Style="height: 100%; margin-left: 2em; padding: 1%; display: flex; flex-direction: column; align-items: flex-end" id="Chart_One_Paper">
+                <canvas id="ClawChart"></canvas>
+        </MudPaper>
+    </div>
+</div>
 
 @code{
-    private ViewportSize viewportSize = new ViewportSize();
-    private int indexValue = -1; 
-    public ChartOptions Options = new ChartOptions();
 
+    private Dictionary<string, (string, string)> KPIs = [];
+    
     public List<Treatment_Cow> CowList = new List<Treatment_Cow>();
     public List<Treatment_Claw> ClawList = new List<Treatment_Claw>(); 
     public List<Planned_Treatment_Cow> Planned_CowList = new List<Planned_Treatment_Cow>();
     public List<Planned_Treatment_Claw> Planned_ClawList = new List<Planned_Treatment_Claw>();
-
-    public List<ChartSeries> Series = new List<ChartSeries>() { };
-    public string[] XAxisLabels = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez" };
-    private readonly ChartOptions _options = new();
-
+    public List<string> _selectedMedicines = new List<string>();
+    
     protected override async Task OnInitializedAsync()
     {
-        Console.WriteLine("Liste wird geladen");
+        await GetLists();
+        await GetKPIs();
+    }
+
+    private async Task GetLists()
+    {
+        await cowTreatmentService.GetAllDataAsync();
+        await clawTreatmentService.GetAllDataAsync();
+        await pCowTreatmentService.GetAllDataAsync();
+        await pClawTreatmentService.GetAllDataAsync();
+        
         CowList = cowTreatmentService.Treatments;
         ClawList = clawTreatmentService.Treatments;
         Planned_CowList = pCowTreatmentService.Treatments;
         Planned_ClawList = pClawTreatmentService.Treatments;
-
-        try
-        {
-            Console.WriteLine("Daten werden geladen");
-            await cowTreatmentService.GetAllDataAsync();
-            await clawTreatmentService.GetAllDataAsync();
-            await pCowTreatmentService.GetAllDataAsync();
-            await pClawTreatmentService.GetAllDataAsync();
-
-            _options.YAxisTicks = 5;
-            Series.Add(new ChartSeries()
-                {
-                    Name = "Kuhbehandlungen",
-                    Data = new double[] { CowList.Where(x => x.Administration_Date.Year == DateTime.Now.Year && x.Administration_Date.Month == 1).Count(),
-                                                                                        CowList.Where(x => x.Administration_Date.Year == DateTime.Now.Year && x.Administration_Date.Month == 2).Count(),
-                                                                                        CowList.Where(x => x.Administration_Date.Year == DateTime.Now.Year && x.Administration_Date.Month == 3).Count(),
-                                                                                        CowList.Where(x => x.Administration_Date.Year == DateTime.Now.Year && x.Administration_Date.Month == 4).Count(),
-                                                                                        CowList.Where(x => x.Administration_Date.Year == DateTime.Now.Year && x.Administration_Date.Month == 5).Count(),
-                                                                                        CowList.Where(x => x.Administration_Date.Year == DateTime.Now.Year && x.Administration_Date.Month == 6).Count(),
-                                                                                        CowList.Where(x => x.Administration_Date.Year == DateTime.Now.Year && x.Administration_Date.Month == 7).Count(),
-                                                                                        CowList.Where(x => x.Administration_Date.Year == DateTime.Now.Year && x.Administration_Date.Month == 8).Count(),
-                                                                                        CowList.Where(x => x.Administration_Date.Year == DateTime.Now.Year && x.Administration_Date.Month == 9).Count(),
-                                                                                        CowList.Where(x => x.Administration_Date.Year == DateTime.Now.Year && x.Administration_Date.Month == 10).Count(),
-                                                                                        CowList.Where(x => x.Administration_Date.Year == DateTime.Now.Year && x.Administration_Date.Month == 11).Count(),
-                                                                                        CowList.Where(x => x.Administration_Date.Year == DateTime.Now.Year && x.Administration_Date.Month == 12).Count()
-}
-                });
-
-            Series.Add(new ChartSeries()
-                {
-                    Name = "Klauen Behandlung",
-                    Data = new double[] { ClawList.Where(x => x.Treatment_Date.Year == DateTime.Now.Year && x.Treatment_Date.Month == 1).Count(),
-                                                                                        ClawList.Where(x => x.Treatment_Date.Year == DateTime.Now.Year && x.Treatment_Date.Month == 2).Count(),
-                                                                                        ClawList.Where(x => x.Treatment_Date.Year == DateTime.Now.Year && x.Treatment_Date.Month == 3).Count(),
-                                                                                        ClawList.Where(x => x.Treatment_Date.Year == DateTime.Now.Year && x.Treatment_Date.Month == 4).Count(),
-                                                                                        ClawList.Where(x => x.Treatment_Date.Year == DateTime.Now.Year && x.Treatment_Date.Month == 5).Count(),
-                                                                                        ClawList.Where(x => x.Treatment_Date.Year == DateTime.Now.Year && x.Treatment_Date.Month == 6).Count(),
-                                                                                        ClawList.Where(x => x.Treatment_Date.Year == DateTime.Now.Year && x.Treatment_Date.Month == 7).Count(),
-                                                                                        ClawList.Where(x => x.Treatment_Date.Year == DateTime.Now.Year && x.Treatment_Date.Month == 8).Count(),
-                                                                                        ClawList.Where(x => x.Treatment_Date.Year == DateTime.Now.Year && x.Treatment_Date.Month == 9).Count(),
-                                                                                        ClawList.Where(x => x.Treatment_Date.Year == DateTime.Now.Year && x.Treatment_Date.Month == 10).Count(),
-                                                                                        ClawList.Where(x => x.Treatment_Date.Year == DateTime.Now.Year && x.Treatment_Date.Month == 11).Count(),
-                                                                                        ClawList.Where(x => x.Treatment_Date.Year == DateTime.Now.Year && x.Treatment_Date.Month == 12).Count()
-}
-                });
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"An error occurred: {ex.Message}");
-        }
     }
 
-    private bool hasLoaded = false;
+    private async Task OpenChartEditor()
+    { 
+        var parameters = new DialogParameters<ChartEditorDialog> { { x => x.Medicines, _selectedMedicines } };
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+        var options = new DialogOptions()
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true,
+            BackdropClick = false
+        };
+        var dialog = await DialogService.ShowAsync<ChartEditorDialog>("Diagramm bearbeiten", parameters, options);
+       
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            if(result.Data is HashSet<string> selectedMedicines && result.Data != null)
+            {
+                 _selectedMedicines = selectedMedicines.ToList();
+                 
+                 await JSRuntime.InvokeVoidAsync("destroyExistingChart", "CowChart");
+                 if(_selectedMedicines.Count == cowTreatmentService.CowMedicineTreatmentList.Distinct().ToList().Count)
+                 {
+                     await InitilizeLineChartAsync("CowChart", "Kuh Behandlungen", cowTreatmentService.GetCowTreatmentChartData());
+                 }
+                 else
+                 {
+                     await InitilizeBarChartAsync(_selectedMedicines);
+                 }
+            }
+        }
+    }
+    
+    private async Task GetKPIs()
     {
-        if (firstRender && !hasLoaded)
-        {
-            try
-            {
-                var Viewport = new ViewportService(JSRuntime);
-                viewportSize = await Viewport.GetViewportSize();
-                // await Task.Delay(2000);
-                hasLoaded = true;
-                StateHasChanged();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"An error occurred: {ex.Message}");
-                hasLoaded = true;
-            }
-        }
+        GetTotalClawTreatments();
+        GetTotalCowTreatments();
+        GetTotalPlannedCowTreatments();
+        GetTotalPlannedClawTreatments();
+        GetAmountOfBandages();
+        GetMostUsedMedicine();
+        GetMostFoundClawDisease();
+        GetCowWithMostClawTreatments();
     }
+
+    private void GetCowWithMostClawTreatments()
+    {
+        KPIs.Add("Kuh mit den meisten Klauenbehandlungen:", ("/Klauen_Daten", (ClawList.GroupBy(obj => obj.Collar_Number)
+            .OrderByDescending(group => group.Count())
+            .Select(group => group.Key)
+            .FirstOrDefault()).ToString()));
+    }
+    
+    private void GetMostFoundClawDisease()
+    {
+        KPIs.Add("Meist behandelte Klauenfund:", ("/Klauen_Daten", (ClawList
+            .SelectMany(obj => new[] { obj.Claw_Finding_LH, obj.Claw_Finding_LV, obj.Claw_Finding_RH, obj.Claw_Finding_RV })
+            .Where(str => str != "Pflege")
+            .GroupBy(str => str)
+            .OrderByDescending(group => group.Count())
+            .Select(group => group.Key)
+            .FirstOrDefault()).ToString()));
+    }
+    
+    private void GetMostUsedMedicine()
+    {
+        KPIs.Add("Meist benutztes Medikament:", ("/Kuh_Daten", (CowList.GroupBy(obj => obj.Medicine_Name)
+            .OrderByDescending(group => group.Count())
+            .Select(group => group.Key)
+            .FirstOrDefault()).ToString()));
+    }
+    
+    private void GetAmountOfBandages()
+    {
+        KPIs.Add("Verbände:", ("/Klauen_Daten", ClawList.Count(x => (x.Bandage_LH || x.Bandage_LV || x.Bandage_RV || x.Bandage_RH) && !x.IsBandageRemoved).ToString()));
+    }
+    
+    private void GetTotalCowTreatments()
+    {
+        KPIs.Add("Kuh Behandlungen:", ("/Kuh_Daten", CowList.Count.ToString()));
+    }
+    
+    private void GetTotalPlannedCowTreatments()
+    {
+        KPIs.Add("geplante Kuh Behandlungen:", ("/geplante_Kuh_Daten", Planned_CowList.Count.ToString()));
+    }
+    
+    private void GetTotalClawTreatments()
+    {
+        KPIs.Add("Klauen Behandlungen:", ("/Klauen_Daten", ClawList.Count.ToString()));
+    }
+    
+    private void GetTotalPlannedClawTreatments()
+    {
+        KPIs.Add("geplante Klauen Behandlungen:", ("/geplante_Klauen_Daten", Planned_ClawList.Count.ToString()));
+    }
+
     private void OpenPlannedDialog()
     {
         var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
@@ -471,49 +195,173 @@ else
         DialogService.Show<Add_Planned_Claw_Treatment_Dialog>("", options);
     }
 
-    private void GetChartData()
+    private async Task InitilizeLineChartAsync(string ChartName, string _label, int[] _data)
     {
-        Series.Add(new ChartSeries()
-            {
-                Name = "Kuhbehandlungen",
-                Data = new double[] { CowList.Where(x => x.Administration_Date.Year == DateTime.Now.Year && x.Administration_Date.Month == 1).Count(),
-                                                                                        CowList.Where(x => x.Administration_Date.Year == DateTime.Now.Year && x.Administration_Date.Month == 2).Count(),
-                                                                                        CowList.Where(x => x.Administration_Date.Year == DateTime.Now.Year && x.Administration_Date.Month == 3).Count(),
-                                                                                        CowList.Where(x => x.Administration_Date.Year == DateTime.Now.Year && x.Administration_Date.Month == 4).Count(),
-                                                                                        CowList.Where(x => x.Administration_Date.Year == DateTime.Now.Year && x.Administration_Date.Month == 5).Count(),
-                                                                                        CowList.Where(x => x.Administration_Date.Year == DateTime.Now.Year && x.Administration_Date.Month == 6).Count(),
-                                                                                        CowList.Where(x => x.Administration_Date.Year == DateTime.Now.Year && x.Administration_Date.Month == 7).Count(),
-                                                                                        CowList.Where(x => x.Administration_Date.Year == DateTime.Now.Year && x.Administration_Date.Month == 8).Count(),
-                                                                                        CowList.Where(x => x.Administration_Date.Year == DateTime.Now.Year && x.Administration_Date.Month == 9).Count(),
-                                                                                        CowList.Where(x => x.Administration_Date.Year == DateTime.Now.Year && x.Administration_Date.Month == 10).Count(),
-                                                                                        CowList.Where(x => x.Administration_Date.Year == DateTime.Now.Year && x.Administration_Date.Month == 11).Count(),
-                                                                                        CowList.Where(x => x.Administration_Date.Year == DateTime.Now.Year && x.Administration_Date.Month == 12).Count()
-}
-            });
+        await GetLists();
 
-        Series.Add(new ChartSeries()
+        var config = new
+        {
+            type = "line",
+            data = new
             {
-                Name = "Klauen Behandlung",
-                Data = new double[] { ClawList.Where(x => x.Treatment_Date.Year == DateTime.Now.Year && x.Treatment_Date.Month == 1).Count(),
-                                                                                        ClawList.Where(x => x.Treatment_Date.Year == DateTime.Now.Year && x.Treatment_Date.Month == 2).Count(),
-                                                                                        ClawList.Where(x => x.Treatment_Date.Year == DateTime.Now.Year && x.Treatment_Date.Month == 3).Count(),
-                                                                                        ClawList.Where(x => x.Treatment_Date.Year == DateTime.Now.Year && x.Treatment_Date.Month == 4).Count(),
-                                                                                        ClawList.Where(x => x.Treatment_Date.Year == DateTime.Now.Year && x.Treatment_Date.Month == 5).Count(),
-                                                                                        ClawList.Where(x => x.Treatment_Date.Year == DateTime.Now.Year && x.Treatment_Date.Month == 6).Count(),
-                                                                                        ClawList.Where(x => x.Treatment_Date.Year == DateTime.Now.Year && x.Treatment_Date.Month == 7).Count(),
-                                                                                        ClawList.Where(x => x.Treatment_Date.Year == DateTime.Now.Year && x.Treatment_Date.Month == 8).Count(),
-                                                                                        ClawList.Where(x => x.Treatment_Date.Year == DateTime.Now.Year && x.Treatment_Date.Month == 9).Count(),
-                                                                                        ClawList.Where(x => x.Treatment_Date.Year == DateTime.Now.Year && x.Treatment_Date.Month == 10).Count(),
-                                                                                        ClawList.Where(x => x.Treatment_Date.Year == DateTime.Now.Year && x.Treatment_Date.Month == 11).Count(),
-                                                                                        ClawList.Where(x => x.Treatment_Date.Year == DateTime.Now.Year && x.Treatment_Date.Month == 12).Count()
-}
-            });
+                labels = new[] 
+                { 
+                    "Januar", "Februar", "März", "April", "Mai", "Juni", 
+                    "Juli", "August", "September", "Oktober", "November", "Dezember" 
+                },
+                datasets = new[] 
+                {
+                    new
+                    {
+                        label = _label,
+                        data = _data,
+                        backgroundColor = "#619B98", 
+                        borderColor = "#60ADC9",
+                        borderWidth = 2
+                    }
+                }
+            },
+            options = new
+            {
+                scales = new
+                {
+                    y = new
+                    {
+                        beginAtZero = true,
+                        stacked = true
+                    },
+                    x = new
+                    {
+                        stacked = true
+                    }
+                },
+                interaction = new
+                {
+                    intersect = false
+                },
+                plugins = new
+                {
+                    legend = new
+                    {
+                        onClick = "function() {}" 
+                    }
+                },
+                responsive = true,
+            }
+        };
+
+
+        await JSRuntime.InvokeVoidAsync("renderChart", ChartName, config);
     }
-    public async Task GetViewPort()
+    
+    private async Task InitilizeBarChartAsync(List<string> Medicines)
     {
-        var newViewPort = new ViewportSize();
-        var Viewport = new ViewportService(JSRuntime);
-        newViewPort = await Viewport.GetViewportSize();
+        await GetLists();
         
+        List<dynamic> test = [];
+        var colors = GenerateColorDictionary();
+        
+        foreach (var medicine in Medicines)
+        {
+            if (!string.IsNullOrEmpty(medicine))
+            {
+                var color = colors.FirstOrDefault(x => !x.Value).Key;
+                colors[color] = true;
+                test.Add(new {
+                    label = medicine,
+                    data = cowTreatmentService.GetCowTreatmentChartData(medicine),
+                    backgroundColor = new[] { color },
+                    borderColor = new[] { "#60ADC9" },
+                    borderWidth = 2
+                });
+            }
+        }
+        
+        var config = new
+        {
+            type = "bar",
+            data = new
+            {
+                labels = new[] { "Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember" },
+                datasets = test.ToArray()
+            },
+            options = new
+            {
+                scales = new
+                {
+                    y = new
+                    {
+                        beginAtZero = true,
+                        stacked = true
+                    }, 
+                    x = new
+                    {
+                        stacked = true
+                    }
+                },
+                interaction = new
+                {
+                    intersect = false
+                },
+                plugins = new
+                {
+                    legend = new
+                    {
+                        onClick = "function() {}" 
+                    }
+                }
+            }
+            
+        };
+
+        await JSRuntime.InvokeVoidAsync("renderChart", "CowChart", config);
     }
+    
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await InitilizeLineChartAsync("CowChart", "Kuh Behandlungen", cowTreatmentService.GetCowTreatmentChartData());
+            await InitilizeLineChartAsync("ClawChart", "Klauen Behandlungen", clawTreatmentService.GetClawTreatmentChartData());
+        }
+    }
+
+    private Dictionary<string, bool> GenerateColorDictionary()
+    {
+        var baseColors = new List<string>
+        {
+            "#8DC2B0",
+            "#619B98",
+            "#60ADC9"
+        };
+
+        var colorDictionary = new Dictionary<string, bool>();
+
+        foreach (var color in baseColors)
+        {
+            colorDictionary[color] = false; 
+        }
+
+        var random = new Random();
+        while (colorDictionary.Count < 33) 
+        {
+            var newColor = GenerateSimilarHexColor(random);
+            if (!colorDictionary.ContainsKey(newColor))
+            {
+                colorDictionary[newColor] = false;
+            }
+        }
+
+        return colorDictionary;
+    }
+
+    string GenerateSimilarHexColor(Random random)
+    {
+        int r = random.Next(90, 150);  
+        int g = random.Next(140, 200); 
+        int b = random.Next(160, 220); 
+
+        return $"#{r:X2}{g:X2}{b:X2}";
+    }
+    
 }

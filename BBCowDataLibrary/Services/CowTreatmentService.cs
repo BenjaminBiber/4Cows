@@ -72,5 +72,29 @@ namespace BB_Cow.Services
             return treatments.FirstOrDefault() ?? new Treatment_Cow(); ;
         }
 
+        public int[] GetCowTreatmentChartData()
+        {
+            var months = Enumerable.Range(1, 12);
+
+            var groupedData = Treatments
+                .GroupBy(obj => obj.Administration_Date.Month)
+                .ToDictionary(g => g.Key, g => g.Count());
+
+            return months
+                .Select(month => groupedData.ContainsKey(month) ? groupedData[month] : 0)
+                .ToArray();
+        }
+
+        public int[] GetCowTreatmentChartData(string medicine)
+        {
+            var months = Enumerable.Range(1, 12);
+
+            return months
+                .Select(month => Treatments
+                    .Where(obj => obj.Administration_Date.Month == month && obj.Medicine_Name == medicine)
+                    .Count())
+                .ToArray();
+
+        }
     }
 }

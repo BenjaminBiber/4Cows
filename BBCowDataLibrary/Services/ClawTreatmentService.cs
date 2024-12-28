@@ -104,6 +104,19 @@ namespace BB_Cow.Services
             });
             return isSuccess;
         }
+        
+        public int[] GetClawTreatmentChartData()
+        {
+            var months = Enumerable.Range(1, 12);
+
+            var groupedData = Treatments
+                .GroupBy(obj => obj.Treatment_Date.Month)
+                .ToDictionary(g => g.Key, g => g.Count());
+
+            return months
+                .Select(month => groupedData.ContainsKey(month) ? groupedData[month] : 0)
+                .ToArray();
+        }
     }
 
 }

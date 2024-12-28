@@ -1,0 +1,46 @@
+@using System.Drawing.Text
+@inject CowTreatmentService CowTreatmentService
+
+<MudDialog>
+    <DialogContent>
+        <div style="height: 100%; overflow-y: scroll;">
+            <MudTable T="string" Items="_medicines" @bind-SelectedItems="_selectedMedicines" MultiSelection="true" SelectionChangeable="true" Striped="true" SelectOnRowClick="true" >
+                <HeaderContent>
+                    <MudTh><MudTableSortLabel SortBy="new Func<string, object>(x=>x)">Name</MudTableSortLabel></MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Name">@context</MudTd>
+                </RowTemplate>
+            </MudTable>
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Primary" OnClick="CloseDialog">Schließen</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private MudDialogInstance MudDialog { get; set; }
+    
+    [Parameter]
+    public List<string> Medicines { get; set; } = [];
+    
+    private List<string> _medicines = [];
+    private HashSet<string> _selectedMedicines = [];
+    
+    protected override async Task OnInitializedAsync()
+    {
+        _medicines = CowTreatmentService.CowMedicineTreatmentList.Distinct().ToList();
+        Medicines = !Medicines.Any() ? _medicines : Medicines;
+        foreach (var entry in Medicines)
+        {
+            _selectedMedicines.Add(entry);
+        }
+    }
+
+    private void CloseDialog()
+    {
+        MudDialog.Close(DialogResult.Ok(_selectedMedicines));
+    }
+}
