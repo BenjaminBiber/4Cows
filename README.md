@@ -1,4 +1,3 @@
-
 # 4Cows
 
 4Cows dient zur Dokumentation und Verwaltung von Klauen und Tierbehandlungen, mit Primären Fokus auf Rinder.
@@ -12,12 +11,14 @@
 
 ## Installation
 
-Um das Projekt zu installieren wird Docker Compose empfohlen. Hierbei muss die Ip-Adresse des Servers eingefügt werden.
+Um 4Cows zu installieren wird Docker Compose empfohlen. Hierbei muss die Ip-Adresse des Servers eingefügt werden.
 
 ```docker-compse
     4Cows:
     container_name: 4Cows
     image: benjaminbiber/4cows:latest
+    depends_on:
+      - 4Cows-Db
     ports:
       - "5750:8080"
     environment:
@@ -34,6 +35,8 @@ Um das Projekt zu installieren wird Docker Compose empfohlen. Hierbei muss die I
       MYSQL_DATABASE: 4cows
     ports:
       - "3306:3306"
+    volumes:
+    - /etc/docker_vol/4cows-db:/var/lib/mysql
 ```
 
 
@@ -52,3 +55,8 @@ Um das Projekt zu installieren wird Docker Compose empfohlen. Hierbei muss die I
 
 - Refactoring der Datenbankstruktur
 
+- Tabelle sollen nicht die ganze Seite scrollbar machen 
+
+- Daten sollen beim neuladen **Jeder** Seite geladen werden
+
+- Sortier Header bei den Tabellen einbauen

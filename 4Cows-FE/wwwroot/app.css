@@ -184,7 +184,7 @@ html,body{
 }
 
 /*KlauenInput*/
-#HOOF_Input_Grid {
+#Hoof_Input_Grid {
     display: grid;
     grid-template-columns: 50% 50%;
     grid-template-rows: 50% 50%;
@@ -194,7 +194,7 @@ html,body{
     margin-bottom: 5%;
 }
 
-.HOOF_Input {
+.Hoof_Input {
     background-color: transparent;
     width: 50%;
     aspect-ratio: 1 / 1;
@@ -203,39 +203,39 @@ html,body{
     background-position: center;
     margin-left:25%;
 }
-.HOOF_Input :hover {
+.Hoof_Input :hover {
     background-color:var(--primary);
 }
 
-#LV_HOOF {
+#LV_Hoof {
     background-image: url("../images/Hoofs/HOOF_LV.svg");
 }
-#LH_HOOF {
+#LH_Hoof {
     background-image: url("../images/Hoofs/HOOF_LH.svg");
 }
-#RV_HOOF {
+#RV_Hoof {
     background-image: url("../images/Hoofs/HOOF_RV.svg");
 }
-#RH_HOOF {
+#RH_Hoof {
     background-image: url("../images/Hoofs/HOOF_RH.svg");
 }
 
-#LV_HOOF:hover {
+#LV_Hoof:hover {
     background-image: url("../images/Hoofs/HOOF_LV_HighLighted.svg");
     transform: scale(1.05);
 }
 
-#LH_HOOF:hover {
+#LH_Hoof:hover {
     background-image: url("../images/Hoofs/HOOF_LH_HighLighted.svg");
     transform: scale(1.05);
 }
 
-#RV_HOOF:hover {
+#RV_Hoof:hover {
     background-image: url("../images/Hoofs/HOOF_RV_HighLighted.svg");
     transform: scale(1.05);
 }
 
-#RH_HOOF:hover {
+#RH_Hoof:hover {
     background-image: url("../images/Hoofs/HOOF_RH_HighLighted.svg");
     transform: scale(1.05);
 }
@@ -569,108 +569,108 @@ th, td {
     background-position: center;
 }
 
-#LV_HOOF_Standart {
-    background-image: url('../images/hoofs/hoof_lv_highlighted.svg');
+#LV_Hoof_Standart {
+    background-image: url('../images/Hoofs/HOOF_LV_HighLighted.svg');
 }
 
-#LV_HOOF_Block {
-    background-image: url('../images/data_hoofs/lv_block.svg');
+#LV_Hoof_Block {
+    background-image: url('../images/Data_Hoofs/LV_Block.svg');
 }
 
-#LV_HOOF_Bandage {
-    background-image: url('../images/data_hoofs/lv_bandage.svg');
+#LV_Hoof_Bandage {
+    background-image: url('../images/Data_Hoofs/LV_Bandage.svg');
 }
 
-#LV_HOOF_Bandage_Block {
-    background-image: url('../images/data_hoofs/lv_bandage_block.svg');
-}
-
-
-
-#RV_HOOF_Standart {
-    background-image: url('../images/hoofs/hoof_rv_highlighted.svg');
-}
-
-#RV_HOOF_Block {
-    background-image: url('../images/data_hoofs/rv_block.svg');
-}
-
-#RV_HOOF_Bandage {
-    background-image: url('../images/data_hoofs/rv_bandage.svg');
-}
-
-#RV_HOOF_Bandage_Block {
-    background-image: url('../images/data_hoofs/rv_bandage_block.svg');
-}
-
-
-#LH_HOOF_Standart {
-    background-image: url('../images/hoofs/hoof_lh_highlighted.svg');
-}
-
-#LH_HOOF_Block {
-    background-image: url('../images/data_hoofs/lh_block.svg');
-}
-
-#LH_HOOF_Bandage {
-    background-image: url('../images/data_hoofs/lh_bandage.svg');
-}
-
-#LH_HOOF_Bandage_Block {
-    background-image: url('../images/data_hoofs/lh_bandage_block.svg');
-}
-
-
-#RH_HOOF_Standart {
-    background-image: url('../images/hoofs/hoof_rh_highlighted.svg');
-}
-
-#RH_HOOF_Block {
-    background-image: url('../images/data_hoofs/rh_block.svg');
-}
-
-#RH_HOOF_Bandage {
-    background-image: url('../images/data_hoofs/rh_bandage.svg');
-}
-
-#RH_HOOF_Bandage_Block {
-    background-image: url('../images/data_hoofs/rh_bandage_block.svg');
+#LV_Hoof_Bandage_Block {
+    background-image: url('../images/Data_Hoofs/LV_Bandage_Block.svg');
 }
 
 
 
-#RH_HOOF_Bandage_Removed {
-    background-image: url('../images/data_hoofs/rh_removed.svg');
+#RV_Hoof_Standart {
+    background-image: url('../images/Hoofs/HOOF_RV_HighLighted.svg');
 }
 
-#RH_HOOF_Block_Removed {
-    background-image: url('../images/data_hoofs/rh_removed_block.svg');
+#RV_Hoof_Block {
+    background-image: url('../images/Data_Hoofs/RV_Block.svg');
 }
 
-#LH_HOOF_Bandage_Removed {
-    background-image: url('../images/data_hoofs/lh_removed.svg');
+#RV_Hoof_Bandage {
+    background-image: url('../images/Data_Hoofs/RV_Bandage.svg');
 }
 
-#LH_HOOF_Block_Removed {
-    background-image: url('../images/data_hoofs/lh_removed_block.svg');
-}
-
-
-#RV_HOOF_Bandage_Removed {
-    background-image: url('../images/data_hoofs/rv_removed.svg');
-}
-
-#RV_HOOF_Block_Removed {
-    background-image: url('../images/data_hoofs/rv_removed_block.svg');
+#RV_Hoof_Bandage_Block {
+    background-image: url('../images/Data_Hoofs/RV_Bandage_Block.svg');
 }
 
 
-#LV_HOOF_Bandage_Removed {
-    background-image: url('../images/data_hoofs/lv_removed.svg');
+#LH_Hoof_Standart {
+    background-image: url('../images/Hoofs/HOOF_LH_HighLighted.svg');
 }
 
-#LV_HOOF_Block_Removed {
-    background-image: url('../images/data_hoofs/lv_removed_block.svg');
+#LH_Hoof_Block {
+    background-image: url('../images/Data_Hoofs/LH_Block.svg');
+}
+
+#LH_Hoof_Bandage {
+    background-image: url('../images/Data_Hoofs/LH_Bandage.svg');
+}
+
+#LH_Hoof_Bandage_Block {
+    background-image: url('../images/Data_Hoofs/LH_Bandage_Block.svg');
+}
+
+
+#RH_Hoof_Standart {
+    background-image: url('../images/Hoofs/HOOF_RH_HighLighted.svg');
+}
+
+#RH_Hoof_Block {
+    background-image: url('../images/Data_Hoofs/RH_Block.svg');
+}
+
+#RH_Hoof_Bandage {
+    background-image: url('../images/Data_Hoofs/RH_Bandage.svg');
+}
+
+#RH_Hoof_Bandage_Block {
+    background-image: url('../images/Data_Hoofs/RH_Bandage_Block.svg');
+}
+
+
+
+#RH_Hoof_Bandage_Removed {
+    background-image: url('../images/Data_Hoofs/RH_Removed.svg');
+}
+
+#RH_Hoof_Block_Removed {
+    background-image: url('../images/Data_Hoofs/RH_Removed_Block.svg');
+}
+
+#LH_Hoof_Bandage_Removed {
+    background-image: url('../images/Data_Hoofs/LH_Removed.svg');
+}
+
+#LH_Hoof_Block_Removed {
+    background-image: url('../images/Data_Hoofs/LH_Removed_Block.svg');
+}
+
+
+#RV_Hoof_Bandage_Removed {
+    background-image: url('../images/Data_Hoofs/RV_Removed.svg');
+}
+
+#RV_Hoof_Block_Removed {
+    background-image: url('../images/Data_Hoofs/RV_Removed_Block.svg');
+}
+
+
+#LV_Hoof_Bandage_Removed {
+    background-image: url('../images/Data_Hoofs/LV_Removed.svg');
+}
+
+#LV_Hoof_Block_Removed {
+    background-image: url('../images/Data_Hoofs/LV_Removed_Block.svg');
 }
 
 /*Index*/
