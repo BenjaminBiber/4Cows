@@ -682,16 +682,45 @@ th, td {
 }
 
 #KPI_Div{
-    flex-wrap: wrap;
     gap: 2%;
     width: 65%;
     height: 100%;
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    padding-bottom: 1.5em;
 }
 
-.KPI-Element{
-    height: 44%;
-    aspect-ratio: 1.4/1;
+.KPI-Element:nth-child(1){
+    grid-area: 1 / 1 / 2 / 2;
+}
+
+.KPI-Element:nth-child(2){
+    grid-area: 1 / 2 / 2 / 3;
+}
+
+.KPI-Element:nth-child(3){
+    grid-area: 1 / 3 / 2 / 4;
+}
+
+.KPI-Element:nth-child(4){
+    grid-area: 1 / 4 / 2 / 5;
+}
+
+.KPI-Element:nth-child(5){
+    grid-area: 2 / 1 / 3 / 2;
+}
+
+.KPI-Element:nth-child(6){
+    grid-area: 2 / 2 / 3 / 3;
+}
+
+.KPI-Element:nth-child(7){
+    grid-area: 2 / 3 / 3 / 4;
+}
+
+.KPI-Element:nth-child(8){
+    grid-area: 2 / 4 / 3 / 5;
 }
 
 #Action_Div{
@@ -730,7 +759,7 @@ th, td {
     height: 85%;
 }
 
-@media (max-width: 480px)
+@media (max-width: 1330px)
 {
     #Index_Top{
         height: 90dvh;
