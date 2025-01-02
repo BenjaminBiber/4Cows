@@ -132,10 +132,10 @@ namespace BBCowDataLibrary.SQL
         {
             connectionString = new MySqlConnectionStringBuilder
             {
-                Server = Environment.GetEnvironmentVariable("DB_SERVERR") ?? "127.0.0.1",
-                UserID = Environment.GetEnvironmentVariable("DB_UserR") ?? "root",
-                Password = Environment.GetEnvironmentVariable("DB_PasswordR") ?? "4cows",
-                Database = Environment.GetEnvironmentVariable("DB_DBR") ?? "4cows",
+                Server = Environment.GetEnvironmentVariable("DB_SERVER") ?? "127.0.0.1",
+                UserID = Environment.GetEnvironmentVariable("DB_User") ?? "root",
+                Password = Environment.GetEnvironmentVariable("DB_Password") ?? "4cows",
+                Database = Environment.GetEnvironmentVariable("DB_DB") ?? "4cows",
                 Port = 3306
             }.ConnectionString;
 
