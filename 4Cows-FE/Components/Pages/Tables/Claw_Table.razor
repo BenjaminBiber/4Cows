@@ -8,6 +8,7 @@
 @using OfficeOpenXml
 @using OfficeOpenXml.Style
 @inject ClawTreatmentService clawTreatmentService
+@inject CowService cowService
 @inject IJSRuntime JS
 
 
@@ -20,21 +21,21 @@
     </MudTooltip>
 </MudGrid>
 
-<MudTable Elevation="5" Items="@Treatment_Claws" Hover="true" Striped="@true" Filter="new Func<Treatment_Claw,bool>(ClawFilterFunc1)" @bind-SelectedItem="selectedClaw">
+<MudTable Elevation="5" Items="@Treatment_Claws" Hover="true" Striped="@true" Filter="new Func<ClawTreatment,bool>(ClawFilterFunc1)" @bind-SelectedItem="selectedClaw">
     <ToolBarContent>
         <MudText Typo="Typo.h3">Klauen Behandlungen</MudText>
         <MudSpacer/>
         <MudTextField @bind-Value="searchClaw" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
     </ToolBarContent>
     <HeaderContent>
-        <MudTh><MudTableSortLabel SortBy="new Func<Treatment_Claw, object>(x=>x.Collar_Number)">Halsbandnummer</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel SortBy="new Func<Treatment_Claw, object>(x=>x.Treatment_Date)">Datum</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<int, object>(x=>x)">Halsbandnummer</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<ClawTreatment, object>(x=>x.TreatmentDate)">Datum</MudTableSortLabel></MudTh>
         <MudTh></MudTh>
 
     </HeaderContent>
     <RowTemplate>
-        <MudTd DataLabel="Halsbandnummer">@context.Collar_Number</MudTd>
-            <MudTd DataLabel="Datum">@context.Treatment_Date.ToString("dd/MM/yyyy")</MudTd>
+        <MudTd DataLabel="Halsbandnummer">@cowService.GetCollarNumberByEarTagNumber(context.EarTagNumber)</MudTd>
+            <MudTd DataLabel="Datum">@context.TreatmentDate.ToString("dd.MM.yyyy")</MudTd>
             <MudTd><MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="@(() => OpenClawInformation(context))">Behandlung öffnen</MudButton></MudTd>
         </RowTemplate>
         <PagerContent>
@@ -42,27 +43,27 @@
         </PagerContent>
     </MudTable>
 @code {
-    private Treatment_Claw selectedClaw = null;
+    private ClawTreatment selectedClaw = null;
     private string searchClaw = "";
-    private List<Treatment_Claw> Treatment_Claws = new List<Treatment_Claw>();
+    private List<ClawTreatment> Treatment_Claws = new List<ClawTreatment>();
 
     protected override async Task OnInitializedAsync()
     {
         await clawTreatmentService.GetAllDataAsync();
-        Treatment_Claws = clawTreatmentService.Treatments;
+        Treatment_Claws = clawTreatmentService.GetClawTreatments();
     }
-    private bool ClawFilterFunc1(Treatment_Claw Treatment_Cow) => FilterFuncClaw(Treatment_Cow, searchClaw);
+    private bool ClawFilterFunc1(ClawTreatment Treatment_Cow) => FilterFuncClaw(Treatment_Cow, searchClaw);
 
-    private bool FilterFuncClaw(Treatment_Claw Treatment_Cow, string searchString)
+    private bool FilterFuncClaw(ClawTreatment Treatment_Cow, string searchString)
     {
         if (string.IsNullOrWhiteSpace(searchString))
             return true;
-        if (Treatment_Cow.Collar_Number.ToString() == searchString)
+        if (cowService.GetCollarNumberByEarTagNumber(Treatment_Cow.EarTagNumber).ToString() == searchString)
             return true;
         return false;
     }
 
-    private async Task OpenClawInformation(Treatment_Claw Claw_Treatment)
+    private async Task OpenClawInformation(ClawTreatment Claw_Treatment)
     {
         var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
         await clawTreatmentService.GetAllDataAsync();
@@ -92,7 +93,7 @@
         {
             var worksheet = package.Workbook.Worksheets.Add("Sheet1");
 
-            string[] headers = { "Halsbandnummer", "Datum", "Behandlung LV", "Verband LV", "Klotz LV",
+            string[] headers = { "Halsbandnummer","Ohrenmarkennummer", "Datum", "Behandlung LV", "Verband LV", "Klotz LV",
                          "Behandlung RV", "Verband RV", "Klotz RV", "Behandlung LH",
                          "Verband LH", "Klotz LH", "Behandlung RH", "Verband RH",
                          "Klotz RH", "Wurde Verband entfernt?" };
@@ -101,28 +102,30 @@
             {
                 worksheet.Cells[1, i + 1].Value = headers[i];
                 worksheet.Cells[1, i + 1].Style.Fill.PatternType = ExcelFillStyle.Solid;
-                worksheet.Cells[1, i + 1].Style.Fill.BackgroundColor.SetColor(System.Drawing.ColorTranslator.FromHtml("#60ADC9"));
+                worksheet.Cells[1, i + 1].Style.Fill.BackgroundColor.SetColor(System.Drawing.ColorTranslator.FromHtml(MudBlazor.Color.Primary.ToString()));
                 worksheet.Cells[1, i + 1].Style.Font.Bold = true;
                 worksheet.Cells[1, i + 1].Style.Font.Size = 12;
             }
 
             for (int i = 0; i < Treatment_Claws.Count; i++)
             {
-                worksheet.Cells[i + 3, 1].Value = Treatment_Claws[i].Collar_Number;
-                worksheet.Cells[i + 3, 2].Value = Treatment_Claws[i].Treatment_Date;
-                worksheet.Cells[i + 3, 3].Value = Treatment_Claws[i].Claw_Finding_LV;
-                worksheet.Cells[i + 3, 4].Value = Treatment_Claws[i].Bandage_LV ? "Verband" : "Kein Verband";
-                worksheet.Cells[i + 3, 5].Value = Treatment_Claws[i].Block_LV ? "Klotz" : "Kein Klotz";
-                worksheet.Cells[i + 3, 6].Value = Treatment_Claws[i].Claw_Finding_RV;
-                worksheet.Cells[i + 3, 7].Value = Treatment_Claws[i].Bandage_RV ? "Verband" : "Kein Verband";
-                worksheet.Cells[i + 3, 8].Value = Treatment_Claws[i].Block_RV ? "Klotz" : "Kein Klotz";
-                worksheet.Cells[i + 3, 9].Value = Treatment_Claws[i].Claw_Finding_LH;
-                worksheet.Cells[i + 3, 10].Value = Treatment_Claws[i].Bandage_LH ? "Verband" : "Kein Verband";
-                worksheet.Cells[i + 3, 11].Value = Treatment_Claws[i].Block_LH ? "Klotz" : "Kein Klotz";
-                worksheet.Cells[i + 3, 12].Value = Treatment_Claws[i].Claw_Finding_RH;
-                worksheet.Cells[i + 3, 13].Value = Treatment_Claws[i].Bandage_RH ? "Verband" : "Kein Verband";
-                worksheet.Cells[i + 3, 14].Value = Treatment_Claws[i].Block_RH ? "Klotz" : "Kein Klotz";
-                worksheet.Cells[i + 3, 15].Value = Treatment_Claws[i].IsBandageRemoved ? "Ja" : "Nein";
+                worksheet.Cells[i + 3, 1].Value = Treatment_Claws[i].EarTagNumber; 
+                worksheet.Cells[i + 3, 2].Value = cowService.GetCollarNumberByEarTagNumber(Treatment_Claws[i].EarTagNumber); 
+                worksheet.Cells[i + 3, 3].Value = Treatment_Claws[i].TreatmentDate;
+                worksheet.Cells[i + 3, 4].Value = Treatment_Claws[i].ClawFindingLV;
+                worksheet.Cells[i + 3, 5].Value = Treatment_Claws[i].BandageLV ? "Verband" : "Kein Verband";
+                worksheet.Cells[i + 3, 6].Value = Treatment_Claws[i].BlockLV ? "Klotz" : "Kein Klotz";
+                worksheet.Cells[i + 3, 7].Value = Treatment_Claws[i].ClawFindingRV;
+                worksheet.Cells[i + 3, 8].Value = Treatment_Claws[i].BandageRV ? "Verband" : "Kein Verband";
+                worksheet.Cells[i + 3, 9].Value = Treatment_Claws[i].BlockRV ? "Klotz" : "Kein Klotz";
+                worksheet.Cells[i + 3, 10].Value = Treatment_Claws[i].ClawFindingLH;
+                worksheet.Cells[i + 3, 11].Value = Treatment_Claws[i].BandageLH ? "Verband" : "Kein Verband";
+                worksheet.Cells[i + 3, 12].Value = Treatment_Claws[i].BlockLH ? "Klotz" : "Kein Klotz";
+                worksheet.Cells[i + 3, 13].Value = Treatment_Claws[i].ClawFindingRH;
+                worksheet.Cells[i + 3, 14].Value = Treatment_Claws[i].BandageRH ? "Verband" : "Kein Verband";
+                worksheet.Cells[i + 3, 15].Value = Treatment_Claws[i].BlockRH ? "Klotz" : "Kein Klotz";
+                worksheet.Cells[i + 3, 16].Value = Treatment_Claws[i].IsBandageRemoved ? "Ja" : "Nein";
+
                 if (Treatment_Claws[i].IsBandageRemoved)
                 {
                     worksheet.Cells[i + 3, 15].Style.Fill.PatternType = ExcelFillStyle.Solid;

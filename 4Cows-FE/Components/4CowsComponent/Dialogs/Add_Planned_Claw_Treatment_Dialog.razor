@@ -1,55 +1,56 @@
 ﻿@inject ISnackbar Snackbar
 @inject PClawTreatmentService pClawTreatmentService
+@inject CowService cowService
 
 <MudDialog>
     <DialogContent>
         <MudStack>
             <MudText Align="Align.Center" Typo="Typo.h3">geplante Klauen Behandlung hinzufügen</MudText>
 
-            <MudNumericField @bind-Value="Planned_Claw_Treatment.Collar_Number" Label="Halsbandnummer:" Variant="Variant.Text" />
+            <MudNumericField @bind-Value="CollarNumber" Label="Halsbandnummer:" Variant="Variant.Text" />
             <MudDatePicker Label="Erkennungsdatum:" Editable="true" @bind-Date="NullDate" />
-            <MudTextField Label="Grund für Behandlung:" @bind-Value="Planned_Claw_Treatment.Description"></MudTextField>
+            <MudTextField Label="Grund für Behandlung:" @bind-Value="Planned_Claw_Treatment.Desciption"></MudTextField>
             <MudSpacer></MudSpacer>
             <MudText>Auffällige Klauen:</MudText>
                 <MudGrid Justify="Justify.Center">
                     <MudItem xs="6">
-                        @if (Planned_Claw_Treatment.Claw_Finding_LV)
+                        @if (Planned_Claw_Treatment.ClawFindingLV)
                         {
                         <button type="button" id="LV_Hoof_Standart" class="Show_Hoof_Input" onclick="@(() => ClawInput("LV"))"></button>
                         }
                         else
                         {
-                        <button type="button" id="LV_Hoof" class="Show_Hoof_Input" onclick="@(() => ClawInput("LV"))"></button>
+                        <button type="button" id="LV_HOOF" class="Show_Hoof_Input" onclick="@(() => ClawInput("LV"))"></button>
                         }
                     </MudItem>
                     <MudItem xs="6">
-                        @if (Planned_Claw_Treatment.Claw_Finding_RV)
+                        @if (Planned_Claw_Treatment.ClawFindingRV)
                         {
                         <button type="button" id="RV_Hoof_Standart" class="Show_Hoof_Input" onclick="@(() => ClawInput("RV"))"></button>
                         }
                         else
                         {
-                        <button type="button" id="RV_Hoof" class="Show_Hoof_Input" onclick="@(() => ClawInput("RV"))"></button>
+                        <button type="button" id="RV_HOOF" class="Show_Hoof_Input" onclick="@(() => ClawInput("RV"))"></button>
                         }
                     </MudItem>
                     <MudItem xs="6">
-                        @if (Planned_Claw_Treatment.Claw_Finding_LH)
+                        @if (Planned_Claw_Treatment.ClawFindingLH)
                         {
                         <button type="button" id="LH_Hoof_Standart" class="Show_Hoof_Input" onclick="@(() => ClawInput("LH"))"></button>
                         }
                         else
                         {
-                        <button type="button" id="LH_Hoof" class="Show_Hoof_Input" onclick="@(() => ClawInput("LH"))"></button>
+                        <button type="button" id="LH_HOOF" class="Show_Hoof_Input" onclick="@(() => ClawInput("LH"))"></button>
                         }
                     </MudItem> 
                     <MudItem xs="6">
-                        @if (Planned_Claw_Treatment.Claw_Finding_RH)
+                        @if (Planned_Claw_Treatment.ClawFindingRH)
                         {
                         <button type="button" id="RH_Hoof_Standart" class="Show_Hoof_Input" onclick="@(() => ClawInput("RH"))"></button>
                         }
                         else
                         {
-                        <button type="button" id="RH_Hoof" class="Show_Hoof_Input" onclick="@(() => ClawInput("RH"))"></button>
+                        <button type="button" id="RH_HOOF" class="Show_Hoof_Input" onclick="@(() => ClawInput("RH"))"></button>
                         }
                     </MudItem>
                     </MudGrid>
@@ -65,8 +66,9 @@
 
     public DateTime? NullDate;
     public bool SaveSuccesfulBool;
-
-    public Planned_Treatment_Claw Planned_Claw_Treatment = new Planned_Treatment_Claw();
+    public int CollarNumber;
+    
+    public PlannedClawTreatment Planned_Claw_Treatment = new PlannedClawTreatment();
 
     protected override void OnInitialized()
     {
@@ -79,12 +81,10 @@
         Snackbar.Configuration.MaxDisplayedSnackbars = 10;
         if (TestForNullInput())
         {    
-        Planned_Claw_Treatment.Treatment_Date = NullDate.Value;
+            Planned_Claw_Treatment.TreatmentDate = NullDate.Value;
+            Planned_Claw_Treatment.EarTagNumber = cowService.GetEarTagNumberByCollarNumber(CollarNumber);
             SaveSuccesfulBool = await pClawTreatmentService.InsertDataAsync(Planned_Claw_Treatment);
             MudDialog.Close();
-            pClawTreatmentService.Treatments.Add(Planned_Claw_Treatment);
-            Planned_Claw_Treatment = new Planned_Treatment_Claw();
-            Planned_Claw_Treatment.Treatment_Date = DateTime.Now;
             if (SaveSuccesfulBool)
             {
                 Snackbar.Add($"Speichern erfolgreich!", Severity.Success);
@@ -102,8 +102,8 @@
 
     private bool TestForNullInput()
     {
-        var returnBool = false;
-        returnBool = Planned_Claw_Treatment.Collar_Number != 0 && NullDate != null &&  !string.IsNullOrEmpty(Planned_Claw_Treatment.Description);
+        bool returnBool;
+        returnBool = NullDate != null &&  !string.IsNullOrEmpty(Planned_Claw_Treatment.Desciption);
         return returnBool;
     }
 
@@ -111,19 +111,19 @@
     {
         if(currentClaw == "LV")
         {
-            Planned_Claw_Treatment.Claw_Finding_LV = !Planned_Claw_Treatment.Claw_Finding_LV;
+            Planned_Claw_Treatment.ClawFindingLV = !Planned_Claw_Treatment.ClawFindingLV;
         }
         else if (currentClaw == "RV")
         {
-            Planned_Claw_Treatment.Claw_Finding_RV = !Planned_Claw_Treatment.Claw_Finding_RV;
+            Planned_Claw_Treatment.ClawFindingRV = !Planned_Claw_Treatment.ClawFindingRV;
         }
         else if (currentClaw == "LH")
         {
-            Planned_Claw_Treatment.Claw_Finding_LH = !Planned_Claw_Treatment.Claw_Finding_LH;
+            Planned_Claw_Treatment.ClawFindingLH = !Planned_Claw_Treatment.ClawFindingLH;
         }
         else if (currentClaw == "RH")
         {
-            Planned_Claw_Treatment.Claw_Finding_RH = !Planned_Claw_Treatment.Claw_Finding_RH;
+            Planned_Claw_Treatment.ClawFindingRH = !Planned_Claw_Treatment.ClawFindingRH;
         }
     }
 }

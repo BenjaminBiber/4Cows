@@ -1,100 +1,135 @@
-﻿using BB_Cow.Class;
-using BBCowDataLibrary.SQL;
-using MySqlConnector;
+﻿using System;
+using System.Collections.Concurrent;
+using System.Collections.Immutable;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
+using System.Threading.Tasks;
+using BB_Cow.Class;
+using BB_Cow.Services;
+using BBCowDataLibrary.SQL;
 
-namespace BB_Cow.Services
+public class CowTreatmentService
 {
-    public class CowTreatmentService
+    private ImmutableDictionary<int, CowTreatment> _cachedTreatments = ImmutableDictionary<int, CowTreatment>.Empty;
+    private ImmutableList<string> _cachedDistinctWhereHows = ImmutableList<string>.Empty;
+
+    public ImmutableDictionary<int, CowTreatment> Treatments => _cachedTreatments;
+    public ImmutableList<string> DistinctWhereHows => _cachedDistinctWhereHows;
+
+    public async Task GetAllDataAsync()
     {
-        public List<Treatment_Cow> Treatments { get; set; } = new();
-        public List<string> CowMedicineTreatmentList { get; set; } = new();
-        public List<string> CowWhereHowList { get; set; } = new();
-
-        public async Task GetAllDataAsync()
+        var dbResult = await DatabaseService.ReadDataAsync("SELECT * FROM Cow_Treatment;", reader =>
         {
-            Treatments = await DatabaseService.ReadDataAsync(@"SELECT * FROM Cow_Treatment;", reader =>
+            var treatment = new CowTreatment()
             {
-                var treatment = new Treatment_Cow
-                {
-                    Cow_Treatment_ID = reader.GetInt32("Cow_Treatment_ID"),
-                    Collar_Number = reader.GetInt32("Collar_Number"),
-                    Administration_Date = reader.GetDateTime("Administration_Date"),
-                    Medicine_Dosage = reader.GetFloat("Medicine_Dosage"),
-                    Medicine_Name = reader.GetString("Medicine_Name"),
-                    WhereHow = reader.GetString("WhereHow"),
-                    Ear_Number = reader.GetInt32("Ear_Number")
-                };
-                return treatment;
-            });
+                CowTreatmentId = reader.GetInt32("Cow_Treatment_ID"),
+                EarTagNumber = reader.GetString("Ear_Tag_Number"),
+                AdministrationDate = reader.GetDateTime("Administration_Date"),
+                MedicineDosage = reader.GetFloat("Medicine_Dosage"),
+                MedicineId = reader.GetInt32("Medicine_ID"),
+                WhereHow = reader.GetString("WhereHow"),
+            };
+            return treatment;
+        });
 
-            CowMedicineTreatmentList = Treatments.Select(t => t.Medicine_Name).Distinct().ToList();
-            CowWhereHowList = Treatments.Select(t => t.WhereHow).Distinct().ToList();
+        _cachedDistinctWhereHows = dbResult.Select(t => t.WhereHow).Distinct().ToImmutableList();
+        _cachedTreatments = dbResult.ToImmutableDictionary(t => t.CowTreatmentId);
+    }
 
+    public async Task<bool> InsertDataAsync(CowTreatment cowTreatment)
+    {
+        bool isSuccess = false;
+        await DatabaseService.ExecuteQueryAsync(async command =>
+        {
+            command.CommandText = @"INSERT INTO `Cow_Treatment` (`Ear_Tag_Number`, `Administration_Date`, `Medicine_Dosage`, `Medicine_ID`, `WhereHow`) VALUES (@EarTagNumber, @AdministrationDate, @MedicineDosage, @MedicineId, @WhereHow);";
+            command.Parameters.AddWithValue("@EarTagNumber", cowTreatment.EarTagNumber);
+            command.Parameters.AddWithValue("@AdministrationDate", cowTreatment.AdministrationDate);
+            command.Parameters.AddWithValue("@MedicineDosage", cowTreatment.MedicineDosage);
+            command.Parameters.AddWithValue("@MedicineId", cowTreatment.MedicineId);
+            command.Parameters.AddWithValue("@WhereHow", cowTreatment.WhereHow);
+            isSuccess = (await command.ExecuteNonQueryAsync()) > 0;
+        });
+
+        if (isSuccess)
+        {
+            _cachedTreatments = _cachedTreatments.Add(cowTreatment.CowTreatmentId, cowTreatment);
+            _cachedDistinctWhereHows = _cachedDistinctWhereHows.Add(cowTreatment.WhereHow).Distinct().ToImmutableList();
         }
 
-        public async Task<bool> InsertDataAsync(Treatment_Cow cow_Treatment)
+        return isSuccess;
+    }
+
+    public async Task<CowTreatment> GetByIdAsync(int id)
+    {
+        if (_cachedTreatments.ContainsKey(id))
         {
-            bool isSuccess = false;
-            await DatabaseService.ExecuteQueryAsync(async command =>
+            return _cachedTreatments[id];
+        }
+
+        var query = "SELECT * FROM Cow_Treatment WHERE Cow_Treatment_ID = @Id;";
+
+        var treatments = await DatabaseService.ReadDataAsync(query, reader =>
+        {
+            var treatment = new CowTreatment
             {
-                command.CommandText = @"INSERT INTO `Cow_Treatment` (`Collar_Number`, `Administration_Date`, `Medicine_Dosage`, `Medicine_Name`, `WhereHow`, `Ear_Number`) VALUES (@Collar_Number, @Administration_Date, @Medicine_Dosage, @Medicine_Name, @WhereHow, @Ear_Number);";
-                command.Parameters.AddWithValue("@Collar_Number", cow_Treatment.Collar_Number);
-                command.Parameters.AddWithValue("@Administration_Date", cow_Treatment.Administration_Date);
-                command.Parameters.AddWithValue("@Medicine_Dosage", cow_Treatment.Medicine_Dosage);
-                command.Parameters.AddWithValue("@Medicine_Name", cow_Treatment.Medicine_Name);
-                command.Parameters.AddWithValue("@WhereHow", cow_Treatment.WhereHow);
-                command.Parameters.AddWithValue("@Ear_Number", cow_Treatment.Ear_Number);
-                isSuccess = (await command.ExecuteNonQueryAsync()) > 0;
-            });
-            return isSuccess;
-        }
+                CowTreatmentId = reader.GetInt32("Cow_Treatment_ID"),
+                EarTagNumber = reader.GetString("Ear_Tag_Number"),
+                AdministrationDate = reader.GetDateTime("Administration_Date"),
+                MedicineDosage = reader.GetFloat("Medicine_Dosage"),
+                MedicineId = reader.GetInt32("Medicine_ID"),
+                WhereHow = reader.GetString("WhereHow"),
+            };
+            return treatment;
+        }, new { Id = id });
 
-        public async Task<Treatment_Cow> GetByIDAsync(int id)
+        var treatmentResult = treatments.FirstOrDefault();
+        if (treatmentResult != null)
         {
-            var query = $"SELECT * FROM Cow_Treatment WHERE Cow_Treatment_ID = {id};";
-
-            var treatments = await DatabaseService.ReadDataAsync(query, reader =>
-            {
-                var treatment = new Treatment_Cow
-                {
-                    Cow_Treatment_ID = reader.GetInt32("Cow_Treatment_ID"),
-                    Collar_Number = reader.GetInt32("Collar_Number"),
-                    Administration_Date = reader.GetDateTime("Administration_Date"),
-                    Medicine_Dosage = reader.GetFloat("Medicine_Dosage"),
-                    Medicine_Name = reader.GetString("Medicine_Name"),
-                    WhereHow = reader.GetString("WhereHow"),
-                    Ear_Number = reader.GetInt32("Ear_Number")
-                };
-                return treatment;
-            });
-
-            return treatments.FirstOrDefault() ?? new Treatment_Cow(); ;
+            _cachedTreatments = _cachedTreatments.Add(id, treatmentResult);
         }
 
-        public int[] GetCowTreatmentChartData()
+        return treatmentResult ?? new CowTreatment();
+    }
+
+    public int[] GetCowTreatmentChartData()
+    {
+        var months = Enumerable.Range(1, 12);
+
+        var groupedData = _cachedTreatments.Values
+            .GroupBy(obj => obj.AdministrationDate.Month)
+            .ToDictionary(g => g.Key, g => g.Count());
+
+        return months
+            .Select(month => groupedData.ContainsKey(month) ? groupedData[month] : 0)
+            .ToArray();
+    }
+
+    public int[] GetCowTreatmentChartData(string medicine)
+    {
+        var months = Enumerable.Range(1, 12);
+
+        return months
+            .Select(month => _cachedTreatments.Values
+                .Where(obj => obj.AdministrationDate.Month == month && obj.MedicineId == int.Parse(medicine))
+                .Count())
+            .ToArray();
+    }
+    
+    public async Task<IEnumerable<string>> SearchCowTreatmentMedicaments(string value, CancellationToken token, MedicineService medicineService)
+    {
+        if (string.IsNullOrEmpty(value))
         {
-            var months = Enumerable.Range(1, 12);
-
-            var groupedData = Treatments
-                .GroupBy(obj => obj.Administration_Date.Month)
-                .ToDictionary(g => g.Key, g => g.Count());
-
-            return months
-                .Select(month => groupedData.ContainsKey(month) ? groupedData[month] : 0)
-                .ToArray();
+            return medicineService.GetMedicineNames();
         }
+        return medicineService.GetMedicineNames().Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
+    }
 
-        public int[] GetCowTreatmentChartData(string medicine)
+    public async Task<IEnumerable<string>> SearchCowTreatmentWhereHow(string value, CancellationToken token)
+    {
+        if (string.IsNullOrEmpty(value) || !DistinctWhereHows.Any())
         {
-            var months = Enumerable.Range(1, 12);
-
-            return months
-                .Select(month => Treatments
-                    .Where(obj => obj.Administration_Date.Month == month && obj.Medicine_Name == medicine)
-                    .Count())
-                .ToArray();
-
+            return DistinctWhereHows;
         }
+        return DistinctWhereHows.Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
     }
 }

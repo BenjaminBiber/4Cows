@@ -5,13 +5,13 @@
         public NumberEntry()
         {
         }
-        public NumberEntry(int value, int ear_value)
+        public NumberEntry(int value, string ear_value)
         {
             Value = value;
             EarValue = ear_value;
         }
         public int? Value { get; set; }
-        public int? EarValue { get; set; }
+        public string? EarValue { get; set; }
 
 
     }

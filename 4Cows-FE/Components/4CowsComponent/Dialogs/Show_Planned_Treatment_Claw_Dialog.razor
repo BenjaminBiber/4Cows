@@ -8,43 +8,43 @@
 
             <MudGrid Justify="Justify.Center">
                 <MudItem xs="6">
-                    @if (Planned_Claw_Treatment.Claw_Finding_LV)
+                    @if (Planned_Claw_Treatment.ClawFindingLV)
                     {
-                        <button type="button" id="LV_HOOF_Block" class="Show_Hoof_Input"></button>
+                        <button type="button" id="LV_Hoof_Block" class="Show_Hoof_Input"></button>
                     }
                     else
                     {
-                        <button type="button" id="LV_HOOF_Standart" class="Show_Hoof_Input"></button>
+                        <button type="button" id="LV_Hoof_Standart" class="Show_Hoof_Input"></button>
                     }
                 </MudItem>
                     <MudItem xs="6">
-                        @if (Planned_Claw_Treatment.Claw_Finding_RV)
+                        @if (Planned_Claw_Treatment.ClawFindingRV)
                     {
-                        <button type="button" id="RV_HOOF_Block" class="Show_Hoof_Input"></button>
+                        <button type="button" id="RV_Hoof_Block" class="Show_Hoof_Input"></button>
                     }
                     else
                     {
-                        <button type="button" id="RV_HOOF_Standart" class="Show_Hoof_Input"></button>
+                        <button type="button" id="RV_Hoof_Standart" class="Show_Hoof_Input"></button>
                     }
                     </MudItem>
                     <MudItem xs="6">
-                        @if (Planned_Claw_Treatment.Claw_Finding_LH)
+                        @if (Planned_Claw_Treatment.ClawFindingLH)
                     {
-                        <button type="button" id="LH_HOOF_Block" class="Show_Hoof_Input"></button>
+                        <button type="button" id="LH_Hoof_Block" class="Show_Hoof_Input"></button>
                     }
                     else
                     {
-                        <button type="button" id="LH_HOOF_Standart" class="Show_Hoof_Input"></button>
+                        <button type="button" id="LH_Hoof_Standart" class="Show_Hoof_Input"></button>
                     }
                     </MudItem>
                     <MudItem xs="6">
-                        @if (Planned_Claw_Treatment.Claw_Finding_RH)
+                        @if (Planned_Claw_Treatment.ClawFindingRH)
                     {
-                        <button type="button" id="RH_HOOF_Block" class="Show_Hoof_Input"></button>
+                        <button type="button" id="RH_Hoof_Block" class="Show_Hoof_Input"></button>
                     }
                     else
                     {
-                        <button type="button" id="RH_HOOF_Standart" class="Show_Hoof_Input"></button>
+                        <button type="button" id="RH_Hoof_Standart" class="Show_Hoof_Input"></button>
                     }                               
                     </MudItem>
                 </MudGrid>
@@ -57,7 +57,7 @@
     [CascadingParameter] MudDialogInstance MudDialog { get; set; }
 
     [Parameter]
-    public Planned_Treatment_Claw Planned_Claw_Treatment { get; set; } = new Planned_Treatment_Claw();
+    public PlannedClawTreatment Planned_Claw_Treatment { get; set; } = new PlannedClawTreatment();
 
     public bool showTreatmentModal = false;
 

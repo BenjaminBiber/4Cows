@@ -1,12 +1,13 @@
 ﻿@inject ISnackbar Snackbar
 @inject ClawTreatmentService clawTreatmentService
+@inject CowService cowService
 
 <MudDialog>
     <DialogContent>
             <MudStack>
                 <MudText Align="Align.Center" Typo="Typo.h3">Klauen Behandlung hinzufügen</MudText>
 
-                <MudNumericField @bind-Value="Claw_Treatment.Collar_Number" Label="Halsbandnummer:" Variant="Variant.Text" />
+                <MudNumericField @bind-Value="CollarNumber" Label="Halsbandnummer:" Variant="Variant.Text" />
 
                 <MudDatePicker Label="Behandlungsdatum:" Editable="true" @bind-Date="NullDate" />
             <MudContainer MaxWidth="MaxWidth.ExtraSmall" id="Claw_Treatment_Modal" class="@(showTreatmentModal ? "showTreatmentModal" : "hideTreatmentModal")">
@@ -14,27 +15,27 @@
                         <MudText Align="Align.Center" Typo="Typo.h5">@($"Klauen Behandlung {currentClaw}")</MudText>
                         @if (currentClaw == "LV")
                         {
-                            <MudAutocomplete T="string" Label="Befund:" @bind-Value="Claw_Treatment.Claw_Finding_LV" SearchFunc="@Search_Claw_Treatment_Claw_Finding" CoerceValue="true" />
-                            <MudCheckBox Label="Verband:" @bind-Value="@Claw_Treatment.Bandage_LV" Size="Size.Medium" Color="Color.Primary"></MudCheckBox>
-                            <MudCheckBox Label="Klotz:" @bind-Value="@Claw_Treatment.Block_LV" Size="Size.Medium" Color="Color.Primary"></MudCheckBox>
+                            <MudAutocomplete T="string" Label="Befund:" @bind-Value="Claw_Treatment.ClawFindingLV" SearchFunc="@Search_Claw_Treatment_Claw_Finding" CoerceValue="true" />
+                            <MudCheckBox Label="Verband:" @bind-Value="@Claw_Treatment.BandageLV" Size="Size.Medium" Color="Color.Primary"></MudCheckBox>
+                            <MudCheckBox Label="Klotz:" @bind-Value="@Claw_Treatment.BlockLV" Size="Size.Medium" Color="Color.Primary"></MudCheckBox>
                         }
                         else if (currentClaw == "LH")
                         {
-                        <MudAutocomplete T="string" Label="Befund:" @bind-Value="Claw_Treatment.Claw_Finding_LH" SearchFunc="@Search_Claw_Treatment_Claw_Finding" CoerceValue="true" />
-                        <MudCheckBox Label="Verband:" @bind-Value="@Claw_Treatment.Bandage_LH" Size="Size.Medium" Color="Color.Primary"></MudCheckBox>
-                        <MudCheckBox Label="Klotz:" @bind-Value="@Claw_Treatment.Block_LH" Size="Size.Medium" Color="Color.Primary"></MudCheckBox>
+                        <MudAutocomplete T="string" Label="Befund:" @bind-Value="Claw_Treatment.ClawFindingLH" SearchFunc="@Search_Claw_Treatment_Claw_Finding" CoerceValue="true" />
+                        <MudCheckBox Label="Verband:" @bind-Value="@Claw_Treatment.BandageLH" Size="Size.Medium" Color="Color.Primary"></MudCheckBox>
+                        <MudCheckBox Label="Klotz:" @bind-Value="@Claw_Treatment.BlockLH" Size="Size.Medium" Color="Color.Primary"></MudCheckBox>
                         }
                         else if (currentClaw == "RV")
                         {
-                        <MudAutocomplete T="string" Label="Befund:" @bind-Value="Claw_Treatment.Claw_Finding_RV" SearchFunc="@Search_Claw_Treatment_Claw_Finding" CoerceValue="true" />
-                        <MudCheckBox Label="Verband:" @bind-Value="@Claw_Treatment.Bandage_RV" Size="Size.Medium" Color="Color.Primary"></MudCheckBox>
-                        <MudCheckBox Label="Klotz:" @bind-Value="@Claw_Treatment.Block_RV" Size="Size.Medium" Color="Color.Primary"></MudCheckBox>
+                        <MudAutocomplete T="string" Label="Befund:" @bind-Value="Claw_Treatment.ClawFindingRV" SearchFunc="@Search_Claw_Treatment_Claw_Finding" CoerceValue="true" />
+                        <MudCheckBox Label="Verband:" @bind-Value="@Claw_Treatment.BandageRV" Size="Size.Medium" Color="Color.Primary"></MudCheckBox>
+                        <MudCheckBox Label="Klotz:" @bind-Value="@Claw_Treatment.BlockRV" Size="Size.Medium" Color="Color.Primary"></MudCheckBox>
                         }
                         else if (currentClaw == "RH")
                         {
-                        <MudAutocomplete T="string" Label="Befund:" @bind-Value="Claw_Treatment.Claw_Finding_RH" SearchFunc="@Search_Claw_Treatment_Claw_Finding" CoerceValue="true" />
-                        <MudCheckBox Label="Verband:" @bind-Value="@Claw_Treatment.Bandage_RH" Size="Size.Medium" Color="Color.Primary"></MudCheckBox>
-                        <MudCheckBox Label="Klotz:" @bind-Value="@Claw_Treatment.Block_RH" Size="Size.Medium" Color="Color.Primary"></MudCheckBox>
+                        <MudAutocomplete T="string" Label="Befund:" @bind-Value="Claw_Treatment.ClawFindingRH" SearchFunc="@Search_Claw_Treatment_Claw_Finding" CoerceValue="true" />
+                        <MudCheckBox Label="Verband:" @bind-Value="@Claw_Treatment.BandageRH" Size="Size.Medium" Color="Color.Primary"></MudCheckBox>
+                        <MudCheckBox Label="Klotz:" @bind-Value="@Claw_Treatment.BlockRH" Size="Size.Medium" Color="Color.Primary"></MudCheckBox>
                         }
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="CloseClawTreatmentModal">Schließen</MudButton>
             </MudStack>
@@ -56,15 +57,20 @@
     [CascadingParameter] MudDialogInstance MudDialog { get; set; }
 
     [Parameter]
-    public Treatment_Claw Claw_Treatment { get; set; } = new Treatment_Claw();
+    public ClawTreatment Claw_Treatment { get; set; } = new ClawTreatment();
 
     public DateTime? NullDate;
     public string currentClaw = "";
     public bool SaveSuccesfulBool;
     public bool showTreatmentModal = false;
+    public int CollarNumber;
 
     protected override void OnInitialized()
     {
+        if (!string.IsNullOrEmpty(Claw_Treatment.EarTagNumber))
+        {
+            CollarNumber = cowService.GetCollarNumberByEarTagNumber(Claw_Treatment.EarTagNumber);
+        }
         NullDate = DateTime.Today;
     }
 
@@ -85,12 +91,17 @@
         Snackbar.Configuration.MaxDisplayedSnackbars = 10;
         if (TestForNullInput())
         {
-            Claw_Treatment.Treatment_Date = NullDate.Value;
+            Claw_Treatment.TreatmentDate = NullDate.Value;
+            Claw_Treatment.EarTagNumber = cowService.GetEarTagNumberByCollarNumber(CollarNumber);
+            if (Claw_Treatment.EarTagNumber == string.Empty)
+            {
+                Snackbar.Add($"Halsbandnummer {CollarNumber} nicht gefunden!", Severity.Error);
+                return;
+            }
             SaveSuccesfulBool = await clawTreatmentService.InsertDataAsync(Claw_Treatment);
             MudDialog.Close();
-            clawTreatmentService.Treatments.Add(Claw_Treatment);
-            Claw_Treatment = new Treatment_Claw();
-            Claw_Treatment.Treatment_Date = DateTime.Now;
+            Claw_Treatment = new ClawTreatment();
+            Claw_Treatment.TreatmentDate = DateTime.Now;
             if (SaveSuccesfulBool)
             {
                 Snackbar.Add($"Speichern erfolgreich!", Severity.Success);
@@ -109,23 +120,23 @@
     private bool TestForNullInput()
     {
         var returnBool = false;
-        if (string.IsNullOrEmpty(Claw_Treatment.Claw_Finding_LV))
+        if (string.IsNullOrEmpty(Claw_Treatment.ClawFindingLV))
         {
-            Claw_Treatment.Claw_Finding_LV = "Pflege";
+            Claw_Treatment.ClawFindingLV = "Pflege";
         }
-        if (string.IsNullOrEmpty(Claw_Treatment.Claw_Finding_RV))
+        if (string.IsNullOrEmpty(Claw_Treatment.ClawFindingRV))
         {
-            Claw_Treatment.Claw_Finding_RV = "Pflege";
+            Claw_Treatment.ClawFindingRV = "Pflege";
         }
-        if (string.IsNullOrEmpty(Claw_Treatment.Claw_Finding_LH))
+        if (string.IsNullOrEmpty(Claw_Treatment.ClawFindingLH))
         {
-            Claw_Treatment.Claw_Finding_LH = "Pflege";
+            Claw_Treatment.ClawFindingLH = "Pflege";
         }
-        if (string.IsNullOrEmpty(Claw_Treatment.Claw_Finding_RH))
+        if (string.IsNullOrEmpty(Claw_Treatment.ClawFindingRH))
         {
-            Claw_Treatment.Claw_Finding_RH = "Pflege";
+            Claw_Treatment.ClawFindingRH = "Pflege";
         }
-        returnBool = Claw_Treatment.Collar_Number != 0 && NullDate != null && !string.IsNullOrEmpty(Claw_Treatment.Claw_Finding_LV) && !string.IsNullOrEmpty(Claw_Treatment.Claw_Finding_LH) && !string.IsNullOrEmpty(Claw_Treatment.Claw_Finding_RV) && !string.IsNullOrEmpty(Claw_Treatment.Claw_Finding_RH);
+        returnBool =  NullDate != null && !string.IsNullOrEmpty(Claw_Treatment.ClawFindingLV) && !string.IsNullOrEmpty(Claw_Treatment.ClawFindingLH) && !string.IsNullOrEmpty(Claw_Treatment.ClawFindingRV) && !string.IsNullOrEmpty(Claw_Treatment.ClawFindingRH);
         return returnBool;
     }
 

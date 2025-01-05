@@ -23,111 +23,111 @@
 
             <MudGrid Justify="Justify.Center">
                 <MudItem xs="6">
-                    @if(Claw_Treatment.Bandage_LV && Claw_Treatment.Block_LV && !Claw_Treatment.IsBandageRemoved)
+                    @if(Claw_Treatment.BandageLV && Claw_Treatment.BlockLV && !Claw_Treatment.IsBandageRemoved)
                     {
-                        <button type="button" id="LV_HOOF_Bandage_Block" class="Show_Hoof_Input"></button>
+                        <button type="button" id="LV_Hoof_Bandage_Block" class="Show_Hoof_Input"></button>
                     }
-                    else if (Claw_Treatment.Bandage_LV && !Claw_Treatment.IsBandageRemoved)
+                    else if (Claw_Treatment.BandageLV && !Claw_Treatment.IsBandageRemoved)
                     {
-                        <button type="button" id="LV_HOOF_Bandage" class="Show_Hoof_Input"></button>
+                        <button type="button" id="LV_Hoof_Bandage" class="Show_Hoof_Input"></button>
                     }
-                    else if (Claw_Treatment.Block_LV && !Claw_Treatment.IsBandageRemoved)
+                    else if (Claw_Treatment.BlockLV && !Claw_Treatment.IsBandageRemoved)
                     {
-                        <button type="button" id="LV_HOOF_Block" class="Show_Hoof_Input"></button>
+                        <button type="button" id="LV_Hoof_Block" class="Show_Hoof_Input"></button>
                     }
-                    else if (Claw_Treatment.Block_LV && Claw_Treatment.IsBandageRemoved)
+                    else if (Claw_Treatment.BlockLV && Claw_Treatment.IsBandageRemoved)
                     {
-                        <button type="button" id="LV_HOOF_Block_Removed" class="Show_Hoof_Input"></button>
+                        <button type="button" id="LV_Hoof_Block_Removed" class="Show_Hoof_Input"></button>
                     }
-                    else if (Claw_Treatment.Bandage_LV && Claw_Treatment.IsBandageRemoved)
+                    else if (Claw_Treatment.BandageLV && Claw_Treatment.IsBandageRemoved)
                     {
-                        <button type="button" id="LV_HOOF_Bandage_Removed" class="Show_Hoof_Input"></button>
+                        <button type="button" id="LV_Hoof_Bandage_Removed" class="Show_Hoof_Input"></button>
                     }
                     else
                     {
-                        <button type="button" id="LV_HOOF_Standart" class="Show_Hoof_Input"></button>
+                        <button type="button" id="LV_Hoof_Standart" class="Show_Hoof_Input"></button>
                     }
-                    <MudField>@Claw_Treatment.Claw_Finding_LV</MudField>
+                    <MudField>@Claw_Treatment.ClawFindingLV</MudField>
                 </MudItem>
                 <MudItem xs="6">
-                    @if (Claw_Treatment.Bandage_RV && Claw_Treatment.Block_RV && !Claw_Treatment.IsBandageRemoved)
+                    @if (Claw_Treatment.BandageRV && Claw_Treatment.BlockRV && !Claw_Treatment.IsBandageRemoved)
                     {
-                        <button type="button" id="RV_HOOF_Bandage_Block" class="Show_Hoof_Input"></button>
+                        <button type="button" id="RV_Hoof_Bandage_Block" class="Show_Hoof_Input"></button>
                     }
-                    else if (Claw_Treatment.Bandage_RV && !Claw_Treatment.IsBandageRemoved)
+                    else if (Claw_Treatment.BandageRV && !Claw_Treatment.IsBandageRemoved)
                     {
-                        <button type="button" id="RV_HOOF_Bandage" class="Show_Hoof_Input"></button>
+                        <button type="button" id="RV_Hoof_Bandage" class="Show_Hoof_Input"></button>
                     }
-                    else if (Claw_Treatment.Block_RV && !Claw_Treatment.IsBandageRemoved)
+                    else if (Claw_Treatment.BlockRV && !Claw_Treatment.IsBandageRemoved)
                     {
-                        <button type="button" id="RV_HOOF_Block" class="Show_Hoof_Input"></button>
+                        <button type="button" id="RV_Hoof_Block" class="Show_Hoof_Input"></button>
                     }
-                    else if (Claw_Treatment.Block_RV && Claw_Treatment.IsBandageRemoved)
+                    else if (Claw_Treatment.BlockRV && Claw_Treatment.IsBandageRemoved)
                     {
-                        <button type="button" id="RV_HOOF_Block_Removed" class="Show_Hoof_Input"></button>
+                        <button type="button" id="RV_Hoof_Block_Removed" class="Show_Hoof_Input"></button>
                     }
-                    else if (Claw_Treatment.Bandage_RV && Claw_Treatment.IsBandageRemoved)
+                    else if (Claw_Treatment.BandageRV && Claw_Treatment.IsBandageRemoved)
                     {
-                        <button type="button" id="RV_HOOF_Bandage_Removed" class="Show_Hoof_Input"></button>
+                        <button type="button" id="RV_Hoof_Bandage_Removed" class="Show_Hoof_Input"></button>
                     }
                     else
                     {
-                        <button type="button" id="RV_HOOF_Standart" class="Show_Hoof_Input"></button>
+                        <button type="button" id="RV_Hoof_Standart" class="Show_Hoof_Input"></button>
                     }                    
-                    <MudField>@Claw_Treatment.Claw_Finding_RV</MudField>
+                    <MudField>@Claw_Treatment.ClawFindingRV</MudField>
                 </MudItem>
                 <MudItem xs="6">
-                    @if (Claw_Treatment.Bandage_LH && Claw_Treatment.Block_LH && !Claw_Treatment.IsBandageRemoved)
+                    @if (Claw_Treatment.BandageLH && Claw_Treatment.BlockLH && !Claw_Treatment.IsBandageRemoved)
                     {
-                        <button type="button" id="LH_HOOF_Bandage_Block" class="Show_Hoof_Input"></button>
+                        <button type="button" id="LH_Hoof_Bandage_Block" class="Show_Hoof_Input"></button>
                     }
-                    else if (Claw_Treatment.Bandage_LH && !Claw_Treatment.IsBandageRemoved)
+                    else if (Claw_Treatment.BandageLH && !Claw_Treatment.IsBandageRemoved)
                     {
-                        <button type="button" id="LH_HOOF_Bandage" class="Show_Hoof_Input"></button>
+                        <button type="button" id="LH_Hoof_Bandage" class="Show_Hoof_Input"></button>
                     }
-                    else if (Claw_Treatment.Block_LH && !Claw_Treatment.IsBandageRemoved)
+                    else if (Claw_Treatment.BlockLH && !Claw_Treatment.IsBandageRemoved)
                     {
-                        <button type="button" id="LH_HOOF_Block" class="Show_Hoof_Input"></button>
+                        <button type="button" id="LH_Hoof_Block" class="Show_Hoof_Input"></button>
                     }
-                    else if (Claw_Treatment.Block_LH && Claw_Treatment.IsBandageRemoved)
+                    else if (Claw_Treatment.BlockLH && Claw_Treatment.IsBandageRemoved)
                     {
-                        <button type="button" id="LH_HOOF_Block_Removed" class="Show_Hoof_Input"></button>
+                        <button type="button" id="LH_Hoof_Block_Removed" class="Show_Hoof_Input"></button>
                     }
-                    else if (Claw_Treatment.Bandage_LH && Claw_Treatment.IsBandageRemoved)
+                    else if (Claw_Treatment.BandageLH && Claw_Treatment.IsBandageRemoved)
                     {
-                        <button type="button" id="LH_HOOF_Bandage_Removed" class="Show_Hoof_Input"></button>
+                        <button type="button" id="LH_Hoof_Bandage_Removed" class="Show_Hoof_Input"></button>
                     }
                     else
                     {
-                        <button type="button" id="LH_HOOF_Standart" class="Show_Hoof_Input"></button>
+                        <button type="button" id="LH_Hoof_Standart" class="Show_Hoof_Input"></button>
                     }                                       
-                    <MudField>@Claw_Treatment.Claw_Finding_LH</MudField>
+                    <MudField>@Claw_Treatment.ClawFindingLH</MudField>
                 </MudItem>
                 <MudItem xs="6">
-                    @if (Claw_Treatment.Bandage_RH && Claw_Treatment.Block_RH && !Claw_Treatment.IsBandageRemoved)
+                    @if (Claw_Treatment.BandageRH && Claw_Treatment.BlockRH && !Claw_Treatment.IsBandageRemoved)
                     {
-                        <button type="button" id="RH_HOOF_Bandage_Block" class="Show_Hoof_Input"></button>
+                        <button type="button" id="RH_Hoof_Bandage_Block" class="Show_Hoof_Input"></button>
                     }
-                    else if (Claw_Treatment.Bandage_RH && !Claw_Treatment.IsBandageRemoved)
+                    else if (Claw_Treatment.BandageRH && !Claw_Treatment.IsBandageRemoved)
                     {
-                        <button type="button" id="RH_HOOF_Bandage" class="Show_Hoof_Input"></button>
+                        <button type="button" id="RH_Hoof_Bandage" class="Show_Hoof_Input"></button>
                     }
-                    else if (Claw_Treatment.Block_RH && !Claw_Treatment.IsBandageRemoved)
+                    else if (Claw_Treatment.BlockRH && !Claw_Treatment.IsBandageRemoved)
                     {
-                        <button type="button" id="RH_HOOF_Block" class="Show_Hoof_Input"></button>
+                        <button type="button" id="RH_Hoof_Block" class="Show_Hoof_Input"></button>
                     }
-                    else if (Claw_Treatment.Block_RH && Claw_Treatment.IsBandageRemoved)
+                    else if (Claw_Treatment.BlockRH && Claw_Treatment.IsBandageRemoved)
                     {
-                        <button type="button" id="RH_HOOF_Block_Removed" class="Show_Hoof_Input"></button>
+                        <button type="button" id="RH_Hoof_Block_Removed" class="Show_Hoof_Input"></button>
                     }
-                    else if (Claw_Treatment.Bandage_RH && Claw_Treatment.IsBandageRemoved)
+                    else if (Claw_Treatment.BandageRH && Claw_Treatment.IsBandageRemoved)
                     {
-                        <button type="button" id="RH_HOOF_Bandage_Removed" class="Show_Hoof_Input"></button>
+                        <button type="button" id="RH_Hoof_Bandage_Removed" class="Show_Hoof_Input"></button>
                     }
                     else
                     {
-                        <button type="button" id="RH_HOOF_Standart" class="Show_Hoof_Input"></button>
-                    }                                   <MudField>@Claw_Treatment.Claw_Finding_RH</MudField>
+                        <button type="button" id="RH_Hoof_Standart" class="Show_Hoof_Input"></button>
+                    }                                   <MudField>@Claw_Treatment.ClawFindingRH</MudField>
                 </MudItem>
             </MudGrid>            
             <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@CloseModal">Schließen</MudButton>
@@ -139,12 +139,12 @@
     [CascadingParameter] MudDialogInstance MudDialog { get; set; }
 
     [Parameter]
-    public Treatment_Claw Claw_Treatment { get; set; } = new Treatment_Claw();
+    public ClawTreatment Claw_Treatment { get; set; } = new ClawTreatment();
 
     protected override void OnInitialized()
     {
         DateTime currentDateTime = DateTime.Today;
-        Claw_Treatment.Treatment_Date = currentDateTime.Date;
+        Claw_Treatment.TreatmentDate = currentDateTime.Date;
     }
 
     public void CloseModal()

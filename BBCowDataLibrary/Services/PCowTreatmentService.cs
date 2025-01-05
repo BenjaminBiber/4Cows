@@ -1,70 +1,94 @@
-﻿using BB_Cow.Class;
-using BBCowDataLibrary.SQL;
-using System;
-using System.Collections.Generic;
+﻿using System;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Threading.Tasks;
+using BB_Cow.Class;
+using BBCowDataLibrary.SQL;
 
 namespace BB_Cow.Services
 {
-    public  class PCowTreatmentService
+    public class PCowTreatmentService
     {
-        public  List<Planned_Treatment_Cow> Treatments { get; set; } = new();
-        public  List<string> CowMedicineTreatmentList { get; set; } = new();
-        public  List<string> CowWhereHowList { get; set; } = new();
+        private ImmutableDictionary<int, PlannedCowTreatment> _cachedTreatments = ImmutableDictionary<int, PlannedCowTreatment>.Empty;
+        private ImmutableList<string> _cachedMedicineList = ImmutableList<string>.Empty;
+        private ImmutableList<string> _cachedWhereHowList = ImmutableList<string>.Empty;
 
-        public  async Task GetAllDataAsync()
+        public ImmutableDictionary<int, PlannedCowTreatment> Treatments => _cachedTreatments;
+        public ImmutableList<string> CowMedicineTreatmentList => _cachedMedicineList;
+        public ImmutableList<string> CowWhereHowList => _cachedWhereHowList;
+
+        public async Task GetAllDataAsync()
         {
-            Treatments = await DatabaseService.ReadDataAsync(@"SELECT * FROM planned_Cow_Treatment;", reader =>
+            var treatments = await DatabaseService.ReadDataAsync(@"SELECT * FROM Planned_Cow_Treatment;", reader =>
             {
-                var treatment = new Planned_Treatment_Cow
+                var treatment = new PlannedCowTreatment
                 {
-                    Planned_Cow_Treatment_ID = reader.GetInt32("Planned_Cow_Treatment_ID"),
-                    Collar_Number = reader.GetInt32("Collar_Number"),
-                    Administration_Date = reader.GetDateTime("Administration_Date"),
-                    Medicine_Dosage = reader.GetFloat("Medicine_Dosage"),
-                    Medicine_Name = reader.GetString("Medicine_Name"),
+                    PlannedCowTreatmentId = reader.GetInt32("Planned_Cow_Treatment_ID"),
+                    EarTagNumber = reader.GetString("Ear_Tag_Number"),
+                    MedicineId = reader.GetInt32("Medicine_ID"),
+                    AdministrationDate = reader.GetDateTime("Administration_Date"),
+                    MedicineDosage = reader.GetFloat("Medicine_Dosage"),
                     WhereHow = reader.GetString("WhereHow"),
                     IsFound = reader.GetBoolean("IsFound"),
-                    IsTreatet = reader.GetBoolean("IsTreatet"),
-                    Ear_Number = reader.GetInt32("Ear_Number")
+                    IsTreatet = reader.GetBoolean("IsTreatet")
                 };
                 return treatment;
             });
 
-            CowMedicineTreatmentList = Treatments.Select(t => t.Medicine_Name).Distinct().ToList();
-            CowWhereHowList = Treatments.Select(t => t.WhereHow).Distinct().ToList();
+            _cachedTreatments = treatments.ToImmutableDictionary(t => t.PlannedCowTreatmentId);
+            _cachedMedicineList = treatments.Select(t => t.MedicineId.ToString()).Distinct().ToImmutableList();
+            _cachedWhereHowList = treatments.Select(t => t.WhereHow).Distinct().ToImmutableList();
         }
 
-        public  async Task<bool> InsertDataAsync(Planned_Treatment_Cow cow_Treatment)
+        public async Task<bool> InsertDataAsync(PlannedCowTreatment cowTreatment)
         {
             bool isSuccess = false;
             await DatabaseService.ExecuteQueryAsync(async command =>
             {
-                command.CommandText = @"INSERT INTO `planned_Cow_Treatment` (`Collar_Number`, `Administration_Date`, `Medicine_Dosage`, `Medicine_Name`, `WhereHow`, `IsFound`, `IsTreatet`, `Ear_Number`) VALUES (@Collar_Number, @Administration_Date, @Medicine_Dosage, @Medicine_Name, @WhereHow, @IsFound, @IsTreatet, @Ear_Number);";
-                command.Parameters.AddWithValue("@Collar_Number", cow_Treatment.Collar_Number);
-                command.Parameters.AddWithValue("@Administration_Date", cow_Treatment.Administration_Date);
-                command.Parameters.AddWithValue("@Medicine_Dosage", cow_Treatment.Medicine_Dosage);
-                command.Parameters.AddWithValue("@Medicine_Name", cow_Treatment.Medicine_Name);
-                command.Parameters.AddWithValue("@WhereHow", cow_Treatment.WhereHow);
-                command.Parameters.AddWithValue("@IsFound", cow_Treatment.IsFound);
-                command.Parameters.AddWithValue("@IsTreatet", cow_Treatment.IsTreatet);
-                command.Parameters.AddWithValue("@Ear_Number", cow_Treatment.Ear_Number);
+                command.CommandText = @"INSERT INTO `Planned_Cow_Treatment` (`Ear_Tag_Number`, `Medicine_ID`, `Administration_Date`, `Medicine_Dosage`, `WhereHow`, `IsFound`, `IsTreatet`) VALUES (@EarTagNumber, @MedicineId, @AdministrationDate, @MedicineDosage, @WhereHow, @IsFound, @IsTreatet);";
+                command.Parameters.AddWithValue("@EarTagNumber", cowTreatment.EarTagNumber);
+                command.Parameters.AddWithValue("@MedicineId", cowTreatment.MedicineId);
+                command.Parameters.AddWithValue("@AdministrationDate", cowTreatment.AdministrationDate);
+                command.Parameters.AddWithValue("@MedicineDosage", cowTreatment.MedicineDosage);
+                command.Parameters.AddWithValue("@WhereHow", cowTreatment.WhereHow);
+                command.Parameters.AddWithValue("@IsFound", cowTreatment.IsFound);
+                command.Parameters.AddWithValue("@IsTreatet", cowTreatment.IsTreatet);
                 isSuccess = (await command.ExecuteNonQueryAsync()) > 0;
             });
+
+            if (isSuccess)
+            {
+                _cachedTreatments = _cachedTreatments.Add(cowTreatment.PlannedCowTreatmentId, cowTreatment);
+                _cachedMedicineList = _cachedTreatments.Values.Select(t => t.MedicineId.ToString()).Distinct().ToImmutableList();
+                _cachedWhereHowList = _cachedTreatments.Values.Select(t => t.WhereHow).Distinct().ToImmutableList();
+            }
+
             return isSuccess;
         }
 
-        public  async Task<bool> RemoveByIDAsync(int id)
+        public async Task<bool> RemoveByIDAsync(int id)
         {
             bool isSuccess = false;
             await DatabaseService.ExecuteQueryAsync(async command =>
             {
-                command.CommandText = @"DELETE FROM `planned_Cow_Treatment` WHERE `Planned_Cow_Treatment_ID` = @id;";
+                command.CommandText = @"DELETE FROM `Planned_Cow_Treatment` WHERE `Planned_Cow_Treatment_ID` = @id;";
                 command.Parameters.AddWithValue("@id", id);
                 isSuccess = (await command.ExecuteNonQueryAsync()) > 0;
             });
+
+            if (isSuccess && _cachedTreatments.ContainsKey(id))
+            {
+                _cachedTreatments = _cachedTreatments.Remove(id);
+                _cachedMedicineList = _cachedTreatments.Values.Select(t => t.MedicineId.ToString()).Distinct().ToImmutableList();
+                _cachedWhereHowList = _cachedTreatments.Values.Select(t => t.WhereHow).Distinct().ToImmutableList();
+            }
+
             return isSuccess;
+        }
+
+        public PlannedCowTreatment GetById(int id)
+        {
+            return _cachedTreatments.ContainsKey(id) ? _cachedTreatments[id] : null;
         }
     }
 }

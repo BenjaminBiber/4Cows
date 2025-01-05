@@ -1,5 +1,6 @@
 @using System.Drawing.Text
 @inject CowTreatmentService CowTreatmentService
+@inject MedicineService MedicineService
 
 <MudDialog>
     <DialogContent>
@@ -31,7 +32,7 @@
     
     protected override async Task OnInitializedAsync()
     {
-        _medicines = CowTreatmentService.CowMedicineTreatmentList.Distinct().ToList();
+        _medicines = MedicineService.GetMedicineNames();
         Medicines = !Medicines.Any() ? _medicines : Medicines;
         foreach (var entry in Medicines)
         {
