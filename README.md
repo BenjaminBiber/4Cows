@@ -14,7 +14,14 @@
 Um 4Cows zu installieren wird Docker Compose empfohlen. Hierbei muss die Ip-Adresse des Servers eingefügt werden.
 
 ```docker-compse
-    4Cows:
+version: '3.8'
+
+networks:
+  4cows-network: 
+    driver: bridge
+
+services:
+  4Cows:
     container_name: 4Cows
     image: benjaminbiber/4cows:latest
     depends_on:
@@ -22,10 +29,12 @@ Um 4Cows zu installieren wird Docker Compose empfohlen. Hierbei muss die Ip-Adre
     ports:
       - "5750:8080"
     environment:
-      DB_SERVER: "<IP of the Machine>"
+      DB_SERVER: "4Cows-Db"  
       DB_User: "root" 
       DB_Password: "4cows"
       DB_DB: "4cows"
+    networks:
+      - 4cows-network 
 
   4Cows-DB:
     image: mariadb:latest
@@ -36,7 +45,10 @@ Um 4Cows zu installieren wird Docker Compose empfohlen. Hierbei muss die Ip-Adre
     ports:
       - "3306:3306"
     volumes:
-    - /etc/docker_vol/4cows-db:/var/lib/mysql
+      - /etc/docker_vol/4cows-db:/var/lib/mysql
+    networks:
+      - 4cows-network 
+
 ```
 
 
