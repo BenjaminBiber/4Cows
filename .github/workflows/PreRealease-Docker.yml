@@ -26,17 +26,59 @@ jobs:
       id: extract_branch
       run: |
         branch_name=${{ github.ref_name }}
-        if [[ $branch_name == #* ]]; then
+        if [[ $branch_name == \#* ]]; then
           imagetag=PreRelease${branch_name:1:2}
-          echo "::set-output name=imagetag::$imagetag"
+          echo "imagetag=$imagetag" >> $GITHUB_ENV
         else
           echo "$branch_name"
           echo "Branch does not match pattern. Exiting."
           exit 1
+        fi
       shell: bash
 
     - name: Build the Docker image
-      run: docker build . --file Dockerfile --tag benjaminbiber/4cows:${{ steps.extract_branch.outputs.imagetag }}
+      run: docker build . --file Dockerfile --tag benjaminbiber/4cows:${{ env.imagetag }}
 
     - name: Push the Docker image to Docker Hub
-      run: docker push benjaminbiber/4cows:${{ steps.extract_branch.outputs.imagetag }}
+      run: docker push benjaminbiber/4cows:${{ env.imagetag }}
+
+  build_xlinkscraper:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Login to Docker Hub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+    - name: Check for Dockerfilex
+      id: check_dockerfilex
+      run: |
+        if [ -f Dockerfilex ]; then
+          echo "dockerfilex_exists=true" >> $GITHUB_ENV
+        else
+          echo "dockerfilex_exists=false" >> $GITHUB_ENV
+        fi
+      shell: bash
+
+    - name: Build and Push Dockerfilex Image
+      if: env.dockerfilex_exists == 'true'
+      run: |
+        branch_name=${{ github.ref_name }}
+        if [[ $branch_name == \#* ]]; then
+          imagetag=PreRelease${branch_name:1:2}
+          docker build . --file DockerfileX --tag benjaminbiber:xlinkscraper:${imagetag}
+          docker push benjaminbiber:xlinkscraper:${imagetag}
+        else
+          echo "$branch_name"
+          echo "Branch does not match pattern for xlinkscraper. Exiting."
+          exit 1
+        fi
+      shell: bash
