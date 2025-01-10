@@ -63,7 +63,7 @@ jobs:
     - name: Check for Dockerfilex
       id: check_dockerfilex
       run: |
-        if [ -f Dockerfilex ]; then
+        if [ -f Dockerfile_X ]; then
           echo "dockerfilex_exists=true" >> $GITHUB_ENV
         else
           echo "dockerfilex_exists=false" >> $GITHUB_ENV
@@ -76,7 +76,7 @@ jobs:
         branch_name=${{ github.ref_name }}
         if [[ $branch_name == \#* ]]; then
           imagetag=PreRelease${branch_name:1:2}
-          docker build . --file DockerfileX --tag benjaminbiber:xlinkscraper:${imagetag}
+          docker build . --file Dockerfile_X --tag benjaminbiber:xlinkscraper:${imagetag}
           docker push benjaminbiber:xlinkscraper:${imagetag}
         else
           echo "$branch_name"
