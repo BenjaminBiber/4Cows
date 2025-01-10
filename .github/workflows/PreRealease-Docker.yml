@@ -36,6 +36,8 @@ jobs:
         fi
       shell: bash
 
+
+
     - name: Build the Docker image
       run: docker build . --file Dockerfile --tag benjaminbiber/4cows:${{ env.imagetag }}
 
