@@ -30,6 +30,7 @@ jobs:
           imagetag=PreRelease${branch_name:1:2}
           echo "::set-output name=imagetag::$imagetag"
         else
+          echo "$branch_name"
           echo "Branch does not match pattern. Exiting."
           exit 1
       shell: bash
