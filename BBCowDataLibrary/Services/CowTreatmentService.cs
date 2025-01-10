@@ -119,7 +119,7 @@ public class CowTreatmentService
     {
         if (string.IsNullOrEmpty(value))
         {
-            return medicineService.GetMedicineNames();
+            return medicineService.GetMedicineNames().Order();
         }
         return medicineService.GetMedicineNames().Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
     }
@@ -132,4 +132,5 @@ public class CowTreatmentService
         }
         return DistinctWhereHows.Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
     }
+
 }

@@ -141,26 +141,15 @@ namespace BBCowDataLibrary.SQL
         {
             connectionString = new MySqlConnectionStringBuilder
             {
-                Server = Environment.GetEnvironmentVariable("DB_SERVERR") ?? "127.0.0.1",
+                Server = Environment.GetEnvironmentVariable("DB_SERVER4") ?? "192.168.50.200",
                 UserID = Environment.GetEnvironmentVariable("DB_User") ?? "root",
                 Password = Environment.GetEnvironmentVariable("DB_Password") ?? "4cows",
-                Database = Environment.GetEnvironmentVariable("DB_DBB") ?? "4cows",
+                Database = Environment.GetEnvironmentVariable("DB_DB4") ?? "4cows_v2",
                 Port = 3306
             }.ConnectionString;
 
             Console.WriteLine(connectionString);
         }
         
-        public static async Task<int> GetLastInsertedIdAsync()
-        {
-            int lastId = 0;
-            await DatabaseService.ExecuteQueryAsync(async command =>
-            {
-                command.CommandText = "SELECT LAST_INSERT_ID();";
-                var result = await command.ExecuteScalarAsync();
-                lastId = Convert.ToInt32(result);
-            });
-            return lastId;
-        }
     }
 }

@@ -13,7 +13,7 @@
                 {
                     <MudItem xs="12">
                         <MudNumericField Immediate="true" @bind-Value="number.Value" TextChanged="@((string s) => GetEarNumber(number))" Label="Halsbandnummer:" Variant="Variant.Text" />
-                        <MudNumericField Immediate="true" @bind-Value="number.EarValue" Label="Ohrmarkennummer:" Variant="Variant.Text" />
+                        <MudAutocomplete TextChanged="() => GetCollarNumber(number)" SearchFunc="cowService.SearchCowEarTagNumbers" ResetValueOnEmptyText="true" Immediate="true" @bind-Value="number.EarValue" Label="Ohrmarkennummer:" Variant="Variant.Text" />
                     </MudItem>
                 }
                 <MudItem xs="5"></MudItem>
@@ -24,9 +24,9 @@
             </MudGrid>
                 <MudDatePicker Label="Verabreichungsdatum:" Editable="true" @bind-Date="NullDate" />
 
-                <MudAutocomplete T="string" Label="Medikament:" @bind-Value="MedicineName" SearchFunc="@((string s, CancellationToken c) => cowTreatmentService.SearchCowTreatmentMedicaments(s , c, medicineService))" CoerceValue="true" />
+                <MudAutocomplete SelectValueOnTab="true" T="string" Label="Medikament:" @bind-Value="MedicineName" SearchFunc="@((string s, CancellationToken c) => cowTreatmentService.SearchCowTreatmentMedicaments(s , c, medicineService))" CoerceValue="true" />
 
-                <MudAutocomplete T="string" Label="Wie / Wo:" @bind-Value="Cow_Treatment.WhereHow" SearchFunc="@((string s, CancellationToken c) => cowTreatmentService.SearchCowTreatmentWhereHow(s , c))" CoerceValue="true" />
+                <MudAutocomplete SelectValueOnTab="true" T="string" Label="Wie / Wo:" @bind-Value="Cow_Treatment.WhereHow" SearchFunc="@((string s, CancellationToken c) => cowTreatmentService.SearchCowTreatmentWhereHow(s , c))" CoerceValue="true" />
 
                 <MudNumericField @bind-Value="Cow_Treatment.MedicineDosage" Label="Menge:" Variant="Variant.Text" />
 
@@ -75,12 +75,24 @@
         numbers[index].EarValue = entry.Value.HasValue ? cowService.GetEarTagNumberByCollarNumber(entry.Value.Value) : null;
         StateHasChanged();
     }
+    
+    private void GetCollarNumber(NumberEntry entry)
+    {
+        var index = numbers.IndexOf(entry);
+        numbers[index].Value = entry.EarValue != null ? cowService.GetCollarNumberByEarTagNumber(entry.EarValue) : null;
+        StateHasChanged();
+    }
 
     public async Task SaveCowTreatmentModalInput()
     {
         Snackbar.Configuration.SnackbarVariant = Variant.Outlined;
         Snackbar.Configuration.MaxDisplayedSnackbars = 10;
         var medicineId = await medicineService.GetMedicineIdByName(MedicineName);
+        if (medicineId == int.MinValue)
+        {
+             Snackbar.Add("Medikament nicht gefunden!", Severity.Error);
+             return;
+        }
         foreach (var number in numbers)
         {
             if (number.Value.HasValue && number.Value != 0 && !string.IsNullOrEmpty(number.EarValue))

@@ -144,7 +144,7 @@
     
     private void GetMostUsedMedicine()
     {
-        KPIs.Add("Meist benutztes Medikament:", ("/Kuh_Daten", (CowList.GroupBy(obj => obj.MedicineId)
+        KPIs.Add("Meist benutztes Medikament:", ("/Kuh_Daten", medicineService.GetMedicineNameById(CowList.GroupBy(obj => obj.MedicineId)
             .OrderByDescending(group => group.Count())
             .Select(group => group.Key)
             .FirstOrDefault()).ToString()));

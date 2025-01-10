@@ -7,7 +7,8 @@
             <MudStack>
                 <MudText Align="Align.Center" Typo="Typo.h3">Klauen Behandlung hinzufügen</MudText>
 
-                <MudNumericField @bind-Value="CollarNumber" Label="Halsbandnummer:" Variant="Variant.Text" />
+                <MudNumericField TextChanged="(string s) => UpdateEarTagNumber(s)" @bind-Value="CollarNumber" Label="Halsbandnummer:" Immediate="true" Variant="Variant.Text" />
+                <MudAutocomplete TextChanged="(string s) => GetCollarNumber(s)" SearchFunc="cowService.SearchCowEarTagNumbers" ResetValueOnEmptyText="true" Immediate="true" @bind-Value="Claw_Treatment.EarTagNumber" Label="Ohrmarkennummer:" Variant="Variant.Text" />
 
                 <MudDatePicker Label="Behandlungsdatum:" Editable="true" @bind-Date="NullDate" />
             <MudContainer MaxWidth="MaxWidth.ExtraSmall" id="Claw_Treatment_Modal" class="@(showTreatmentModal ? "showTreatmentModal" : "hideTreatmentModal")">
@@ -148,6 +149,18 @@
             return clawTreatmentService.ClawFindingList;
         }
         return clawTreatmentService.ClawFindingList.Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
+    }
+    
+    private void GetCollarNumber(string earTag)
+    {
+        CollarNumber = !string.IsNullOrEmpty(earTag) ? cowService.GetCollarNumberByEarTagNumber(earTag) : 0;
+        StateHasChanged();
+    }
+    
+    private void UpdateEarTagNumber(string collarNumber)
+    {
+        Claw_Treatment.EarTagNumber = cowService.GetEarTagNumberByCollarNumber(Convert.ToInt32(collarNumber));
+        StateHasChanged();
     }
 }
 

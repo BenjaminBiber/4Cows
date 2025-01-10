@@ -99,4 +99,33 @@ public class CowService
             return isSuccess;
         }
         
+        public async Task<bool> UpdateIsGoneAsync(string earTagNumber, bool isGone)
+        {
+            bool isSuccess = false;
+            await DatabaseService.ExecuteQueryAsync(async command =>
+            {
+                command.CommandText = @"UPDATE `Cow` SET `IsGone` = @IsGone WHERE `Ear_Tag_Number` = @EarTagNumber;";
+                command.Parameters.AddWithValue("@IsGone", isGone);
+                command.Parameters.AddWithValue("@EarTagNumber", earTagNumber);
+                isSuccess = (await command.ExecuteNonQueryAsync()) > 0;
+            });
+
+            if (isSuccess && _cachedCows.ContainsKey(earTagNumber))
+            {
+                var updatedCow = _cachedCows[earTagNumber];
+                updatedCow.IsGone = isGone;
+                _cachedCows = _cachedCows.SetItem(earTagNumber, updatedCow);
+            }
+
+            return isSuccess;
+        }
+        
+        public async Task<IEnumerable<string>> SearchCowEarTagNumbers(string value, CancellationToken token)
+        {
+            if (string.IsNullOrEmpty(value) || !Cows.Any())
+            {
+                return Cows.Keys;
+            }
+            return Cows.Keys.Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
+        }
 }

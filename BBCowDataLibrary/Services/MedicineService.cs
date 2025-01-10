@@ -78,12 +78,17 @@ public class MedicineService
         
         public async Task<int> GetMedicineIdByName(string medicineName)
         {
+            if(medicineName == null)
+            {
+                return int.MinValue;
+            }
+            
             var id =  _cachedMedicines.Values.FirstOrDefault(m => m.MedicineName.Trim().ToLower() == medicineName.Trim().ToLower())?.MedicineId ?? -1;
             if(id  == -1)
             {
                 var newMedicine = new Medicine(0, medicineName.Trim());
                 await InsertDataAsync(newMedicine);
-                id = _cachedMedicines.Where(x => x.Value.MedicineName.Trim() == medicineName.Trim()).FirstOrDefault().Key;
+                id = _cachedMedicines.FirstOrDefault(x => x.Value.MedicineName.Trim().ToLower() == medicineName.Trim().ToLower()).Key;
             }
 
             return id;

@@ -2,10 +2,11 @@ using BB_Cow.Class;
 using Microsoft.Extensions.Hosting;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
+using OpenQA.Selenium.Remote;
 
 namespace BB_Cow.Services;
 
-public class XLinkService : BackgroundService
+public class XLinkService
 {
     public CowService _CowService;
 
@@ -13,55 +14,42 @@ public class XLinkService : BackgroundService
     {
         _CowService = cowService;
     }
-    
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
 
-        while (!stoppingToken.IsCancellationRequested)
+    public void ExecuteScraper()
+    {
+        try
         {
-            // var now = DateTime.Now;
-            // var nextRun = now.Date.AddHours(2); 
-            // if (now > nextRun)
-            // {
-            //     nextRun = now.Date.AddDays(1).AddHours(2);
-            // }
-            //
-            // var delay = nextRun - now;
-            // await Task.Delay(delay, stoppingToken);
-
-            try
-            {
-                await PerformDailyTask();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error: {ex.Message}");
-            }
+            var driver = InitzialieDriver();
+            OpenWebsite(driver);
+            GetCowData(driver);
+            driver.Close();
+            driver.Quit();
         }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+        }
+       
     }
 
-    private async Task PerformDailyTask()
-    {
-        var driver = InitzialieDriver();
-        OpenWebsite(driver);
-        GetCowData(driver);
-    }
-
-    private ChromeDriver InitzialieDriver()
+    private RemoteWebDriver InitzialieDriver()
     {
         var options = new ChromeOptions();
-        options.AddArgument("--headless");
-        return new ChromeDriver(options);
+        Console.WriteLine(Environment.GetEnvironmentVariable("Selenium_URL"));
+        var url = new Uri(Environment.GetEnvironmentVariable("Selenium_URL") ?? "http://192.168.50.225:4444/wd/hub");
+        return new RemoteWebDriver(url, options);
+
     }
 
-    private void OpenWebsite(ChromeDriver driver, int page = 0)
+    private void OpenWebsite(RemoteWebDriver driver, int page = 0)
     {
+        Console.WriteLine(Environment.GetEnvironmentVariable("XLinkUrl"));
         var url = Environment.GetEnvironmentVariable("XLinkUrl") ?? "http://192.168.50.9/Xlink/";
         var completeUrl = url + $"ReportTable.aspx?id=10672&sort=1&dir=True&page={page}&ALAN=&LDN=";
         driver.Navigate().GoToUrl(completeUrl);
     }
 
-    private void GetCowData(ChromeDriver driver)
+    private void GetCowData(RemoteWebDriver driver)
     {
         var cows = new List<XLinkCow>();
         var flag = false;
@@ -99,13 +87,26 @@ public class XLinkService : BackgroundService
     
     private async Task SaveCowData(List<XLinkCow> cows)
     {
+        await _CowService.GetAllDataAsync();
+
+        var scraperLifeNums = cows.Select(c => c.LifeNumb).Where(ln => !string.IsNullOrWhiteSpace(ln)).ToList();
+
+        var databaseOnlyLifeNums = _CowService.Cows.Keys.ToList().Except(scraperLifeNums).ToList();
+
+        foreach (var lifeNumb in databaseOnlyLifeNums)
+        {
+            await _CowService.UpdateIsGoneAsync(lifeNumb, true);
+        }
+
         foreach (var cow in cows)
         {
             var newCow = new Cow(cow.LifeNumb, cow.CowNumb, false);
+
             if (_CowService.Cows.ContainsKey(cow.LifeNumb) && _CowService.Cows[cow.LifeNumb].CollarNumber != cow.CowNumb)
             {
                 await _CowService.UpdateCollarNumberAsync(newCow.EarTagNumber, newCow.CollarNumber);
-            }else if (!_CowService.Cows.ContainsKey(cow.LifeNumb) && !string.IsNullOrWhiteSpace(cow.LifeNumb))
+            }
+            else if (!_CowService.Cows.ContainsKey(cow.LifeNumb) && !string.IsNullOrWhiteSpace(cow.LifeNumb))
             {
                 await _CowService.InsertDataAsync(newCow);
             }

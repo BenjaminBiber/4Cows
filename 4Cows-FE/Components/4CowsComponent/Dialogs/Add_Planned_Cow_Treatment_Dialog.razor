@@ -15,7 +15,7 @@
                 {
                     <MudItem xs="12">
                         <MudNumericField TextChanged="@((string s) => GetEarNumber(number))" Immediate="true" @bind-Value="number.Value" OnValue Label="Halsbandnummer:" Variant="Variant.Text" />
-                        <MudNumericField Immediate="true" @bind-Value="number.EarValue" Label="Ohrmarkennummer:" Variant="Variant.Text" />
+                        <MudAutocomplete TextChanged="() => GetCollarNumber(number)" SearchFunc="cowService.SearchCowEarTagNumbers" ResetValueOnEmptyText="true" Immediate="true" @bind-Value="number.EarValue" Label="Ohrmarkennummer:" Variant="Variant.Text" />
                     </MudItem>
                 }
                 <MudItem xs="5"></MudItem>
@@ -27,9 +27,9 @@
 
             <MudDatePicker Label="Verabreichungsdatum:" Editable="true" @bind-Date="NullDate"/>
 
-            <MudAutocomplete T="string" Label="Medikament:" @bind-Value="MedicineName" SearchFunc="@((string s, CancellationToken c) => cowTreatmentService.SearchCowTreatmentMedicaments(s , c, medicineService))" CoerceValue="true" />
+            <MudAutocomplete SelectValueOnTab="true" T="string" Label="Medikament:" @bind-Value="MedicineName" SearchFunc="@((string s, CancellationToken c) => cowTreatmentService.SearchCowTreatmentMedicaments(s , c, medicineService))" CoerceValue="true" />
 
-            <MudAutocomplete T="string" Label="Wie / Wo:" @bind-Value="Planned_Cow_Treatment.WhereHow" SearchFunc="@((string s, CancellationToken c) => cowTreatmentService.SearchCowTreatmentWhereHow(s, c))" CoerceValue="true" />
+            <MudAutocomplete SelectValueOnTab="true" T="string" Label="Wie / Wo:" @bind-Value="Planned_Cow_Treatment.WhereHow" SearchFunc="@((string s, CancellationToken c) => cowTreatmentService.SearchCowTreatmentWhereHow(s, c))" CoerceValue="true" />
 
             <MudNumericField @bind-Value="Planned_Cow_Treatment.MedicineDosage" Label="Menge:" Variant="Variant.Text" />
 
@@ -116,5 +116,11 @@
 
     }
     
+    private void GetCollarNumber(NumberEntry entry)
+    {
+        var index = numbers.IndexOf(entry);
+        numbers[index].Value = entry.EarValue != null ? cowService.GetCollarNumberByEarTagNumber(entry.EarValue) : null;
+        StateHasChanged();
+    }
 }
 
