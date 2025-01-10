@@ -1,4 +1,4 @@
-name: Build & Push Image to Repo
+name: Build & Push PreRelease Image to Repo
 
 on:
   push:
