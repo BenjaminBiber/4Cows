@@ -28,11 +28,13 @@ jobs:
         branch_name=${{ github.ref_name }}
         if [[ $branch_name == \#* ]]; then
           imagetag=PreRelease${branch_name:1:2}
-          echo "::set-output name=imagetag::$imagetag"
+          echo "imagetag=$imagetag" >> $GITHUB_ENV
         else
           echo "Branch does not match pattern. Exiting."
           exit 1
+        fi
       shell: bash
+
 
     - name: Build the Docker image
       run: docker build . --file Dockerfile --tag benjaminbiber/4cows:${{ steps.extract_branch.outputs.imagetag }}
