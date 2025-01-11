@@ -61,14 +61,5 @@ services:
 
 ## Roadmap
 
-- Caching mit Frozen-Dictionaries
-
-- Code-Cleanup und Refactoring der Startpage
-
-- Refactoring der Datenbankstruktur
-
-- Tabelle sollen nicht die ganze Seite scrollbar machen 
-
-- Daten sollen beim neuladen **Jeder** Seite geladen werden
-
-- Sortier Header bei den Tabellen einbauen
+- Refactoring der Tabellen Und Dialoge
+- Charts responsive machen
