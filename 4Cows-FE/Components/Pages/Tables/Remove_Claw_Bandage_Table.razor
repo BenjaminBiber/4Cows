@@ -3,6 +3,7 @@
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject ClawTreatmentService clawTreatmentService
+@inject CowService cowService
 @using BB_Cow.Class
 @using _4Cows_FE.Components._4CowsComponent.Dialogs
 
@@ -10,22 +11,22 @@
     <MudIconButton Icon="@Icons.Material.Filled.AddCircle" Color="Color.Secondary" Size="Size.Large" OnClick="OpenClawDialog"></MudIconButton>
 </MudGrid>
 <div style="height: 90dvh">
-    <MudTable Elevation="5" Items="@Treatment_Claws" Hover="true" Striped="@true" Filter="new Func<Treatment_Claw,bool>(ClawFilterFunc1)" @bind-SelectedItem="selectedClaw">
+    <MudTable Elevation="5" Items="@ClawTreatments" Hover="true" Striped="@true" Filter="new Func<ClawTreatment,bool>(ClawFilterFunc1)" @bind-SelectedItem="selectedClaw">
         <ToolBarContent>
             <MudText Typo="Typo.h3">Verbände</MudText>
             <MudSpacer/>
             <MudTextField @bind-Value="searchClaw" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
         </ToolBarContent>
         <HeaderContent>
-            <MudTh><MudTableSortLabel SortBy="new Func<Treatment_Claw, object>(x=>x.Collar_Number)">Halsbandnummer</MudTableSortLabel></MudTh>
-            <MudTh><MudTableSortLabel SortBy="new Func<Treatment_Claw, object>(x=>x.Treatment_Date)">Verband seit</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<int, object>(x=>x)">Halsbandnummer</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<ClawTreatment, object>(x=>x.TreatmentDate)">Verband seit</MudTableSortLabel></MudTh>
             <MudTh></MudTh>
             <MudTh></MudTh>
 
         </HeaderContent>
         <RowTemplate>
-            <MudTd DataLabel="Halsbandnummer">@context.Collar_Number</MudTd>
-            <MudTd>@($"{(DateTime.Now - context.Treatment_Date).Days} Tage")</MudTd>
+            <MudTd DataLabel="Halsbandnummer">@cowService.GetCollarNumberByEarTagNumber(context.EarTagNumber)</MudTd>
+            <MudTd>@($"{(DateTime.Now - context.TreatmentDate).Days} Tage")</MudTd>
             <MudTd><MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="@(() => OpenClawInformation(context))">Behandlung öffnen</MudButton></MudTd>
             <MudTd><MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="@(() => RemoveBandage(context))"> Verband Löschen</MudButton></MudTd>
 
@@ -38,26 +39,26 @@
 
 
     @code {
-    private Treatment_Claw selectedClaw = null;
+    private ClawTreatment selectedClaw = null;
     private string searchClaw = "";
-    private IEnumerable<Treatment_Claw> Treatment_Claws = new List<Treatment_Claw>();
+    private IEnumerable<ClawTreatment> ClawTreatments = new List<ClawTreatment>();
 
     protected override void OnInitialized()
     {
-        Treatment_Claws = clawTreatmentService.Treatments.Where(x => (x.Bandage_LH || x.Bandage_LV || x.Bandage_RV || x.Bandage_RH) && !x.IsBandageRemoved).OrderBy(x => x.Treatment_Date);
+        ClawTreatments = clawTreatmentService.GetClawTreatmentsWithBandage();
     }
-    private bool ClawFilterFunc1(Treatment_Claw Treatment_Cow) => FilterFuncClaw(Treatment_Cow, searchClaw);
+    private bool ClawFilterFunc1(ClawTreatment Treatment_Cow) => FilterFuncClaw(Treatment_Cow, searchClaw);
 
-    private bool FilterFuncClaw(Treatment_Claw Treatment_Cow, string searchString)
+    private bool FilterFuncClaw(ClawTreatment Treatment_Cow, string searchString)
     {
         if (string.IsNullOrWhiteSpace(searchString))
             return true;
-        if (Treatment_Cow.Collar_Number.ToString() == searchString)
+        if (cowService.GetCollarNumberByEarTagNumber(Treatment_Cow.EarTagNumber).ToString() == searchString)
             return true;
         return false;
     }
 
-    private async Task OpenClawInformation(Treatment_Claw Claw_Treatment)
+    private async Task OpenClawInformation(ClawTreatment Claw_Treatment)
     {
         var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
         await clawTreatmentService.GetAllDataAsync();
@@ -71,9 +72,9 @@
         DialogService.Show<Add_Claw_Treatment_Dialog>("", options);
     }
 
-    private async Task RemoveBandage(Treatment_Claw Claw_Treatment)
+    private async Task RemoveBandage(ClawTreatment Claw_Treatment)
     {
-        if(await clawTreatmentService.RemoveBandageAsync(Claw_Treatment.Claw_Treatment_ID))
+        if(await clawTreatmentService.RemoveBandageAsync(Claw_Treatment.ClawTreatmentId))
         {
             Snackbar.Add($"Verband erfolgreich entfernt!", Severity.Success);
         }

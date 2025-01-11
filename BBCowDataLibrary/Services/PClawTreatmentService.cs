@@ -1,51 +1,66 @@
-﻿using BB_Cow.Class;
+﻿using System;
+using System.Collections.Immutable;
+using System.Linq;
+using System.Threading.Tasks;
+using BB_Cow.Class;
 using BBCowDataLibrary.SQL;
-using MySqlConnector;
 
 namespace BB_Cow.Services
 {
-    public  class PClawTreatmentService
+    public class PClawTreatmentService
     {
-        public  List<Planned_Treatment_Claw> Treatments { get; set; } = new();
+        private ImmutableDictionary<int, PlannedClawTreatment> _cachedTreatments = ImmutableDictionary<int, PlannedClawTreatment>.Empty;
 
-        public  async Task GetAllDataAsync()
+        public ImmutableDictionary<int, PlannedClawTreatment> Treatments => _cachedTreatments;
+
+        public async Task GetAllDataAsync()
         {
-            Treatments = await DatabaseService.ReadDataAsync(@"SELECT * FROM Planned_Claw_Treatment;", reader =>
+            var treatments = await DatabaseService.ReadDataAsync(@"SELECT * FROM Planned_Claw_Treatment;", reader =>
             {
-                var treatment = new Planned_Treatment_Claw
+                var descriptionIndex = reader.GetOrdinal("Desciption"); 
+
+                var treatment = new PlannedClawTreatment
                 {
-                    Planned_Claw_Treatment_ID = reader.GetInt32("Planned_Claw_Treatment_ID"),
-                    Collar_Number = reader.GetInt32("Collar_Number"),
-                    Treatment_Date = reader.GetDateTime("Treatment_Date"),
-                    Description = reader.GetString("Desciption"),
-                    Claw_Finding_LV = reader.GetBoolean("Claw_Finding_LV"),
-                    Claw_Finding_LH = reader.GetBoolean("Claw_Finding_LH"),
-                    Claw_Finding_RV = reader.GetBoolean("Claw_Finding_RV"),
-                    Claw_Finding_RH = reader.GetBoolean("Claw_Finding_RH")
+                    PlannedClawTreatmentId = reader.GetInt32("Planned_Claw_Treatment_ID"),
+                    EarTagNumber = reader.GetString("Ear_Tag_Number"),
+                    TreatmentDate = reader.GetDateTime("Treatment_Date"),
+                    Desciption = reader.IsDBNull(descriptionIndex) ? null : reader.GetString(descriptionIndex),
+                    ClawFindingLV = reader.GetBoolean("Claw_Finding_LV"),
+                    ClawFindingLH = reader.GetBoolean("Claw_Finding_LH"),
+                    ClawFindingRV = reader.GetBoolean("Claw_Finding_RV"),
+                    ClawFindingRH = reader.GetBoolean("Claw_Finding_RH")
                 };
                 return treatment;
             });
+
+            _cachedTreatments = treatments.ToImmutableDictionary(t => t.PlannedClawTreatmentId);
         }
 
-        public  async Task<bool> InsertDataAsync(Planned_Treatment_Claw claw_Treatment)
+        public async Task<bool> InsertDataAsync(PlannedClawTreatment clawTreatment)
         {
             bool isSuccess = false;
             await DatabaseService.ExecuteQueryAsync(async command =>
             {
-                command.CommandText = @"INSERT INTO `Planned_Claw_Treatment` (`Collar_Number`, `Treatment_Date`, `Desciption`, `Claw_Finding_LV`, `Claw_Finding_LH`, `Claw_Finding_RV`, `Claw_Finding_RH`) VALUES (@Collar_Number, @Treatment_Date, @Description, @Claw_Finding_LV, @Claw_Finding_LH, @Claw_Finding_RV, @Claw_Finding_RH);";
-                command.Parameters.AddWithValue("@Collar_Number", claw_Treatment.Collar_Number);
-                command.Parameters.AddWithValue("@Treatment_Date", claw_Treatment.Treatment_Date);
-                command.Parameters.AddWithValue("@Description", claw_Treatment.Description);
-                command.Parameters.AddWithValue("@Claw_Finding_LV", claw_Treatment.Claw_Finding_LV);
-                command.Parameters.AddWithValue("@Claw_Finding_LH", claw_Treatment.Claw_Finding_LH);
-                command.Parameters.AddWithValue("@Claw_Finding_RV", claw_Treatment.Claw_Finding_RV);
-                command.Parameters.AddWithValue("@Claw_Finding_RH", claw_Treatment.Claw_Finding_RH);
+                command.CommandText = @"INSERT INTO `Planned_Claw_Treatment` (`Ear_Tag_Number`, `Treatment_Date`, `Desciption`, `Claw_Finding_LV`, `Claw_Finding_LH`, `Claw_Finding_RV`, `Claw_Finding_RH`) VALUES (@EarTagNumber, @TreatmentDate, @Description, @ClawFindingLV, @ClawFindingLH, @ClawFindingRV, @ClawFindingRH);";
+                command.Parameters.AddWithValue("@EarTagNumber", clawTreatment.EarTagNumber);
+                command.Parameters.AddWithValue("@TreatmentDate", clawTreatment.TreatmentDate);
+                command.Parameters.AddWithValue("@Description", clawTreatment.Desciption);
+                command.Parameters.AddWithValue("@ClawFindingLV", clawTreatment.ClawFindingLV);
+                command.Parameters.AddWithValue("@ClawFindingLH", clawTreatment.ClawFindingLH);
+                command.Parameters.AddWithValue("@ClawFindingRV", clawTreatment.ClawFindingRV);
+                command.Parameters.AddWithValue("@ClawFindingRH", clawTreatment.ClawFindingRH);
                 isSuccess = (await command.ExecuteNonQueryAsync()) > 0;
             });
+
+            if (isSuccess)
+            {
+                _cachedTreatments = _cachedTreatments.Add(clawTreatment.PlannedClawTreatmentId, clawTreatment);
+            }
+
             return isSuccess;
         }
 
-        public  async Task<bool> RemoveByIDAsync(int id)
+        public async Task<bool> RemoveByIDAsync(int id)
         {
             bool isSuccess = false;
             await DatabaseService.ExecuteQueryAsync(async command =>
@@ -54,9 +69,18 @@ namespace BB_Cow.Services
                 command.Parameters.AddWithValue("@id", id);
                 isSuccess = (await command.ExecuteNonQueryAsync()) > 0;
             });
+
+            if (isSuccess && _cachedTreatments.ContainsKey(id))
+            {
+                _cachedTreatments = _cachedTreatments.Remove(id);
+            }
+
             return isSuccess;
+        }
+
+        public PlannedClawTreatment GetById(int id)
+        {
+            return _cachedTreatments.ContainsKey(id) ? _cachedTreatments[id] : null;
         }
     }
 }
-
-

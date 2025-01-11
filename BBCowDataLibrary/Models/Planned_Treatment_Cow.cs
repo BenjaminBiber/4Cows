@@ -1,26 +1,46 @@
-﻿namespace BB_Cow.Class
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace BB_Cow.Class
 {
-    public class Planned_Treatment_Cow
+    public class PlannedCowTreatment
     {
-        public int Planned_Cow_Treatment_ID { get; set; }
-        public int Collar_Number { get; set; }
-        public DateTime Administration_Date { get; set; }
-        public float Medicine_Dosage { get; set; }
-        public string Medicine_Name { get; set; }
+        [Key]
+        public int PlannedCowTreatmentId { get; set; }
+
+        [Required]
+        public string EarTagNumber { get; set; }
+
+        [Required]
+        public int MedicineId { get; set; }
+
+        [Required]
+        public DateTime AdministrationDate { get; set; }
+
+        [Required]
+        public float MedicineDosage { get; set; }
+
+        [Required]
+        [StringLength(256)]
         public string WhereHow { get; set; }
+
+        [Required]
         public bool IsFound { get; set; }
+
+        [Required]
         public bool IsTreatet { get; set; }
-        public int Ear_Number { get; set; }
 
+        public PlannedCowTreatment() : this(0, string.Empty, 0, DateTime.MinValue, 0.0f, string.Empty, false, false) { }
 
-        public Planned_Treatment_Cow() { }
-
-        public Planned_Treatment_Cow(int collar_Number, DateTime administration_Date, int medicine_Dosage, string medicine_Name)
+        public PlannedCowTreatment(int plannedCowTreatmentId, string earTagNumber, int medicineId, DateTime administrationDate, float medicineDosage, string whereHow, bool isFound, bool isTreatet)
         {
-            Collar_Number = collar_Number;
-            Administration_Date = administration_Date;
-            Medicine_Dosage = medicine_Dosage;
-            Medicine_Name = medicine_Name;
+            PlannedCowTreatmentId = plannedCowTreatmentId;
+            EarTagNumber = earTagNumber;
+            MedicineId = medicineId;
+            AdministrationDate = administrationDate;
+            MedicineDosage = medicineDosage;
+            WhereHow = whereHow;
+            IsFound = isFound;
+            IsTreatet = isTreatet;
         }
     }
 }

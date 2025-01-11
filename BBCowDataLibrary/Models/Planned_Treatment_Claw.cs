@@ -1,18 +1,44 @@
-﻿namespace BB_Cow.Class
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace BB_Cow.Class
 {
-    public class Planned_Treatment_Claw
-    {   public int Planned_Claw_Treatment_ID { get; set; }
-        public int Collar_Number { get; set; }
-        public string Description { get; set; }
-        public DateTime? Treatment_Date { get; set; }
-        public bool Claw_Finding_LV { get; set; }
-       
-        public bool Claw_Finding_LH { get; set; }
-       
-        public bool Claw_Finding_RV { get; set; }
-      
-        public bool Claw_Finding_RH { get; set; }
-       
-        public Planned_Treatment_Claw() { }
+    public class PlannedClawTreatment
+    {
+        [Key]
+        public int PlannedClawTreatmentId { get; set; }
+
+        [Required]
+        public string EarTagNumber { get; set; }
+
+        [Required]
+        public DateTime TreatmentDate { get; set; }
+
+        public string Desciption { get; set; }
+
+        [Required]
+        public bool ClawFindingLV { get; set; }
+
+        [Required]
+        public bool ClawFindingLH { get; set; }
+
+        [Required]
+        public bool ClawFindingRV { get; set; }
+
+        [Required]
+        public bool ClawFindingRH { get; set; }
+
+        public PlannedClawTreatment() : this(0, string.Empty, DateTime.MinValue, string.Empty, false, false, false, false) { }
+
+        public PlannedClawTreatment(int plannedClawTreatmentId, string earTagNumber, DateTime treatmentDate, string desciption, bool clawFindingLV, bool clawFindingLH, bool clawFindingRV, bool clawFindingRH)
+        {
+            PlannedClawTreatmentId = plannedClawTreatmentId;
+            EarTagNumber = earTagNumber;
+            TreatmentDate = treatmentDate;
+            Desciption = desciption;
+            ClawFindingLV = clawFindingLV;
+            ClawFindingLH = clawFindingLH;
+            ClawFindingRV = clawFindingRV;
+            ClawFindingRH = clawFindingRH;
+        }
     }
 }

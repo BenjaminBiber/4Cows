@@ -5,12 +5,14 @@
 @using _4Cows_FE.Components._4CowsComponent.Dialogs
 @inject PClawTreatmentService pClawTreatmentService
 @inject ClawTreatmentService clawTreatmentService
+@inject CowService cowService
+
 
 <MudGrid Justify="Justify.FlexEnd">
     <MudIconButton Icon="@Icons.Material.Filled.AddCircle" Color="Color.Secondary" Size="Size.Large" OnClick="OpenPlannedClawDialog"></MudIconButton>
 </MudGrid>
 
-<MudTable Elevation="5" Items="@Treatment_Claws" Hover="true" Striped="@true" Filter="new Func<Planned_Treatment_Claw,bool>(ClawFilterFunc1)" @bind-SelectedItem="selectedClaw">
+<MudTable Elevation="5" Items="@Treatment_Claws" Hover="true" Striped="@true" Filter="new Func<PlannedClawTreatment,bool>(ClawFilterFunc1)" @bind-SelectedItem="selectedClaw">
     <ColGroup>
         <col />
         <col />
@@ -24,8 +26,8 @@
         <MudTextField @bind-Value="searchClaw" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
     </ToolBarContent>
     <HeaderContent>
-        <MudTh><MudTableSortLabel SortBy="new Func<Planned_Treatment_Claw, object>(x=>x.Collar_Number)">Halsbandnummer</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel SortBy="new Func<Planned_Treatment_Claw, object>(x=>x.Description)">Beschreibung</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<int, object>(x=>x)">Halsbandnummer</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<PlannedClawTreatment, object>(x=>x.Desciption)">Beschreibung</MudTableSortLabel></MudTh>
         <MudTh></MudTh>
         <MudTh></MudTh>
         <MudTh></MudTh>
@@ -33,8 +35,8 @@
 
     </HeaderContent>
     <RowTemplate>
-        <MudTd DataLabel="Halsbandnummer">@context.Collar_Number</MudTd>
-        <MudTd DataLabel="Beschreibung">@context.Description</MudTd>
+        <MudTd DataLabel="Halsbandnummer">@cowService.GetCollarNumberByEarTagNumber(context.EarTagNumber)</MudTd>
+        <MudTd DataLabel="Beschreibung">@context.Desciption</MudTd>
         <MudTd><MudButton Color="Color.Tertiary" Variant="Variant.Filled" OnClick="@(() => OpenClawInformation(context))">Behandlung öffnen</MudButton></MudTd>
         <MudTd><MudButton Color="Color.Secondary" Variant="Variant.Filled" OnClick="@(() => AddClawTreatment(context))">Behandlung abschließen</MudButton></MudTd>
         <MudTd><MudButton Color="Color.Tertiary" Variant="Variant.Filled" OnClick="@(() => RemovePlannedClawDialog(context))">Behandlung entfernen</MudButton></MudTd>
@@ -46,27 +48,27 @@
     </MudTable>
 
 @code {
-    private Planned_Treatment_Claw selectedClaw = null;
+    private PlannedClawTreatment selectedClaw = null;
     private string searchClaw = "";
-    private IEnumerable<Planned_Treatment_Claw> Treatment_Claws = new List<Planned_Treatment_Claw>();
+    private IEnumerable<PlannedClawTreatment> Treatment_Claws = new List<PlannedClawTreatment>();
 
     protected override async Task OnInitializedAsync()
     {
         await pClawTreatmentService.GetAllDataAsync();
-        Treatment_Claws = pClawTreatmentService.Treatments;
+        Treatment_Claws = pClawTreatmentService.Treatments.Values;
     }
-    private bool ClawFilterFunc1(Planned_Treatment_Claw Treatment_Cow) => FilterFuncClaw(Treatment_Cow, searchClaw);
+    private bool ClawFilterFunc1(PlannedClawTreatment Treatment_Cow) => FilterFuncClaw(Treatment_Cow, searchClaw);
 
-    private bool FilterFuncClaw(Planned_Treatment_Claw Treatment_Cow, string searchString)
+    private bool FilterFuncClaw(PlannedClawTreatment Treatment_Cow, string searchString)
     {
         if (string.IsNullOrWhiteSpace(searchString))
             return true;
-        if (Treatment_Cow.Collar_Number.ToString() == searchString)
+        if (cowService.GetCollarNumberByEarTagNumber(Treatment_Cow.EarTagNumber).ToString() == searchString)
             return true;
         return false;
     }
 
-    private async Task OpenClawInformation(Planned_Treatment_Claw Claw_Treatment)
+    private async Task OpenClawInformation(PlannedClawTreatment Claw_Treatment)
     {
         var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
         await clawTreatmentService.GetAllDataAsync();
@@ -74,7 +76,7 @@
         DialogService.Show<Show_Planned_Treatment_Claw_Dialog>("", parameters, options);
     }
 
-    async Task AddClawTreatment(Planned_Treatment_Claw Planned_Claw_Treatment)
+    async Task AddClawTreatment(PlannedClawTreatment Planned_Claw_Treatment)
     {
         var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, NoHeader = true};
         var parametersGenericDialog = new DialogParameters<GenericDialog> { { x => x.HeaderText, "Speichern" }, { x => x.Description, "Wollen Sie die Behandlung wirklich Speichern?" }, { x => x.AcceptButtonText, "Ja" }, { x => x.CancelButtonText, "Nein" }, { x => x.ColorScheme, Color.Success } };
@@ -89,14 +91,13 @@
 
             if ((bool)result.Data && result.Data != null)
             {
-                var Claw_Treatment = new Treatment_Claw();
-                Claw_Treatment.Collar_Number = Planned_Claw_Treatment.Collar_Number;
-                Claw_Treatment.Treatment_Date = DateTime.Now;
+                var Claw_Treatment = new ClawTreatment();
+                Claw_Treatment.EarTagNumber = Planned_Claw_Treatment.EarTagNumber;
+                Claw_Treatment.TreatmentDate = DateTime.Now;
                 var options1 = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
                 var parameters = new DialogParameters<Add_Claw_Treatment_Dialog> { { x => x.Claw_Treatment, Claw_Treatment } };
                 DialogService.Show<Add_Claw_Treatment_Dialog>("", parameters, options1);
-                await pClawTreatmentService.RemoveByIDAsync(Planned_Claw_Treatment.Planned_Claw_Treatment_ID);
-                pClawTreatmentService.Treatments.Remove(Planned_Claw_Treatment);
+                await pClawTreatmentService.RemoveByIDAsync(Planned_Claw_Treatment.PlannedClawTreatmentId);
                 Snackbar.Add("Speichern abgeschlossen", Severity.Success);
 
             }
@@ -115,7 +116,7 @@
         DialogService.Show<Add_Planned_Claw_Treatment_Dialog>("", options);
     }
 
-    async Task RemovePlannedClawDialog(Planned_Treatment_Claw Planned_Claw_Treatment)
+    async Task RemovePlannedClawDialog(PlannedClawTreatment Planned_Claw_Treatment)
     {
         var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
         var parameters = new DialogParameters<GenericDialog> { { x => x.HeaderText, "Löschen" }, { x => x.Description, "Wollen Sie die Behandlung wirklich Löschen?" }, { x => x.AcceptButtonText, "Ja" }, { x => x.CancelButtonText, "Nein" }, { x => x.ColorScheme, Color.Error } };
@@ -130,10 +131,8 @@
 
             if ((bool)result.Data && result.Data != null)
             {
-                await pClawTreatmentService.RemoveByIDAsync(Planned_Claw_Treatment.Planned_Claw_Treatment_ID);
+                await pClawTreatmentService.RemoveByIDAsync(Planned_Claw_Treatment.PlannedClawTreatmentId);
                 Snackbar.Add("Löschen abgeschlossen", Severity.Success);
-                pClawTreatmentService.Treatments.Remove(Planned_Claw_Treatment);
-
             }
             else
             {

@@ -2,6 +2,8 @@
 @using BB_Cow.Class
 @inject PCowTreatmentService pCowTreatmentService
 @inject CowTreatmentService cowTreatmentService
+@inject MedicineService medicineService
+@inject CowService cowService
 
 <MudDialog>
     <DialogContent>
@@ -13,7 +15,7 @@
                 {
                     <MudItem xs="12">
                         <MudNumericField TextChanged="@((string s) => GetEarNumber(number))" Immediate="true" @bind-Value="number.Value" OnValue Label="Halsbandnummer:" Variant="Variant.Text" />
-                        <MudNumericField Immediate="true" @bind-Value="number.EarValue" Label="Ohrmarkennummer:" Variant="Variant.Text" />
+                        <MudAutocomplete TextChanged="() => GetCollarNumber(number)" SearchFunc="cowService.SearchCowEarTagNumbers" ResetValueOnEmptyText="true" Immediate="true" @bind-Value="number.EarValue" Label="Ohrmarkennummer:" Variant="Variant.Text" />
                     </MudItem>
                 }
                 <MudItem xs="5"></MudItem>
@@ -25,11 +27,11 @@
 
             <MudDatePicker Label="Verabreichungsdatum:" Editable="true" @bind-Date="NullDate"/>
 
-            <MudAutocomplete T="string" Label="Medikament:" @bind-Value="Planned_Cow_Treatment.Medicine_Name" SearchFunc="@Search_Cow_Treatment_Medicaments" CoerceValue="true" />
+            <MudAutocomplete SelectValueOnTab="true" T="string" Label="Medikament:" @bind-Value="MedicineName" SearchFunc="@((string s, CancellationToken c) => cowTreatmentService.SearchCowTreatmentMedicaments(s , c, medicineService))" CoerceValue="true" />
 
-            <MudAutocomplete T="string" Label="Wie / Wo:" @bind-Value="Planned_Cow_Treatment.WhereHow" SearchFunc="@Search_Cow_Treatment_WhereHow" CoerceValue="true" />
+            <MudAutocomplete SelectValueOnTab="true" T="string" Label="Wie / Wo:" @bind-Value="Planned_Cow_Treatment.WhereHow" SearchFunc="@((string s, CancellationToken c) => cowTreatmentService.SearchCowTreatmentWhereHow(s, c))" CoerceValue="true" />
 
-            <MudNumericField @bind-Value="Planned_Cow_Treatment.Medicine_Dosage" Label="Menge:" Variant="Variant.Text" />
+            <MudNumericField @bind-Value="Planned_Cow_Treatment.MedicineDosage" Label="Menge:" Variant="Variant.Text" />
 
             <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@SaveCowTreatmentModalInput">Speichern</MudButton>
         </MudStack>
@@ -43,8 +45,9 @@
 
     public bool SaveSuccesfulBool;
     public DateTime? NullDate;
-
-    public Planned_Treatment_Cow Planned_Cow_Treatment = new Planned_Treatment_Cow();
+    public string MedicineName;
+    
+    public PlannedCowTreatment Planned_Cow_Treatment = new PlannedCowTreatment();
 
     protected override void OnInitialized()
     {
@@ -63,26 +66,25 @@
     public void GetEarNumber(NumberEntry entry)
     {
         var index = numbers.IndexOf(entry);
-        List<Treatment_Cow> test = cowTreatmentService.Treatments;
-        numbers[index].EarValue = cowTreatmentService.Treatments.Where(x => x.Collar_Number == entry.Value).OrderByDescending(x => x.Administration_Date).Select(x => x.Ear_Number).FirstOrDefault();
+        numbers[index].EarValue = entry.Value.HasValue ? cowService.GetEarTagNumberByCollarNumber(entry.Value.Value) : null;
         StateHasChanged();
     }
 
     public async Task SaveCowTreatmentModalInput()
     {
         bool allSavedSuccessfully = true;
-        if (NullDate != null && !string.IsNullOrEmpty(Planned_Cow_Treatment.Medicine_Name) && Planned_Cow_Treatment.Medicine_Dosage != 0 && !string.IsNullOrEmpty(Planned_Cow_Treatment.WhereHow))
+        if (NullDate != null && !string.IsNullOrEmpty(MedicineName) && Planned_Cow_Treatment.MedicineDosage != 0 && !string.IsNullOrEmpty(Planned_Cow_Treatment.WhereHow))
         {
             Snackbar.Configuration.SnackbarVariant = Variant.Outlined;
             Snackbar.Configuration.MaxDisplayedSnackbars = 10;
-
+            var medicineId = await medicineService.GetMedicineIdByName(MedicineName);
             foreach (var number in numbers)
             {
-                if (number.Value.HasValue && number.Value != 0 && number.EarValue.HasValue && number.EarValue != 0)
+                if (number.Value.HasValue && number.Value != 0 && !string.IsNullOrEmpty(number.EarValue))
                 {
-                    Planned_Cow_Treatment.Collar_Number = number.Value.Value;
-                    Planned_Cow_Treatment.Ear_Number = number.EarValue.Value;
-                    Planned_Cow_Treatment.Administration_Date = NullDate.Value;
+                    Planned_Cow_Treatment.EarTagNumber = number.EarValue;
+                    Planned_Cow_Treatment.AdministrationDate = NullDate.Value;
+                    Planned_Cow_Treatment.MedicineId = medicineId;
 
                     var saveSuccessful = await pCowTreatmentService.InsertDataAsync(Planned_Cow_Treatment);
                     if (!saveSuccessful)
@@ -91,7 +93,7 @@
                     }
                     else
                     {
-                        Snackbar.Add($"Alle Behandlungen erfolgreich gespeichert!", Severity.Success);
+                        Snackbar.Add($"Behandlung für Kuh {Planned_Cow_Treatment.EarTagNumber} erfolgreich gespeichert!", Severity.Success);
                     }
                 }
             }
@@ -100,13 +102,6 @@
             {
                 Snackbar.Add($"Alle Behandlungen erfolgreich gespeichert!", Severity.Success);
                 MudDialog.Close();
-                Planned_Cow_Treatment = new Planned_Treatment_Cow
-                    {
-                        Administration_Date = DateTime.Now,
-                        Medicine_Name = "",
-                        Medicine_Dosage = 0,
-                        Collar_Number = 0
-                    };
             }
             else
             {
@@ -120,26 +115,12 @@
         }
 
     }
-
-    private async Task<IEnumerable<string>> Search_Cow_Treatment_Medicaments(string value, CancellationToken token)
+    
+    private void GetCollarNumber(NumberEntry entry)
     {
-        await Task.Delay(0);
-        if (string.IsNullOrEmpty(value))
-        {
-            return cowTreatmentService.CowMedicineTreatmentList;
-        }
-        return cowTreatmentService.CowMedicineTreatmentList.Concat(pCowTreatmentService.CowMedicineTreatmentList).Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
+        var index = numbers.IndexOf(entry);
+        numbers[index].Value = entry.EarValue != null ? cowService.GetCollarNumberByEarTagNumber(entry.EarValue) : null;
+        StateHasChanged();
     }
-
-    private async Task<IEnumerable<string>> Search_Cow_Treatment_WhereHow(string value, CancellationToken token)
-    {
-        await Task.Delay(0);
-        if (string.IsNullOrEmpty(value) || cowTreatmentService.CowWhereHowList.Count == 0)
-        {
-            return cowTreatmentService.CowWhereHowList;
-        }
-        return cowTreatmentService.CowWhereHowList.Concat(pCowTreatmentService.CowMedicineTreatmentList).Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
-    }
-
 }
 

@@ -1,5 +1,7 @@
 ﻿@inject ISnackbar Snackbar
 @inject CowTreatmentService cowTreatmentService
+@inject CowService cowService
+@inject MedicineService medicineService
 
 <MudDialog>
     <DialogContent>
@@ -10,9 +12,8 @@
                 @foreach (var number in numbers)
                 {
                     <MudItem xs="12">
-                        <MudNumericField Immediate="true" @bind-Value="number.Value" OnKeyDown="(KeyboardEventArgs e) => GetEarNumber(number, e)" Label="Halsbandnummer:" Variant="Variant.Text" />
-                        <MudNumericField Immediate="true" @bind-Value="number.EarValue" Label="Ohrmarkennummer:" Variant="Variant.Text" />
-
+                        <MudNumericField Immediate="true" @bind-Value="number.Value" TextChanged="@((string s) => GetEarNumber(number))" Label="Halsbandnummer:" Variant="Variant.Text" />
+                        <MudAutocomplete TextChanged="() => GetCollarNumber(number)" SearchFunc="cowService.SearchCowEarTagNumbers" ResetValueOnEmptyText="true" Immediate="true" @bind-Value="number.EarValue" Label="Ohrmarkennummer:" Variant="Variant.Text" />
                     </MudItem>
                 }
                 <MudItem xs="5"></MudItem>
@@ -23,11 +24,11 @@
             </MudGrid>
                 <MudDatePicker Label="Verabreichungsdatum:" Editable="true" @bind-Date="NullDate" />
 
-                <MudAutocomplete T="string" Label="Medikament:" @bind-Value="Cow_Treatment.Medicine_Name" SearchFunc="@Search_Cow_Treatment_Medicaments" CoerceValue="true" />
+                <MudAutocomplete SelectValueOnTab="true" T="string" Label="Medikament:" @bind-Value="MedicineName" SearchFunc="@((string s, CancellationToken c) => cowTreatmentService.SearchCowTreatmentMedicaments(s , c, medicineService))" CoerceValue="true" />
 
-                <MudAutocomplete T="string" Label="Wie / Wo:" @bind-Value="Cow_Treatment.WhereHow" SearchFunc="@Search_Cow_Treatment_WhereHow" CoerceValue="true" />
+                <MudAutocomplete SelectValueOnTab="true" T="string" Label="Wie / Wo:" @bind-Value="Cow_Treatment.WhereHow" SearchFunc="@((string s, CancellationToken c) => cowTreatmentService.SearchCowTreatmentWhereHow(s , c))" CoerceValue="true" />
 
-                <MudNumericField @bind-Value="Cow_Treatment.Medicine_Dosage" Label="Menge:" Variant="Variant.Text" />
+                <MudNumericField @bind-Value="Cow_Treatment.MedicineDosage" Label="Menge:" Variant="Variant.Text" />
 
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@SaveCowTreatmentModalInput">Speichern</MudButton>
 
@@ -39,23 +40,26 @@
 
 @code {
     [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+    
     [Parameter]
-    public Treatment_Cow Cow_Treatment { get; set; } = new Treatment_Cow();
+    public CowTreatment Cow_Treatment { get; set; } = new CowTreatment();
+    
     public DateTime? NullDate;
     public bool SaveSuccesfulBool;
+    public string MedicineName;
 
     protected override void OnInitialized()
     {
-        if(Cow_Treatment.Collar_Number != 0)
+        if(!string.IsNullOrEmpty(Cow_Treatment.EarTagNumber))
         {
-            numbers.Add(new NumberEntry(Cow_Treatment.Collar_Number, Cow_Treatment.Ear_Number));
+            numbers.Add(new NumberEntry(cowService.GetCollarNumberByEarTagNumber(Cow_Treatment.EarTagNumber), Cow_Treatment.EarTagNumber));
+            MedicineName = medicineService.GetMedicineNameById(Cow_Treatment.MedicineId);
         }
         else
         {
             numbers.Add(new NumberEntry());
         }
         NullDate = DateTime.Now;
-        cowTreatmentService.GetAllDataAsync();
     }
 
     List<NumberEntry> numbers = new List<NumberEntry>();
@@ -65,15 +69,17 @@
         numbers.Add(new NumberEntry());
     }
 
-    public void GetEarNumber(NumberEntry entry, KeyboardEventArgs e)
+    public void GetEarNumber(NumberEntry entry)
     {
         var index = numbers.IndexOf(entry);
-        List<Treatment_Cow> test = cowTreatmentService.Treatments;
-        numbers[index].EarValue = cowTreatmentService.Treatments.Where(x => x.Collar_Number == entry.Value).OrderByDescending(x => x.Administration_Date).Select(x => x.Ear_Number).FirstOrDefault();
-        if (e.Key == "Enter")
-        {
-            numbers.Add(new NumberEntry());
-        }
+        numbers[index].EarValue = entry.Value.HasValue ? cowService.GetEarTagNumberByCollarNumber(entry.Value.Value) : null;
+        StateHasChanged();
+    }
+    
+    private void GetCollarNumber(NumberEntry entry)
+    {
+        var index = numbers.IndexOf(entry);
+        numbers[index].Value = entry.EarValue != null ? cowService.GetCollarNumberByEarTagNumber(entry.EarValue) : null;
         StateHasChanged();
     }
 
@@ -81,18 +87,23 @@
     {
         Snackbar.Configuration.SnackbarVariant = Variant.Outlined;
         Snackbar.Configuration.MaxDisplayedSnackbars = 10;
+        var medicineId = await medicineService.GetMedicineIdByName(MedicineName);
+        if (medicineId == int.MinValue)
+        {
+             Snackbar.Add("Medikament nicht gefunden!", Severity.Error);
+             return;
+        }
         foreach (var number in numbers)
         {
-            if (number.Value.HasValue && number.Value != 0 && number.EarValue.HasValue && number.EarValue != 0)
+            if (number.Value.HasValue && number.Value != 0 && !string.IsNullOrEmpty(number.EarValue))
             {
-                var newTreatment = new Treatment_Cow
+                var newTreatment = new CowTreatment()
                     {
-                        Collar_Number = number.Value.Value,
-                        Ear_Number = number.EarValue.Value,
-                        Medicine_Name = Cow_Treatment.Medicine_Name,
-                        Medicine_Dosage = Cow_Treatment.Medicine_Dosage,
+                        EarTagNumber = number.EarValue,
+                        MedicineId = medicineId,
+                        MedicineDosage = Cow_Treatment.MedicineDosage,
                         WhereHow = Cow_Treatment.WhereHow,
-                        Administration_Date = NullDate.Value
+                        AdministrationDate = NullDate.Value
                     };
 
                 bool saveSuccessful = await cowTreatmentService.InsertDataAsync(newTreatment);
@@ -112,37 +123,7 @@
                 return;
             }
         }
-
-        Cow_Treatment = new Treatment_Cow() { Administration_Date = DateTime.Now };
         MudDialog.Close();
-    }
-
-
-    private bool TestForNullInput()
-    {
-        var returnBool = false;
-        returnBool = Cow_Treatment.Collar_Number != 0 && NullDate != null && !string.IsNullOrEmpty(Cow_Treatment.Medicine_Name) && Cow_Treatment.Medicine_Dosage != 0 && !string.IsNullOrEmpty(Cow_Treatment.WhereHow);
-        return returnBool;
-    }
-
-    private async Task<IEnumerable<string>> Search_Cow_Treatment_Medicaments(string value, CancellationToken token)
-    {
-        await Task.Delay(0);
-        if (string.IsNullOrEmpty(value))
-        {
-            return cowTreatmentService.CowMedicineTreatmentList;
-        }
-        return cowTreatmentService.CowMedicineTreatmentList.Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
-    }
-
-    private async Task<IEnumerable<string>> Search_Cow_Treatment_WhereHow(string value, CancellationToken token)
-    {
-        await Task.Delay(0);
-        if (string.IsNullOrEmpty(value) || cowTreatmentService.CowWhereHowList.Count == 0)
-        {
-            return cowTreatmentService.CowWhereHowList;
-        }
-        return cowTreatmentService.CowWhereHowList.Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
     }
 
 }

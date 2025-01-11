@@ -1,27 +1,40 @@
-﻿using MySqlConnector;
+﻿using System.ComponentModel.DataAnnotations;
+using MySqlConnector;
 using System.Xml.Linq;
 
 namespace BB_Cow.Class
 {
-    public class Treatment_Cow
+    public class CowTreatment
     {
-        public int Cow_Treatment_ID { get; set; }
-        public int Collar_Number { get; set; }
-        public DateTime Administration_Date { get; set; }
-        public float Medicine_Dosage { get; set; }
-        public string Medicine_Name { get; set; }
+        [Key]
+        public int CowTreatmentId { get; set; }
+
+        [Required]
+        public string EarTagNumber { get; set; }
+
+        [Required]
+        public int MedicineId { get; set; }
+
+        [Required]
+        public DateTime AdministrationDate { get; set; }
+
+        [Required]
+        public float MedicineDosage { get; set; }
+
+        [Required]
+        [StringLength(256)]
         public string WhereHow { get; set; }
-        public int Ear_Number { get; set; }
 
-        public Treatment_Cow() { }
+        public CowTreatment() : this(0, string.Empty, 0, DateTime.MinValue, 0.0f, string.Empty) { }
 
-        public Treatment_Cow(int collar_Number, DateTime administration_Date, int medicine_Dosage, string medicine_Name)
+        public CowTreatment(int cowTreatmentId, string earTagNumber, int medicineId, DateTime administrationDate, float medicineDosage, string whereHow)
         {
-            Collar_Number = collar_Number;
-            Administration_Date = administration_Date;
-            Medicine_Dosage = medicine_Dosage;
-            Medicine_Name = medicine_Name;
+            CowTreatmentId = cowTreatmentId;
+            EarTagNumber = earTagNumber;
+            MedicineId = medicineId;
+            AdministrationDate = administrationDate;
+            MedicineDosage = medicineDosage;
+            WhereHow = whereHow;
         }
-
     }
 }

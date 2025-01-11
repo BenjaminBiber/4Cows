@@ -8,6 +8,8 @@
 @inject PCowTreatmentService pCowTreatmentService
 @inject PClawTreatmentService pClawTreatmentService
 @inject ClawTreatmentService clawTreatmentService
+@inject MedicineService medicineService
+@inject CowService cowService
 
 <div id="Index_Top">
     <div id="KPI_Div">
@@ -49,10 +51,10 @@
 
     private Dictionary<string, (string, string)> KPIs = [];
     
-    public List<Treatment_Cow> CowList = new List<Treatment_Cow>();
-    public List<Treatment_Claw> ClawList = new List<Treatment_Claw>(); 
-    public List<Planned_Treatment_Cow> Planned_CowList = new List<Planned_Treatment_Cow>();
-    public List<Planned_Treatment_Claw> Planned_ClawList = new List<Planned_Treatment_Claw>();
+    public List<CowTreatment> CowList = [];
+    public List<ClawTreatment> ClawList = [];
+    public List<PlannedCowTreatment> Planned_CowList = [];
+    public List<PlannedClawTreatment> Planned_ClawList = [];
     public List<string> _selectedMedicines = new List<string>();
     
     protected override async Task OnInitializedAsync()
@@ -67,11 +69,13 @@
         await clawTreatmentService.GetAllDataAsync();
         await pCowTreatmentService.GetAllDataAsync();
         await pClawTreatmentService.GetAllDataAsync();
+        await medicineService.GetAllDataAsync();
+        await cowService.GetAllDataAsync();
         
-        CowList = cowTreatmentService.Treatments;
-        ClawList = clawTreatmentService.Treatments;
-        Planned_CowList = pCowTreatmentService.Treatments;
-        Planned_ClawList = pClawTreatmentService.Treatments;
+        CowList = cowTreatmentService.Treatments.Values.ToList();
+        ClawList = clawTreatmentService.Treatments.Values.ToList();
+        Planned_CowList = pCowTreatmentService.Treatments.Values.ToList();
+        Planned_ClawList = pClawTreatmentService.Treatments.Values.ToList();
     }
 
     private async Task OpenChartEditor()
@@ -95,7 +99,7 @@
                  _selectedMedicines = selectedMedicines.ToList();
                  
                  await JSRuntime.InvokeVoidAsync("destroyExistingChart", "CowChart");
-                 if(_selectedMedicines.Count == cowTreatmentService.CowMedicineTreatmentList.Distinct().ToList().Count)
+                 if(_selectedMedicines.Count == medicineService.GetMedicineNames().Distinct().ToList().Count)
                  {
                      await InitilizeLineChartAsync("CowChart", "Kuh Behandlungen", cowTreatmentService.GetCowTreatmentChartData());
                  }
@@ -121,26 +125,26 @@
 
     private void GetCowWithMostClawTreatments()
     {
-        KPIs.Add("Kuh mit den meisten Klauenbehandlungen:", ("/Klauen_Daten", (ClawList.GroupBy(obj => obj.Collar_Number)
+        KPIs.Add("Kuh mit den meisten Klauenbehandlungen:", ("/Klauen_Daten", cowService.GetCollarNumberByEarTagNumber((ClawList.GroupBy(obj => obj.EarTagNumber)
             .OrderByDescending(group => group.Count())
             .Select(group => group.Key)
-            .FirstOrDefault()).ToString()));
+            .FirstOrDefault() ?? "0")).ToString()));
     }
     
     private void GetMostFoundClawDisease()
     {
         KPIs.Add("Meist behandelte Klauenfund:", ("/Klauen_Daten", (ClawList
-            .SelectMany(obj => new[] { obj.Claw_Finding_LH, obj.Claw_Finding_LV, obj.Claw_Finding_RH, obj.Claw_Finding_RV })
+            .SelectMany(obj => new[] { obj.ClawFindingLH, obj.ClawFindingLV, obj.ClawFindingRH, obj.ClawFindingRV })
             .Where(str => str != "Pflege")
             .GroupBy(str => str)
             .OrderByDescending(group => group.Count())
             .Select(group => group.Key)
-            .FirstOrDefault()).ToString()));
+            .FirstOrDefault() ?? "0").ToString()));
     }
     
     private void GetMostUsedMedicine()
     {
-        KPIs.Add("Meist benutztes Medikament:", ("/Kuh_Daten", (CowList.GroupBy(obj => obj.Medicine_Name)
+        KPIs.Add("Meist benutztes Medikament:", ("/Kuh_Daten", medicineService.GetMedicineNameById(CowList.GroupBy(obj => obj.MedicineId)
             .OrderByDescending(group => group.Count())
             .Select(group => group.Key)
             .FirstOrDefault()).ToString()));
@@ -148,7 +152,7 @@
     
     private void GetAmountOfBandages()
     {
-        KPIs.Add("Verbände:", ("/Klauen_Daten", ClawList.Count(x => (x.Bandage_LH || x.Bandage_LV || x.Bandage_RV || x.Bandage_RH) && !x.IsBandageRemoved).ToString()));
+        KPIs.Add("Verbände:", ("/Klauen_Daten", ClawList.Count(x => (x.BandageLH || x.BandageLV || x.BandageRV || x.BandageRH) && !x.IsBandageRemoved).ToString()));
     }
     
     private void GetTotalCowTreatments()

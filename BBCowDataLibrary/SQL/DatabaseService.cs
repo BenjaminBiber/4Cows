@@ -52,16 +52,26 @@ namespace BBCowDataLibrary.SQL
             return success;
         }
 
-        public static async Task<List<T>> ReadDataAsync<T>(string query, Func<MySqlDataReader, T> readAction)
+        public static async Task<List<T>> ReadDataAsync<T>(string query, Func<MySqlDataReader, T> readAction, object parameters = null)
         {
             var items = new List<T>();
-            if(await IsConfigured())
+            if (await IsConfigured())
             {
                 try
                 {
                     await ExecuteQueryAsync(async command =>
                     {
                         command.CommandText = query;
+
+                        if (parameters != null)
+                        {
+                            foreach (var prop in parameters.GetType().GetProperties())
+                            {
+                                var value = prop.GetValue(parameters);
+                                command.Parameters.AddWithValue($"@{prop.Name}", value ?? DBNull.Value);
+                            }
+                        }
+
                         using var reader = await command.ExecuteReaderAsync();
                         while (await reader.ReadAsync())
                         {
@@ -69,7 +79,6 @@ namespace BBCowDataLibrary.SQL
                         }
                     });
                     return items;
-
                 }
                 catch (MySqlException ex)
                 {
@@ -132,14 +141,15 @@ namespace BBCowDataLibrary.SQL
         {
             connectionString = new MySqlConnectionStringBuilder
             {
-                Server = Environment.GetEnvironmentVariable("DB_SERVER") ?? "127.0.0.1",
+                Server = Environment.GetEnvironmentVariable("DB_SERVER4") ?? "192.168.50.200",
                 UserID = Environment.GetEnvironmentVariable("DB_User") ?? "root",
                 Password = Environment.GetEnvironmentVariable("DB_Password") ?? "4cows",
-                Database = Environment.GetEnvironmentVariable("DB_DB") ?? "4cows",
+                Database = Environment.GetEnvironmentVariable("DB_DB4") ?? "4cows_v2",
                 Port = 3306
             }.ConnectionString;
 
             Console.WriteLine(connectionString);
         }
+        
     }
 }

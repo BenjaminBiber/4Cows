@@ -3,33 +3,35 @@
 @using _4Cows_FE.Components._4CowsComponent
 @using _4Cows_FE.Components._4CowsComponent.Dialogs
 @inject CowTreatmentService cowTreatmentService
+@inject CowService cowService
+@inject MedicineService medicineService
 
 <MudGrid Justify="Justify.FlexEnd">
     <MudIconButton Icon="@Icons.Material.Filled.AddCircle" Color="Color.Secondary" Size="Size.Large" OnClick="OpenCowDialog"></MudIconButton>
 </MudGrid>
 
-<MudTable Elevation="5" Items="@Treatment_Cows" Hover="true" Striped="@true" Filter="(Func<Treatment_Cow, bool>)FilterFunc1" @bind-SelectedItem="selectedCow">
+<MudTable Elevation="5" Items="@CowTreatments" Hover="true" Striped="@true" Filter="(Func<CowTreatment, bool>)FilterFunc1" @bind-SelectedItem="selectedCow">
     <ToolBarContent>
         <MudText Typo="Typo.h3">Kuh Behandlungen</MudText>
         <MudSpacer/>
         <MudTextField @bind-Value="cowSearchString" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
     </ToolBarContent>
     <HeaderContent>
-        <MudTh><MudTableSortLabel SortBy="new Func<Treatment_Cow, object>(x=>x.Collar_Number)">Halsbandnummer</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel SortBy="new Func<Treatment_Cow, object>(x=>x.Ear_Number)">Ohrmarkennummer</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel SortBy="new Func<Treatment_Cow, object>(x=>x.Administration_Date)">Datum</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel SortBy="new Func<Treatment_Cow, object>(x=>x.Medicine_Name)">Medikament</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel SortBy="new Func<Treatment_Cow, object>(x=>x.WhereHow)">Wie/Wo</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel SortBy="new Func<Treatment_Cow, object>(x=>x.Medicine_Dosage)">Menge</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<int, object>(x=>x)">Halsbandnummer</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<CowTreatment, object>(x=>x.EarTagNumber)">Ohrmarkennummer</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<CowTreatment, object>(x=>x.AdministrationDate)">Datum</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<CowTreatment, object>(x=>x.MedicineId)">Medikament</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<CowTreatment, object>(x=>x.WhereHow)">Wie/Wo</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<CowTreatment, object>(x=>x.MedicineDosage)">Menge</MudTableSortLabel></MudTh>
 
     </HeaderContent>
     <RowTemplate>
-        <MudTd DataLabel="Halsbandnummer">@context.Collar_Number</MudTd>
-        <MudTd DataLabel="Ohrmarkennummer">@context.Ear_Number</MudTd>
-            <MudTd DataLabel="Datum">@context.Administration_Date</MudTd>
-            <MudTd DataLabel="Medikament">@context.Medicine_Name</MudTd>
+        <MudTd DataLabel="Halsbandnummer">@cowService.GetCollarNumberByEarTagNumber(context.EarTagNumber)</MudTd>
+        <MudTd DataLabel="Ohrmarkennummer">@context.EarTagNumber</MudTd>
+            <MudTd DataLabel="Datum">@context.AdministrationDate</MudTd>
+            <MudTd DataLabel="Medikament">@medicineService.GetMedicineNameById(context.MedicineId)</MudTd>
             <MudTd DataLabel="Wie/Wo">@context.WhereHow</MudTd>
-            <MudTd DataLabel="Menge">@context.Medicine_Dosage</MudTd>
+            <MudTd DataLabel="Menge">@context.MedicineDosage</MudTd>
 
         </RowTemplate>
         <PagerContent>
@@ -39,16 +41,16 @@
 
     @code{
     private string cowSearchString = "";
-    private Treatment_Cow selectedCow = null;
-    private IEnumerable<Treatment_Cow> Treatment_Cows = new List<Treatment_Cow>();
+    private CowTreatment selectedCow = null;
+    private IEnumerable<CowTreatment> CowTreatments = new List<CowTreatment>();
 
-    private bool FilterFunc1(Treatment_Cow Treatment_Cow) => FilterFunc(Treatment_Cow, cowSearchString);
+    private bool FilterFunc1(CowTreatment CowTreatment) => FilterFunc(CowTreatment, cowSearchString);
 
-    private bool FilterFunc(Treatment_Cow Treatment_Cow, string searchString)
+    private bool FilterFunc(CowTreatment CowTreatment, string searchString)
     {
         if (string.IsNullOrWhiteSpace(searchString))
             return true;
-        if (Treatment_Cow.Collar_Number.ToString() == searchString)
+        if (cowService.GetCollarNumberByEarTagNumber(CowTreatment.EarTagNumber).ToString() == searchString)
             return true;
         return false;
     }
@@ -56,7 +58,7 @@
     protected override async Task OnInitializedAsync()
     {
         await cowTreatmentService.GetAllDataAsync();
-        Treatment_Cows = cowTreatmentService.Treatments.OrderByDescending(x => x.Administration_Date);
+        CowTreatments = cowTreatmentService.Treatments.Values.OrderByDescending(x => x.AdministrationDate);
     }
 
     private void OpenCowDialog()
