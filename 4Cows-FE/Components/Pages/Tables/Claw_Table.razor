@@ -23,7 +23,7 @@
 
 <MudTable Elevation="5" Items="@Treatment_Claws" Hover="true" Striped="@true" Filter="new Func<ClawTreatment,bool>(ClawFilterFunc1)" @bind-SelectedItem="selectedClaw">
     <ToolBarContent>
-        <MudText Typo="Typo.h3">Klauen Behandlungen</MudText>
+        <MudText Class="table-Header" Typo="Typo.h3">Klauen Behandlungen</MudText>
         <MudSpacer/>
         <MudTextField @bind-Value="searchClaw" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
     </ToolBarContent>

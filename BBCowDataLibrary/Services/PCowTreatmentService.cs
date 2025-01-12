@@ -38,6 +38,7 @@ namespace BB_Cow.Services
             _cachedTreatments = treatments.ToImmutableDictionary(t => t.PlannedCowTreatmentId);
             _cachedMedicineList = treatments.Select(t => t.MedicineId.ToString()).Distinct().ToImmutableList();
             _cachedWhereHowList = treatments.Select(t => t.WhereHow).Distinct().ToImmutableList();
+            LoggerService.LogInformation(typeof(PCowTreatmentService), $"Loaded {_cachedTreatments.Count} planned cow treatments.");
         }
 
         public async Task<bool> InsertDataAsync(PlannedCowTreatment cowTreatment)
@@ -61,6 +62,7 @@ namespace BB_Cow.Services
                 _cachedTreatments = _cachedTreatments.Add(cowTreatment.PlannedCowTreatmentId, cowTreatment);
                 _cachedMedicineList = _cachedTreatments.Values.Select(t => t.MedicineId.ToString()).Distinct().ToImmutableList();
                 _cachedWhereHowList = _cachedTreatments.Values.Select(t => t.WhereHow).Distinct().ToImmutableList();
+                LoggerService.LogInformation(typeof(PCowTreatmentService), "Data inserted successfully: {@cowTreatment}", cowTreatment);
             }
 
             return isSuccess;
@@ -81,6 +83,7 @@ namespace BB_Cow.Services
                 _cachedTreatments = _cachedTreatments.Remove(id);
                 _cachedMedicineList = _cachedTreatments.Values.Select(t => t.MedicineId.ToString()).Distinct().ToImmutableList();
                 _cachedWhereHowList = _cachedTreatments.Values.Select(t => t.WhereHow).Distinct().ToImmutableList();
+                LoggerService.LogInformation(typeof(PCowTreatmentService), "Data removed successfully: {@id}", id);
             }
 
             return isSuccess;
