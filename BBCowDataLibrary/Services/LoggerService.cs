@@ -11,11 +11,12 @@ public class LoggerService
 
     public static void InitializeLogger(string logFilePath = "/tmp/Logs/log-.txt")
     {
-        if(!File.Exists(logFilePath))
+        var logDirectory = Path.GetDirectoryName(logFilePath);
+        if (!Directory.Exists(logDirectory))
         {
-            Directory.CreateDirectory(Path.GetDirectoryName("/tmp/Logs/"));
+            Directory.CreateDirectory(logDirectory);
         }
-        
+
         if (Logger == null)
         {
             Logger = new LoggerConfiguration()
@@ -25,12 +26,13 @@ public class LoggerService
                     logFilePath,
                     rollingInterval: RollingInterval.Day,
                     retainedFileCountLimit: 7
-                    )
+                )
                 .CreateLogger();
 
             Log.Logger = Logger;
         }
     }
+
 
     public static void LogInformation(Type sourceClass, string message, params object[] args)
     {
