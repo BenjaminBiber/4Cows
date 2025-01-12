@@ -9,12 +9,11 @@ public class LoggerService
 {
     private static ILogger Logger;
 
-    public static void InitializeLogger(string logFilePath = "/app/Logs/log-.txt")
+    public static void InitializeLogger(string logFilePath = "/tmp/Logs/log-.txt")
     {
         if(!File.Exists(logFilePath))
         {
-            Directory.CreateDirectory(Path.GetDirectoryName("/app/Logs/"));
-            File.Create(logFilePath).Close();
+            Directory.CreateDirectory(Path.GetDirectoryName("/tmp/Logs/"));
         }
         
         if (Logger == null)
