@@ -11,6 +11,12 @@ public class LoggerService
 
     public static void InitializeLogger(string logFilePath = "/app/Logs/log-.txt")
     {
+        if(!File.Exists(logFilePath))
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName("/app/Logs/"));
+            File.Create(logFilePath).Close();
+        }
+        
         if (Logger == null)
         {
             Logger = new LoggerConfiguration()
