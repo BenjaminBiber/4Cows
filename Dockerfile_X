@@ -13,6 +13,7 @@ RUN dotnet restore "XLinkScraper/XLinkScraper.csproj"
 COPY . .
 WORKDIR "/src/XLinkScraper"
 RUN dotnet build "XLinkScraper.csproj" -c $BUILD_CONFIGURATION -o /app/build
+RUN mkdir -p /app/Logs && chmod -R 777 /app/Logs
 
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release

@@ -13,6 +13,7 @@ RUN dotnet restore "4Cows-FE/4Cows-FE.csproj"
 COPY . .
 WORKDIR "/src/4Cows-FE"
 RUN dotnet build "4Cows-FE.csproj" -c $BUILD_CONFIGURATION -o /app/build
+RUN mkdir -p /app/Logs && chmod -R 777 /app/Logs
 
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
