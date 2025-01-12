@@ -7,11 +7,12 @@
 - Planen von Klauen- und Tierbehandlungen
 - Dark- & Lightmode
 - Exportieren der Klauenbehandlungen als Excel-Dokument
+- Auswerten von Lely Horizon Daten über einen Xlink-Scraper
 
 
 ## Installation
 
-Um 4Cows zu installieren wird Docker Compose empfohlen. Hierbei muss die Ip-Adresse des Servers eingefügt werden.
+Um 4Cows zu installieren wird Docker Compose empfohlen. Hierbei muss noch die IP Adresse des XLink-Servers eingetragen werden
 
 ```docker-compse
 version: '3.8'
@@ -110,5 +111,12 @@ services:
 
 ## Roadmap
 
-- Refactoring der Tabellen Und Dialoge
-- Charts responsive machen
+- Charts 100% responsive machen
+
+## Ideenspeicher
+
+- Übsichtstabelle für Kühe, mit Dialog zur näheren 
+Übersicht über Behandlungen
+- Basisdatenbearbeitung für Medikamente und Kühe -> manuelle Ausführung der Scraper Api
+- Anpassung der KPIs über eine Settings Seite
+- Weitere Einstellungen wie Standard-Werte für Klauenbehandlungen
