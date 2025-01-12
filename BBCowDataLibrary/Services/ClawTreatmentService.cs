@@ -155,9 +155,11 @@ namespace BB_Cow.Services
 
         public int[] GetClawTreatmentChartData()
         {
+            var currentYear = DateTime.Now.Year;
             var months = Enumerable.Range(1, 12);
 
             var groupedData = _cachedTreatments.Values
+                .Where(obj => obj.TreatmentDate.Year == currentYear)
                 .GroupBy(obj => obj.TreatmentDate.Month)
                 .ToDictionary(g => g.Key, g => g.Count());
 

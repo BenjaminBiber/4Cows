@@ -93,9 +93,11 @@ public class CowTreatmentService
 
     public int[] GetCowTreatmentChartData()
     {
+        var currentYear = DateTime.Now.Year;
         var months = Enumerable.Range(1, 12);
 
         var groupedData = _cachedTreatments.Values
+            .Where(obj => obj.AdministrationDate.Year == currentYear) 
             .GroupBy(obj => obj.AdministrationDate.Month)
             .ToDictionary(g => g.Key, g => g.Count());
 
@@ -106,11 +108,14 @@ public class CowTreatmentService
 
     public int[] GetCowTreatmentChartData(string medicine)
     {
+        var currentYear = DateTime.Now.Year;
         var months = Enumerable.Range(1, 12);
 
         return months
             .Select(month => _cachedTreatments.Values
-                .Where(obj => obj.AdministrationDate.Month == month && obj.MedicineId == int.Parse(medicine))
+                .Where(obj => obj.AdministrationDate.Year == currentYear && 
+                              obj.AdministrationDate.Month == month &&
+                              obj.MedicineId == int.Parse(medicine))
                 .Count())
             .ToArray();
     }
