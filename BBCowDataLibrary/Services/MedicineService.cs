@@ -23,6 +23,7 @@ public class MedicineService
             });
 
             _cachedMedicines = medicines.ToImmutableDictionary(m => m.MedicineId);
+            LoggerService.LogInformation(typeof(MedicineService), $"Loaded {_cachedMedicines.Count} medicines.");
         }
 
         public async Task<bool> InsertDataAsync(Medicine medicine)
@@ -38,6 +39,7 @@ public class MedicineService
             if (isSuccess)
             {
                 await GetAllDataAsync();
+                LoggerService.LogInformation(typeof(MedicineService), $"Inserted medicine {medicine.MedicineName}.");
             }
 
             return isSuccess;

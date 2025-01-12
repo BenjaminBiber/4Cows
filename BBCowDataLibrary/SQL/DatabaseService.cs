@@ -4,6 +4,8 @@ using System;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using BB_Cow.Services;
+using Microsoft.Extensions.Logging;
 
 namespace BBCowDataLibrary.SQL
 {
@@ -23,16 +25,15 @@ namespace BBCowDataLibrary.SQL
             try
             {
                 using var connection = await OpenConnectionAsync();
-                Console.WriteLine("Connection Opened");
-                Console.WriteLine(connection.State);
                 connection.Close();
-                return true;
             }
             catch (MySqlException ex)
             {
-                Console.WriteLine(ex);
+                LoggerService.LogError(typeof(DatabaseService), "Database connection failed, with {@Message}", ex, ex.Message);
                 return false;
             }
+            LoggerService.LogInformation(typeof(DatabaseService), "Database connection successful, with {@connectionString}", connectionString);
+            return true;
         }
 
         public static async Task<bool> ExecuteQueryAsync(Func<MySqlCommand, Task> commandAction)
@@ -46,7 +47,7 @@ namespace BBCowDataLibrary.SQL
                 success = true;
             }catch(Exception ex)
             {
-                Console.WriteLine(ex);
+                LoggerService.LogError(typeof(DatabaseService), "Database query failed, with {@Message}", ex, ex.Message);
                 success = false;
             }
             return success;
@@ -82,7 +83,7 @@ namespace BBCowDataLibrary.SQL
                 }
                 catch (MySqlException ex)
                 {
-                    Console.WriteLine(ex);
+                    LoggerService.LogError(typeof(DatabaseService), "Database query failed, with {@Message}", ex, ex.Message);
                     return new List<T>();
                 }
             }
@@ -141,14 +142,14 @@ namespace BBCowDataLibrary.SQL
         {
             connectionString = new MySqlConnectionStringBuilder
             {
-                Server = Environment.GetEnvironmentVariable("DB_SERVER") ?? "192.168.50.200",
+                Server = Environment.GetEnvironmentVariable("DB_SERVER4") ?? "192.168.50.200",
                 UserID = Environment.GetEnvironmentVariable("DB_User") ?? "root",
                 Password = Environment.GetEnvironmentVariable("DB_Password") ?? "4cows",
-                Database = Environment.GetEnvironmentVariable("DB_DB") ?? "4cows_v2",
+                Database = Environment.GetEnvironmentVariable("DB_DB4") ?? "4cows_v2",
                 Port = 3306
             }.ConnectionString;
 
-            Console.WriteLine(connectionString);
+            IsConfigured().Wait();
         }
         
     }

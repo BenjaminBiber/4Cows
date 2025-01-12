@@ -770,6 +770,10 @@ th, td {
         display: none;
     }
     
+    .table-Header{
+        display: none;
+    }
+    
     .KPI-Element{
         aspect-ratio: 1 / 1;
         height: 100%;

@@ -34,6 +34,7 @@ namespace BB_Cow.Services
             });
 
             _cachedTreatments = treatments.ToImmutableDictionary(t => t.PlannedClawTreatmentId);
+            LoggerService.LogInformation(typeof(PClawTreatmentService), $"Loaded {_cachedTreatments.Count} planned claw treatments.");
         }
 
         public async Task<bool> InsertDataAsync(PlannedClawTreatment clawTreatment)
@@ -55,6 +56,7 @@ namespace BB_Cow.Services
             if (isSuccess)
             {
                 _cachedTreatments = _cachedTreatments.Add(clawTreatment.PlannedClawTreatmentId, clawTreatment);
+                LoggerService.LogInformation(typeof(PClawTreatmentService), "Data inserted successfully: {@clawTreatment}", clawTreatment);
             }
 
             return isSuccess;
@@ -73,6 +75,7 @@ namespace BB_Cow.Services
             if (isSuccess && _cachedTreatments.ContainsKey(id))
             {
                 _cachedTreatments = _cachedTreatments.Remove(id);
+                LoggerService.LogInformation(typeof(PClawTreatmentService), "Data removed successfully: {@id}", id);
             }
 
             return isSuccess;

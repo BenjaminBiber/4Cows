@@ -5,7 +5,7 @@
 <MudDialog>
     <DialogContent>
             <MudStack>
-                <MudText Align="Align.Center" Typo="Typo.h3">Klauen Behandlung hinzufügen</MudText>
+                <MudText Class="table-Header" Align="Align.Center" Typo="Typo.h3">Klauen Behandlung hinzufügen</MudText>
 
                 <MudNumericField TextChanged="(string s) => UpdateEarTagNumber(s)" @bind-Value="CollarNumber" Label="Halsbandnummer:" Immediate="true" Variant="Variant.Text" />
                 <MudAutocomplete TextChanged="(string s) => GetCollarNumber(s)" SearchFunc="cowService.SearchCowEarTagNumbers" ResetValueOnEmptyText="true" Immediate="true" @bind-Value="Claw_Treatment.EarTagNumber" Label="Ohrmarkennummer:" Variant="Variant.Text" />

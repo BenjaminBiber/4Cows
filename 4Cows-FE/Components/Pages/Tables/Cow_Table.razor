@@ -12,7 +12,7 @@
 
 <MudTable Elevation="5" Items="@CowTreatments" Hover="true" Striped="@true" Filter="(Func<CowTreatment, bool>)FilterFunc1" @bind-SelectedItem="selectedCow">
     <ToolBarContent>
-        <MudText Typo="Typo.h3">Kuh Behandlungen</MudText>
+        <MudText Class="table-Header" Typo="Typo.h3">Kuh Behandlungen</MudText>
         <MudSpacer/>
         <MudTextField @bind-Value="cowSearchString" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
     </ToolBarContent>

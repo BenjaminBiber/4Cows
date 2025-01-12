@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using BB_Cow.Class;
 using BB_Cow.Services;
 using BBCowDataLibrary.SQL;
+using Microsoft.Extensions.Logging;
 
 public class CowTreatmentService
 {
@@ -34,6 +35,7 @@ public class CowTreatmentService
 
         _cachedDistinctWhereHows = dbResult.Select(t => t.WhereHow).Distinct().ToImmutableList();
         _cachedTreatments = dbResult.ToImmutableDictionary(t => t.CowTreatmentId);
+        LoggerService.LogInformation(typeof(CowTreatmentService), $"Loaded {_cachedTreatments.Count} cow treatments.");
     }
 
     public async Task<bool> InsertDataAsync(CowTreatment cowTreatment)
@@ -54,6 +56,7 @@ public class CowTreatmentService
         {
             _cachedTreatments = _cachedTreatments.Add(cowTreatment.CowTreatmentId, cowTreatment);
             _cachedDistinctWhereHows = _cachedDistinctWhereHows.Add(cowTreatment.WhereHow).Distinct().ToImmutableList();
+            LoggerService.LogInformation(typeof(CowTreatmentService), "Inserted cow treatment: {@cowTreatment}.", cowTreatment);
         }
 
         return isSuccess;
