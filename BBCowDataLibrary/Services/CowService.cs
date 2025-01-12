@@ -24,6 +24,7 @@ public class CowService
             });
 
             _cachedCows = cows.ToImmutableDictionary(c => c.EarTagNumber);
+            LoggerService.LogInformation(typeof(CowService), $"Loaded {_cachedCows.Count} cows.");
         }
 
         public async Task<bool> InsertDataAsync(Cow cow)
@@ -41,6 +42,7 @@ public class CowService
             if (isSuccess)
             {
                 _cachedCows = _cachedCows.Add(cow.EarTagNumber, cow);
+                LoggerService.LogInformation(typeof(CowService), "Inserted cow: {@cow}.", cow);
             }
 
             return isSuccess;
@@ -94,6 +96,7 @@ public class CowService
                 var updatedCow = _cachedCows[earTagNumber];
                 updatedCow.CollarNumber = newCollarNumber;
                 _cachedCows = _cachedCows.SetItem(earTagNumber, updatedCow);
+                LoggerService.LogInformation(typeof(CowService), "Updated collar number for cow with ear tag number {earTagNumber} to {newCollarNumber}.", earTagNumber, newCollarNumber);
             }
 
             return isSuccess;
@@ -115,6 +118,7 @@ public class CowService
                 var updatedCow = _cachedCows[earTagNumber];
                 updatedCow.IsGone = isGone;
                 _cachedCows = _cachedCows.SetItem(earTagNumber, updatedCow);
+                LoggerService.LogInformation(typeof(CowService), "Updated is gone for cow with ear tag number {earTagNumber} to {isGone}.", earTagNumber, isGone);
             }
 
             return isSuccess;

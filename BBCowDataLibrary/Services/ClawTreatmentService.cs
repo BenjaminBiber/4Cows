@@ -48,6 +48,7 @@ namespace BB_Cow.Services
 
             _cachedTreatments = treatments.ToImmutableDictionary(t => t.ClawTreatmentId);
             _cachedClawFindingList = treatments.SelectMany(t => new[] { t.ClawFindingLV, t.ClawFindingLH, t.ClawFindingRV, t.ClawFindingRH }).Distinct().ToImmutableList();
+            LoggerService.LogInformation(typeof(ClawTreatmentService), $"Loaded {_cachedTreatments.Count} claw treatments.");
         }
 
         public async Task<bool> InsertDataAsync(ClawTreatment clawTreatment)
@@ -83,6 +84,7 @@ namespace BB_Cow.Services
             {
                 _cachedTreatments = _cachedTreatments.Add(clawTreatment.ClawTreatmentId, clawTreatment);
                 _cachedClawFindingList = _cachedClawFindingList.AddRange(new[] { clawTreatment.ClawFindingLV, clawTreatment.ClawFindingLH, clawTreatment.ClawFindingRV, clawTreatment.ClawFindingRH }).Distinct().ToImmutableList();
+                LoggerService.LogInformation(typeof(ClawTreatmentService), "Inserted claw treatment: {@clawTreatment}.", clawTreatment);
             }
 
             return isSuccess;
@@ -148,6 +150,7 @@ namespace BB_Cow.Services
                 var updatedTreatment = _cachedTreatments[id];
                 updatedTreatment.IsBandageRemoved = true;
                 _cachedTreatments = _cachedTreatments.SetItem(id, updatedTreatment);
+                LoggerService.LogInformation(typeof(ClawTreatmentService), "Removed bandage from claw treatment: {@clawTreatment}.", updatedTreatment);
             }
 
             return isSuccess;

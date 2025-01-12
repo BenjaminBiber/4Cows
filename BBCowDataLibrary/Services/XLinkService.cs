@@ -27,7 +27,7 @@ public class XLinkService
         }
         catch (Exception e)
         {
-            Console.WriteLine(e);
+            LoggerService.LogError(typeof(XLinkService), "Error at Execution of Webscraper: {@Message}",e, e.Message);
         }
        
     }
@@ -35,7 +35,7 @@ public class XLinkService
     private RemoteWebDriver InitzialieDriver()
     {
         var options = new ChromeOptions();
-        Console.WriteLine(Environment.GetEnvironmentVariable("Selenium_URL"));
+        LoggerService.LogInformation(typeof(XLinkService), "Found Selenium URL: {@Selenium_URL}", Environment.GetEnvironmentVariable("Selenium_URL"));
         var url = new Uri(Environment.GetEnvironmentVariable("Selenium_URL") ?? "http://192.168.50.225:4444/wd/hub");
         return new RemoteWebDriver(url, options);
 
@@ -43,9 +43,11 @@ public class XLinkService
 
     private void OpenWebsite(RemoteWebDriver driver, int page = 0)
     {
-        Console.WriteLine(Environment.GetEnvironmentVariable("XLinkUrl"));
+        LoggerService.LogInformation(typeof(XLinkService), "Found XLink URL: {@XLinkUrl}", Environment.GetEnvironmentVariable("XLinkUrl"));
         var url = Environment.GetEnvironmentVariable("XLinkUrl") ?? "http://192.168.50.9/Xlink/";
-        var completeUrl = url + $"ReportTable.aspx?id=10672&sort=1&dir=True&page={page}&ALAN=&LDN=";
+        LoggerService.LogInformation(typeof(XLinkService), "Found XLink ID: {@XLinkID}", Environment.GetEnvironmentVariable("XLinkID"));
+        var id = Environment.GetEnvironmentVariable("XLinkID") ?? "10672";
+        var completeUrl = url + $"ReportTable.aspx?id={id}&sort=1&dir=True&page={page}&ALAN=&LDN=";
         driver.Navigate().GoToUrl(completeUrl);
     }
 

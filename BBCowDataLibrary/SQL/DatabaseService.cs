@@ -4,6 +4,8 @@ using System;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using BB_Cow.Services;
+using Microsoft.Extensions.Logging;
 
 namespace BBCowDataLibrary.SQL
 {
@@ -23,16 +25,15 @@ namespace BBCowDataLibrary.SQL
             try
             {
                 using var connection = await OpenConnectionAsync();
-                Console.WriteLine("Connection Opened");
-                Console.WriteLine(connection.State);
                 connection.Close();
-                return true;
             }
             catch (MySqlException ex)
             {
-                Console.WriteLine(ex);
+                LoggerService.LogError(typeof(DatabaseService), "Database connection failed, with {@Message}", ex, ex.Message);
                 return false;
             }
+            LoggerService.LogInformation(typeof(DatabaseService), "Database connection successful, with {@connectionString}", connectionString);
+            return true;
         }
 
         public static async Task<bool> ExecuteQueryAsync(Func<MySqlCommand, Task> commandAction)
@@ -46,7 +47,7 @@ namespace BBCowDataLibrary.SQL
                 success = true;
             }catch(Exception ex)
             {
-                Console.WriteLine(ex);
+                LoggerService.LogError(typeof(DatabaseService), "Database query failed, with {@Message}", ex, ex.Message);
                 success = false;
             }
             return success;
@@ -82,7 +83,7 @@ namespace BBCowDataLibrary.SQL
                 }
                 catch (MySqlException ex)
                 {
-                    Console.WriteLine(ex);
+                    LoggerService.LogError(typeof(DatabaseService), "Database query failed, with {@Message}", ex, ex.Message);
                     return new List<T>();
                 }
             }
@@ -148,7 +149,7 @@ namespace BBCowDataLibrary.SQL
                 Port = 3306
             }.ConnectionString;
 
-            Console.WriteLine(connectionString);
+            IsConfigured().Wait();
         }
         
     }

@@ -144,10 +144,13 @@
     
     private void GetMostUsedMedicine()
     {
-        KPIs.Add("Meist benutztes Medikament:", ("/Kuh_Daten", medicineService.GetMedicineNameById(CowList.GroupBy(obj => obj.MedicineId)
-            .OrderByDescending(group => group.Count())
-            .Select(group => group.Key)
-            .FirstOrDefault()).ToString()));
+        if (medicineService.Medicines.Any())
+        {
+            KPIs.Add("Meist benutztes Medikament:", ("/Kuh_Daten", medicineService.GetMedicineNameById(CowList.GroupBy(obj => obj.MedicineId)
+                .OrderByDescending(group => group.Count())
+                .Select(group => group.Key)
+                .FirstOrDefault()).ToString()));
+        }
     }
     
     private void GetAmountOfBandages()
