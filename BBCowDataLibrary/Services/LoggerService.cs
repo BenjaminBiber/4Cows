@@ -14,7 +14,6 @@ public class LoggerService
         if(!File.Exists(logFilePath))
         {
             Directory.CreateDirectory(Path.GetDirectoryName("/app/Logs/"));
-            File.Create(logFilePath).Close();
         }
         
         if (Logger == null)

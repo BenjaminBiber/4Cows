@@ -1,5 +1,5 @@
 ﻿FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
-USER $APP_UID
+USER app
 WORKDIR /app
 EXPOSE 8080
 EXPOSE 8081
@@ -13,7 +13,7 @@ RUN dotnet restore "4Cows-FE/4Cows-FE.csproj"
 COPY . .
 WORKDIR "/src/4Cows-FE"
 RUN dotnet build "4Cows-FE.csproj" -c $BUILD_CONFIGURATION -o /app/build
-RUN mkdir -p /app/Logs && chmod -R 777 /app/Logs
+RUN mkdir -p /app/Logs && chmod -R 777 /app/Logs/
 
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
