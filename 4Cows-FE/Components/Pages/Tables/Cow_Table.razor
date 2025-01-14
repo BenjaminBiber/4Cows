@@ -17,7 +17,7 @@
         <MudTextField @bind-Value="cowSearchString" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
     </ToolBarContent>
     <HeaderContent>
-        <MudTh><MudTableSortLabel SortBy="new Func<int, object>(x=>x)">Halsbandnummer</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<CowTreatment, object>(x=>cowService.GetCollarNumberByEarTagNumber(x.EarTagNumber))">Halsbandnummer</MudTableSortLabel></MudTh>
         <MudTh><MudTableSortLabel SortBy="new Func<CowTreatment, object>(x=>x.EarTagNumber)">Ohrmarkennummer</MudTableSortLabel></MudTh>
         <MudTh><MudTableSortLabel SortBy="new Func<CowTreatment, object>(x=>x.AdministrationDate)">Datum</MudTableSortLabel></MudTh>
         <MudTh><MudTableSortLabel SortBy="new Func<CowTreatment, object>(x=>x.MedicineId)">Medikament</MudTableSortLabel></MudTh>
@@ -44,16 +44,7 @@
     private CowTreatment selectedCow = null;
     private IEnumerable<CowTreatment> CowTreatments = new List<CowTreatment>();
 
-    private bool FilterFunc1(CowTreatment CowTreatment) => FilterFunc(CowTreatment, cowSearchString);
-
-    private bool FilterFunc(CowTreatment CowTreatment, string searchString)
-    {
-        if (string.IsNullOrWhiteSpace(searchString))
-            return true;
-        if (cowService.GetCollarNumberByEarTagNumber(CowTreatment.EarTagNumber).ToString() == searchString)
-            return true;
-        return false;
-    }
+    private bool FilterFunc1(CowTreatment CowTreatment) => cowService.FilterFuncCow(CowTreatment.EarTagNumber, cowSearchString);
 
     protected override async Task OnInitializedAsync()
     {

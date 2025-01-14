@@ -18,7 +18,7 @@
             <MudTextField @bind-Value="searchClaw" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
         </ToolBarContent>
         <HeaderContent>
-            <MudTh><MudTableSortLabel SortBy="new Func<int, object>(x=>x)">Halsbandnummer</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<CowTreatment, object>(x=>cowService.GetCollarNumberByEarTagNumber(x.EarTagNumber))">Halsbandnummer</MudTableSortLabel></MudTh>
             <MudTh><MudTableSortLabel SortBy="new Func<ClawTreatment, object>(x=>x.TreatmentDate)">Verband seit</MudTableSortLabel></MudTh>
             <MudTh></MudTh>
             <MudTh></MudTh>
@@ -47,16 +47,7 @@
     {
         ClawTreatments = clawTreatmentService.GetClawTreatmentsWithBandage();
     }
-    private bool ClawFilterFunc1(ClawTreatment Treatment_Cow) => FilterFuncClaw(Treatment_Cow, searchClaw);
-
-    private bool FilterFuncClaw(ClawTreatment Treatment_Cow, string searchString)
-    {
-        if (string.IsNullOrWhiteSpace(searchString))
-            return true;
-        if (cowService.GetCollarNumberByEarTagNumber(Treatment_Cow.EarTagNumber).ToString() == searchString)
-            return true;
-        return false;
-    }
+    private bool ClawFilterFunc1(ClawTreatment Treatment_Cow) => cowService.FilterFuncCow(Treatment_Cow.EarTagNumber, searchClaw);
 
     private async Task OpenClawInformation(ClawTreatment Claw_Treatment)
     {

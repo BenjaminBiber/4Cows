@@ -1,22 +1,28 @@
+@using _4Cows_FE.Components._4CowsComponent.Dialogs.BaseData
 @inject MedicineService MedicineService
+@inject IDialogService DialogService
 
-<MudTable Elevation="5" Items="@Medicines" Hover="true" Striped="@true" Filter="(Func<Medicine, bool>)FilterFunc1">
+<MudTable Elevation="5" T="Medicine" Items="@Medicines" Hover="true" Striped="@true" Filter="(Func<Medicine, bool>)FilterFunc1">
     <ToolBarContent>
         <MudSpacer/>
-        <MudTextField @bind-value="MedicineSearchString" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+        <MudTextField T="string" @bind-value="MedicineSearchString" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
     </ToolBarContent>
     <HeaderContent>
         <MudTh><MudTableSortLabel SortBy="new Func<Medicine, object>(x=>x.MedicineId)">MedikamentenId</MudTableSortLabel></MudTh>
         <MudTh><MudTableSortLabel SortBy="new Func<Medicine, object>(x=>x.MedicineName)">Medikamentenname</MudTableSortLabel></MudTh>
-       </HeaderContent>
+    </HeaderContent>
     <RowTemplate>
         <MudTd DataLabel="Halsbandnummer">@context.MedicineId</MudTd>
         <MudTd DataLabel="Ohrmarkennummer">@context.MedicineName</MudTd>
+        <MudTd>
+            <MudIconButton Color="Color.Primary" OnClick="(() => OpenMedicineDialog(context))" Icon="@Icons.Material.Filled.Edit"></MudIconButton>
+        </MudTd>
     </RowTemplate>
     <PagerContent>
         <MudTablePager RowsPerPageString="Behandlungen pro Seite" PageSizeOptions="new int[]{25, 50, 100}" />
     </PagerContent>
 </MudTable>
+
 @code {
     private IEnumerable<Medicine> Medicines = new List<Medicine>();
     private string MedicineSearchString = "";
@@ -35,5 +41,19 @@
     {
         await MedicineService.GetAllDataAsync();
         Medicines = MedicineService.Medicines.Values;
+    }
+    
+    private async Task OpenMedicineDialog(Medicine medicine)
+    {    
+        DialogOptions options = new() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = false, CloseOnEscapeKey = false, BackdropClick = false};
+        var parameters = new DialogParameters();
+        parameters.Add("_Medicine", medicine);
+        var dialog = await DialogService.ShowAsync<EditMedicineDialog>("Medikament ändern", parameters, options);
+        var result = await dialog.Result;
+        if (!result.Canceled)
+        {
+            await MedicineService.GetAllDataAsync();
+            Medicines = MedicineService.Medicines.Values;
+        }
     }
 }

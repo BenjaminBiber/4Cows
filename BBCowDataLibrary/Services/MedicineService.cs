@@ -63,6 +63,26 @@ public class MedicineService
             return isSuccess;
         }
 
+        public async Task<bool> UpdateDataAsync(Medicine medicine)
+        {
+            bool isSuccess = false;
+            await DatabaseService.ExecuteQueryAsync(async command =>
+            {
+                command.CommandText = @"UPDATE `Medicine` SET `Medicine_Name` = @MedicineName WHERE `Medicine_ID` = @MedicineId;";
+                command.Parameters.AddWithValue("@MedicineName", medicine.MedicineName);
+                command.Parameters.AddWithValue("@MedicineId", medicine.MedicineId);
+                isSuccess = (await command.ExecuteNonQueryAsync()) > 0;
+            });
+
+            if (isSuccess)
+            {
+                await GetAllDataAsync();
+                LoggerService.LogInformation(typeof(MedicineService), $"Updated medicine {medicine.MedicineName}.");
+            }
+
+            return isSuccess;
+        }
+        
         public Medicine GetById(int medicineId)
         {
             return _cachedMedicines.ContainsKey(medicineId) ? _cachedMedicines[medicineId] : null;
