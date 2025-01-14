@@ -1,0 +1,41 @@
+@using System.Drawing.Text
+@inject MedicineService MedicineService
+@inject IDialogService DialogService
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="@_success">
+            <MudTextField T="string" Label="Medikamentenname" Required="true" @bind-Value="_Medicine.MedicineName" RequiredError="Medikamentenname muss ausgefüllt werden!" />
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Primary" OnClick="CloseDialog">Speichern</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; }
+    [Parameter] public Medicine _Medicine { get; set; } = new Medicine();
+
+    MudForm _form;
+    bool _success;
+    
+    
+    private async Task CloseDialog()
+    {
+        if (_success)
+        {
+            var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, NoHeader = true };
+            var parametersGeneric = new DialogParameters<GenericDialog> { { x => x.HeaderText, "Ändern" }, { x => x.Description, "Wollen Sie das Medikament wirklich Ändern?" }, { x => x.AcceptButtonText, "Ja" }, { x => x.CancelButtonText, "Nein" }, { x => x.ColorScheme, Color.Warning } };
+            var dialog = await DialogService.ShowAsync<GenericDialog>("",parametersGeneric, options);
+            var result = await dialog.Result;
+            if (!result.Canceled)
+            {
+                await MedicineService.UpdateDataAsync(_Medicine);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+           
+        }
+    }
+
+}

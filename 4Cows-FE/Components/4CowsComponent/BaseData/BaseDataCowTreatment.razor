@@ -1,11 +1,13 @@
+@using _4Cows_FE.Components._4CowsComponent.Dialogs
 @inject CowService CowService
 @inject MedicineService MedicineService
 @inject CowTreatmentService CowTreatmentService
+@inject IDialogService DialogService
 
 <MudTable Elevation="5" Items="@CowTreatments" Hover="true" Striped="@true" Filter="(Func<CowTreatment, bool>)FilterFunc1">
     <ToolBarContent>
         <MudSpacer/>
-        <MudTextField @bind-value="cowSearchString" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+        <MudTextField T="string" @bind-value="cowSearchString" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
     </ToolBarContent>
     <HeaderContent>
         <MudTh><MudTableSortLabel SortBy="new Func<int, object>(x=>x)">Halsbandnummer</MudTableSortLabel></MudTh>
@@ -23,6 +25,7 @@
         <MudTd DataLabel="Medikament">@MedicineService.GetMedicineNameById(context.MedicineId)</MudTd>
         <MudTd DataLabel="Wie/Wo">@context.WhereHow</MudTd>
         <MudTd DataLabel="Menge">@context.MedicineDosage</MudTd>
+        <MudButton Size="Size.Small" Variant="Variant.Filled" OnClick="@(() => DeleteCowTreatment(context))" StartIcon="@Icons.Material.Filled.Delete" Color="Color.Error">Behandlung Löschen</MudButton>
 
     </RowTemplate>
     <PagerContent>
@@ -47,5 +50,19 @@
     {
         await CowTreatmentService.GetAllDataAsync();
         CowTreatments = CowTreatmentService.Treatments.Values.OrderByDescending(x => x.AdministrationDate);
+    }
+    
+    private async Task DeleteCowTreatment(CowTreatment CowTreatment)
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, NoHeader = true };
+        var parametersGeneric = new DialogParameters<GenericDialog> { { x => x.HeaderText, "Löschen" }, { x => x.Description, "Wollen Sie die Behandlung wirklich Löschen?" }, { x => x.AcceptButtonText, "Ja" }, { x => x.CancelButtonText, "Nein" }, { x => x.ColorScheme, Color.Error } };
+        var dialog = await DialogService.ShowAsync<GenericDialog>("",parametersGeneric, options);
+        var result = await dialog.Result;
+        if (!result.Canceled)
+        {
+            await CowTreatmentService.DeleteDataAsync(CowTreatment.CowTreatmentId);
+            await CowTreatmentService.GetAllDataAsync();
+            CowTreatments = CowTreatmentService.Treatments.Values.OrderByDescending(x => x.AdministrationDate);
+        }
     }
 }

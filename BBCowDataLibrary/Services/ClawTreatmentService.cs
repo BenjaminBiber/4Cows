@@ -156,6 +156,22 @@ namespace BB_Cow.Services
             return isSuccess;
         }
 
+        public async Task DeleteDataAsync(int id)
+        {
+            await DatabaseService.ExecuteQueryAsync(async command =>
+            {
+                command.CommandText = @"DELETE FROM `Claw_Treatment` WHERE `Claw_Treatment_ID` = @id;";
+                command.Parameters.AddWithValue("@id", id);
+                await command.ExecuteNonQueryAsync();
+            });
+
+            if (_cachedTreatments.ContainsKey(id))
+            {
+                _cachedTreatments = _cachedTreatments.Remove(id);
+                LoggerService.LogInformation(typeof(ClawTreatmentService), "Deleted claw treatment with ID: {id}.", id);
+            }
+        }
+        
         public int[] GetClawTreatmentChartData()
         {
             var currentYear = DateTime.Now.Year;

@@ -24,7 +24,7 @@
     </ToolBarContent>
     
     <HeaderContent>
-        <MudTh><MudTableSortLabel SortBy="new Func<int, object>(x=>x)">Halsbandnummer</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<CowTreatment, object>(x=>cowService.GetCollarNumberByEarTagNumber(x.EarTagNumber))">Halsbandnummer</MudTableSortLabel></MudTh>
         <MudTh><MudTableSortLabel SortBy="new Func<PlannedCowTreatment, object>(x=>x.EarTagNumber)">Ohrmarkennummer</MudTableSortLabel></MudTh>
         <MudTh><MudTableSortLabel SortBy="new Func<PlannedCowTreatment, object>(x=>x.MedicineId)">Medikament</MudTableSortLabel></MudTh>
         <MudTh><MudTableSortLabel SortBy="new Func<PlannedCowTreatment, object>(x=>x.MedicineDosage)">Menge</MudTableSortLabel></MudTh>
@@ -41,7 +41,7 @@
     </HeaderContent>
     <RowTemplate>
         <MudTd Style="" DataLabel="Halsbandnummer">@cowService.GetCollarNumberByEarTagNumber(context.EarTagNumber)</MudTd>
-        <MudTd DataLabel="Ohrmarkennummer">@(isSimpleView ? @context.EarTagNumber : @context.EarTagNumber.Substring(context.EarTagNumber.Length - 5))</MudTd>
+        <MudTd DataLabel="Ohrmarkennummer">@(!isSimpleView ? @context.EarTagNumber : @context.EarTagNumber.Substring(context.EarTagNumber.Length - 5))</MudTd>
         <MudTd DataLabel="Medikament">@medicineService.GetMedicineNameById(context.MedicineId)</MudTd>
         <MudTd DataLabel="Menge">@context.MedicineDosage</MudTd>
         
@@ -68,16 +68,7 @@
     public PlannedCowTreatment selectedPlannedCow = null;
     private IEnumerable<PlannedCowTreatment> Planned_Treatments = new List<PlannedCowTreatment>();
     private bool isSimpleView = false;
-    private bool FilterFunc1Planned(PlannedCowTreatment Treatment_Cow) => FilterFuncPlanned(Treatment_Cow, plannedCowString);
-
-    private bool FilterFuncPlanned(PlannedCowTreatment Treatment_Cow, string searchString)
-    {
-        if (string.IsNullOrWhiteSpace(searchString))
-            return true;
-        if (cowService.GetCollarNumberByEarTagNumber(Treatment_Cow.EarTagNumber).ToString() == searchString)
-            return true;
-        return false;
-    }
+    private bool FilterFunc1Planned(PlannedCowTreatment Treatment_Cow) => cowService.FilterFuncCow(Treatment_Cow.EarTagNumber, plannedCowString);
 
     protected override async Task OnInitializedAsync()
     {

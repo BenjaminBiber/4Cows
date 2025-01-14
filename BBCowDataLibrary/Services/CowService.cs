@@ -132,4 +132,24 @@ public class CowService
             }
             return Cows.Keys.Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
         }
+        
+        
+        public bool FilterFuncCow(string earTagNumber, string searchString)
+        {
+            if (!Cows.ContainsKey(earTagNumber))
+            {
+                return false;
+            }
+            var Cow = Cows[earTagNumber];
+            if (string.IsNullOrWhiteSpace(searchString))
+                return true;
+            if (searchString.Length <= 3 && searchString.ToLower() == Cow.CollarNumber.ToString().ToLower())
+            {
+                return true;
+            }else if(searchString.Length > 3 && Cow.EarTagNumber.ToLower().Contains(searchString.ToLower()) || Cow.CollarNumber.ToString().ToLower() == searchString.ToLower())
+            {
+                return true;
+            }
+            return false;
+        }
 }

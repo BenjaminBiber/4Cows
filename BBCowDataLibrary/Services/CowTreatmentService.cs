@@ -94,6 +94,22 @@ public class CowTreatmentService
         return treatmentResult ?? new CowTreatment();
     }
 
+    public async Task DeleteDataAsync(int id)
+    {
+        await DatabaseService.ExecuteQueryAsync(async command =>
+        {
+            command.CommandText = "DELETE FROM Cow_Treatment WHERE Cow_Treatment_ID = @Id;";
+            command.Parameters.AddWithValue("@Id", id);
+            await command.ExecuteNonQueryAsync();
+        });
+
+        if (_cachedTreatments.ContainsKey(id))
+        {
+            _cachedTreatments = _cachedTreatments.Remove(id);
+            LoggerService.LogInformation(typeof(CowTreatmentService), "Deleted cow treatment with ID: {id}.", id);
+        }
+    }
+    
     public int[] GetCowTreatmentChartData()
     {
         var currentYear = DateTime.Now.Year;
