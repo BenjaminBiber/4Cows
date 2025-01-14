@@ -1,0 +1,39 @@
+@inject MedicineService MedicineService
+
+<MudTable Elevation="5" Items="@Medicines" Hover="true" Striped="@true" Filter="(Func<Medicine, bool>)FilterFunc1">
+    <ToolBarContent>
+        <MudSpacer/>
+        <MudTextField @bind-value="MedicineSearchString" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh><MudTableSortLabel SortBy="new Func<Medicine, object>(x=>x.MedicineId)">MedikamentenId</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<Medicine, object>(x=>x.MedicineName)">Medikamentenname</MudTableSortLabel></MudTh>
+       </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Halsbandnummer">@context.MedicineId</MudTd>
+        <MudTd DataLabel="Ohrmarkennummer">@context.MedicineName</MudTd>
+    </RowTemplate>
+    <PagerContent>
+        <MudTablePager RowsPerPageString="Behandlungen pro Seite" PageSizeOptions="new int[]{25, 50, 100}" />
+    </PagerContent>
+</MudTable>
+@code {
+    private IEnumerable<Medicine> Medicines = new List<Medicine>();
+    private string MedicineSearchString = "";
+    private bool FilterFunc1(Medicine MedicineTreatment) => FilterFunc(MedicineTreatment, MedicineSearchString);
+
+    private bool FilterFunc(Medicine MedicineTreatment, string searchString)
+    {
+        if (string.IsNullOrWhiteSpace(searchString))
+            return true;
+        if (MedicineTreatment.MedicineName == searchString)
+            return true;
+        return false;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await MedicineService.GetAllDataAsync();
+        Medicines = MedicineService.Medicines.Values;
+    }
+}

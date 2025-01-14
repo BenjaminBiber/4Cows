@@ -1,0 +1,31 @@
+@page "/BaseData"
+@using _4Cows_FE.Components._4CowsComponent.BaseData
+@inject CowService cowService
+@inject ClawTreatmentService clawTreatmentService
+@inject MedicineService medicineService
+@inject CowTreatmentService cowTreatmentService
+<h3>BasisDaten</h3>
+
+<MudTabs>
+    <MudTabPanel Text="Kuh Behandlung">
+        <BaseDataCowTreatment></BaseDataCowTreatment>
+    </MudTabPanel>
+    
+    <MudTabPanel Text="Klauen Behandlung">
+        <BaseDataClawTreatment></BaseDataClawTreatment>
+    </MudTabPanel>
+    
+    <MudTabPanel Text="Kühe">
+        <BaseDataCow></BaseDataCow>
+    </MudTabPanel>
+    
+    <MudTabPanel Text="Medikamente">
+        <BaseDataMedicine></BaseDataMedicine>
+    </MudTabPanel>
+
+    
+</MudTabs>
+
+@code {
+
+}
