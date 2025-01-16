@@ -2,7 +2,7 @@
 @inject MedicineService MedicineService
 @inject IDialogService DialogService
 
-<MudTable Elevation="5" T="Medicine" Items="@Medicines" Hover="true" Striped="@true" Filter="(Func<Medicine, bool>)FilterFunc1">
+<MudTable Elevation="5" Dense="true" T="Medicine" Items="@Medicines" Hover="true" Striped="@true" Filter="(Func<Medicine, bool>)FilterFunc1">
     <ToolBarContent>
         <MudSpacer/>
         <MudTextField T="string" @bind-value="MedicineSearchString" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
@@ -15,7 +15,7 @@
         <MudTd DataLabel="Halsbandnummer">@context.MedicineId</MudTd>
         <MudTd DataLabel="Ohrmarkennummer">@context.MedicineName</MudTd>
         <MudTd>
-            <MudIconButton Color="Color.Primary" OnClick="(() => OpenMedicineDialog(context))" Icon="@Icons.Material.Filled.Edit"></MudIconButton>
+            <MudIconButton Color="Color.Primary" Size="Size.Small" OnClick="(() => OpenMedicineDialog(context))" Icon="@Icons.Material.Filled.Edit"></MudIconButton>
         </MudTd>
     </RowTemplate>
     <PagerContent>
