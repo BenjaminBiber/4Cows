@@ -1,10 +1,8 @@
-name: Build & Push Image to Repo
+name: Build & Push Release Image to Docker-Hub
 
 on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+  release:
+    types: [published]
 
 jobs:
   build:
@@ -23,12 +21,21 @@ jobs:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
 
+    - name: Determine Docker Tag
+      id: set_tag
+      run: |
+        if [ "${{ github.event.release.prerelease }}" = "true" ]; then
+          echo "tag=prerelease" >> $GITHUB_ENV
+        else
+          echo "tag=latest" >> $GITHUB_ENV
+        fi
+
     - name: Build the Docker image
-      run: docker build . --file Dockerfile --tag benjaminbiber/4cows:latest
+      run: docker build . --file Dockerfile --tag benjaminbiber/4cows:${{ env.tag }}
 
     - name: Push the Docker image to Docker Hub
-      run: docker push benjaminbiber/4cows:latest
-      
+      run: docker push benjaminbiber/4cows:${{ env.tag }}
+
   build_xlinkscraper:
     runs-on: ubuntu-latest
 
@@ -45,7 +52,7 @@ jobs:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
 
-    - name: Check for Dockerfilex
+    - name: Check for Dockerfile_X
       id: check_dockerfilex
       run: |
         if [ -f Dockerfile_X ]; then
@@ -53,12 +60,9 @@ jobs:
         else
           echo "dockerfilex_exists=false" >> $GITHUB_ENV
         fi
-      shell: bash
 
-    - name: Build and Push Dockerfilex Image
+    - name: Build and Push Dockerfile_X Image
       if: env.dockerfilex_exists == 'true'
       run: |
-          docker build . --file Dockerfile_X --tag benjaminbiber/xlinkscraper:latest
-          docker push benjaminbiber/xlinkscraper:latest
-      shell: bash
-
+        docker build . --file Dockerfile_X --tag benjaminbiber/xlinkscraper:${{ env.tag }}
+        docker push benjaminbiber/xlinkscraper:${{ env.tag }}
