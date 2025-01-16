@@ -52,6 +52,15 @@ jobs:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
 
+    - name: Determine Docker Tag
+      id: set_tag
+      run: |
+        if [ "${{ github.event.release.prerelease }}" = "true" ]; then
+          echo "tag=prerelease" >> $GITHUB_ENV
+        else
+          echo "tag=latest" >> $GITHUB_ENV
+        fi
+
     - name: Check for Dockerfile_X
       id: check_dockerfilex
       run: |
