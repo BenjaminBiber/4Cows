@@ -3,9 +3,8 @@
 @inject ClawTreatmentService ClawTreatmentService
 @inject IDialogService DialogService
 
-<MudTable Elevation="5" Items="@Treatment_Claws" Hover="true" Striped="@true" Filter="new Func<ClawTreatment,bool>(ClawFilterFunc1)">
+<MudTable Elevation="5" Dense="true" Items="@Treatment_Claws" Hover="true" Striped="@true" Filter="new Func<ClawTreatment,bool>(ClawFilterFunc1)">
     <ToolBarContent>
-        <MudText Class="table-Header" Typo="Typo.h3">Klauen Behandlungen</MudText>
         <MudSpacer/>
         <MudTextField @bind-Value="searchClaw" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
     </ToolBarContent>
@@ -18,7 +17,7 @@
         <MudTd DataLabel="Halsbandnummer">@CowService.GetCollarNumberByEarTagNumber(context.EarTagNumber)</MudTd>
         <MudTd DataLabel="Datum">@context.TreatmentDate.ToString("dd.MM.yyyy")</MudTd>
         <MudTd>
-            <MudButton Variant="Variant.Filled" OnClick="@(() => DeleteClawTreatment(context))" StartIcon="@Icons.Material.Filled.Delete" Color="Color.Error">Behandlung Löschen</MudButton>
+            <MudButton Variant="Variant.Filled" Size="Size.Small" OnClick="@(() => DeleteClawTreatment(context))" StartIcon="@Icons.Material.Filled.Delete" Color="Color.Error">Behandlung Löschen</MudButton>
         </MudTd>
     </RowTemplate>
 

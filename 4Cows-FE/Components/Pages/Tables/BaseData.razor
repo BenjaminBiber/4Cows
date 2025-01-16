@@ -4,7 +4,7 @@
 @inject MedicineService MedicineService
 @inject IDialogService DialogService
 
-<MudText Typo="Typo.h3" Class="mb-4">BasisDaten</MudText>
+<MudText Typo="Typo.h3" Class="mb-4">Basis Daten</MudText>
 
 <MudTabs Centered="true" Color="Color.Primary">
     <MudTabPanel Text="Kuh Behandlung">
@@ -27,5 +27,14 @@
 </MudTabs>
 
 @code {
-  
+    private void OpenAdminDialog()
+    {
+        DialogOptions options = new() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = false, CloseOnEscapeKey = false, BackdropClick = false};
+        DialogService.Show<BaseDataAdminDialog>("Anmelden", options);
+    }
+
+    protected override void OnInitialized()
+    {
+        OpenAdminDialog();
+    }
 }
