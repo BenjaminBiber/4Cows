@@ -172,9 +172,9 @@ namespace BB_Cow.Services
             }
         }
         
-        public int[] GetClawTreatmentChartData()
+        public int[] GetClawTreatmentChartData(int? year = null)
         {
-            var currentYear = DateTime.Now.Year;
+            var currentYear = year.HasValue ? year.Value : DateTime.Now.Year;
             var months = Enumerable.Range(1, 12);
 
             var groupedData = _cachedTreatments.Values
