@@ -42,7 +42,9 @@
     </div>
     <div id="Chart_Div_Two">
         <MudPaper Elevation="5" Style="height: 100%; margin-left: 2em; padding: 1%; display: flex; flex-direction: column; align-items: flex-end" id="Chart_One_Paper">
+            <div style="position: relative; height: 100%; width: 100%;">
                 <canvas id="ClawChart"></canvas>
+            </div>
         </MudPaper>
     </div>
 </div>
@@ -278,7 +280,7 @@
                     label = medicine,
                     data = cowTreatmentService.GetCowTreatmentChartData(medicine),
                     backgroundColor = new[] { color },
-                    borderColor = new[] { "#60ADC9" },
+                    borderColor = new[] { MudBlazor.Color.Primary.ToString() },
                     borderWidth = 2
                 });
             }

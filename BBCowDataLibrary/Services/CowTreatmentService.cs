@@ -110,9 +110,9 @@ public class CowTreatmentService
         }
     }
     
-    public int[] GetCowTreatmentChartData()
+    public int[] GetCowTreatmentChartData(int? year = null)
     {
-        var currentYear = DateTime.Now.Year;
+        var currentYear = year.HasValue ? year.Value :  DateTime.Now.Year;
         var months = Enumerable.Range(1, 12);
 
         var groupedData = _cachedTreatments.Values
@@ -132,10 +132,9 @@ public class CowTreatmentService
 
         return months
             .Select(month => _cachedTreatments.Values
-                .Where(obj => obj.AdministrationDate.Year == currentYear && 
+                .Count(obj => obj.AdministrationDate.Year == currentYear && 
                               obj.AdministrationDate.Month == month &&
-                              obj.MedicineId == int.Parse(medicine))
-                .Count())
+                              obj.MedicineId == int.Parse(medicine)))
             .ToArray();
     }
     
