@@ -386,13 +386,7 @@
     {
         var parameters = new DialogParameters<ChartDateDialog> { { x => x.Year, _selectedYear } };
 
-        var options = new DialogOptions()
-        {
-            MaxWidth = MaxWidth.Medium,
-            FullWidth = true,
-            BackdropClick = false
-        };
-        var dialog = await DialogService.ShowAsync<ChartDateDialog>("Diagramm bearbeiten", parameters, options);
+        var dialog = await DialogService.ShowAsync<ChartDateDialog>("Diagramm bearbeiten", parameters);
        
         var result = await dialog.Result;
 
