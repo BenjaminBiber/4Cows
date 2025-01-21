@@ -1,0 +1,22 @@
+@using System.Drawing.Text
+@inject ISnackbar Snackbar
+@inject CowTreatmentService CowTreatmentService
+
+<MudDialog>
+    <DialogContent>
+        <div style="height: 86dvh">
+            <MudField Variant="Variant.Outlined">HAllo TEst</MudField>
+        </div>
+    </DialogContent>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; }
+    [Parameter] public Cow Cow { get; set; } = new Cow();
+    
+    private async Task CloseDialog()
+    {
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+
+}

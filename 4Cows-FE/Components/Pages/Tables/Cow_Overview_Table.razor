@@ -1,0 +1,61 @@
+@page "/Cow_Overview_Table"
+@using _4Cows_FE.Components._4CowsComponent.Dialogs
+@inject CowService cowService
+@inject IDialogService DialogService
+
+<MudGrid Justify="Justify.FlexEnd">
+    <MudIconButton Icon="@Icons.Material.Filled.Repeat" Color="Color.Secondary" Size="Size.Large" OnClick="ExecuteXlinkScraper"></MudIconButton>
+</MudGrid>
+
+<MudTable Elevation="5" Items="@Cows" Hover="true" Striped="@true" Filter="(Func<Cow, bool>)FilterFunc1">
+    <ToolBarContent>
+        <MudText Class="table-Header" Typo="Typo.h3">Kühe</MudText>
+        <MudSpacer/>
+        <MudTextField @bind-Value="cowSearchString" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh><MudTableSortLabel SortBy="new Func<Cow, object>(x=>cowService.GetCollarNumberByEarTagNumber(x.EarTagNumber))">Halsbandnummer</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<Cow, object>(x=>x.EarTagNumber)">Ohrmarkennummer</MudTableSortLabel></MudTh>
+    
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Menge">@cowService.GetCollarNumberByEarTagNumber(context.EarTagNumber)</MudTd>
+        <MudTd DataLabel="Menge">@context.EarTagNumber</MudTd>
+        <MudTd DataLabel="Menge"><MudButton OnClick="() => OpenCowDialog(context)" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Medium">Kuh öffnen</MudButton></MudTd>
+    </RowTemplate>
+    <PagerContent>
+        <MudTablePager RowsPerPageString="Behandlungen pro Seite" PageSizeOptions="new int[]{25, 50, 100}" />
+    </PagerContent>
+</MudTable>
+
+@code{
+    private string cowSearchString = "";
+    private bool FilterFunc1(Cow cow) => cowService.FilterFuncCow(cow.EarTagNumber, cowSearchString);
+    private List<Cow> Cows = new List<Cow>();
+    
+    protected override async Task OnInitializedAsync()
+    {
+        Cows = cowService.Cows.Values.ToList();
+    }
+
+    private async Task ExecuteXlinkScraper()
+    {
+       
+    }
+    
+    private async Task OpenCowDialog(Cow cow)
+    {
+        var parameters = new DialogParameters();
+        var options = new DialogOptions()
+        { 
+            MaxWidth = MaxWidth.False,
+            FullWidth = true,
+            CloseButton = true,
+            CloseOnEscapeKey = true
+        };
+        
+        parameters.Add("Cow", cow);
+        var dialog = DialogService.Show<CowOverviewDialog>($"{cow.CollarNumber} - {cow.EarTagNumber}",parameters, options);
+        var result = await dialog.Result;
+    }
+}
