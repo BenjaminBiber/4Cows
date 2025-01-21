@@ -1,0 +1,24 @@
+@using System.Drawing.Text
+@inject ISnackbar Snackbar
+@inject CowTreatmentService CowTreatmentService
+
+<MudDialog>
+    <DialogContent>
+        <MudField Label="Datenbank - Server" Variant="Variant.Outlined">@Environment.GetEnvironmentVariable("DB_SERVER")</MudField>
+        <MudField Label="Datenbank" Variant="Variant.Outlined">@Environment.GetEnvironmentVariable("DB_DB")</MudField>
+
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Primary" OnClick="CloseDialog">Schließen</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; }
+    
+    private async Task CloseDialog()
+    {
+            MudDialog.Close(DialogResult.Ok(true));
+    }
+
+}

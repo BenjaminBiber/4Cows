@@ -1,6 +1,8 @@
-﻿@using Microsoft.AspNetCore.Mvc.Routing
+﻿@using _4Cows_FE.Components._4CowsComponent.Dialogs
+@using Microsoft.AspNetCore.Mvc.Routing
 @using MudBlazor
 @inherits LayoutComponentBase
+@inject IDialogService DialogService
 
 <PageTitle>4Cows</PageTitle>
 <MudThemeProvider IsDarkMode="@_isDarkMode" Theme="CustomTheme" />
@@ -13,6 +15,7 @@
     <MudAppBar Elevation="3" Color="Color.Primary">
         <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" />
         <MudSpacer />
+        <MudIconButton Icon="@Icons.Material.Filled.Info" Color="Color.Default" OnClick="OpenInfoDialog"></MudIconButton>
         <MudToggleIconButton @bind-Toggled="@_isDarkMode"
                              Icon="@Icons.Material.Filled.LightMode" Color="@Color.Default" Title="LightMode"
                              ToggledIcon="@Icons.Material.Filled.DarkMode" ToggledColor="@Color.Default" ToggledTitle="DarkMode" />
@@ -63,6 +66,16 @@
         DarkSwitch();
     }
 
+    private void OpenInfoDialog()
+    {
+        var options = new DialogOptions()
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true
+        };
+        DialogService.Show<DatabaseInfoDialog>("Datenbank Informationen", options);
+    }
+    
     void DarkSwitch()
     {
         if (DateTime.Now.TimeOfDay > _endSpan)

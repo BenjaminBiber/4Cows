@@ -106,11 +106,13 @@
                  await JSRuntime.InvokeVoidAsync("destroyExistingChart", "CowChart");
                  if(_selectedMedicines.Count == medicineService.GetMedicineNames().Distinct().ToList().Count)
                  {
-                     await InitilizeLineChartAsync("CowChart", "Kuh Behandlungen", cowTreatmentService.GetCowTreatmentChartData());
+                    await InitilizeLineChartAsync("CowChart", "Kuh Behandlungen", cowTreatmentService.GetCowTreatmentChartData());
+                    IsBarChart = false;
                  }
                  else
                  {
                      await InitilizeBarChartAsync(_selectedMedicines);
+                     IsBarChart = true;
                  }
             }
         }
@@ -269,10 +271,15 @@
     
     private async Task InitilizeBarChartAsync(List<int> Medicines, int? year = null)
     {
-        if (!year.HasValue)
+        if (!year.HasValue && _selectedYear != 0)
+        {
+            year = _selectedYear;
+        }
+        else if (!year.HasValue)
         {
             year = DateTime.Now.Year;
         }
+        
         await GetLists();
         
         List<dynamic> test = [];
@@ -286,7 +293,7 @@
                 var color = colors.FirstOrDefault(x => !x.Value).Key;
                 colors[color] = true;
                 test.Add(new {
-                    label = medicine,
+                    label = medicineService.GetMedicineNameById(medicine),
                     data = cowTreatmentService.GetCowTreatmentMedicineChartData(medicine, year),
                     backgroundColor = new[] { color },
                     borderColor = new[] { MudBlazor.Color.Primary.ToString() },
@@ -327,7 +334,9 @@
                     {
                         onClick = "function() {}" 
                     }
-                }
+                },
+                responsive = true,
+                maintainAspectRatio = false,
             }
             
         };
