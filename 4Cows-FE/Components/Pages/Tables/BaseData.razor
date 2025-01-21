@@ -33,8 +33,9 @@
         DialogService.Show<BaseDataAdminDialog>("Anmelden", options);
     }
 
-    protected override void OnInitialized()
+    protected override void OnAfterRender(bool firstRender)
     {
         OpenAdminDialog();
     }
+
 }

@@ -125,16 +125,21 @@ public class CowTreatmentService
             .ToArray();
     }
 
-    public int[] GetCowTreatmentChartData(string medicine)
+    public int[] GetCowTreatmentMedicineChartData(int medicine, int? year = null)
     {
         var currentYear = DateTime.Now.Year;
+        if (year.HasValue)
+        {
+            currentYear = year.Value;
+        }
+        
         var months = Enumerable.Range(1, 12);
 
         return months
             .Select(month => _cachedTreatments.Values
                 .Count(obj => obj.AdministrationDate.Year == currentYear && 
                               obj.AdministrationDate.Month == month &&
-                              obj.MedicineId == int.Parse(medicine)))
+                              obj.MedicineId == medicine))
             .ToArray();
     }
     
@@ -156,4 +161,8 @@ public class CowTreatmentService
         return DistinctWhereHows.Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
     }
 
+    public int GetMinYear()
+    {
+        return _cachedTreatments.Values.Min(t => t.AdministrationDate).Year;
+    }
 }
