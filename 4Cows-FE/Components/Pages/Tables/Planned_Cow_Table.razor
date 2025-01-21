@@ -27,12 +27,12 @@
         <MudTh><MudTableSortLabel SortBy="new Func<PlannedCowTreatment, object>(x=>cowService.GetCollarNumberByEarTagNumber(x.EarTagNumber))">Halsbandnummer</MudTableSortLabel></MudTh>
         <MudTh><MudTableSortLabel SortBy="new Func<PlannedCowTreatment, object>(x=>x.EarTagNumber)">Ohrmarkennummer</MudTableSortLabel></MudTh>
         <MudTh><MudTableSortLabel SortBy="new Func<PlannedCowTreatment, object>(x=>x.MedicineId)">Medikament</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel SortBy="new Func<PlannedCowTreatment, object>(x=>x.MedicineDosage)">Menge</MudTableSortLabel></MudTh>
-        
+        <MudTh><MudTableSortLabel SortBy="new Func<PlannedCowTreatment, object>(x=>x.WhereHow)">Wie/Wo</MudTableSortLabel></MudTh>
+
         @if (!isSimpleView)
         {
             <MudTh><MudTableSortLabel SortBy="new Func<PlannedCowTreatment, object>(x=>x.AdministrationDate)">Datum</MudTableSortLabel></MudTh>
-            <MudTh><MudTableSortLabel SortBy="new Func<PlannedCowTreatment, object>(x=>x.WhereHow)">Wie/Wo</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<PlannedCowTreatment, object>(x=>x.MedicineDosage)">Menge</MudTableSortLabel></MudTh>
         }
         
         <MudTh>Behandelt</MudTh>
@@ -43,12 +43,12 @@
         <MudTd Style="" DataLabel="Halsbandnummer">@cowService.GetCollarNumberByEarTagNumber(context.EarTagNumber)</MudTd>
         <MudTd DataLabel="Ohrmarkennummer">@(!isSimpleView ? @context.EarTagNumber : @context.EarTagNumber.Substring(context.EarTagNumber.Length - 5))</MudTd>
         <MudTd DataLabel="Medikament">@medicineService.GetMedicineNameById(context.MedicineId)</MudTd>
-        <MudTd DataLabel="Menge">@context.MedicineDosage</MudTd>
-        
+        <MudTd DataLabel="Wie/Wo">@context.WhereHow</MudTd>
+
         @if (!isSimpleView)
         {
-            <MudTd DataLabel="Datum">@context.AdministrationDate</MudTd>
-            <MudTd DataLabel="Wie/Wo">@context.WhereHow</MudTd>
+            <MudTd DataLabel="Datum">@context.AdministrationDate.ToString("dd.MM.yyyy")</MudTd>
+            <MudTd DataLabel="Menge">@context.MedicineDosage</MudTd>
         }
         <MudTd><MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="@(() => AddCowTreatment(context))">Behandlung abschließen</MudButton></MudTd>
         <MudTd><MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="@(() => RemovePlannedCowDialog(context))">Behandlung entfernen</MudButton></MudTd>
