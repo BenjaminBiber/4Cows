@@ -143,10 +143,10 @@ public class CowService
             var Cow = Cows[earTagNumber];
             if (string.IsNullOrWhiteSpace(searchString))
                 return true;
-            if (searchString.Length <= 3 && searchString.ToLower() == Cow.CollarNumber.ToString().ToLower())
+            if (searchString.Length < 3 && searchString.ToLower() == Cow.CollarNumber.ToString().ToLower())
             {
                 return true;
-            }else if(searchString.Length > 3 && Cow.EarTagNumber.ToLower().Contains(searchString.ToLower()) || Cow.CollarNumber.ToString().ToLower() == searchString.ToLower())
+            }else if(searchString.Length >= 3 && Cow.EarTagNumber.ToLower().Contains(searchString.ToLower()) || Cow.CollarNumber.ToString().ToLower() == searchString.ToLower())
             {
                 return true;
             }

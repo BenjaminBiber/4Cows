@@ -34,6 +34,7 @@
         <MudPaper Elevation="5" Style="height: 100%; padding: 1%; display: flex; flex-direction: column; align-items: flex-end" id="Chart_One_Paper">
             <div style="display: flex; justify-content: flex-end; width: 100%; position: fixed; z-index: 99">
                 <MudIconButton OnClick="OpenChartEditor" Class="Clickable" Icon="@Icons.Material.Filled.Edit" Size="Size.Medium" aria-label="edit"></MudIconButton>
+                <MudIconButton OnClick="OpenYearChangeDialog" Class="Clickable" Icon="@Icons.Material.Filled.DateRange" Size="Size.Medium" aria-label="Date"></MudIconButton>
             </div>
             <div style="position: relative; height: 100%; width: 100%;">
                 <canvas id="CowChart"></canvas>
@@ -41,8 +42,8 @@
         </MudPaper>
     </div>
     <div id="Chart_Div_Two">
-        <MudPaper Elevation="5" Style="height: 100%; margin-left: 2em; padding: 1%; display: flex; flex-direction: column; align-items: flex-end" id="Chart_One_Paper">
-            <div style="position: relative; height: 100%; width: 100%;">
+        <MudPaper Elevation="5" Style="height: 100%; padding: 1%; display: flex; flex-direction: column; align-items: flex-end" id="Chart_two_Paper">
+            <div style="height: 100%; width: 100%;">
                 <canvas id="ClawChart"></canvas>
             </div>
         </MudPaper>
@@ -57,7 +58,9 @@
     public List<ClawTreatment> ClawList = [];
     public List<PlannedCowTreatment> Planned_CowList = [];
     public List<PlannedClawTreatment> Planned_ClawList = [];
-    public List<string> _selectedMedicines = new List<string>();
+    public List<int> _selectedMedicines = new List<int>();
+    private int _selectedYear = DateTime.Now.Year;
+    bool IsBarChart = false;
     
     protected override async Task OnInitializedAsync()
     {
@@ -96,7 +99,7 @@
 
         if (!result.Canceled)
         {
-            if(result.Data is HashSet<string> selectedMedicines && result.Data != null)
+            if(result.Data is HashSet<int> selectedMedicines && result.Data != null)
             {
                  _selectedMedicines = selectedMedicines.ToList();
                  
@@ -256,6 +259,7 @@
                     }
                 },
                 responsive = true,
+                maintainAspectRatio = false,
             }
         };
 
@@ -263,8 +267,12 @@
         await JSRuntime.InvokeVoidAsync("renderChart", ChartName, config);
     }
     
-    private async Task InitilizeBarChartAsync(List<string> Medicines)
+    private async Task InitilizeBarChartAsync(List<int> Medicines, int? year = null)
     {
+        if (!year.HasValue)
+        {
+            year = DateTime.Now.Year;
+        }
         await GetLists();
         
         List<dynamic> test = [];
@@ -272,13 +280,14 @@
         
         foreach (var medicine in Medicines)
         {
-            if (!string.IsNullOrEmpty(medicine))
+            var stringMedicine = medicineService.GetMedicineNameById(medicine);
+            if (!string.IsNullOrEmpty(stringMedicine))
             {
                 var color = colors.FirstOrDefault(x => !x.Value).Key;
                 colors[color] = true;
                 test.Add(new {
                     label = medicine,
-                    data = cowTreatmentService.GetCowTreatmentChartData(medicine),
+                    data = cowTreatmentService.GetCowTreatmentMedicineChartData(medicine, year),
                     backgroundColor = new[] { color },
                     borderColor = new[] { MudBlazor.Color.Primary.ToString() },
                     borderWidth = 2
@@ -372,5 +381,37 @@
 
         return $"#{r:X2}{g:X2}{b:X2}";
     }
-    
+
+    private async Task OpenYearChangeDialog()
+    {
+        var parameters = new DialogParameters<ChartDateDialog> { { x => x.Year, _selectedYear } };
+
+        var options = new DialogOptions()
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true,
+            BackdropClick = false
+        };
+        var dialog = await DialogService.ShowAsync<ChartDateDialog>("Diagramm bearbeiten", parameters, options);
+       
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            if(result.Data is int year && result.Data != null)
+            {
+                _selectedYear = year;
+                 
+                await JSRuntime.InvokeVoidAsync("destroyExistingChart", "CowChart");
+                if(!IsBarChart)
+                {
+                    await InitilizeLineChartAsync("CowChart", "Kuh Behandlungen", cowTreatmentService.GetCowTreatmentChartData(year));
+                }
+                else
+                {
+                    await InitilizeBarChartAsync(_selectedMedicines, year);
+                }
+            }
+        }
+    }
 }

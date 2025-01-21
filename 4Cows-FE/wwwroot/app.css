@@ -744,11 +744,24 @@ th, td {
     height: 100%;
 }
 
+#Chart_Div_Two{
+    margin-left: 2em;
+    width: 45%;
+    height: 100%;
+}
+
 #Chart_One_Paper{
     height: 100%;
     display: flex;
     align-items: flex-end;
 }
+
+#Chart_two_Paper{
+    height: 100%;
+    display: flex;
+    align-items: flex-end;
+}
+
 
 #Chart_Div_Two{
     width: 47%;
@@ -756,6 +769,10 @@ th, td {
 }
 
 #CowChart{
+    height: 85%;
+}
+
+#ClawChart{
     height: 85%;
 }
 

@@ -5,12 +5,12 @@
 <MudDialog>
     <DialogContent>
         <div style="height: 100%; overflow-y: scroll;">
-            <MudTable T="string" Items="_medicines" @bind-SelectedItems="_selectedMedicines" MultiSelection="true" SelectionChangeable="true" Striped="true" SelectOnRowClick="true" >
+            <MudTable T="int" Items="_medicines" @bind-SelectedItems="_selectedMedicines" MultiSelection="true" SelectionChangeable="true" Striped="true" SelectOnRowClick="true" >
                 <HeaderContent>
-                    <MudTh><MudTableSortLabel SortBy="new Func<string, object>(x=>x)">Name</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<int, object>(x=>MedicineService.GetMedicineNameById(x))">Name</MudTableSortLabel></MudTh>
                 </HeaderContent>
                 <RowTemplate>
-                    <MudTd DataLabel="Name">@context</MudTd>
+                    <MudTd DataLabel="Name">@MedicineService.GetMedicineNameById(context)</MudTd>
                 </RowTemplate>
             </MudTable>
         </div>
@@ -25,14 +25,14 @@
     private MudDialogInstance MudDialog { get; set; }
     
     [Parameter]
-    public List<string> Medicines { get; set; } = [];
+    public List<int> Medicines { get; set; } = [];
     
-    private List<string> _medicines = [];
-    private HashSet<string> _selectedMedicines = [];
+    private List<int> _medicines = [];
+    private HashSet<int> _selectedMedicines = [];
     
     protected override async Task OnInitializedAsync()
     {
-        _medicines = MedicineService.GetMedicineNames();
+        _medicines = MedicineService.Medicines.Keys.ToList();
         Medicines = !Medicines.Any() ? _medicines : Medicines;
         foreach (var entry in Medicines)
         {

@@ -1,0 +1,37 @@
+@using System.Drawing.Text
+@inject ISnackbar Snackbar
+@inject CowTreatmentService CowTreatmentService
+
+<MudDialog>
+    <DialogContent>
+        <MudDatePicker FixDay="1" FixMonth="1" OpenTo="OpenTo.Year" PickerVariant="PickerVariant.Static" @bind-Date="inputDate" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Primary" OnClick="CloseDialog">Schließen</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; }
+
+    [Parameter] public int Year { get; set; } = DateTime.Now.Year;
+    private DateTime? inputDate;
+
+    private async Task CloseDialog()
+    {
+        if (!inputDate.HasValue)
+        {
+            return;
+        }
+        
+        if (CowTreatmentService.GetMinYear() <= inputDate.Value.Year)
+        {
+            MudDialog.Close(DialogResult.Ok(inputDate.Value.Year));
+        }
+        else
+        {
+            Snackbar.Add("Keine Behandlungen für das Jahr vorhanden", Severity.Error);
+        }
+    }
+
+}

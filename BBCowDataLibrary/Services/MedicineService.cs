@@ -98,6 +98,11 @@ public class MedicineService
             return _cachedMedicines.Values.Select(m => m.MedicineName).ToList();
         }
         
+        public List<string> GetMedicineNamesByIds(List<int> medicineIds)
+        {
+            return _cachedMedicines.Where(m => medicineIds.Contains(m.Key)).Select(m => m.Value.MedicineName).ToList();
+        }
+        
         public async Task<int> GetMedicineIdByName(string medicineName)
         {
             if(medicineName == null)

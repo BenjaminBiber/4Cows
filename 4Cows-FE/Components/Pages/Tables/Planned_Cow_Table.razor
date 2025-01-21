@@ -24,7 +24,7 @@
     </ToolBarContent>
     
     <HeaderContent>
-        <MudTh><MudTableSortLabel SortBy="new Func<CowTreatment, object>(x=>cowService.GetCollarNumberByEarTagNumber(x.EarTagNumber))">Halsbandnummer</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<PlannedCowTreatment, object>(x=>cowService.GetCollarNumberByEarTagNumber(x.EarTagNumber))">Halsbandnummer</MudTableSortLabel></MudTh>
         <MudTh><MudTableSortLabel SortBy="new Func<PlannedCowTreatment, object>(x=>x.EarTagNumber)">Ohrmarkennummer</MudTableSortLabel></MudTh>
         <MudTh><MudTableSortLabel SortBy="new Func<PlannedCowTreatment, object>(x=>x.MedicineId)">Medikament</MudTableSortLabel></MudTh>
         <MudTh><MudTableSortLabel SortBy="new Func<PlannedCowTreatment, object>(x=>x.MedicineDosage)">Menge</MudTableSortLabel></MudTh>
