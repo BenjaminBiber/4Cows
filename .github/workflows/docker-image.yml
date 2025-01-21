@@ -5,7 +5,7 @@ on:
     types: [published]
 
 jobs:
-  build:
+  build-docker-Image-from-Release:
     runs-on: ubuntu-latest
 
     steps:
