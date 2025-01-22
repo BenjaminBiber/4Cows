@@ -3,6 +3,7 @@
 @inject CowService cowService
 @inject MedicineService medicineService
 @inject WhereHowService WhereHowService
+@inject IDialogService DialogService
 
 <MudDialog>
     <DialogContent>
@@ -27,7 +28,22 @@
 
                 <MudAutocomplete SelectValueOnTab="true" T="string" Label="Medikament:" @bind-Value="MedicineName" SearchFunc="@((string s, CancellationToken c) => cowTreatmentService.SearchCowTreatmentMedicaments(s , c, medicineService))" CoerceValue="true" />
 
-                <MudAutocomplete TextChanged="(string s) => OpenWhereHowDialog(s)" SelectValueOnTab="true" T="string" Label="Wie / Wo:" @bind-Value="_selectedWhereHow" SearchFunc="@((string s, CancellationToken c) => cowTreatmentService.SearchCowTreatmentWhereHow(s , c))" CoerceValue="true" />
+                <div style="width: 100%; display: flex; justify-content: center; align-items:  center; gap:  2.5%;">
+                    <MudAutocomplete TextChanged="(string s) => OpenWhereHowDialog(s)" SelectValueOnTab="true" T="string" Label="Wie / Wo:" @bind-Value="_selectedWhereHow" SearchFunc="@((string s, CancellationToken c) => cowTreatmentService.SearchCowTreatmentWhereHow(s , c))" CoerceValue="true" />
+                    @if (showEditWhereHowOptions)
+                    {
+                        <MudToggleIconButton @bind-Toggled="ShowDialogForNewWhereHow"
+                                             Icon="@Icons.Material.Filled.Window"
+                                             Color="@Color.Default"
+                                             ToggledIcon="@Icons.Material.Filled.Window"
+                                             ToggledColor="@Color.Success"/> 
+                        
+                        <MudIconButton Icon="@Icons.Material.Filled.Save" Color="Color.Primary" OnClick="SaveNewWhereHow"/>
+                    }else if (showDialog)
+                    {
+                        <MudIconButton Icon="@Icons.Material.Filled.OpenInNew" Color="Color.Primary" OnClick="OpenUdderDialog"/>
+                    }
+                </div>
 
                 <MudNumericField @bind-Value="Cow_Treatment.MedicineDosage" Label="Menge:" Variant="Variant.Text" />
 
@@ -49,6 +65,10 @@
     public bool SaveSuccesfulBool;
     public string MedicineName;
     private string _selectedWhereHow = "";
+    private bool showEditWhereHowOptions = false;
+    private bool ShowDialogForNewWhereHow = false;
+    private bool showDialog = false;
+    private int _selectedUdder = int.MinValue;
     
     protected override void OnInitialized()
     {
@@ -135,10 +155,49 @@
         MudDialog.Close();
     }
 
-    private void OpenWhereHowDialog(string text)
+    private async Task OpenWhereHowDialog(string text)
     {
-        
+        if (WhereHowService.WhereHows.Values.Where(x => x.WhereHowName.Trim().ToLower() == text.ToLower().Trim()).Select(x => x.ShowDialog).FirstOrDefault())
+        {
+            showDialog = true;
+        }
+        else if (WhereHowService.WhereHowNames.Any(x => x.ToLower().Trim() == text.Trim().ToLower()) || string.IsNullOrEmpty(text))
+        {
+            showEditWhereHowOptions = false;
+        }
+        else
+        {
+            showEditWhereHowOptions = true;
+        }
     }
 
+    private async Task OpenUdderDialog()
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, NoHeader = true };
+        var dialog = await DialogService.ShowAsync<UdderDialog>("", options);
+        var result = await dialog.Result;
+        if (!result.Canceled && result.Data is int id && id != int.MinValue)
+        {
+            showDialog = false;
+        }
+    }
+    
+    private async Task SaveNewWhereHow()
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, NoHeader = true };
+        var parametersGeneric = new DialogParameters<GenericDialog> { { x => x.HeaderText, "Speichern" }, { x => x.Description, $"Wollen Sie {_selectedWhereHow} als Wie / Wo speichern? ?" }, { x => x.AcceptButtonText, "Ja" }, { x => x.CancelButtonText, "Nein" }, { x => x.ColorScheme, Color.Warning } };
+        var dialog = await DialogService.ShowAsync<GenericDialog>("",parametersGeneric, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            var newWhereHow = new WhereHow
+            {
+                WhereHowName = _selectedWhereHow,
+                ShowDialog = ShowDialogForNewWhereHow
+            };
+            await WhereHowService.InsertDataAsync(newWhereHow);
+        }
+    }
 }
 

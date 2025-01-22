@@ -9,6 +9,8 @@ public class WhereHowService
     private ImmutableDictionary<int, WhereHow> _cachedWhereHows = ImmutableDictionary<int, WhereHow>.Empty;
     public ImmutableDictionary<int, WhereHow> WhereHows => _cachedWhereHows;
 
+    public List<string> WhereHowNames => _cachedWhereHows.Values.Select(x => x.WhereHowName).Distinct().ToList();
+
         public async Task GetAllDataAsync()
         {
             var whereHows = await DatabaseService.ReadDataAsync(@"SELECT * FROM WhereHow;", reader =>
@@ -17,12 +19,7 @@ public class WhereHowService
                 {
                     WhereHowId = reader.GetInt32("WhereHow_ID"),
                     WhereHowName = reader.GetString("WhereHow_Name"),
-                    ShowDialog = reader.GetBoolean("ShowDialog"),
-                    QuarterLV = reader.GetBoolean("Quarter_LV"),
-                    QuarterLH = reader.GetBoolean("Quarter_LH"),
-                    QuarterRV = reader.GetBoolean("Quarter_RV"),
-                    QuarterRH = reader.GetBoolean("Quarter_RH"),
-
+                    ShowDialog = reader.GetBoolean("ShowDialog")
                 };
                 return whereHow;
             });
@@ -37,20 +34,16 @@ public class WhereHowService
             await DatabaseService.ExecuteQueryAsync(async command =>
             {
                 command.CommandText = @"INSERT INTO `WhereHow` 
-                                (`WhereHow_Name`, `ShowDialog`, `Quarter_LV`, `Quarter_LH`, `Quarter_RV`, `Quarter_RH`) 
-                                VALUES (@WhereHowName, @ShowDialog, @QuarterLV, @QuarterLH, @QuarterRV, @QuarterRH);";
+                                (`WhereHow_Name`, `ShowDialog`) 
+                                VALUES (@WhereHowName, @ShowDialog);";
                 command.Parameters.AddWithValue("@WhereHowName", whereHow.WhereHowName);
                 command.Parameters.AddWithValue("@ShowDialog", whereHow.ShowDialog);
-                command.Parameters.AddWithValue("@QuarterLV", whereHow.QuarterLV);
-                command.Parameters.AddWithValue("@QuarterLH", whereHow.QuarterLH);
-                command.Parameters.AddWithValue("@QuarterRV", whereHow.QuarterRV);
-                command.Parameters.AddWithValue("@QuarterRH", whereHow.QuarterRH);
                 isSuccess = (await command.ExecuteNonQueryAsync()) > 0;
             });
 
             if (isSuccess)
             {
-                _cachedWhereHows = _cachedWhereHows.Add(whereHow.WhereHowId, whereHow);
+                await GetAllDataAsync();
                 LoggerService.LogInformation(typeof(WhereHowService), "Inserted WhereHow: {@whereHow}.", whereHow);
             }
 

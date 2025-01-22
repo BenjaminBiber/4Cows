@@ -819,3 +819,21 @@ th, td {
         padding-left: 0;
     }
 }
+
+.UdderButton{
+    width: 45%;
+    height: 45%;
+    border-radius: 1em;
+    font-size: 2em;
+    font-weight: 900;
+}
+
+.UdderButton_Normal{
+    background-color: var(--mud-palette-primary);
+    border-color: var(--mud-pallete-secondary);
+}
+
+.UdderButton_Highlighted{
+    border-color: var(--mud-palette-primary);
+    background-color: var(--mud-palette-secondary);
+}

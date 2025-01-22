@@ -10,6 +10,7 @@
 @inject ClawTreatmentService clawTreatmentService
 @inject MedicineService medicineService
 @inject CowService cowService
+@inject WhereHowService WhereHowService
 
 <div id="Index_Top">
     <div id="KPI_Div">
@@ -75,6 +76,7 @@
         await pCowTreatmentService.GetAllDataAsync();
         await pClawTreatmentService.GetAllDataAsync();
         await medicineService.GetAllDataAsync();
+        await WhereHowService.GetAllDataAsync();
         await cowService.GetAllDataAsync();
         
         CowList = cowTreatmentService.Treatments.Values.ToList();

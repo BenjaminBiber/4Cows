@@ -1,0 +1,37 @@
+@using System.Drawing.Text
+@using OfficeOpenXml.Utils
+@inject CowTreatmentService CowTreatmentService
+@inject UdderService UdderService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <div style="height: 100%; aspect-ratio: 2; width: 100%; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 2.5%">
+            <button class="UdderButton @(!Udder.QuarterLV ? "UdderButton_Normal" : "UdderButton_Highlighted")" @onclick="() => Udder.QuarterLV = !Udder.QuarterLV">LV</button>
+            <button class="UdderButton @(!Udder.QuarterRV ? "UdderButton_Normal" : "UdderButton_Highlighted")" @onclick="() => Udder.QuarterRV = !Udder.QuarterRV">RV</button>
+            <button class="UdderButton @(!Udder.QuarterLH ? "UdderButton_Normal" : "UdderButton_Highlighted")" @onclick="() => Udder.QuarterLH = !Udder.QuarterLH">LH</button>
+            <button class="UdderButton @(!Udder.QuarterRH ? "UdderButton_Normal" : "UdderButton_Highlighted")" @onclick="() => Udder.QuarterRH = !Udder.QuarterRH">RH</button>
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Primary" OnClick="CloseDialog">Schließen</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; }
+
+    private Udder Udder = new Udder();
+    
+    private async Task CloseDialog()
+    {
+        var id = await UdderService.GetIDByBools(Udder);
+        if (id == int.MinValue)
+        {
+            Snackbar.Add("Kein Euter gefunden!", Severity.Error);
+            return;
+        }
+        MudDialog.Close(DialogResult.Ok(id));
+    }
+
+}

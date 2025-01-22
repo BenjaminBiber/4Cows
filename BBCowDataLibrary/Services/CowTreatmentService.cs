@@ -59,8 +59,7 @@ public class CowTreatmentService
 
         if (isSuccess)
         {
-            _cachedTreatments = _cachedTreatments.Add(cowTreatment.CowTreatmentId, cowTreatment);
-            _cachedDistinctWhereHows = _cachedDistinctWhereHows.Add(cowTreatment.WhereHowId).Distinct().ToImmutableList();
+            await GetAllDataAsync();
             LoggerService.LogInformation(typeof(CowTreatmentService), "Inserted cow treatment: {@cowTreatment}.", cowTreatment);
         }
 
@@ -161,9 +160,9 @@ public class CowTreatmentService
     {
         if (string.IsNullOrEmpty(value) || !DistinctWhereHows.Any())
         {
-            return _whereHowService.GetWhereHowNamesByIds(DistinctWhereHows.ToList());
+            return _whereHowService.WhereHowNames;
         }
-        return _whereHowService.GetWhereHowNamesByIds(DistinctWhereHows.ToList()).Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
+        return _whereHowService.WhereHowNames.Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
     }
 
     public int GetMinYear()
