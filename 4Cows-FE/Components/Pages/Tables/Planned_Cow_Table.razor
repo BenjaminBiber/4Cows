@@ -6,6 +6,7 @@
 @inject PCowTreatmentService pCowTreatmentService
 @inject MedicineService medicineService
 @inject CowService cowService
+@inject WhereHowService WhereHowService
 
 <MudGrid Justify="Justify.FlexEnd">
     <MudSwitch @bind-Value="isSimpleView" Label="Simple Ansicht" UncheckedColor="Color.Info" Color="Color.Primary" />
@@ -27,8 +28,8 @@
         <MudTh><MudTableSortLabel SortBy="new Func<PlannedCowTreatment, object>(x=>cowService.GetCollarNumberByEarTagNumber(x.EarTagNumber))">Halsbandnummer</MudTableSortLabel></MudTh>
         <MudTh><MudTableSortLabel SortBy="new Func<PlannedCowTreatment, object>(x=>x.EarTagNumber)">Ohrmarkennummer</MudTableSortLabel></MudTh>
         <MudTh><MudTableSortLabel SortBy="new Func<PlannedCowTreatment, object>(x=>x.MedicineId)">Medikament</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel SortBy="new Func<PlannedCowTreatment, object>(x=>x.WhereHow)">Wie/Wo</MudTableSortLabel></MudTh>
-
+        <MudTh><MudTableSortLabel SortBy="new Func<PlannedCowTreatment, object>(x=> WhereHowService.GetWhereHowNameById(x.WhereHowId))">Wie/Wo</MudTableSortLabel></MudTh>
+)
         @if (!isSimpleView)
         {
             <MudTh><MudTableSortLabel SortBy="new Func<PlannedCowTreatment, object>(x=>x.AdministrationDate)">Datum</MudTableSortLabel></MudTh>
@@ -43,7 +44,7 @@
         <MudTd Style="" DataLabel="Halsbandnummer">@cowService.GetCollarNumberByEarTagNumber(context.EarTagNumber)</MudTd>
         <MudTd DataLabel="Ohrmarkennummer">@(!isSimpleView ? @context.EarTagNumber : @context.EarTagNumber.Substring(context.EarTagNumber.Length - 5))</MudTd>
         <MudTd DataLabel="Medikament">@medicineService.GetMedicineNameById(context.MedicineId)</MudTd>
-        <MudTd DataLabel="Wie/Wo">@context.WhereHow</MudTd>
+        <MudTd DataLabel="Wie/Wo">@WhereHowService.GetWhereHowNameById(context.WhereHowId)</MudTd>
 
         @if (!isSimpleView)
         {
@@ -110,7 +111,7 @@
                 Cow_Treatment.AdministrationDate = Planned_Cow_Treatment.AdministrationDate;
                 Cow_Treatment.MedicineDosage = Planned_Cow_Treatment.MedicineDosage;
                 Cow_Treatment.MedicineId = Planned_Cow_Treatment.MedicineId;
-                Cow_Treatment.WhereHow = Planned_Cow_Treatment.WhereHow;
+                Cow_Treatment.WhereHowId = Planned_Cow_Treatment.WhereHowId;
                 var options1 = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
                 var parameters = new DialogParameters<Add_Cow_Treatment_Dialog> { { x => x.Cow_Treatment, Cow_Treatment } };
                 await DialogService.ShowAsync<Add_Cow_Treatment_Dialog>("", parameters, options1);

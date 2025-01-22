@@ -2,6 +2,7 @@
 @inject CowTreatmentService cowTreatmentService
 @inject CowService cowService
 @inject MedicineService medicineService
+@inject WhereHowService WhereHowService
 
 <MudDialog>
     <DialogContent>
@@ -26,7 +27,7 @@
 
                 <MudAutocomplete SelectValueOnTab="true" T="string" Label="Medikament:" @bind-Value="MedicineName" SearchFunc="@((string s, CancellationToken c) => cowTreatmentService.SearchCowTreatmentMedicaments(s , c, medicineService))" CoerceValue="true" />
 
-                <MudAutocomplete SelectValueOnTab="true" T="string" Label="Wie / Wo:" @bind-Value="Cow_Treatment.WhereHow" SearchFunc="@((string s, CancellationToken c) => cowTreatmentService.SearchCowTreatmentWhereHow(s , c))" CoerceValue="true" />
+                <MudAutocomplete TextChanged="(string s) => OpenWhereHowDialog(s)" SelectValueOnTab="true" T="string" Label="Wie / Wo:" @bind-Value="_selectedWhereHow" SearchFunc="@((string s, CancellationToken c) => cowTreatmentService.SearchCowTreatmentWhereHow(s , c))" CoerceValue="true" />
 
                 <MudNumericField @bind-Value="Cow_Treatment.MedicineDosage" Label="Menge:" Variant="Variant.Text" />
 
@@ -47,7 +48,8 @@
     public DateTime? NullDate;
     public bool SaveSuccesfulBool;
     public string MedicineName;
-
+    private string _selectedWhereHow = "";
+    
     protected override void OnInitialized()
     {
         if(!string.IsNullOrEmpty(Cow_Treatment.EarTagNumber))
@@ -88,10 +90,17 @@
         Snackbar.Configuration.SnackbarVariant = Variant.Outlined;
         Snackbar.Configuration.MaxDisplayedSnackbars = 10;
         var medicineId = await medicineService.GetMedicineIdByName(MedicineName);
+        var whereHowId = await WhereHowService.GetWhereHowIDByName(_selectedWhereHow);
         if (medicineId == int.MinValue)
         {
              Snackbar.Add("Medikament nicht gefunden!", Severity.Error);
              return;
+        }
+
+        if (whereHowId == int.MinValue)
+        {
+            Snackbar.Add("Wie/Wo nicht gefunden!", Severity.Error);
+            return;
         }
         foreach (var number in numbers)
         {
@@ -102,7 +111,7 @@
                         EarTagNumber = number.EarValue,
                         MedicineId = medicineId,
                         MedicineDosage = Cow_Treatment.MedicineDosage,
-                        WhereHow = Cow_Treatment.WhereHow,
+                        WhereHowId = whereHowId,
                         AdministrationDate = NullDate.Value
                     };
 
@@ -124,6 +133,11 @@
             }
         }
         MudDialog.Close();
+    }
+
+    private void OpenWhereHowDialog(string text)
+    {
+        
     }
 
 }

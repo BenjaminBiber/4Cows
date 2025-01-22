@@ -22,19 +22,18 @@ namespace BB_Cow.Class
         public float MedicineDosage { get; set; }
 
         [Required]
-        [StringLength(256)]
-        public string WhereHow { get; set; }
+        public int WhereHowId { get; set; }
 
-        public CowTreatment() : this(0, string.Empty, 0, DateTime.MinValue, 0.0f, string.Empty) { }
+        public CowTreatment() : this(0, string.Empty, 0, DateTime.MinValue, 0.0f, int.MinValue) { }
 
-        public CowTreatment(int cowTreatmentId, string earTagNumber, int medicineId, DateTime administrationDate, float medicineDosage, string whereHow)
+        public CowTreatment(int cowTreatmentId, string earTagNumber, int medicineId, DateTime administrationDate, float medicineDosage, int whereHowId)
         {
             CowTreatmentId = cowTreatmentId;
             EarTagNumber = earTagNumber;
             MedicineId = medicineId;
             AdministrationDate = administrationDate;
             MedicineDosage = medicineDosage;
-            WhereHow = whereHow;
+            WhereHowId = whereHowId;
         }
     }
 }

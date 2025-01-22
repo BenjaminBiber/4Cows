@@ -4,6 +4,7 @@
 @inject CowTreatmentService cowTreatmentService
 @inject MedicineService medicineService
 @inject CowService cowService
+@inject WhereHowService WhereHowService
 
 <MudDialog>
     <DialogContent>
@@ -29,7 +30,7 @@
 
             <MudAutocomplete SelectValueOnTab="true" T="string" Label="Medikament:" @bind-Value="MedicineName" SearchFunc="@((string s, CancellationToken c) => cowTreatmentService.SearchCowTreatmentMedicaments(s , c, medicineService))" CoerceValue="true" />
 
-            <MudAutocomplete SelectValueOnTab="true" T="string" Label="Wie / Wo:" @bind-Value="Planned_Cow_Treatment.WhereHow" SearchFunc="@((string s, CancellationToken c) => cowTreatmentService.SearchCowTreatmentWhereHow(s, c))" CoerceValue="true" />
+            <MudAutocomplete TextChanged="(string s) => OpenWhereHowDialog(s)" SelectValueOnTab="true" T="string" Label="Wie / Wo:" @bind-Value="_selectedWhereHow" SearchFunc="@((string s, CancellationToken c) => cowTreatmentService.SearchCowTreatmentWhereHow(s, c))" CoerceValue="true" />
 
             <MudNumericField @bind-Value="Planned_Cow_Treatment.MedicineDosage" Label="Menge:" Variant="Variant.Text" />
 
@@ -46,6 +47,7 @@
     public bool SaveSuccesfulBool;
     public DateTime? NullDate;
     public string MedicineName;
+    private string _selectedWhereHow = "";
     
     public PlannedCowTreatment Planned_Cow_Treatment = new PlannedCowTreatment();
 
@@ -73,11 +75,18 @@
     public async Task SaveCowTreatmentModalInput()
     {
         bool allSavedSuccessfully = true;
-        if (NullDate != null && !string.IsNullOrEmpty(MedicineName) && Planned_Cow_Treatment.MedicineDosage != 0 && !string.IsNullOrEmpty(Planned_Cow_Treatment.WhereHow))
+        if (NullDate != null && !string.IsNullOrEmpty(MedicineName) && Planned_Cow_Treatment.MedicineDosage != 0)
         {
             Snackbar.Configuration.SnackbarVariant = Variant.Outlined;
             Snackbar.Configuration.MaxDisplayedSnackbars = 10;
             var medicineId = await medicineService.GetMedicineIdByName(MedicineName);
+            var whereHowId = await WhereHowService.GetWhereHowIDByName(_selectedWhereHow);
+
+            if (whereHowId == int.MinValue)
+            {
+                Snackbar.Add("Wie / Wo nicht gefunden", Severity.Error);
+            }
+            
             foreach (var number in numbers)
             {
                 if (number.Value.HasValue && number.Value != 0 && !string.IsNullOrEmpty(number.EarValue))
@@ -85,6 +94,7 @@
                     Planned_Cow_Treatment.EarTagNumber = number.EarValue;
                     Planned_Cow_Treatment.AdministrationDate = NullDate.Value;
                     Planned_Cow_Treatment.MedicineId = medicineId;
+                    Planned_Cow_Treatment.WhereHowId = whereHowId;
 
                     var saveSuccessful = await pCowTreatmentService.InsertDataAsync(Planned_Cow_Treatment);
                     if (!saveSuccessful)
@@ -107,7 +117,6 @@
             {
                 Snackbar.Add($"Nicht alle Behandlungen konnten gespeichert werden.", Severity.Error);
             }
-
         }
         else
         {
@@ -121,6 +130,11 @@
         var index = numbers.IndexOf(entry);
         numbers[index].Value = entry.EarValue != null ? cowService.GetCollarNumberByEarTagNumber(entry.EarValue) : null;
         StateHasChanged();
+    }
+    
+    private void OpenWhereHowDialog(string text)
+    {
+        
     }
 }
 
