@@ -5,6 +5,7 @@
 @inject CowTreatmentService cowTreatmentService
 @inject CowService cowService
 @inject MedicineService medicineService
+@inject WhereHowService WhereHowService
 
 <MudGrid Justify="Justify.FlexEnd">
     <MudIconButton Icon="@Icons.Material.Filled.AddCircle" Color="Color.Secondary" Size="Size.Large" OnClick="OpenCowDialog"></MudIconButton>
@@ -21,7 +22,7 @@
         <MudTh><MudTableSortLabel SortBy="new Func<CowTreatment, object>(x=>x.EarTagNumber)">Ohrmarkennummer</MudTableSortLabel></MudTh>
         <MudTh><MudTableSortLabel SortBy="new Func<CowTreatment, object>(x=>x.AdministrationDate)">Datum</MudTableSortLabel></MudTh>
         <MudTh><MudTableSortLabel SortBy="new Func<CowTreatment, object>(x=>x.MedicineId)">Medikament</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel SortBy="new Func<CowTreatment, object>(x=>x.WhereHow)">Wie/Wo</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<CowTreatment, object>(x=> WhereHowService.GetWhereHowNameById(x.WhereHowId))">Wie/Wo</MudTableSortLabel></MudTh>
         <MudTh><MudTableSortLabel SortBy="new Func<CowTreatment, object>(x=>x.MedicineDosage)">Menge</MudTableSortLabel></MudTh>
 
     </HeaderContent>
@@ -30,7 +31,7 @@
         <MudTd DataLabel="Ohrmarkennummer">@context.EarTagNumber</MudTd>
             <MudTd DataLabel="Datum">@context.AdministrationDate.ToString("dd.MM.yyyy")</MudTd>
             <MudTd DataLabel="Medikament">@medicineService.GetMedicineNameById(context.MedicineId)</MudTd>
-            <MudTd DataLabel="Wie/Wo">@context.WhereHow</MudTd>
+            <MudTd DataLabel="Wie/Wo">@WhereHowService.GetWhereHowNameById(context.WhereHowId)</MudTd>
             <MudTd DataLabel="Menge">@context.MedicineDosage</MudTd>
 
         </RowTemplate>
