@@ -59,9 +59,7 @@ namespace BB_Cow.Services
 
             if (isSuccess)
             {
-                _cachedTreatments = _cachedTreatments.Add(cowTreatment.PlannedCowTreatmentId, cowTreatment);
-                _cachedMedicineList = _cachedTreatments.Values.Select(t => t.MedicineId.ToString()).Distinct().ToImmutableList();
-                _cachedWhereHowList = _cachedTreatments.Values.Select(t => t.WhereHowId).Distinct().ToImmutableList();
+                await GetAllDataAsync();
                 LoggerService.LogInformation(typeof(PCowTreatmentService), "Data inserted successfully: {@cowTreatment}", cowTreatment);
             }
 

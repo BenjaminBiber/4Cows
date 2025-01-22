@@ -14,26 +14,14 @@ public class WhereHow
     [Required]
     public bool ShowDialog { get; set; }
 
-    public bool QuarterLV { get; set; }
-
-    public bool QuarterLH { get; set; }
-    
-    public bool QuarterRV { get; set; }
-
-    public bool QuarterRH { get; set; }
-
-    public WhereHow() : this(0, "", true, false, false, false, false)
+    public WhereHow() : this(0, "", true)
     {
     }
 
-    public WhereHow(int whereHowId, string whereHowName, bool showDialog, bool quarterLv, bool quarterLh, bool quarterRv, bool quarterRh)
+    public WhereHow(int whereHowId, string whereHowName, bool showDialog)
     {
         WhereHowId = whereHowId;
         WhereHowName = whereHowName;
         ShowDialog = showDialog;
-        QuarterLV = quarterLv;
-        QuarterLH = quarterLh;
-        QuarterRV = quarterRv;
-        QuarterRH = quarterRh;
     }
 }
