@@ -4,6 +4,7 @@
 @inject MedicineService medicineService
 @inject WhereHowService WhereHowService
 @inject IDialogService DialogService
+@inject UdderService UdderService
 
 <MudDialog>
     <DialogContent>
@@ -82,6 +83,10 @@
             numbers.Add(new NumberEntry());
         }
         NullDate = DateTime.Now;
+        if (Cow_Treatment.WhereHowId != int.MinValue)
+        {
+            _selectedWhereHow = WhereHowService.GetWhereHowNameById(Cow_Treatment.WhereHowId);
+        }
     }
 
     List<NumberEntry> numbers = new List<NumberEntry>();
@@ -122,6 +127,7 @@
             Snackbar.Add("Wie/Wo nicht gefunden!", Severity.Error);
             return;
         }
+        Cow_Treatment.UdderId = (Cow_Treatment.UdderId == int.MinValue ? await UdderService.GetIdForNoQuarters() : Cow_Treatment.UdderId);
         foreach (var number in numbers)
         {
             if (number.Value.HasValue && number.Value != 0 && !string.IsNullOrEmpty(number.EarValue))
@@ -132,7 +138,8 @@
                         MedicineId = medicineId,
                         MedicineDosage = Cow_Treatment.MedicineDosage,
                         WhereHowId = whereHowId,
-                        AdministrationDate = NullDate.Value
+                        AdministrationDate = NullDate.Value,
+                        UdderId = Cow_Treatment.UdderId,
                     };
 
                 bool saveSuccessful = await cowTreatmentService.InsertDataAsync(newTreatment);
@@ -179,11 +186,22 @@
         if (!result.Canceled && result.Data is int id && id != int.MinValue)
         {
             showDialog = false;
+            Cow_Treatment.UdderId = id;
+        }
+        else
+        {
+            Cow_Treatment.UdderId = await UdderService.GetIdForNoQuarters();
         }
     }
     
     private async Task SaveNewWhereHow()
     {
+        if (string.IsNullOrEmpty(_selectedWhereHow))
+        {
+            Snackbar.Add("Wie / Wo ist Leer!", Severity.Error);
+            return;
+        }
+        
         var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, NoHeader = true };
         var parametersGeneric = new DialogParameters<GenericDialog> { { x => x.HeaderText, "Speichern" }, { x => x.Description, $"Wollen Sie {_selectedWhereHow} als Wie / Wo speichern? ?" }, { x => x.AcceptButtonText, "Ja" }, { x => x.CancelButtonText, "Nein" }, { x => x.ColorScheme, Color.Warning } };
         var dialog = await DialogService.ShowAsync<GenericDialog>("",parametersGeneric, options);
@@ -197,6 +215,16 @@
                 ShowDialog = ShowDialogForNewWhereHow
             };
             await WhereHowService.InsertDataAsync(newWhereHow);
+            if (ShowDialogForNewWhereHow)
+            {
+                await OpenUdderDialog();
+            }
+            else
+            {
+                Cow_Treatment.UdderId = await UdderService.GetIdForNoQuarters();
+            }
+
+            showEditWhereHowOptions = false;
         }
     }
 }

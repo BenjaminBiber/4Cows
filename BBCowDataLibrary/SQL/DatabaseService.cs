@@ -151,6 +151,10 @@ namespace BBCowDataLibrary.SQL
 
             IsConfigured().Wait();
         }
-        
+
+        public static string GetConnectionString()
+        {
+            return connectionString;
+        }
     }
 }

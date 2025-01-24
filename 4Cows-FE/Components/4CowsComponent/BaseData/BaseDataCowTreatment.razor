@@ -4,6 +4,7 @@
 @inject CowTreatmentService CowTreatmentService
 @inject IDialogService DialogService
 @inject WhereHowService WhereHowService
+@inject UdderService UdderService
 
 <MudTable Elevation="5" Dense="true" Items="@CowTreatments" Hover="true" Striped="@true" Filter="(Func<CowTreatment, bool>)FilterFunc1">
     <ToolBarContent>
@@ -15,7 +16,7 @@
         <MudTh><MudTableSortLabel SortBy="new Func<CowTreatment, object>(x=>x.EarTagNumber)">Ohrmarkennummer</MudTableSortLabel></MudTh>
         <MudTh><MudTableSortLabel SortBy="new Func<CowTreatment, object>(x=>x.AdministrationDate)">Datum</MudTableSortLabel></MudTh>
         <MudTh><MudTableSortLabel SortBy="new Func<CowTreatment, object>(x=>x.MedicineId)">Medikament</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel SortBy="new Func<CowTreatment, object>(x=> WhereHowService.GetWhereHowNameById(x.WhereHowId))">Wie/Wo</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<CowTreatment, object>(x=> WhereHowService.GetFullWhereHowName(x.WhereHowId,UdderService, x.UdderId))">Wie/Wo</MudTableSortLabel></MudTh>
         <MudTh><MudTableSortLabel SortBy="new Func<CowTreatment, object>(x=>x.MedicineDosage)">Menge</MudTableSortLabel></MudTh>
 
     </HeaderContent>
@@ -24,7 +25,7 @@
         <MudTd DataLabel="Ohrmarkennummer">@context.EarTagNumber</MudTd>
         <MudTd DataLabel="Datum">@context.AdministrationDate</MudTd>
         <MudTd DataLabel="Medikament">@MedicineService.GetMedicineNameById(context.MedicineId)</MudTd>
-        <MudTd DataLabel="Wie/Wo">@WhereHowService.GetWhereHowNameById(context.WhereHowId)</MudTd>
+        <MudTd DataLabel="Wie/Wo">@WhereHowService.GetFullWhereHowName(context.WhereHowId, UdderService, context.UdderId)</MudTd>
         <MudTd DataLabel="Menge">@context.MedicineDosage</MudTd>
         <MudButton Size="Size.Small" Variant="Variant.Filled" OnClick="@(() => DeleteCowTreatment(context))" StartIcon="@Icons.Material.Filled.Delete" Color="Color.Error">Behandlung Löschen</MudButton>
 

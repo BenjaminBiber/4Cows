@@ -30,7 +30,8 @@ namespace BB_Cow.Services
                     MedicineDosage = reader.GetFloat("Medicine_Dosage"),
                     WhereHowId = reader.GetInt32("WhereHow_ID"),
                     IsFound = reader.GetBoolean("IsFound"),
-                    IsTreatet = reader.GetBoolean("IsTreatet")
+                    IsTreatet = reader.GetBoolean("IsTreatet"),
+                    UdderId = reader.GetInt32("Udder_ID")
                 };
                 return treatment;
             });
@@ -46,7 +47,7 @@ namespace BB_Cow.Services
             bool isSuccess = false;
             await DatabaseService.ExecuteQueryAsync(async command =>
             {
-                command.CommandText = @"INSERT INTO `Planned_Cow_Treatment` (`Ear_Tag_Number`, `Medicine_ID`, `Administration_Date`, `Medicine_Dosage`, `WhereHow`, `IsFound`, `IsTreatet`) VALUES (@EarTagNumber, @MedicineId, @AdministrationDate, @MedicineDosage, @WhereHow, @IsFound, @IsTreatet);";
+                command.CommandText = @"INSERT INTO `Planned_Cow_Treatment` (`Ear_Tag_Number`, `Medicine_ID`, `Administration_Date`, `Medicine_Dosage`, `WhereHow_ID`, `IsFound`, `IsTreatet`, `Udder_ID`) VALUES (@EarTagNumber, @MedicineId, @AdministrationDate, @MedicineDosage, @WhereHow, @IsFound, @IsTreatet, @UdderId);";
                 command.Parameters.AddWithValue("@EarTagNumber", cowTreatment.EarTagNumber);
                 command.Parameters.AddWithValue("@MedicineId", cowTreatment.MedicineId);
                 command.Parameters.AddWithValue("@AdministrationDate", cowTreatment.AdministrationDate);
@@ -54,6 +55,7 @@ namespace BB_Cow.Services
                 command.Parameters.AddWithValue("@WhereHow", cowTreatment.WhereHowId);
                 command.Parameters.AddWithValue("@IsFound", cowTreatment.IsFound);
                 command.Parameters.AddWithValue("@IsTreatet", cowTreatment.IsTreatet);
+                command.Parameters.AddWithValue("@UdderId", cowTreatment.UdderId);
                 isSuccess = (await command.ExecuteNonQueryAsync()) > 0;
             });
 
