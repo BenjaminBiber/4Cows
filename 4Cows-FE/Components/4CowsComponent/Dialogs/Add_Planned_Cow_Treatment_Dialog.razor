@@ -160,6 +160,7 @@
         if (WhereHowService.WhereHows.Values.Where(x => x.WhereHowName.Trim().ToLower() == text.ToLower().Trim()).Select(x => x.ShowDialog).FirstOrDefault())
         {
             showDialog = true;
+            showEditWhereHowOptions = false;
         }
         else if (WhereHowService.WhereHowNames.Any(x => x.ToLower().Trim() == text.Trim().ToLower()) || string.IsNullOrEmpty(text))
         {

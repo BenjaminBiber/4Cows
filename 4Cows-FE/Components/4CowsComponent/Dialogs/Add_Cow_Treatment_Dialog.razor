@@ -30,7 +30,7 @@
                 <MudAutocomplete SelectValueOnTab="true" T="string" Label="Medikament:" @bind-Value="MedicineName" SearchFunc="@((string s, CancellationToken c) => cowTreatmentService.SearchCowTreatmentMedicaments(s , c, medicineService))" CoerceValue="true" />
 
                 <div style="width: 100%; display: flex; justify-content: center; align-items:  center; gap:  2.5%;">
-                    <MudAutocomplete TextChanged="(string s) => OpenWhereHowDialog(s)" SelectValueOnTab="true" T="string" Label="Wie / Wo:" @bind-Value="_selectedWhereHow" SearchFunc="@((string s, CancellationToken c) => cowTreatmentService.SearchCowTreatmentWhereHow(s , c))" CoerceValue="true" />
+                    <MudAutocomplete CoerceText="true" Immediate="true" TextChanged="(string s) => OpenWhereHowDialog(s)" SelectValueOnTab="true" T="string" Label="Wie / Wo:" @bind-Value="_selectedWhereHow" SearchFunc="@((string s, CancellationToken c) => cowTreatmentService.SearchCowTreatmentWhereHow(s , c))" CoerceValue="true" />
                     @if (showEditWhereHowOptions)
                     {
                         <MudToggleIconButton @bind-Toggled="ShowDialogForNewWhereHow"
@@ -167,6 +167,7 @@
         if (WhereHowService.WhereHows.Values.Where(x => x.WhereHowName.Trim().ToLower() == text.ToLower().Trim()).Select(x => x.ShowDialog).FirstOrDefault())
         {
             showDialog = true;
+            showEditWhereHowOptions = false;
         }
         else if (WhereHowService.WhereHowNames.Any(x => x.ToLower().Trim() == text.Trim().ToLower()) || string.IsNullOrEmpty(text))
         {
