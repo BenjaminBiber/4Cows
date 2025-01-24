@@ -91,3 +91,9 @@ CREATE TABLE IF NOT EXISTS Planned_Claw_Treatment (
                                               Claw_Finding_RH BOOLEAN NOT NULL,
                                               FOREIGN KEY (Ear_Tag_Number) REFERENCES Cow(Ear_Tag_Number) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS KPI (
+                                            KPI_ID INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                                            Method_Name NVARCHAR(64) NOT NULL,
+                                            Sort_Order INT NOT NULL
+);
