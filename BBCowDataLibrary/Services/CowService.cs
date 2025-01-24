@@ -41,7 +41,7 @@ public class CowService
 
             if (isSuccess)
             {
-                _cachedCows = _cachedCows.Add(cow.EarTagNumber, cow);
+                await GetAllDataAsync();
                 LoggerService.LogInformation(typeof(CowService), "Inserted cow: {@cow}.", cow);
             }
 

@@ -11,7 +11,6 @@ namespace BB_Cow.Services
     {
         private ImmutableDictionary<int, ClawTreatment> _cachedTreatments = ImmutableDictionary<int, ClawTreatment>.Empty;
         private ImmutableList<string> _cachedClawFindingList = ImmutableList<string>.Empty;
-
         public ImmutableDictionary<int, ClawTreatment> Treatments => _cachedTreatments;
         public ImmutableList<string> ClawFindingList => _cachedClawFindingList;
 

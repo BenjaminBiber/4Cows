@@ -25,6 +25,7 @@ builder.Services.AddSingleton<MedicineService>();
 builder.Services.AddSingleton<CowService>();
 builder.Services.AddSingleton<WhereHowService>();
 builder.Services.AddSingleton<UdderService>();
+builder.Services.AddSingleton<KPIService>();
 builder.WebHost.UseStaticWebAssets();
 var app = builder.Build();
 app.UseStaticFiles();
