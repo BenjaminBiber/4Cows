@@ -68,5 +68,29 @@ public class UdderService
             return id.UdderId;
         }
     }
-    
+
+    public async Task<int> GetIdForNoQuarters()
+    {
+        var id = (_cachedUdder.Values
+            .FirstOrDefault(x => !x.QuarterLV && !x.QuarterLH && !x.QuarterRH && !x.QuarterRV) ?? new Udder()).UdderId;
+
+        if (id == int.MinValue)
+        {
+            var newUdder = new Udder
+            {
+                QuarterLH = false,
+                QuarterLV = false,
+                QuarterRV = false,
+                QuarterRH = false,
+            };
+            await InsertDataAsync(newUdder);
+        }
+        return (_cachedUdder.Values
+            .FirstOrDefault(x => !x.QuarterLV && !x.QuarterLH && !x.QuarterRH && !x.QuarterRV) ?? new Udder()).UdderId;
+    }
+
+    public Udder GetById(int id)
+    {
+        return _cachedUdder.ContainsKey(id) ? _cachedUdder[id] : new Udder();
+    }
 }

@@ -27,10 +27,13 @@ namespace BB_Cow.Class
 
         [Required]
         public bool IsTreatet { get; set; }
+        
+        [Required]
+        public int UdderId { get; set; }
 
-        public PlannedCowTreatment() : this(0, string.Empty, 0, DateTime.MinValue, 0.0f, int.MinValue, false, false) { }
+        public PlannedCowTreatment() : this(0, string.Empty, 0, DateTime.MinValue, 0.0f, int.MinValue, false, false, int.MinValue) { }
 
-        public PlannedCowTreatment(int plannedCowTreatmentId, string earTagNumber, int medicineId, DateTime administrationDate, float medicineDosage, int whereHowId, bool isFound, bool isTreatet)
+        public PlannedCowTreatment(int plannedCowTreatmentId, string earTagNumber, int medicineId, DateTime administrationDate, float medicineDosage, int whereHowId, bool isFound, bool isTreatet, int udderId)
         {
             PlannedCowTreatmentId = plannedCowTreatmentId;
             EarTagNumber = earTagNumber;
@@ -40,6 +43,7 @@ namespace BB_Cow.Class
             WhereHowId = whereHowId;
             IsFound = isFound;
             IsTreatet = isTreatet;
+            UdderId = udderId; 
         }
     }
 }

@@ -740,13 +740,13 @@ th, td {
 }
 
 #Chart_Div_One{
-    width: 45%;
+    width: 50%;
     height: 100%;
 }
 
 #Chart_Div_Two{
     margin-left: 2em;
-    width: 45%;
+    width: 50%;
     height: 100%;
 }
 

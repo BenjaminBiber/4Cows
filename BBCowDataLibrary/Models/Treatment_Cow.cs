@@ -23,10 +23,13 @@ namespace BB_Cow.Class
 
         [Required]
         public int WhereHowId { get; set; }
+        
+        [Required]
+        public int UdderId { get; set; }
 
-        public CowTreatment() : this(0, string.Empty, 0, DateTime.MinValue, 0.0f, int.MinValue) { }
+        public CowTreatment() : this(0, string.Empty, 0, DateTime.MinValue, 0.0f, int.MinValue, int.MinValue) { }
 
-        public CowTreatment(int cowTreatmentId, string earTagNumber, int medicineId, DateTime administrationDate, float medicineDosage, int whereHowId)
+        public CowTreatment(int cowTreatmentId, string earTagNumber, int medicineId, DateTime administrationDate, float medicineDosage, int whereHowId, int udderId)
         {
             CowTreatmentId = cowTreatmentId;
             EarTagNumber = earTagNumber;
@@ -34,6 +37,7 @@ namespace BB_Cow.Class
             AdministrationDate = administrationDate;
             MedicineDosage = medicineDosage;
             WhereHowId = whereHowId;
+            UdderId = udderId;
         }
     }
 }

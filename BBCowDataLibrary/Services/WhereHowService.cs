@@ -109,11 +109,44 @@ public class WhereHowService
                     WhereHowName = name
                 };
                 await InsertDataAsync(newWhereHow);
-                id = _cachedWhereHows.Values
-                    .FirstOrDefault(x => x.WhereHowName.ToLower().Trim() == name.ToLower().Trim())
+                id = (_cachedWhereHows.Values
+                        .FirstOrDefault(x => x.WhereHowName.ToLower().Trim() == name.ToLower().Trim()) ?? new WhereHow())
                     .WhereHowId;
             }
 
             return id;
+        }
+
+        public string GetFullWhereHowName(int whereHow_id,UdderService udderService, int? udder_id = null)
+        {
+            var whereHow = GetById(whereHow_id);
+            if (!udder_id.HasValue)
+            {
+                return whereHow.WhereHowName;
+            }
+            else
+            {
+                var udder = udderService.GetById(udder_id.Value);
+                return $"{whereHow.WhereHowName} {GetUdderString(udder)}";
+            }
+        }
+
+        public string GetUdderString(Udder udder)
+        {
+            if (udder.QuarterLH && udder.QuarterLV && udder.QuarterRV && udder.QuarterRH)
+            {
+                return "(Alle 4)";
+            }else if (!udder.QuarterLH && !udder.QuarterLV && !udder.QuarterRV && !udder.QuarterRH)
+            {
+                return "";
+            }
+
+            List<string> results = new List<string>();
+            results.Add(udder.QuarterLV ? "LV" : "");
+            results.Add(udder.QuarterLH ? "LH" : "");
+            results.Add(udder.QuarterRV ? "RV" : "");
+            results.Add(udder.QuarterRH ? "RH" : "");
+            return $"({String.Join("/ ", results.Where(x => !string.IsNullOrEmpty(x)))})";
+
         }
 }

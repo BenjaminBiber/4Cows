@@ -34,6 +34,7 @@ public class CowTreatmentService
                 MedicineDosage = reader.GetFloat("Medicine_Dosage"),
                 MedicineId = reader.GetInt32("Medicine_ID"),
                 WhereHowId = reader.GetInt32("WhereHow_ID"),
+                UdderId = reader.GetInt32("COW_QUARTER_ID"),
             };
             return treatment;
         });
@@ -48,12 +49,13 @@ public class CowTreatmentService
         bool isSuccess = false;
         await DatabaseService.ExecuteQueryAsync(async command =>
         {
-            command.CommandText = @"INSERT INTO `Cow_Treatment` (`Ear_Tag_Number`, `Administration_Date`, `Medicine_Dosage`, `Medicine_ID`, `WhereHow_ID`) VALUES (@EarTagNumber, @AdministrationDate, @MedicineDosage, @MedicineId, @WhereHow);";
+            command.CommandText = @"INSERT INTO `Cow_Treatment` (`Ear_Tag_Number`, `Administration_Date`, `Medicine_Dosage`, `Medicine_ID`, `WhereHow_ID`, `COW_QUARTER_ID`) VALUES (@EarTagNumber, @AdministrationDate, @MedicineDosage, @MedicineId, @WhereHow_ID, @UdderId);";
             command.Parameters.AddWithValue("@EarTagNumber", cowTreatment.EarTagNumber);
             command.Parameters.AddWithValue("@AdministrationDate", cowTreatment.AdministrationDate);
             command.Parameters.AddWithValue("@MedicineDosage", cowTreatment.MedicineDosage);
             command.Parameters.AddWithValue("@MedicineId", cowTreatment.MedicineId);
             command.Parameters.AddWithValue("@WhereHow_ID", cowTreatment.WhereHowId);
+            command.Parameters.AddWithValue("@UdderId", cowTreatment.UdderId);
             isSuccess = (await command.ExecuteNonQueryAsync()) > 0;
         });
 
@@ -85,6 +87,7 @@ public class CowTreatmentService
                 MedicineDosage = reader.GetFloat("Medicine_Dosage"),
                 MedicineId = reader.GetInt32("Medicine_ID"),
                 WhereHowId = reader.GetInt32("WhereHow_ID"),
+                UdderId = reader.GetInt32("COW_QUARTER_ID"),
             };
             return treatment;
         }, new { Id = id });
@@ -158,10 +161,16 @@ public class CowTreatmentService
 
     public async Task<IEnumerable<string>> SearchCowTreatmentWhereHow(string value, CancellationToken token)
     {
-        if (string.IsNullOrEmpty(value) || !DistinctWhereHows.Any())
+        if (string.IsNullOrEmpty(value) || !_whereHowService.WhereHowNames.Any())
         {
             return _whereHowService.WhereHowNames;
         }
+
+        if(!string.IsNullOrEmpty(value) && !_whereHowService.WhereHowNames.Any(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase)))
+        {
+            return new List<string>() { value.Trim() };
+        }
+        
         return _whereHowService.WhereHowNames.Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
     }
 
