@@ -12,11 +12,16 @@ using Microsoft.Extensions.Logging;
 public class CowTreatmentService
 {
     private ImmutableDictionary<int, CowTreatment> _cachedTreatments = ImmutableDictionary<int, CowTreatment>.Empty;
-    private ImmutableList<string> _cachedDistinctWhereHows = ImmutableList<string>.Empty;
+    private ImmutableList<int> _cachedDistinctWhereHows = ImmutableList<int>.Empty;
 
     public ImmutableDictionary<int, CowTreatment> Treatments => _cachedTreatments;
-    public ImmutableList<string> DistinctWhereHows => _cachedDistinctWhereHows;
-
+    public ImmutableList<int> DistinctWhereHows => _cachedDistinctWhereHows;
+    private readonly WhereHowService _whereHowService;
+    public CowTreatmentService(WhereHowService whereHowService)
+    {
+        _whereHowService = whereHowService;
+    }
+    
     public async Task GetAllDataAsync()
     {
         var dbResult = await DatabaseService.ReadDataAsync("SELECT * FROM Cow_Treatment;", reader =>
@@ -28,12 +33,13 @@ public class CowTreatmentService
                 AdministrationDate = reader.GetDateTime("Administration_Date"),
                 MedicineDosage = reader.GetFloat("Medicine_Dosage"),
                 MedicineId = reader.GetInt32("Medicine_ID"),
-                WhereHow = reader.GetString("WhereHow"),
+                WhereHowId = reader.GetInt32("WhereHow_ID"),
+                UdderId = reader.GetInt32("COW_QUARTER_ID"),
             };
             return treatment;
         });
 
-        _cachedDistinctWhereHows = dbResult.Select(t => t.WhereHow).Distinct().ToImmutableList();
+        _cachedDistinctWhereHows = dbResult.Select(t => t.WhereHowId).Distinct().ToImmutableList();
         _cachedTreatments = dbResult.ToImmutableDictionary(t => t.CowTreatmentId);
         LoggerService.LogInformation(typeof(CowTreatmentService), $"Loaded {_cachedTreatments.Count} cow treatments.");
     }
@@ -43,19 +49,19 @@ public class CowTreatmentService
         bool isSuccess = false;
         await DatabaseService.ExecuteQueryAsync(async command =>
         {
-            command.CommandText = @"INSERT INTO `Cow_Treatment` (`Ear_Tag_Number`, `Administration_Date`, `Medicine_Dosage`, `Medicine_ID`, `WhereHow`) VALUES (@EarTagNumber, @AdministrationDate, @MedicineDosage, @MedicineId, @WhereHow);";
+            command.CommandText = @"INSERT INTO `Cow_Treatment` (`Ear_Tag_Number`, `Administration_Date`, `Medicine_Dosage`, `Medicine_ID`, `WhereHow_ID`, `COW_QUARTER_ID`) VALUES (@EarTagNumber, @AdministrationDate, @MedicineDosage, @MedicineId, @WhereHow_ID, @UdderId);";
             command.Parameters.AddWithValue("@EarTagNumber", cowTreatment.EarTagNumber);
             command.Parameters.AddWithValue("@AdministrationDate", cowTreatment.AdministrationDate);
             command.Parameters.AddWithValue("@MedicineDosage", cowTreatment.MedicineDosage);
             command.Parameters.AddWithValue("@MedicineId", cowTreatment.MedicineId);
-            command.Parameters.AddWithValue("@WhereHow", cowTreatment.WhereHow);
+            command.Parameters.AddWithValue("@WhereHow_ID", cowTreatment.WhereHowId);
+            command.Parameters.AddWithValue("@UdderId", cowTreatment.UdderId);
             isSuccess = (await command.ExecuteNonQueryAsync()) > 0;
         });
 
         if (isSuccess)
         {
-            _cachedTreatments = _cachedTreatments.Add(cowTreatment.CowTreatmentId, cowTreatment);
-            _cachedDistinctWhereHows = _cachedDistinctWhereHows.Add(cowTreatment.WhereHow).Distinct().ToImmutableList();
+            await GetAllDataAsync();
             LoggerService.LogInformation(typeof(CowTreatmentService), "Inserted cow treatment: {@cowTreatment}.", cowTreatment);
         }
 
@@ -80,7 +86,8 @@ public class CowTreatmentService
                 AdministrationDate = reader.GetDateTime("Administration_Date"),
                 MedicineDosage = reader.GetFloat("Medicine_Dosage"),
                 MedicineId = reader.GetInt32("Medicine_ID"),
-                WhereHow = reader.GetString("WhereHow"),
+                WhereHowId = reader.GetInt32("WhereHow_ID"),
+                UdderId = reader.GetInt32("COW_QUARTER_ID"),
             };
             return treatment;
         }, new { Id = id });
@@ -154,11 +161,17 @@ public class CowTreatmentService
 
     public async Task<IEnumerable<string>> SearchCowTreatmentWhereHow(string value, CancellationToken token)
     {
-        if (string.IsNullOrEmpty(value) || !DistinctWhereHows.Any())
+        if (string.IsNullOrEmpty(value) || !_whereHowService.WhereHowNames.Any())
         {
-            return DistinctWhereHows;
+            return _whereHowService.WhereHowNames;
         }
-        return DistinctWhereHows.Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
+
+        if(!string.IsNullOrEmpty(value) && !_whereHowService.WhereHowNames.Any(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase)))
+        {
+            return new List<string>() { value.Trim() };
+        }
+        
+        return _whereHowService.WhereHowNames.Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
     }
 
     public int GetMinYear()

@@ -90,7 +90,7 @@ public class MedicineService
         
         public string GetMedicineNameById(int medicineId)
         {
-            return _cachedMedicines.ContainsKey(medicineId) ? _cachedMedicines[medicineId].MedicineName : null;
+            return _cachedMedicines.ContainsKey(medicineId) ? _cachedMedicines[medicineId].MedicineName : "--";
         }
         
         public List<string> GetMedicineNames()

@@ -740,13 +740,13 @@ th, td {
 }
 
 #Chart_Div_One{
-    width: 45%;
+    width: 50%;
     height: 100%;
 }
 
 #Chart_Div_Two{
     margin-left: 2em;
-    width: 45%;
+    width: 50%;
     height: 100%;
 }
 
@@ -818,4 +818,22 @@ th, td {
         height: 60%;
         padding-left: 0;
     }
+}
+
+.UdderButton{
+    width: 45%;
+    height: 45%;
+    border-radius: 1em;
+    font-size: 2em;
+    font-weight: 900;
+}
+
+.UdderButton_Normal{
+    background-color: var(--mud-palette-primary);
+    border-color: var(--mud-pallete-secondary);
+}
+
+.UdderButton_Highlighted{
+    border-color: var(--mud-palette-primary);
+    background-color: var(--mud-palette-secondary);
 }

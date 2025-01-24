@@ -10,6 +10,7 @@
 @inject ClawTreatmentService clawTreatmentService
 @inject MedicineService medicineService
 @inject CowService cowService
+@inject WhereHowService WhereHowService
 
 <div id="Index_Top">
     <div id="KPI_Div">
@@ -75,6 +76,7 @@
         await pCowTreatmentService.GetAllDataAsync();
         await pClawTreatmentService.GetAllDataAsync();
         await medicineService.GetAllDataAsync();
+        await WhereHowService.GetAllDataAsync();
         await cowService.GetAllDataAsync();
         
         CowList = cowTreatmentService.Treatments.Values.ToList();
@@ -132,21 +134,28 @@
 
     private void GetCowWithMostClawTreatments()
     {
-        KPIs.Add("Kuh mit den meisten Klauenbehandlungen:", ("/Klauen_Daten", cowService.GetCollarNumberByEarTagNumber((ClawList.GroupBy(obj => obj.EarTagNumber)
+        var mostClawTreatmentsCow = ClawList
+            .GroupBy(obj => obj.EarTagNumber)
             .OrderByDescending(group => group.Count())
             .Select(group => group.Key)
-            .FirstOrDefault() ?? "0")).ToString()));
+            .FirstOrDefault() ?? "0";
+
+        var collarNumber = (cowService.GetCollarNumberByEarTagNumber(mostClawTreatmentsCow) == int.MinValue || mostClawTreatmentsCow == null)
+            ? "--"
+            : cowService.GetCollarNumberByEarTagNumber(mostClawTreatmentsCow).ToString();
+
+        KPIs.Add("Kuh mit den meisten Klauenbehandlungen:", ("/Klauen_Daten", collarNumber));
     }
     
     private void GetMostFoundClawDisease()
     {
-        KPIs.Add("Meist behandelte Klauenfund:", ("/Klauen_Daten", (ClawList
+        KPIs.Add("Meist behandelter Klauenfund:", ("/Klauen_Daten", (ClawList
             .SelectMany(obj => new[] { obj.ClawFindingLH, obj.ClawFindingLV, obj.ClawFindingRH, obj.ClawFindingRV })
             .Where(str => str != "Pflege")
             .GroupBy(str => str)
             .OrderByDescending(group => group.Count())
             .Select(group => group.Key)
-            .FirstOrDefault() ?? "0").ToString()));
+            .FirstOrDefault() ?? "--").ToString()));
     }
     
     private void GetMostUsedMedicine()

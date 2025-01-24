@@ -11,11 +11,11 @@ namespace BB_Cow.Services
     {
         private ImmutableDictionary<int, PlannedCowTreatment> _cachedTreatments = ImmutableDictionary<int, PlannedCowTreatment>.Empty;
         private ImmutableList<string> _cachedMedicineList = ImmutableList<string>.Empty;
-        private ImmutableList<string> _cachedWhereHowList = ImmutableList<string>.Empty;
+        private ImmutableList<int> _cachedWhereHowList = ImmutableList<int>.Empty;
 
         public ImmutableDictionary<int, PlannedCowTreatment> Treatments => _cachedTreatments;
         public ImmutableList<string> CowMedicineTreatmentList => _cachedMedicineList;
-        public ImmutableList<string> CowWhereHowList => _cachedWhereHowList;
+        public ImmutableList<int> CowWhereHowList => _cachedWhereHowList;
 
         public async Task GetAllDataAsync()
         {
@@ -28,16 +28,17 @@ namespace BB_Cow.Services
                     MedicineId = reader.GetInt32("Medicine_ID"),
                     AdministrationDate = reader.GetDateTime("Administration_Date"),
                     MedicineDosage = reader.GetFloat("Medicine_Dosage"),
-                    WhereHow = reader.GetString("WhereHow"),
+                    WhereHowId = reader.GetInt32("WhereHow_ID"),
                     IsFound = reader.GetBoolean("IsFound"),
-                    IsTreatet = reader.GetBoolean("IsTreatet")
+                    IsTreatet = reader.GetBoolean("IsTreatet"),
+                    UdderId = reader.GetInt32("Udder_ID")
                 };
                 return treatment;
             });
 
             _cachedTreatments = treatments.ToImmutableDictionary(t => t.PlannedCowTreatmentId);
             _cachedMedicineList = treatments.Select(t => t.MedicineId.ToString()).Distinct().ToImmutableList();
-            _cachedWhereHowList = treatments.Select(t => t.WhereHow).Distinct().ToImmutableList();
+            _cachedWhereHowList = treatments.Select(t => t.WhereHowId).Distinct().ToImmutableList();
             LoggerService.LogInformation(typeof(PCowTreatmentService), $"Loaded {_cachedTreatments.Count} planned cow treatments.");
         }
 
@@ -46,22 +47,21 @@ namespace BB_Cow.Services
             bool isSuccess = false;
             await DatabaseService.ExecuteQueryAsync(async command =>
             {
-                command.CommandText = @"INSERT INTO `Planned_Cow_Treatment` (`Ear_Tag_Number`, `Medicine_ID`, `Administration_Date`, `Medicine_Dosage`, `WhereHow`, `IsFound`, `IsTreatet`) VALUES (@EarTagNumber, @MedicineId, @AdministrationDate, @MedicineDosage, @WhereHow, @IsFound, @IsTreatet);";
+                command.CommandText = @"INSERT INTO `Planned_Cow_Treatment` (`Ear_Tag_Number`, `Medicine_ID`, `Administration_Date`, `Medicine_Dosage`, `WhereHow_ID`, `IsFound`, `IsTreatet`, `Udder_ID`) VALUES (@EarTagNumber, @MedicineId, @AdministrationDate, @MedicineDosage, @WhereHow, @IsFound, @IsTreatet, @UdderId);";
                 command.Parameters.AddWithValue("@EarTagNumber", cowTreatment.EarTagNumber);
                 command.Parameters.AddWithValue("@MedicineId", cowTreatment.MedicineId);
                 command.Parameters.AddWithValue("@AdministrationDate", cowTreatment.AdministrationDate);
                 command.Parameters.AddWithValue("@MedicineDosage", cowTreatment.MedicineDosage);
-                command.Parameters.AddWithValue("@WhereHow", cowTreatment.WhereHow);
+                command.Parameters.AddWithValue("@WhereHow", cowTreatment.WhereHowId);
                 command.Parameters.AddWithValue("@IsFound", cowTreatment.IsFound);
                 command.Parameters.AddWithValue("@IsTreatet", cowTreatment.IsTreatet);
+                command.Parameters.AddWithValue("@UdderId", cowTreatment.UdderId);
                 isSuccess = (await command.ExecuteNonQueryAsync()) > 0;
             });
 
             if (isSuccess)
             {
-                _cachedTreatments = _cachedTreatments.Add(cowTreatment.PlannedCowTreatmentId, cowTreatment);
-                _cachedMedicineList = _cachedTreatments.Values.Select(t => t.MedicineId.ToString()).Distinct().ToImmutableList();
-                _cachedWhereHowList = _cachedTreatments.Values.Select(t => t.WhereHow).Distinct().ToImmutableList();
+                await GetAllDataAsync();
                 LoggerService.LogInformation(typeof(PCowTreatmentService), "Data inserted successfully: {@cowTreatment}", cowTreatment);
             }
 
@@ -82,7 +82,7 @@ namespace BB_Cow.Services
             {
                 _cachedTreatments = _cachedTreatments.Remove(id);
                 _cachedMedicineList = _cachedTreatments.Values.Select(t => t.MedicineId.ToString()).Distinct().ToImmutableList();
-                _cachedWhereHowList = _cachedTreatments.Values.Select(t => t.WhereHow).Distinct().ToImmutableList();
+                _cachedWhereHowList = _cachedTreatments.Values.Select(t => t.WhereHowId).Distinct().ToImmutableList();
                 LoggerService.LogInformation(typeof(PCowTreatmentService), "Data removed successfully: {@id}", id);
             }
 

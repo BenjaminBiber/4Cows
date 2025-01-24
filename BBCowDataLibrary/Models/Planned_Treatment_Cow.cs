@@ -20,27 +20,30 @@ namespace BB_Cow.Class
         public float MedicineDosage { get; set; }
 
         [Required]
-        [StringLength(256)]
-        public string WhereHow { get; set; }
+        public int WhereHowId { get; set; }
 
         [Required]
         public bool IsFound { get; set; }
 
         [Required]
         public bool IsTreatet { get; set; }
+        
+        [Required]
+        public int UdderId { get; set; }
 
-        public PlannedCowTreatment() : this(0, string.Empty, 0, DateTime.MinValue, 0.0f, string.Empty, false, false) { }
+        public PlannedCowTreatment() : this(0, string.Empty, 0, DateTime.MinValue, 0.0f, int.MinValue, false, false, int.MinValue) { }
 
-        public PlannedCowTreatment(int plannedCowTreatmentId, string earTagNumber, int medicineId, DateTime administrationDate, float medicineDosage, string whereHow, bool isFound, bool isTreatet)
+        public PlannedCowTreatment(int plannedCowTreatmentId, string earTagNumber, int medicineId, DateTime administrationDate, float medicineDosage, int whereHowId, bool isFound, bool isTreatet, int udderId)
         {
             PlannedCowTreatmentId = plannedCowTreatmentId;
             EarTagNumber = earTagNumber;
             MedicineId = medicineId;
             AdministrationDate = administrationDate;
             MedicineDosage = medicineDosage;
-            WhereHow = whereHow;
+            WhereHowId = whereHowId;
             IsFound = isFound;
             IsTreatet = isTreatet;
+            UdderId = udderId; 
         }
     }
 }
