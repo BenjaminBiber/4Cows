@@ -111,12 +111,6 @@ services:
 
 ## Roadmap
 
-- Charts 100% responsive machen
-
 ## Ideenspeicher
-
-- Übsichtstabelle für Kühe, mit Dialog zur näheren 
-Übersicht über Behandlungen
-- Basisdatenbearbeitung für Medikamente und Kühe -> manuelle Ausführung der Scraper Api
 - Anpassung der KPIs über eine Settings Seite
 - Weitere Einstellungen wie Standard-Werte für Klauenbehandlungen
