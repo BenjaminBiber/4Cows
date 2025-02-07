@@ -3,6 +3,7 @@
 @inject IJSRuntime JSRuntime
 @using _4Cows_FE.Components._4CowsComponent.Dialogs
 @using _4Cows_FE.Components._4CowsComponent
+@using BB_KPI.Services
 @inject ISnackbar Snackbar
 @inject CowTreatmentService cowTreatmentService
 @inject PCowTreatmentService pCowTreatmentService
@@ -11,13 +12,14 @@
 @inject MedicineService medicineService
 @inject CowService cowService
 @inject WhereHowService WhereHowService
+@inject KPIService KPIService
 
 <div id="Index_Top">
     <div id="KPI_Div">
         @foreach (var entry in KPIs)
         {
             <div class="KPI-Element">
-                <KPI_Component Link="@entry.Value.Item1" Value="@entry.Value.Item2" Header="@entry.Key"></KPI_Component>
+                <KPI_Component Link="@entry.Key.Url" Value="@entry.Value" Header="@entry.Key.Title"></KPI_Component>
             </div>
         }
     </div>
@@ -53,7 +55,7 @@
 
 @code{
 
-    private Dictionary<string, (string, string)> KPIs = [];
+    private Dictionary<KPI, string> KPIs = [];
     
     public List<CowTreatment> CowList = [];
     public List<ClawTreatment> ClawList = [];
@@ -122,76 +124,7 @@
     
     private async Task GetKPIs()
     {
-        GetTotalCowTreatments();
-        GetTotalClawTreatments();
-        GetTotalPlannedCowTreatments();
-        GetTotalPlannedClawTreatments();
-        GetAmountOfBandages();
-        GetMostUsedMedicine();
-        GetMostFoundClawDisease();
-        GetCowWithMostClawTreatments();
-    }
-
-    private void GetCowWithMostClawTreatments()
-    {
-        var mostClawTreatmentsCow = ClawList
-            .GroupBy(obj => obj.EarTagNumber)
-            .OrderByDescending(group => group.Count())
-            .Select(group => group.Key)
-            .FirstOrDefault() ?? "0";
-
-        var collarNumber = (cowService.GetCollarNumberByEarTagNumber(mostClawTreatmentsCow) == int.MinValue || mostClawTreatmentsCow == null)
-            ? "--"
-            : cowService.GetCollarNumberByEarTagNumber(mostClawTreatmentsCow).ToString();
-
-        KPIs.Add("Kuh mit den meisten Klauenbehandlungen:", ("/Klauen_Daten", collarNumber));
-    }
-    
-    private void GetMostFoundClawDisease()
-    {
-        KPIs.Add("Meist behandelter Klauenfund:", ("/Klauen_Daten", (ClawList
-            .SelectMany(obj => new[] { obj.ClawFindingLH, obj.ClawFindingLV, obj.ClawFindingRH, obj.ClawFindingRV })
-            .Where(str => str != "Pflege")
-            .GroupBy(str => str)
-            .OrderByDescending(group => group.Count())
-            .Select(group => group.Key)
-            .FirstOrDefault() ?? "--").ToString()));
-    }
-    
-    private void GetMostUsedMedicine()
-    {
-        if (medicineService.Medicines.Any())
-        {
-            KPIs.Add("Meist benutztes Medikament:", ("/Kuh_Daten", medicineService.GetMedicineNameById(CowList.GroupBy(obj => obj.MedicineId)
-                .OrderByDescending(group => group.Count())
-                .Select(group => group.Key)
-                .FirstOrDefault()).ToString()));
-        }
-    }
-    
-    private void GetAmountOfBandages()
-    {
-        KPIs.Add("Verbände:", ("/Klauen_Daten", ClawList.Count(x => (x.BandageLH || x.BandageLV || x.BandageRV || x.BandageRH) && !x.IsBandageRemoved).ToString()));
-    }
-    
-    private void GetTotalCowTreatments()
-    {
-        KPIs.Add("Kuh Behandlungen:", ("/Kuh_Daten", CowList.Count.ToString()));
-    }
-    
-    private void GetTotalPlannedCowTreatments()
-    {
-        KPIs.Add("geplante Kuh Behandlungen:", ("/geplante_Kuh_Daten", Planned_CowList.Count.ToString()));
-    }
-    
-    private void GetTotalClawTreatments()
-    {
-        KPIs.Add("Klauen Behandlungen:", ("/Klauen_Daten", ClawList.Count.ToString()));
-    }
-    
-    private void GetTotalPlannedClawTreatments()
-    {
-        KPIs.Add("geplante Klauen Behandlungen:", ("/geplante_Klauen_Daten", Planned_ClawList.Count.ToString()));
+        KPIs = await KPIService.GetAllKPIs();
     }
 
     private void OpenPlannedDialog()

@@ -93,7 +93,9 @@ CREATE TABLE IF NOT EXISTS Planned_Claw_Treatment (
 );
 
 CREATE TABLE IF NOT EXISTS KPI (
-                                            KPI_ID INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-                                            Method_Name NVARCHAR(64) NOT NULL,
-                                            Sort_Order INT NOT NULL
-);
+                                   KPI_ID INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                                   Title NVARCHAR(64) NOT NULL,
+                                    Url NVARCHAR(64) NOT NULL,
+                                    Script NVARCHAR(5098) NOT NULL,
+                                    Sort_Order INT NOT NULL UNIQUE
+    );
