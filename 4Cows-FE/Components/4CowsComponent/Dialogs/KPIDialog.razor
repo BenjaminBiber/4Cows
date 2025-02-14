@@ -1,0 +1,71 @@
+@using BB_KPI.Services
+@using Blazor.AceEditorJs
+@inject KPIService KPIService
+
+<MudDialog>
+    <DialogContent>
+        <MudTextField T="string" @bind-Value="KPI.Title" Placeholder="Titel" Variant="Variant.Outlined" Class="mb-5"></MudTextField>
+        <MudTextField T="string" @bind-Value="KPI.Url" Placeholder="URL" Variant="Variant.Outlined" Class="mb-5"></MudTextField>
+        <MudButton Variant="Variant.Outlined" Color="Color.Error" OnClick="TestSQL">SQL Testen</MudButton>
+        <AceJsEditor Style="height:300px" @bind-Value="@KPI.Script" Options="opt"></AceJsEditor>
+        @if (sqlError != string.Empty)
+        {
+            <MudStack Spacing="2">
+                <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="OnExpandCollapseClick">@(_expanded ? "Fehler verbergen" : "Fehler anzeigen")</MudButton>
+                <MudDivider />
+                <MudCollapse Expanded="_expanded">
+                    @sqlError
+                </MudCollapse>
+            </MudStack>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="SaveKPI">Speichern!</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code{
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+
+    [Parameter] public KPI KPI { get; set; } = new KPI();
+    [Parameter] public bool IsSave { get; set; } = true;
+
+    AceEditorOptions opt = new() { IsReadOnly = false, Language = AceLanguage.sqlserver, Theme = AceTheme.sqlserver };
+    
+    void Submit() => MudDialog.Close(DialogResult.Ok(true));
+    void Cancel() => MudDialog.Cancel();
+    string sqlError = string.Empty;
+    bool _expanded = true;
+
+    private void OnExpandCollapseClick() {
+        _expanded = !_expanded;
+    }
+
+    private async Task TestSQL()
+    {
+        sqlError = string.Empty;
+        try
+        {
+            await KPIService.GetKPIValue(KPI, true);
+        }
+        catch (Exception e)
+        {
+            sqlError = e.Message;
+        }
+    }
+    
+    private async Task SaveKPI()
+    {
+        if (!IsSave)
+        {
+            await KPIService.UpdateDataAsync(KPI);
+            Submit();
+        }
+        else
+        {
+            await KPIService.InsertDataAsync(KPI);
+            Submit();
+        }
+    }
+
+}

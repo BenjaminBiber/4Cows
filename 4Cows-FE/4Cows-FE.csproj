@@ -13,6 +13,7 @@
     </PropertyGroup>
     
     <ItemGroup>
+      <PackageReference Include="Blazor.AceEditorJs" Version="1.2.1" />
       <PackageReference Include="EPPlus" Version="7.5.1" />
       <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.19.6" />
       <PackageReference Include="MudBlazor" Version="7.15.0" />
