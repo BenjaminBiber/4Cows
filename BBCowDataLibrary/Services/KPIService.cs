@@ -1,7 +1,9 @@
 using System.Collections.Immutable;
+using System.Data.Common;
 using BB_Cow.Class;
 using BB_Cow.Services;
 using BBCowDataLibrary.SQL;
+using MySqlConnector;
 using OpenQA.Selenium;
 
 namespace BB_KPI.Services;
@@ -38,9 +40,8 @@ public class KPIService
         await DatabaseService.ExecuteQueryAsync(async command =>
         {
             command.CommandText = @"
-            INSERT INTO `KPI` (`KPI_ID`, `Title`, `Url`, `Script`, `Sort_Order`) 
-            VALUES (@KPIId, @Title, @Url, @Script, @SortOrder);";
-            command.Parameters.AddWithValue("@KPIId", KPI.KPIId);
+            INSERT INTO `KPI` (`Title`, `Url`, `Script`, `Sort_Order`) 
+            VALUES (@Title, @Url, @Script, @SortOrder);";
             command.Parameters.AddWithValue("@Title", KPI.Title);
             command.Parameters.AddWithValue("@Url", KPI.Url);
             command.Parameters.AddWithValue("@Script", KPI.Script);
@@ -58,7 +59,7 @@ public class KPIService
         return isSuccess;
     }
 
-    public async Task<string> GetKPIValue(KPI kpi)
+    public async Task<string> GetKPIValue(KPI kpi, bool throwError = false)
     {
         bool isSuccess = false;
         var result = new List<string>();
@@ -68,20 +69,42 @@ public class KPIService
             if (!result.Any() && result.FirstOrDefault() == null)
             {
                 LoggerService.LogError(typeof(KPIService), "KPI didnt return Value", new NullReferenceException());
+                if (throwError)
+                {
+                    throw new Exception("KPI didnt return Value");
+                }
                 return "--";
+            }
+        }
+        catch (MySqlException e)
+        {
+            if (throwError)
+            {
+                throw (e);
+            }
+            else
+            {
+                LoggerService.LogError(typeof(KPIService), "Error while getting KPI-Value", e);
+                return "--"; 
             }
         }
         catch (Exception e)
         {
-            LoggerService.LogError(typeof(KPIService), "Error while getting KPI-Value", e);
-            return "--";
+            if (throwError)
+            {
+                throw (e);
+            }
+            else
+            {
+                LoggerService.LogError(typeof(KPIService), "Error while getting KPI-Value", e);
+                return "--"; 
+            }
         }
-        
 
         return result.FirstOrDefault();
     }
 
-    public async Task<Dictionary<KPI, string>> GetAllKPIs()
+    public async Task<Dictionary<KPI, string>> GetAllKPIs(bool addButtonKPI = true)
     {
         var result = new Dictionary<KPI, string>();
         await GetAllDataAsync();
@@ -91,6 +114,44 @@ public class KPIService
             result.Add(kpi, item);
         }
 
+        if (result.Count < 8 && addButtonKPI)
+        {
+            var newKPI = new KPI(int.MinValue, "KPI hinzufügen", "/Test", "select '---' as value", 8 );
+            result.Add(newKPI, "+");
+        }
         return result;
     }
+    
+    public async Task<bool> UpdateDataAsync(KPI KPI)
+    {
+        bool isSuccess = false;
+
+        await DatabaseService.ExecuteQueryAsync(async command =>
+        {
+            command.CommandText = @"
+        UPDATE `KPI` 
+        SET `Title` = @Title, 
+            `Url` = @Url, 
+            `Script` = @Script, 
+            `Sort_Order` = @SortOrder
+        WHERE `KPI_ID` = @KPIId;";
+        
+            command.Parameters.AddWithValue("@KPIId", KPI.KPIId);
+            command.Parameters.AddWithValue("@Title", KPI.Title);
+            command.Parameters.AddWithValue("@Url", KPI.Url);
+            command.Parameters.AddWithValue("@Script", KPI.Script);
+            command.Parameters.AddWithValue("@SortOrder", KPI.SortOrder);
+
+            isSuccess = (await command.ExecuteNonQueryAsync()) > 0;
+        });
+
+        if (isSuccess)
+        {
+            await GetAllDataAsync();
+            LoggerService.LogInformation(typeof(KPIService), "Updated KPI: {@KPI}.", KPI);
+        }
+
+        return isSuccess;
+    }
+
 }
