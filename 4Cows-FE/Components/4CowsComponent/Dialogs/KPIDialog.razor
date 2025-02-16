@@ -4,8 +4,9 @@
 
 <MudDialog>
     <DialogContent>
-        <MudTextField T="string" @bind-Value="KPI.Title" Placeholder="Titel" Variant="Variant.Outlined" Class="mb-5"></MudTextField>
-        <MudTextField T="string" @bind-Value="KPI.Url" Placeholder="URL" Variant="Variant.Outlined" Class="mb-5"></MudTextField>
+        <MudTextField T="string" @bind-Value="KPI.Title" Placeholder="Titel" Label="Titel" Variant="Variant.Outlined" Class="mb-5"></MudTextField>
+        <MudTextField T="string" @bind-Value="KPI.Url" Placeholder="URL" Label="URL" Variant="Variant.Outlined" Class="mb-5"></MudTextField>
+        <MudNumericField T="int" @bind-Value="KPI.SortOrder" Label="Sortier Index"></MudNumericField>
         <MudButton Variant="Variant.Outlined" Color="Color.Error" OnClick="TestSQL">SQL Testen</MudButton>
         <AceJsEditor Style="height:300px" @bind-Value="@KPI.Script" Options="opt"></AceJsEditor>
         @if (sqlError != string.Empty)

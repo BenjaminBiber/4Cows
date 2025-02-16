@@ -10,12 +10,12 @@
     <HeaderContent>
         <MudTh><MudTableSortLabel SortBy="new Func<Cow, object>(x=>x.CollarNumber)">Halsbandnummer</MudTableSortLabel></MudTh>
         <MudTh><MudTableSortLabel SortBy="new Func<Cow, object>(x=>x.EarTagNumber)">Ohrmarkennummer</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel SortBy="new Func<Cow, object>(x=>x.IsGone)">Im Betrieb</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<Cow, object>(x=>x.IsGone)">Betrieb Verlassen?</MudTableSortLabel></MudTh>
        </HeaderContent>
     <RowTemplate>
         <MudTd DataLabel="Halsbandnummer">@CowService.GetCollarNumberByEarTagNumber(context.EarTagNumber)</MudTd>
         <MudTd DataLabel="Ohrmarkennummer">@context.EarTagNumber</MudTd>
-        <MudTd DataLabel="Im Betrieb">@context.IsGone</MudTd>
+        <MudTd DataLabel="Im Betrieb">@(context.IsGone ? "Verlassen" : "Noch im Betrieb")</MudTd>
     </RowTemplate>
     <PagerContent>
         <MudTablePager RowsPerPageString="Behandlungen pro Seite" PageSizeOptions="new int[]{25, 50, 100}" />

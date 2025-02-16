@@ -108,7 +108,7 @@ public class KPIService
     {
         var result = new Dictionary<KPI, string>();
         await GetAllDataAsync();
-        foreach (var kpi in KPIs.Values)
+        foreach (var kpi in KPIs.Values.OrderBy(x => x.SortOrder))
         {
             var item = await GetKPIValue(kpi);
             result.Add(kpi, item);
@@ -116,7 +116,7 @@ public class KPIService
 
         if (result.Count < 8 && addButtonKPI)
         {
-            var newKPI = new KPI(int.MinValue, "KPI hinzufügen", "/Test", "select '---' as value", 8 );
+            var newKPI = new KPI(int.MinValue, "KPI hinzufügen", "/Settings", "select '+' as value", 8 );
             result.Add(newKPI, "+");
         }
         return result;

@@ -1,0 +1,12 @@
+.SettingsTab {
+    min-width: 100%;
+    min-height: 100%;
+}
+
+.AuthDiv {
+    min-width: 100%;
+    min-height: 100%;
+    display: flex;
+    align-content: center;
+    justify-content: center;
+}
