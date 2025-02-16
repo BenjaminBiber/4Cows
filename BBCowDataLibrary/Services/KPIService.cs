@@ -154,4 +154,28 @@ public class KPIService
         return isSuccess;
     }
 
+    public async Task<bool> DeleteDataAsync(int kpiId)
+    {
+        bool isSuccess = false;
+
+        await DatabaseService.ExecuteQueryAsync(async command =>
+        {
+            command.CommandText = @"
+        DELETE FROM `KPI` 
+        WHERE `KPI_ID` = @KPIId;";
+
+            command.Parameters.AddWithValue("@KPIId", kpiId);
+
+            isSuccess = (await command.ExecuteNonQueryAsync()) > 0;
+        });
+
+        if (isSuccess)
+        {
+            await GetAllDataAsync();
+            LoggerService.LogInformation(typeof(KPIService), "Deleted KPI with ID: {KPIId}.", kpiId);
+        }
+
+        return isSuccess;
+    }
+
 }
