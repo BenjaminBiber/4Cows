@@ -1,0 +1,36 @@
+@using System.Drawing.Text
+@inject MedicineService MedicineService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<MudPaper Style="width: 50em; height: 10em; display: flex; flex-direction: column; justify-content: center; align-items: center" Class="pa-4">
+    <MudText Typo="Typo.h4">Sie müssen sich Authentifizieren:</MudText>
+    <MudForm @ref="_form" @bind-IsValid="@_success" Style="width: 80%">
+        <MudTextField T="string" Label="Admintoken" Required="true" @bind-Value="_adminToken" RequiredError="Admintoken muss ausgefüllt werden!"/>
+    </MudForm>
+    <MudButton Color="Color.Primary" OnClick="CloseDialog">Authentifizieren</MudButton>
+</MudPaper>
+    
+@code {
+    [Parameter] public EventCallback<bool> IsAuthenticated { get; set; }
+    MudForm _form;
+    bool _success;
+    string _adminToken;
+    
+    
+    private async Task CloseDialog()
+    {
+        if (_success)
+        {
+            if (_adminToken == (Environment.GetEnvironmentVariable("AdminToken") ?? "4CowsAdminToken"))
+            {
+                await IsAuthenticated.InvokeAsync(true);
+            }
+            else
+            {
+                Snackbar.Add("Falscher Admintoken", Severity.Error);
+            }
+        }
+    }
+
+}

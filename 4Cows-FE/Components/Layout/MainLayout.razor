@@ -3,6 +3,7 @@
 @using MudBlazor
 @inherits LayoutComponentBase
 @inject IDialogService DialogService
+@inject NavigationManager navigationManager
 
 <PageTitle>4Cows</PageTitle>
 <MudThemeProvider IsDarkMode="@_isDarkMode" Theme="CustomTheme" />
@@ -14,6 +15,7 @@
      <CascadingValue Value="@_isDarkMode" Name="IsDarkMode"/>
     <MudAppBar Elevation="3" Color="Color.Primary">
         <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" />
+        <MudText Class="ml-5" Typo="Typo.h4">@GetSiteName()</MudText>
         <MudSpacer />
         <MudIconButton Icon="@Icons.Material.Filled.Info" Color="Color.Default" OnClick="OpenInfoDialog"></MudIconButton>
         <MudToggleIconButton @bind-Toggled="@_isDarkMode"
@@ -28,14 +30,24 @@
             </div>
         </MudDrawerHeader>
         <MudNavMenu>
-            <MudNavLink Icon="@Icons.Material.Filled.SpaceDashboard" IconColor="Color.Primary" Href="" Match="NavLinkMatch.All">Dashboard</MudNavLink>
-            <MudNavLink Icon="@Icons.Material.Filled.BackupTable" IconColor="Color.Primary" Href="Kuh_Daten" Match="NavLinkMatch.Prefix">Kuh Behandlungen</MudNavLink>
-            <MudNavLink Icon="@Icons.Material.Filled.Construction" IconColor="Color.Primary" Href="geplante_Kuh_Daten" Match="NavLinkMatch.Prefix">geplante Kuh Behandlungen</MudNavLink>
-            <MudNavLink Icon="@Icons.Material.Filled.Healing" IconColor="Color.Primary" Href="Verband_Daten" Match="NavLinkMatch.Prefix">Verbände</MudNavLink>
-            <MudNavLink Icon="@Icons.Material.Filled.Pets" IconColor="Color.Primary" Href="Klauen_Daten" Match="NavLinkMatch.Prefix">Klauen Behandlungen</MudNavLink>
-            <MudNavLink Icon="@Icons.Material.Filled.Plumbing" IconColor="Color.Primary" Href="geplante_Klauen_Daten" Match="NavLinkMatch.Prefix">geplante Klauen Behandlungen</MudNavLink>
-            <MudNavLink Icon="@Icons.Material.Filled.TableChart" IconColor="Color.Primary" Href="BaseData" Match="NavLinkMatch.Prefix">Basis Daten</MudNavLink>
-            <MudNavLink Icon="@Icons.Material.Filled.Settings" IconColor="Color.Primary" Href="Settings" Match="NavLinkMatch.Prefix">Einstellungen</MudNavLink>
+            <div style="background: var(--mud-palette-success); color: white;" class="mb-2">
+                <MudNavLink Icon="@Icons.Material.Filled.SpaceDashboard" Style="color: white" IconColor="Color.Default" Href="" Match="NavLinkMatch.All">Dashboard</MudNavLink>
+            </div>
+
+            <div style="background: var(--mud-palette-primary); color: white;" class="mb-2">
+                <MudNavLink Icon="@Icons.Material.Filled.BackupTable" IconColor="Color.Default" Href="Kuh_Daten" Match="NavLinkMatch.Prefix">Kuh Behandlungen</MudNavLink>
+                <MudNavLink Icon="@Icons.Material.Filled.Construction" IconColor="Color.Default" Href="geplante_Kuh_Daten" Match="NavLinkMatch.Prefix">geplante Kuh Behandlungen</MudNavLink>
+            </div>
+
+            <div style="background: var(--mud-palette-secondary); color: white;" class="mb-2">
+                <MudNavLink Icon="@Icons.Material.Filled.Healing" IconColor="Color.Default" Href="Verband_Daten" Match="NavLinkMatch.Prefix">Verbände</MudNavLink>
+                <MudNavLink Icon="@Icons.Material.Filled.Pets" IconColor="Color.Default" Href="Klauen_Daten" Match="NavLinkMatch.Prefix">Klauen Behandlungen</MudNavLink>
+                <MudNavLink Icon="@Icons.Material.Filled.Plumbing" IconColor="Color.Default" Href="geplante_Klauen_Daten" Match="NavLinkMatch.Prefix">geplante Klauen Behandlungen</MudNavLink>
+            </div>
+
+            <div style="background: var(--mud-palette-tertiary); color: white;" class="mb-2">
+                <MudNavLink Icon="@Icons.Material.Filled.Settings" IconColor="Color.Default" Href="Settings" Match="NavLinkMatch.Prefix">Einstellungen</MudNavLink>
+            </div>
 
 
 
@@ -61,6 +73,7 @@
     {
         open = !open;
     }
+
     protected override void OnInitialized()
     {
         base.OnInitialized();
@@ -76,7 +89,7 @@
         };
         DialogService.Show<DatabaseInfoDialog>("Datenbank Informationen", options);
     }
-    
+
     void DarkSwitch()
     {
         if (DateTime.Now.TimeOfDay > _endSpan)
@@ -90,54 +103,76 @@
     }
 
     MudTheme CustomTheme = new()
+    {
+        PaletteLight = new PaletteLight()
         {
-            PaletteLight = new PaletteLight()
+            Primary = "#60ADC9",
+            TextPrimary = "#404040",
+            TextSecondary = "#EEBE88",
+            Success = "#00C853",
+            SuccessLighten = "#E3F0CC",
+            Warning = "#DC8F00",
+            WarningLighten = "#FFDD9E",
+            Error = "#E00F03",
+            ErrorLighten = "#FAB7B7",
+            TableHover = "#E8E8E8",
+            GrayLight = "#D1D1D1",
+            GrayDark = "#8C8C8C",
+            White = "#FFFFFF",
+            PrimaryLighten = "#acc1c8",
+            Secondary = "#8DC2B0",
+            Tertiary = "#619B98"
+        },
+        PaletteDark = new PaletteDark()
+        {
+            Primary = "#60ADC9",
+            TextPrimary = "#ffffff",
+            TextSecondary = "#FFFFFF",
+            Success = "#00C853",
+            SuccessLighten = "#E3F0CC",
+            Warning = "#DC8F00",
+            WarningLighten = "#FFDD9E",
+            Error = "#E00F03",
+            ErrorLighten = "#FAB7B7",
+            TableHover = "#53545e",
+            GrayLight = "#82838d",
+            GrayDark = "#FFFFFF",
+            White = "#FFFFFF",
+            PrimaryLighten = "#FFD2AD",
+            Surface = "#393A46",
+            Secondary = "#8DC2B0",
+            AppbarBackground = "#60ADC9",
+            Tertiary = "619B98"
+        },
+        Typography = new Typography()
+        {
+            Button = new Button()
             {
-                Primary = "#60ADC9",
-                TextPrimary = "#404040",
-                TextSecondary = "#EEBE88",
-                Success = "#00C853",
-                SuccessLighten = "#E3F0CC",
-                Warning = "#DC8F00",
-                WarningLighten = "#FFDD9E",
-                Error = "#E00F03",
-                ErrorLighten = "#FAB7B7",
-                TableHover = "#E8E8E8",
-                GrayLight = "#D1D1D1",
-                GrayDark = "#8C8C8C",
-                White = "#FFFFFF",
-                PrimaryLighten = "#acc1c8",
-                Secondary = "#8DC2B0",
-                Tertiary = "#619B98"
-            },
-            PaletteDark = new PaletteDark()
-            {
-                Primary = "#60ADC9",
-                TextPrimary = "#ffffff",
-                TextSecondary = "#FFFFFF",
-                Success = "#00C853",
-                SuccessLighten = "#E3F0CC",
-                Warning = "#DC8F00",
-                WarningLighten = "#FFDD9E",
-                Error = "#E00F03",
-                ErrorLighten = "#FAB7B7",
-                TableHover = "#53545e",
-                GrayLight = "#82838d",
-                GrayDark = "#FFFFFF",
-                White = "#FFFFFF",
-                PrimaryLighten = "#FFD2AD",
-                Surface = "#393A46",
-                Secondary = "#8DC2B0",
-                AppbarBackground = "#60ADC9",
-                Tertiary = "619B98"
-            },
-            Typography = new Typography()
-            {
-                Button = new Button()
-                {
-                    TextTransform = "none",
-                }
-            },
+                TextTransform = "none",
+            }
+        },
 
-        };
+    };
+
+    private Dictionary<string, string> PageNames = new Dictionary<string, string>
+    {
+        { "", "Dashboard" },
+        { "Settings", "Einstellungen" },
+        { "geplante_Klauen_Daten", "geplante Klauen Behandlungen" },
+        { "Klauen_Daten", "Klauen Behandlungen" },
+        { "Verband_Daten", "Verbände" },
+        { "geplante_Kuh_Daten", "geplante Kuh Behandlungen" },
+        { "Kuh_Daten", "Kuh Behandlungen" }
+    };
+
+    
+    private string GetSiteName()
+    {
+        var uri = navigationManager.Uri;
+        uri = uri.Replace("https://localhost:7111/", "");
+        uri = uri.Replace("http://192.168.50.225:5750/", "");
+        uri = uri.Replace("https://4cows.duckdns.org/", "");
+        uri = uri.Replace("https://4cows.benjaminbiber.de/", "");
+        return PageNames.TryGetValue(uri, out string result) ? result : "";
+    }
 }

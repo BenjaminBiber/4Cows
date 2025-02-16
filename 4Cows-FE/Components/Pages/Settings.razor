@@ -1,0 +1,91 @@
+@inject KPIService KPIService
+@inject IDialogService DialogService
+@page "/Settings"
+@using _4Cows_FE.Components._4CowsComponent.Dialogs
+@using BB_KPI.Services
+@using _4Cows_FE.Components._4CowsComponent.BaseData
+
+@if (isAuthenticated)
+{
+    
+<MudTabs Rounded="true" Class="mt-5" Position="Position.Left" Color="Color.Primary">
+    <MudTabPanel Text="KPIs">
+        <div class="SettingsTab">
+            <MudTable T="KPI" Items="KPIs">
+                <HeaderContent>
+                    <MudTh><MudTableSortLabel SortBy="new Func<KPI, object>(x => x.KPIId)">ID</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<KPI, object>(x => x.KPIId)">Titel</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<KPI, object>(x => x.KPIId)">Skript</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<KPI, object>(x => x.KPIId)">Sortierreihenfolge</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<KPI, object>(x => x.KPIId)">Link</MudTableSortLabel></MudTh>
+                    <MudTh><MudButton Color="Color.Success" Variant="Variant.Filled" OnClick="() => OpenKPIDialog(new KPI(), true)">KPI Hinzufügen</MudButton></MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="ID">@context.KPIId</MudTd>
+                    <MudTd DataLabel="Title">@context.Title</MudTd>
+                    <MudTd DataLabel="Script">@context.Script</MudTd>
+                    <MudTd DataLabel="Script">@context.SortOrder</MudTd>
+                    <MudTd DataLabel="Link">@context.Url</MudTd>
+                    <MudTd DataLabel="Edit"><MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="() => OpenKPIDialog(context)">KPI editieren</MudButton></MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager RowsPerPageString="KPIs pro Seite" PageSizeOptions="new int[] { 25, 50, 100 }"/>
+                </PagerContent>
+            </MudTable>
+        </div>
+    </MudTabPanel>
+    <div class="SettingsTab">
+        <MudTabPanel Text="BasisDaten">
+
+            <MudTabs Centered="true" Color="Color.Primary">
+                <MudTabPanel Text="Kuh Behandlung">
+                    <BaseDataCowTreatment></BaseDataCowTreatment>
+                </MudTabPanel>
+
+                <MudTabPanel Text="Klauen Behandlung">
+                    <BaseDataClawTreatment></BaseDataClawTreatment>
+                </MudTabPanel>
+
+                <MudTabPanel Text="Kühe">
+                    <BaseDataCow></BaseDataCow>
+                </MudTabPanel>
+
+                <MudTabPanel Text="Medikamente">
+                    <BaseDataMedicine></BaseDataMedicine>
+                </MudTabPanel>
+                
+            </MudTabs>
+        </MudTabPanel>
+    </div>
+    
+</MudTabs>
+}
+else
+{
+    <div class="AuthDiv">
+       <SettingsAuth IsAuthenticated="(bool b) => isAuthenticated = b"></SettingsAuth>
+    </div>
+}
+
+@code {
+    private List<KPI> KPIs = [];
+    private bool isAuthenticated = false;
+    
+    protected override async Task OnInitializedAsync()
+    {
+        await GetKPIs();
+    }
+
+    private async Task GetKPIs()
+    {
+        KPIs = (await KPIService.GetAllKPIs(false)).Keys.ToList();
+    }
+
+    private async Task OpenKPIDialog(KPI kpi, bool newKPI = false)
+    {        
+        var options = new DialogOptions() { BackdropClick = false, CloseOnEscapeKey = false, CloseButton = newKPI, MaxWidth = MaxWidth.Medium, FullWidth = true};
+        var parameters = new DialogParameters<KPIDialog>() { { x => x.KPI, kpi }, { x => x.IsSave, newKPI }, };
+        await DialogService.ShowAsync<KPIDialog>((newKPI ? "KPI Hinzufügen" : "KPI Editieren"),parameters, options);
+        await GetKPIs();
+    }
+}

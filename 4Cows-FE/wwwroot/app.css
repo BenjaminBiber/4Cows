@@ -775,6 +775,10 @@ th, td {
     height: 85%;
 }
 
+.table-Header {
+    display: none !important;
+}
+
 @media (max-width: 1330px)
 {
     #Index_Top{
@@ -835,4 +839,8 @@ th, td {
 .UdderButton_Highlighted{
     border-color: var(--mud-palette-primary);
     background-color: var(--mud-palette-secondary);
+}
+
+.mud-navmenu.mud-navmenu-default .mud-nav-link.active:not(.mud-nav-link-disabled) {
+    color: white !important;
 }
