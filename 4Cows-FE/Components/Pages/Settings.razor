@@ -27,6 +27,9 @@
                     <MudTd DataLabel="Script">@context.SortOrder</MudTd>
                     <MudTd DataLabel="Link">@context.Url</MudTd>
                     <MudTd DataLabel="Edit"><MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="() => OpenKPIDialog(context)">KPI editieren</MudButton></MudTd>
+                    <MudTooltip Text="KPI Löschen">
+                        <MudTd DataLabel="Edit"><MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="() => DeleteKPI(context)"></MudIconButton></MudTd>
+                    </MudTooltip>
                 </RowTemplate>
                 <PagerContent>
                     <MudTablePager RowsPerPageString="KPIs pro Seite" PageSizeOptions="new int[] { 25, 50, 100 }"/>
@@ -87,5 +90,19 @@ else
         var parameters = new DialogParameters<KPIDialog>() { { x => x.KPI, kpi }, { x => x.IsSave, newKPI }, };
         await DialogService.ShowAsync<KPIDialog>((newKPI ? "KPI Hinzufügen" : "KPI Editieren"),parameters, options);
         await GetKPIs();
+    }
+
+    private async Task DeleteKPI(KPI kpi)
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, NoHeader = true };
+        var parametersGeneric = new DialogParameters<GenericDialog> { { x => x.HeaderText, "Löschen" }, { x => x.Description, "Wollen Sie das KPI wirklich Löschen?" }, { x => x.AcceptButtonText, "Ja" }, { x => x.CancelButtonText, "Nein" }, { x => x.ColorScheme, Color.Error } };
+        var dialog = await DialogService.ShowAsync<GenericDialog>("",parametersGeneric, options);
+        var result = await dialog.Result;
+        if (!result.Canceled)
+        {
+            await KPIService.DeleteDataAsync(kpi.KPIId);
+            await GetKPIs();
+        }
+
     }
 }
