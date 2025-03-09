@@ -82,7 +82,7 @@
         if (TestForNullInput())
         {    
             Planned_Claw_Treatment.TreatmentDate = NullDate.Value;
-            Planned_Claw_Treatment.EarTagNumber = cowService.GetEarTagNumberByCollarNumber(CollarNumber);
+            Planned_Claw_Treatment.EarTagNumber = cowService.GetEarTagNumberByCollarNumber(CollarNumber, false);
             SaveSuccesfulBool = await pClawTreatmentService.InsertDataAsync(Planned_Claw_Treatment);
             MudDialog.Close();
             if (SaveSuccesfulBool)

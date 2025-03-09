@@ -71,9 +71,16 @@ public class CowService
             return _cachedCows.ContainsKey(earTagNumber) ? _cachedCows[earTagNumber] : null;
         }
 
-        public string GetEarTagNumberByCollarNumber(int collarNumber)
+        public string GetEarTagNumberByCollarNumber(int collarNumber, bool searchContainsLeavage = true)
         {
-            return _cachedCows.Values.FirstOrDefault(c => c.CollarNumber == collarNumber)?.EarTagNumber ?? String.Empty;
+            if(searchContainsLeavage)
+            {
+                return _cachedCows.Values.FirstOrDefault(c => c.CollarNumber == collarNumber)?.EarTagNumber ?? String.Empty;
+            }
+            else
+            {
+                return _cachedCows.Values.FirstOrDefault(c => c.CollarNumber == collarNumber && !c.IsGone)?.EarTagNumber ?? String.Empty;
+            }
         }
         
         public int GetCollarNumberByEarTagNumber(string earTagNumber)

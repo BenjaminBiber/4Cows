@@ -89,7 +89,7 @@
     public void GetEarNumber(NumberEntry entry)
     {
         var index = numbers.IndexOf(entry);
-        numbers[index].EarValue = entry.Value.HasValue ? cowService.GetEarTagNumberByCollarNumber(entry.Value.Value) : null;
+        numbers[index].EarValue = entry.Value.HasValue ? cowService.GetEarTagNumberByCollarNumber(entry.Value.Value, false) : null;
         StateHasChanged();
     }
 
