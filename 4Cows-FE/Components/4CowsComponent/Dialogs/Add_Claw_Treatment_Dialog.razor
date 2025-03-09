@@ -93,7 +93,7 @@
         if (TestForNullInput())
         {
             Claw_Treatment.TreatmentDate = NullDate.Value;
-            Claw_Treatment.EarTagNumber = cowService.GetEarTagNumberByCollarNumber(CollarNumber);
+            Claw_Treatment.EarTagNumber = cowService.GetEarTagNumberByCollarNumber(CollarNumber, false);
             if (Claw_Treatment.EarTagNumber == string.Empty)
             {
                 Snackbar.Add($"Halsbandnummer {CollarNumber} nicht gefunden!", Severity.Error);
@@ -161,7 +161,7 @@
     {
         if (string.IsNullOrWhiteSpace(collarNumber) || string.IsNullOrEmpty(collarNumber)) return;
         
-        Claw_Treatment.EarTagNumber = cowService.GetEarTagNumberByCollarNumber(Convert.ToInt32(collarNumber));
+        Claw_Treatment.EarTagNumber = cowService.GetEarTagNumberByCollarNumber(Convert.ToInt32(collarNumber), false);
         StateHasChanged();
     }
 }
