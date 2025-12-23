@@ -3,7 +3,7 @@ using System.Data.Common;
 using BB_Cow.Class;
 using BB_Cow.Services;
 using BBCowDataLibrary.SQL;
-using MySqlConnector;
+using Microsoft.EntityFrameworkCore;
 using OpenQA.Selenium;
 
 namespace BB_KPI.Services;
@@ -11,62 +11,68 @@ namespace BB_KPI.Services;
 public class KPIService
 {
     private ImmutableDictionary<int, KPI> _cachedKPIs = ImmutableDictionary<int, KPI>.Empty;
+    private readonly IDbContextFactory<DatabaseContext> _contextFactory;
+    private readonly DatabaseStatusService _databaseStatusService;
 
     public ImmutableDictionary<int, KPI> KPIs => _cachedKPIs;
 
+    public KPIService(IDbContextFactory<DatabaseContext> contextFactory, DatabaseStatusService databaseStatusService)
+    {
+        _contextFactory = contextFactory;
+        _databaseStatusService = databaseStatusService;
+    }
+
     public async Task GetAllDataAsync()
     {
-        var KPIs = await DatabaseService.ReadDataAsync(@"SELECT * FROM KPI;", reader =>
+        try
         {
-            var KPI = new KPI
-            {
-                KPIId = reader.GetInt32("KPI_ID"),
-                Title = reader.GetString("Title"),
-                Url = reader.GetString("Url"),
-                Script = reader.GetString("Script"),
-                SortOrder = reader.GetInt32("Sort_Order")
-            };
-            return KPI;
-        });
-
-        _cachedKPIs = KPIs.ToImmutableDictionary(c => c.KPIId);
-        LoggerService.LogInformation(typeof(KPIService), $"Loaded {_cachedKPIs.Count} KPIs.");
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var kpis = await context.KPIs.AsNoTracking().ToListAsync();
+            _cachedKPIs = kpis.ToImmutableDictionary(c => c.KPIId);
+            _databaseStatusService.ReportSuccess();
+            LoggerService.LogInformation(typeof(KPIService), $"Loaded {_cachedKPIs.Count} KPIs.");
+        }
+        catch (Exception ex)
+        {
+            _databaseStatusService.ReportFailure();
+            LoggerService.LogError(typeof(KPIService), "Failed to load KPIs, with {@Message}", ex, ex.Message);
+        }
     }
 
     public async Task<bool> InsertDataAsync(KPI KPI)
     {
-        bool isSuccess = false;
-
-        await DatabaseService.ExecuteQueryAsync(async command =>
+        try
         {
-            command.CommandText = @"
-            INSERT INTO `KPI` (`Title`, `Url`, `Script`, `Sort_Order`) 
-            VALUES (@Title, @Url, @Script, @SortOrder);";
-            command.Parameters.AddWithValue("@Title", KPI.Title);
-            command.Parameters.AddWithValue("@Url", KPI.Url);
-            command.Parameters.AddWithValue("@Script", KPI.Script);
-            command.Parameters.AddWithValue("@SortOrder", KPI.SortOrder);
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            await context.KPIs.AddAsync(KPI);
+            var isSuccess = await context.SaveChangesAsync() > 0;
+            _databaseStatusService.ReportSuccess();
 
-            isSuccess = (await command.ExecuteNonQueryAsync()) > 0;
-        });
+            if (isSuccess)
+            {
+                _cachedKPIs = _cachedKPIs.Add(KPI.KPIId, KPI);
+                LoggerService.LogInformation(typeof(KPIService), "Inserted KPI: {@KPI}.", KPI);
+            }
 
-        if (isSuccess)
-        {
-            _cachedKPIs = _cachedKPIs.Add(KPI.KPIId, KPI);
-            LoggerService.LogInformation(typeof(KPIService), "Inserted KPI: {@KPI}.", KPI);
+            return isSuccess;
         }
-
-        return isSuccess;
+        catch (Exception ex)
+        {
+            _databaseStatusService.ReportFailure();
+            LoggerService.LogError(typeof(KPIService), "Failed to insert KPI, with {@Message}", ex, ex.Message);
+            return false;
+        }
     }
 
     public async Task<string> GetKPIValue(KPI kpi, bool throwError = false)
     {
-        bool isSuccess = false;
-        var result = new List<string>();
         try
         {
-            result = await DatabaseService.ReadDataAsync(kpi.Script, reader => { return reader.GetString("value"); });
-            if (!result.Any() && result.FirstOrDefault() == null)
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var result = await context.Database.SqlQueryRaw<string>(kpi.Script).ToListAsync();
+            _databaseStatusService.ReportSuccess();
+
+            if (!result.Any() || result.FirstOrDefault() == null)
             {
                 LoggerService.LogError(typeof(KPIService), "KPI didnt return Value", new NullReferenceException());
                 if (throwError)
@@ -75,33 +81,20 @@ public class KPIService
                 }
                 return "--";
             }
-        }
-        catch (MySqlException e)
-        {
-            if (throwError)
-            {
-                throw (e);
-            }
-            else
-            {
-                LoggerService.LogError(typeof(KPIService), "Error while getting KPI-Value", e);
-                return "--"; 
-            }
+
+            return result.First();
         }
         catch (Exception e)
         {
+            _databaseStatusService.ReportFailure();
             if (throwError)
             {
-                throw (e);
+                throw;
             }
-            else
-            {
-                LoggerService.LogError(typeof(KPIService), "Error while getting KPI-Value", e);
-                return "--"; 
-            }
-        }
 
-        return result.FirstOrDefault();
+            LoggerService.LogError(typeof(KPIService), "Error while getting KPI-Value", e);
+            return "--";
+        }
     }
 
     public async Task<Dictionary<KPI, string>> GetAllKPIs(bool addButtonKPI = true)
@@ -124,58 +117,52 @@ public class KPIService
     
     public async Task<bool> UpdateDataAsync(KPI KPI)
     {
-        bool isSuccess = false;
-
-        await DatabaseService.ExecuteQueryAsync(async command =>
+        try
         {
-            command.CommandText = @"
-        UPDATE `KPI` 
-        SET `Title` = @Title, 
-            `Url` = @Url, 
-            `Script` = @Script, 
-            `Sort_Order` = @SortOrder
-        WHERE `KPI_ID` = @KPIId;";
-        
-            command.Parameters.AddWithValue("@KPIId", KPI.KPIId);
-            command.Parameters.AddWithValue("@Title", KPI.Title);
-            command.Parameters.AddWithValue("@Url", KPI.Url);
-            command.Parameters.AddWithValue("@Script", KPI.Script);
-            command.Parameters.AddWithValue("@SortOrder", KPI.SortOrder);
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            context.KPIs.Update(KPI);
+            var isSuccess = await context.SaveChangesAsync() > 0;
+            _databaseStatusService.ReportSuccess();
 
-            isSuccess = (await command.ExecuteNonQueryAsync()) > 0;
-        });
+            if (isSuccess)
+            {
+                await GetAllDataAsync();
+                LoggerService.LogInformation(typeof(KPIService), "Updated KPI: {@KPI}.", KPI);
+            }
 
-        if (isSuccess)
-        {
-            await GetAllDataAsync();
-            LoggerService.LogInformation(typeof(KPIService), "Updated KPI: {@KPI}.", KPI);
+            return isSuccess;
         }
-
-        return isSuccess;
+        catch (Exception ex)
+        {
+            _databaseStatusService.ReportFailure();
+            LoggerService.LogError(typeof(KPIService), "Failed to update KPI, with {@Message}", ex, ex.Message);
+            return false;
+        }
     }
 
     public async Task<bool> DeleteDataAsync(int kpiId)
     {
-        bool isSuccess = false;
-
-        await DatabaseService.ExecuteQueryAsync(async command =>
+        try
         {
-            command.CommandText = @"
-        DELETE FROM `KPI` 
-        WHERE `KPI_ID` = @KPIId;";
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var affectedRows = await context.KPIs.Where(k => k.KPIId == kpiId).ExecuteDeleteAsync();
+            _databaseStatusService.ReportSuccess();
 
-            command.Parameters.AddWithValue("@KPIId", kpiId);
+            if (affectedRows > 0)
+            {
+                await GetAllDataAsync();
+                LoggerService.LogInformation(typeof(KPIService), "Deleted KPI with ID: {KPIId}.", kpiId);
+                return true;
+            }
 
-            isSuccess = (await command.ExecuteNonQueryAsync()) > 0;
-        });
-
-        if (isSuccess)
-        {
-            await GetAllDataAsync();
-            LoggerService.LogInformation(typeof(KPIService), "Deleted KPI with ID: {KPIId}.", kpiId);
+            return false;
         }
-
-        return isSuccess;
+        catch (Exception ex)
+        {
+            _databaseStatusService.ReportFailure();
+            LoggerService.LogError(typeof(KPIService), "Failed to delete KPI, with {@Message}", ex, ex.Message);
+            return false;
+        }
     }
 
 }

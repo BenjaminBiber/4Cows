@@ -4,81 +4,92 @@ using System.Linq;
 using System.Threading.Tasks;
 using BB_Cow.Class;
 using BBCowDataLibrary.SQL;
+using Microsoft.EntityFrameworkCore;
 
 namespace BB_Cow.Services
 {
     public class PClawTreatmentService
     {
         private ImmutableDictionary<int, PlannedClawTreatment> _cachedTreatments = ImmutableDictionary<int, PlannedClawTreatment>.Empty;
+        private readonly IDbContextFactory<DatabaseContext> _contextFactory;
+        private readonly DatabaseStatusService _databaseStatusService;
 
         public ImmutableDictionary<int, PlannedClawTreatment> Treatments => _cachedTreatments;
 
+        public PClawTreatmentService(IDbContextFactory<DatabaseContext> contextFactory, DatabaseStatusService databaseStatusService)
+        {
+            _contextFactory = contextFactory;
+            _databaseStatusService = databaseStatusService;
+        }
+
         public async Task GetAllDataAsync()
         {
-            var treatments = await DatabaseService.ReadDataAsync(@"SELECT * FROM Planned_Claw_Treatment;", reader =>
+            try
             {
-                var descriptionIndex = reader.GetOrdinal("Desciption"); 
-
-                var treatment = new PlannedClawTreatment
-                {
-                    PlannedClawTreatmentId = reader.GetInt32("Planned_Claw_Treatment_ID"),
-                    EarTagNumber = reader.GetString("Ear_Tag_Number"),
-                    TreatmentDate = reader.GetDateTime("Treatment_Date"),
-                    Desciption = reader.IsDBNull(descriptionIndex) ? null : reader.GetString(descriptionIndex),
-                    ClawFindingLV = reader.GetBoolean("Claw_Finding_LV"),
-                    ClawFindingLH = reader.GetBoolean("Claw_Finding_LH"),
-                    ClawFindingRV = reader.GetBoolean("Claw_Finding_RV"),
-                    ClawFindingRH = reader.GetBoolean("Claw_Finding_RH")
-                };
-                return treatment;
-            });
-
-            _cachedTreatments = treatments.ToImmutableDictionary(t => t.PlannedClawTreatmentId);
-            LoggerService.LogInformation(typeof(PClawTreatmentService), $"Loaded {_cachedTreatments.Count} planned claw treatments.");
+                await using var context = await _contextFactory.CreateDbContextAsync();
+                var treatments = await context.PlannedClawTreatments.AsNoTracking().ToListAsync();
+                _cachedTreatments = treatments.ToImmutableDictionary(t => t.PlannedClawTreatmentId);
+                _databaseStatusService.ReportSuccess();
+                LoggerService.LogInformation(typeof(PClawTreatmentService), $"Loaded {_cachedTreatments.Count} planned claw treatments.");
+            }
+            catch (Exception ex)
+            {
+                _databaseStatusService.ReportFailure();
+                LoggerService.LogError(typeof(PClawTreatmentService), "Failed to load planned claw treatments, with {@Message}", ex, ex.Message);
+            }
         }
 
         public async Task<bool> InsertDataAsync(PlannedClawTreatment clawTreatment)
         {
-            bool isSuccess = false;
-            await DatabaseService.ExecuteQueryAsync(async command =>
+            try
             {
-                command.CommandText = @"INSERT INTO `Planned_Claw_Treatment` (`Ear_Tag_Number`, `Treatment_Date`, `Desciption`, `Claw_Finding_LV`, `Claw_Finding_LH`, `Claw_Finding_RV`, `Claw_Finding_RH`) VALUES (@EarTagNumber, @TreatmentDate, @Description, @ClawFindingLV, @ClawFindingLH, @ClawFindingRV, @ClawFindingRH);";
-                command.Parameters.AddWithValue("@EarTagNumber", clawTreatment.EarTagNumber);
-                command.Parameters.AddWithValue("@TreatmentDate", clawTreatment.TreatmentDate);
-                command.Parameters.AddWithValue("@Description", clawTreatment.Desciption);
-                command.Parameters.AddWithValue("@ClawFindingLV", clawTreatment.ClawFindingLV);
-                command.Parameters.AddWithValue("@ClawFindingLH", clawTreatment.ClawFindingLH);
-                command.Parameters.AddWithValue("@ClawFindingRV", clawTreatment.ClawFindingRV);
-                command.Parameters.AddWithValue("@ClawFindingRH", clawTreatment.ClawFindingRH);
-                isSuccess = (await command.ExecuteNonQueryAsync()) > 0;
-            });
+                await using var context = await _contextFactory.CreateDbContextAsync();
+                await context.PlannedClawTreatments.AddAsync(clawTreatment);
+                var isSuccess = await context.SaveChangesAsync() > 0;
+                _databaseStatusService.ReportSuccess();
 
-            if (isSuccess)
-            {
-                _cachedTreatments = _cachedTreatments.Add(clawTreatment.PlannedClawTreatmentId, clawTreatment);
-                LoggerService.LogInformation(typeof(PClawTreatmentService), "Data inserted successfully: {@clawTreatment}", clawTreatment);
+                if (isSuccess)
+                {
+                    _cachedTreatments = _cachedTreatments.Add(clawTreatment.PlannedClawTreatmentId, clawTreatment);
+                    LoggerService.LogInformation(typeof(PClawTreatmentService), "Data inserted successfully: {@clawTreatment}", clawTreatment);
+                }
+
+                return isSuccess;
             }
-
-            return isSuccess;
+            catch (Exception ex)
+            {
+                _databaseStatusService.ReportFailure();
+                LoggerService.LogError(typeof(PClawTreatmentService), "Failed to insert planned claw treatment, with {@Message}", ex, ex.Message);
+                return false;
+            }
         }
 
         public async Task<bool> RemoveByIDAsync(int id)
         {
-            bool isSuccess = false;
-            await DatabaseService.ExecuteQueryAsync(async command =>
+            try
             {
-                command.CommandText = @"DELETE FROM `Planned_Claw_Treatment` WHERE `Planned_Claw_Treatment_ID` = @id;";
-                command.Parameters.AddWithValue("@id", id);
-                isSuccess = (await command.ExecuteNonQueryAsync()) > 0;
-            });
+                await using var context = await _contextFactory.CreateDbContextAsync();
+                var affectedRows = await context.PlannedClawTreatments
+                    .Where(t => t.PlannedClawTreatmentId == id)
+                    .ExecuteDeleteAsync();
 
-            if (isSuccess && _cachedTreatments.ContainsKey(id))
-            {
-                _cachedTreatments = _cachedTreatments.Remove(id);
-                LoggerService.LogInformation(typeof(PClawTreatmentService), "Data removed successfully: {@id}", id);
+                var isSuccess = affectedRows > 0;
+                _databaseStatusService.ReportSuccess();
+
+                if (isSuccess && _cachedTreatments.ContainsKey(id))
+                {
+                    _cachedTreatments = _cachedTreatments.Remove(id);
+                    LoggerService.LogInformation(typeof(PClawTreatmentService), "Data removed successfully: {@id}", id);
+                }
+
+                return isSuccess;
             }
-
-            return isSuccess;
+            catch (Exception ex)
+            {
+                _databaseStatusService.ReportFailure();
+                LoggerService.LogError(typeof(PClawTreatmentService), "Failed to delete planned claw treatment, with {@Message}", ex, ex.Message);
+                return false;
+            }
         }
 
         public PlannedClawTreatment GetById(int id)

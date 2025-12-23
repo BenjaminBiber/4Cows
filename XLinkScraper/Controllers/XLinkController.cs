@@ -1,15 +1,18 @@
 using BB_Cow.Services;
 using BBCowDataLibrary.SQL;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 namespace XLinkScraper.Controllers;
 
 public class XLinkController : Controller
 {
     private readonly XLinkService _xLinkService;
+    private readonly IDbContextFactory<DatabaseContext> _contextFactory;
     
-    public XLinkController(XLinkService xLinkService)
+    public XLinkController(XLinkService xLinkService, IDbContextFactory<DatabaseContext> contextFactory)
     {
         _xLinkService = xLinkService;
+        _contextFactory = contextFactory;
     }
     
     [HttpGet]
@@ -18,8 +21,9 @@ public class XLinkController : Controller
     {
         try
         {
-            var isConfigured = await DatabaseService.IsConfigured();
-            if(isConfigured)
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var canConnect = await context.Database.CanConnectAsync();
+            if (canConnect)
             {
                 _xLinkService.ExecuteScraper();
             }
@@ -27,7 +31,6 @@ public class XLinkController : Controller
             {
                 return BadRequest("Keine Verbindung zur Datenbank");
             }
-            _xLinkService.ExecuteScraper();
         }
         catch (Exception e)
         {

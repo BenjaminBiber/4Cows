@@ -1,69 +1,91 @@
 using System.Collections.Immutable;
 using BB_Cow.Class;
 using BBCowDataLibrary.SQL;
+using Microsoft.EntityFrameworkCore;
 
 namespace BB_Cow.Services;
 
 public class CowService
 {
     private ImmutableDictionary<string, Cow> _cachedCows = ImmutableDictionary<string, Cow>.Empty;
+    private readonly IDbContextFactory<DatabaseContext> _contextFactory;
+    private readonly DatabaseStatusService _databaseStatusService;
 
         public ImmutableDictionary<string, Cow> Cows => _cachedCows;
 
+        public CowService(IDbContextFactory<DatabaseContext> contextFactory, DatabaseStatusService databaseStatusService)
+        {
+            _contextFactory = contextFactory;
+            _databaseStatusService = databaseStatusService;
+        }
+
         public async Task GetAllDataAsync()
         {
-            var cows = await DatabaseService.ReadDataAsync(@"SELECT * FROM Cow;", reader =>
+            try
             {
-                var cow = new Cow
-                {
-                    EarTagNumber = reader.GetString("Ear_Tag_Number"),
-                    CollarNumber = reader.GetInt32("Collar_Number"),
-                    IsGone = reader.GetBoolean("IsGone")
-                };
-                return cow;
-            });
-
-            _cachedCows = cows.ToImmutableDictionary(c => c.EarTagNumber);
-            LoggerService.LogInformation(typeof(CowService), $"Loaded {_cachedCows.Count} cows.");
+                await using var context = await _contextFactory.CreateDbContextAsync();
+                var cows = await context.Cows.AsNoTracking().ToListAsync();
+                _cachedCows = cows.ToImmutableDictionary(c => c.EarTagNumber);
+                _databaseStatusService.ReportSuccess();
+                LoggerService.LogInformation(typeof(CowService), $"Loaded {_cachedCows.Count} cows.");
+            }
+            catch (Exception ex)
+            {
+                _databaseStatusService.ReportFailure();
+                LoggerService.LogError(typeof(CowService), "Failed to load cows, with {@Message}", ex, ex.Message);
+            }
         }
 
         public async Task<bool> InsertDataAsync(Cow cow)
         {
-            bool isSuccess = false;
-            await DatabaseService.ExecuteQueryAsync(async command =>
+            try
             {
-                command.CommandText = @"INSERT INTO `Cow` (`Ear_Tag_Number`, `Collar_Number`, `IsGone`) VALUES (@EarTagNumber, @CollarNumber, @IsGone);";
-                command.Parameters.AddWithValue("@EarTagNumber", cow.EarTagNumber);
-                command.Parameters.AddWithValue("@CollarNumber", cow.CollarNumber);
-                command.Parameters.AddWithValue("@IsGone", cow.IsGone);
-                isSuccess = (await command.ExecuteNonQueryAsync()) > 0;
-            });
+                await using var context = await _contextFactory.CreateDbContextAsync();
+                await context.Cows.AddAsync(cow);
+                var isSuccess = await context.SaveChangesAsync() > 0;
+                _databaseStatusService.ReportSuccess();
 
-            if (isSuccess)
-            {
-                _cachedCows = _cachedCows.Add(cow.EarTagNumber, cow);
-                LoggerService.LogInformation(typeof(CowService), "Inserted cow: {@cow}.", cow);
+                if (isSuccess)
+                {
+                    _cachedCows = _cachedCows.Add(cow.EarTagNumber, cow);
+                    LoggerService.LogInformation(typeof(CowService), "Inserted cow: {@cow}.", cow);
+                }
+
+                return isSuccess;
             }
-
-            return isSuccess;
+            catch (Exception ex)
+            {
+                _databaseStatusService.ReportFailure();
+                LoggerService.LogError(typeof(CowService), "Failed to insert cow, with {@Message}", ex, ex.Message);
+                return false;
+            }
         }
 
         public async Task<bool> RemoveByIdAsync(string earTagNumber)
         {
-            bool isSuccess = false;
-            await DatabaseService.ExecuteQueryAsync(async command =>
+            try
             {
-                command.CommandText = @"DELETE FROM `Cow` WHERE `Ear_Tag_Number` = @EarTagNumber;";
-                command.Parameters.AddWithValue("@EarTagNumber", earTagNumber);
-                isSuccess = (await command.ExecuteNonQueryAsync()) > 0;
-            });
+                await using var context = await _contextFactory.CreateDbContextAsync();
+                var affectedRows = await context.Cows
+                    .Where(c => c.EarTagNumber == earTagNumber)
+                    .ExecuteDeleteAsync();
 
-            if (isSuccess && _cachedCows.ContainsKey(earTagNumber))
-            {
-                _cachedCows = _cachedCows.Remove(earTagNumber);
+                var isSuccess = affectedRows > 0;
+                _databaseStatusService.ReportSuccess();
+
+                if (isSuccess && _cachedCows.ContainsKey(earTagNumber))
+                {
+                    _cachedCows = _cachedCows.Remove(earTagNumber);
+                }
+
+                return isSuccess;
             }
-
-            return isSuccess;
+            catch (Exception ex)
+            {
+                _databaseStatusService.ReportFailure();
+                LoggerService.LogError(typeof(CowService), "Failed to remove cow, with {@Message}", ex, ex.Message);
+                return false;
+            }
         }
 
         public Cow GetById(string earTagNumber)
@@ -89,46 +111,62 @@ public class CowService
         }
         public async Task<bool> UpdateCollarNumberAsync(string earTagNumber, int newCollarNumber)
         {
-            bool isSuccess = false;
-            await DatabaseService.ExecuteQueryAsync(async command =>
+            try
             {
-                command.CommandText = @"UPDATE `Cow` SET `Collar_Number` = @CollarNumber WHERE `Ear_Tag_Number` = @EarTagNumber;";
-                command.Parameters.AddWithValue("@CollarNumber", newCollarNumber);
-                command.Parameters.AddWithValue("@EarTagNumber", earTagNumber);
-                isSuccess = (await command.ExecuteNonQueryAsync()) > 0;
-            });
+                await using var context = await _contextFactory.CreateDbContextAsync();
+                var affectedRows = await context.Cows
+                    .Where(c => c.EarTagNumber == earTagNumber)
+                    .ExecuteUpdateAsync(setters => setters.SetProperty(c => c.CollarNumber, newCollarNumber));
 
-            if (isSuccess && _cachedCows.ContainsKey(earTagNumber))
-            {
-                var updatedCow = _cachedCows[earTagNumber];
-                updatedCow.CollarNumber = newCollarNumber;
-                _cachedCows = _cachedCows.SetItem(earTagNumber, updatedCow);
-                LoggerService.LogInformation(typeof(CowService), "Updated collar number for cow with ear tag number {earTagNumber} to {newCollarNumber}.", earTagNumber, newCollarNumber);
+                var isSuccess = affectedRows > 0;
+                _databaseStatusService.ReportSuccess();
+
+                if (isSuccess && _cachedCows.ContainsKey(earTagNumber))
+                {
+                    var updatedCow = _cachedCows[earTagNumber];
+                    updatedCow.CollarNumber = newCollarNumber;
+                    _cachedCows = _cachedCows.SetItem(earTagNumber, updatedCow);
+                    LoggerService.LogInformation(typeof(CowService), "Updated collar number for cow with ear tag number {earTagNumber} to {newCollarNumber}.", earTagNumber, newCollarNumber);
+                }
+
+                return isSuccess;
             }
-
-            return isSuccess;
+            catch (Exception ex)
+            {
+                _databaseStatusService.ReportFailure();
+                LoggerService.LogError(typeof(CowService), "Failed to update collar number, with {@Message}", ex, ex.Message);
+                return false;
+            }
         }
         
         public async Task<bool> UpdateIsGoneAsync(string earTagNumber, bool isGone)
         {
-            bool isSuccess = false;
-            await DatabaseService.ExecuteQueryAsync(async command =>
+            try
             {
-                command.CommandText = @"UPDATE `Cow` SET `IsGone` = @IsGone WHERE `Ear_Tag_Number` = @EarTagNumber;";
-                command.Parameters.AddWithValue("@IsGone", isGone);
-                command.Parameters.AddWithValue("@EarTagNumber", earTagNumber);
-                isSuccess = (await command.ExecuteNonQueryAsync()) > 0;
-            });
+                await using var context = await _contextFactory.CreateDbContextAsync();
+                var affectedRows = await context.Cows
+                    .Where(c => c.EarTagNumber == earTagNumber)
+                    .ExecuteUpdateAsync(setters => setters.SetProperty(c => c.IsGone, isGone));
 
-            if (isSuccess && _cachedCows.ContainsKey(earTagNumber))
-            {
-                var updatedCow = _cachedCows[earTagNumber];
-                updatedCow.IsGone = isGone;
-                _cachedCows = _cachedCows.SetItem(earTagNumber, updatedCow);
-                LoggerService.LogInformation(typeof(CowService), "Updated is gone for cow with ear tag number {earTagNumber} to {isGone}.", earTagNumber, isGone);
+                var isSuccess = affectedRows > 0;
+                _databaseStatusService.ReportSuccess();
+
+                if (isSuccess && _cachedCows.ContainsKey(earTagNumber))
+                {
+                    var updatedCow = _cachedCows[earTagNumber];
+                    updatedCow.IsGone = isGone;
+                    _cachedCows = _cachedCows.SetItem(earTagNumber, updatedCow);
+                    LoggerService.LogInformation(typeof(CowService), "Updated is gone for cow with ear tag number {earTagNumber} to {isGone}.", earTagNumber, isGone);
+                }
+
+                return isSuccess;
             }
-
-            return isSuccess;
+            catch (Exception ex)
+            {
+                _databaseStatusService.ReportFailure();
+                LoggerService.LogError(typeof(CowService), "Failed to update is gone flag, with {@Message}", ex, ex.Message);
+                return false;
+            }
         }
         
         public async Task<IEnumerable<string>> SearchCowEarTagNumbers(string value, CancellationToken token)

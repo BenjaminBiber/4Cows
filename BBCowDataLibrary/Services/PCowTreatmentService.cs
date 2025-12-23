@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using BB_Cow.Class;
 using BBCowDataLibrary.SQL;
+using Microsoft.EntityFrameworkCore;
 
 namespace BB_Cow.Services
 {
@@ -12,81 +13,91 @@ namespace BB_Cow.Services
         private ImmutableDictionary<int, PlannedCowTreatment> _cachedTreatments = ImmutableDictionary<int, PlannedCowTreatment>.Empty;
         private ImmutableList<string> _cachedMedicineList = ImmutableList<string>.Empty;
         private ImmutableList<int> _cachedWhereHowList = ImmutableList<int>.Empty;
+        private readonly IDbContextFactory<DatabaseContext> _contextFactory;
+        private readonly DatabaseStatusService _databaseStatusService;
 
         public ImmutableDictionary<int, PlannedCowTreatment> Treatments => _cachedTreatments;
         public ImmutableList<string> CowMedicineTreatmentList => _cachedMedicineList;
         public ImmutableList<int> CowWhereHowList => _cachedWhereHowList;
 
+        public PCowTreatmentService(IDbContextFactory<DatabaseContext> contextFactory, DatabaseStatusService databaseStatusService)
+        {
+            _contextFactory = contextFactory;
+            _databaseStatusService = databaseStatusService;
+        }
+
         public async Task GetAllDataAsync()
         {
-            var treatments = await DatabaseService.ReadDataAsync(@"SELECT * FROM Planned_Cow_Treatment;", reader =>
+            try
             {
-                var treatment = new PlannedCowTreatment
-                {
-                    PlannedCowTreatmentId = reader.GetInt32("Planned_Cow_Treatment_ID"),
-                    EarTagNumber = reader.GetString("Ear_Tag_Number"),
-                    MedicineId = reader.GetInt32("Medicine_ID"),
-                    AdministrationDate = reader.GetDateTime("Administration_Date"),
-                    MedicineDosage = reader.GetFloat("Medicine_Dosage"),
-                    WhereHowId = reader.GetInt32("WhereHow_ID"),
-                    IsFound = reader.GetBoolean("IsFound"),
-                    IsTreatet = reader.GetBoolean("IsTreatet"),
-                    UdderId = reader.GetInt32("Udder_ID")
-                };
-                return treatment;
-            });
-
-            _cachedTreatments = treatments.ToImmutableDictionary(t => t.PlannedCowTreatmentId);
-            _cachedMedicineList = treatments.Select(t => t.MedicineId.ToString()).Distinct().ToImmutableList();
-            _cachedWhereHowList = treatments.Select(t => t.WhereHowId).Distinct().ToImmutableList();
-            LoggerService.LogInformation(typeof(PCowTreatmentService), $"Loaded {_cachedTreatments.Count} planned cow treatments.");
+                await using var context = await _contextFactory.CreateDbContextAsync();
+                var treatments = await context.PlannedCowTreatments.AsNoTracking().ToListAsync();
+                _cachedTreatments = treatments.ToImmutableDictionary(t => t.PlannedCowTreatmentId);
+                _cachedMedicineList = treatments.Select(t => t.MedicineId.ToString()).Distinct().ToImmutableList();
+                _cachedWhereHowList = treatments.Select(t => t.WhereHowId).Distinct().ToImmutableList();
+                _databaseStatusService.ReportSuccess();
+                LoggerService.LogInformation(typeof(PCowTreatmentService), $"Loaded {_cachedTreatments.Count} planned cow treatments.");
+            }
+            catch (Exception ex)
+            {
+                _databaseStatusService.ReportFailure();
+                LoggerService.LogError(typeof(PCowTreatmentService), "Failed to load planned cow treatments, with {@Message}", ex, ex.Message);
+            }
         }
 
         public async Task<bool> InsertDataAsync(PlannedCowTreatment cowTreatment)
         {
-            bool isSuccess = false;
-            await DatabaseService.ExecuteQueryAsync(async command =>
+            try
             {
-                command.CommandText = @"INSERT INTO `Planned_Cow_Treatment` (`Ear_Tag_Number`, `Medicine_ID`, `Administration_Date`, `Medicine_Dosage`, `WhereHow_ID`, `IsFound`, `IsTreatet`, `Udder_ID`) VALUES (@EarTagNumber, @MedicineId, @AdministrationDate, @MedicineDosage, @WhereHow, @IsFound, @IsTreatet, @UdderId);";
-                command.Parameters.AddWithValue("@EarTagNumber", cowTreatment.EarTagNumber);
-                command.Parameters.AddWithValue("@MedicineId", cowTreatment.MedicineId);
-                command.Parameters.AddWithValue("@AdministrationDate", cowTreatment.AdministrationDate);
-                command.Parameters.AddWithValue("@MedicineDosage", cowTreatment.MedicineDosage);
-                command.Parameters.AddWithValue("@WhereHow", cowTreatment.WhereHowId);
-                command.Parameters.AddWithValue("@IsFound", cowTreatment.IsFound);
-                command.Parameters.AddWithValue("@IsTreatet", cowTreatment.IsTreatet);
-                command.Parameters.AddWithValue("@UdderId", cowTreatment.UdderId);
-                isSuccess = (await command.ExecuteNonQueryAsync()) > 0;
-            });
+                await using var context = await _contextFactory.CreateDbContextAsync();
+                await context.PlannedCowTreatments.AddAsync(cowTreatment);
+                var isSuccess = await context.SaveChangesAsync() > 0;
+                _databaseStatusService.ReportSuccess();
 
-            if (isSuccess)
-            {
-                await GetAllDataAsync();
-                LoggerService.LogInformation(typeof(PCowTreatmentService), "Data inserted successfully: {@cowTreatment}", cowTreatment);
+                if (isSuccess)
+                {
+                    await GetAllDataAsync();
+                    LoggerService.LogInformation(typeof(PCowTreatmentService), "Data inserted successfully: {@cowTreatment}", cowTreatment);
+                }
+
+                return isSuccess;
             }
-
-            return isSuccess;
+            catch (Exception ex)
+            {
+                _databaseStatusService.ReportFailure();
+                LoggerService.LogError(typeof(PCowTreatmentService), "Failed to insert planned cow treatment, with {@Message}", ex, ex.Message);
+                return false;
+            }
         }
 
         public async Task<bool> RemoveByIDAsync(int id)
         {
-            bool isSuccess = false;
-            await DatabaseService.ExecuteQueryAsync(async command =>
+            try
             {
-                command.CommandText = @"DELETE FROM `Planned_Cow_Treatment` WHERE `Planned_Cow_Treatment_ID` = @id;";
-                command.Parameters.AddWithValue("@id", id);
-                isSuccess = (await command.ExecuteNonQueryAsync()) > 0;
-            });
+                await using var context = await _contextFactory.CreateDbContextAsync();
+                var affectedRows = await context.PlannedCowTreatments
+                    .Where(t => t.PlannedCowTreatmentId == id)
+                    .ExecuteDeleteAsync();
 
-            if (isSuccess && _cachedTreatments.ContainsKey(id))
-            {
-                _cachedTreatments = _cachedTreatments.Remove(id);
-                _cachedMedicineList = _cachedTreatments.Values.Select(t => t.MedicineId.ToString()).Distinct().ToImmutableList();
-                _cachedWhereHowList = _cachedTreatments.Values.Select(t => t.WhereHowId).Distinct().ToImmutableList();
-                LoggerService.LogInformation(typeof(PCowTreatmentService), "Data removed successfully: {@id}", id);
+                var isSuccess = affectedRows > 0;
+                _databaseStatusService.ReportSuccess();
+
+                if (isSuccess && _cachedTreatments.ContainsKey(id))
+                {
+                    _cachedTreatments = _cachedTreatments.Remove(id);
+                    _cachedMedicineList = _cachedTreatments.Values.Select(t => t.MedicineId.ToString()).Distinct().ToImmutableList();
+                    _cachedWhereHowList = _cachedTreatments.Values.Select(t => t.WhereHowId).Distinct().ToImmutableList();
+                    LoggerService.LogInformation(typeof(PCowTreatmentService), "Data removed successfully: {@id}", id);
+                }
+
+                return isSuccess;
             }
-
-            return isSuccess;
+            catch (Exception ex)
+            {
+                _databaseStatusService.ReportFailure();
+                LoggerService.LogError(typeof(PCowTreatmentService), "Failed to delete planned cow treatment, with {@Message}", ex, ex.Message);
+                return false;
+            }
         }
 
         public PlannedCowTreatment GetById(int id)

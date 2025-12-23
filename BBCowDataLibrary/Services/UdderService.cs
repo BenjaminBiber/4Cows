@@ -1,53 +1,63 @@
 using System.Collections.Immutable;
 using BB_Cow.Class;
 using BBCowDataLibrary.SQL;
+using Microsoft.EntityFrameworkCore;
 
 namespace BB_Cow.Services;
 
 public class UdderService
 {
     private ImmutableDictionary<int, Udder> _cachedUdder = ImmutableDictionary<int, Udder>.Empty;
+    private readonly IDbContextFactory<DatabaseContext> _contextFactory;
+    private readonly DatabaseStatusService _databaseStatusService;
     public ImmutableDictionary<int, Udder> Udder => _cachedUdder;
+
+    public UdderService(IDbContextFactory<DatabaseContext> contextFactory, DatabaseStatusService databaseStatusService)
+    {
+        _contextFactory = contextFactory;
+        _databaseStatusService = databaseStatusService;
+    }
 
     public async Task GetAllDataAsync()
     {
-        var Udder = await DatabaseService.ReadDataAsync(@"SELECT * FROM Udder;", reader =>
+        try
         {
-            var whereHow = new Udder
-            {
-                UdderId = reader.GetInt32("UDDER_ID"),
-                QuarterLV = reader.GetBoolean("Quarter_LV"),
-                QuarterLH = reader.GetBoolean("Quarter_LH"),
-                QuarterRV = reader.GetBoolean("Quarter_RV"),
-                QuarterRH = reader.GetBoolean("Quarter_RH"),
-            };
-            return whereHow;
-        });
-
-        _cachedUdder = Udder.ToImmutableDictionary(c => c.UdderId);
-        LoggerService.LogInformation(typeof(CowService), $"Loaded {_cachedUdder.Count} Udder.");
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var udders = await context.Udders.AsNoTracking().ToListAsync();
+            _cachedUdder = udders.ToImmutableDictionary(c => c.UdderId);
+            _databaseStatusService.ReportSuccess();
+            LoggerService.LogInformation(typeof(UdderService), $"Loaded {_cachedUdder.Count} Udder.");
+        }
+        catch (Exception ex)
+        {
+            _databaseStatusService.ReportFailure();
+            LoggerService.LogError(typeof(UdderService), "Failed to load udder entries, with {@Message}", ex, ex.Message);
+        }
     }
 
     public async Task<bool> InsertDataAsync(Udder udder)
     {
-        bool isSuccess = false;
-        await DatabaseService.ExecuteQueryAsync(async command =>
+        try
         {
-            command.CommandText = @"INSERT INTO `Udder` (`Quarter_LV`, `Quarter_LH`, `Quarter_RV`, `Quarter_RH`)  VALUES (@LV, @LH, @RV, @RH);";
-            command.Parameters.AddWithValue("@RV", udder.QuarterRV);
-            command.Parameters.AddWithValue("@RH", udder.QuarterRH);
-            command.Parameters.AddWithValue("@LH", udder.QuarterLH);
-            command.Parameters.AddWithValue("@LV", udder.QuarterLV);
-            isSuccess = (await command.ExecuteNonQueryAsync()) > 0;
-        });
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            await context.Udders.AddAsync(udder);
+            var isSuccess = await context.SaveChangesAsync() > 0;
+            _databaseStatusService.ReportSuccess();
 
-        if (isSuccess)
-        {
-            await GetAllDataAsync();
-            LoggerService.LogInformation(typeof(UdderService), "Inserted Udder: {@udder}.", udder);
+            if (isSuccess)
+            {
+                await GetAllDataAsync();
+                LoggerService.LogInformation(typeof(UdderService), "Inserted Udder: {@udder}.", udder);
+            }
+
+            return isSuccess;
         }
-
-        return isSuccess;
+        catch (Exception ex)
+        {
+            _databaseStatusService.ReportFailure();
+            LoggerService.LogError(typeof(UdderService), "Failed to insert udder, with {@Message}", ex, ex.Message);
+            return false;
+        }
     }
 
     public async Task<int> GetIDByBools(Udder emptyUdder)

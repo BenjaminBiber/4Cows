@@ -1,14 +1,17 @@
 using System.ComponentModel.DataAnnotations;
-using System.Runtime.CompilerServices;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace BB_Cow.Class;
 
+[Table("WhereHow")]
 public class WhereHow
 {
     [Key]
+    [Column("WhereHow_ID")]
     public int WhereHowId { get; set; }
     
     [Required]
+    [Column("WhereHow_Name")]
     public string WhereHowName { get; set; }
     
     [Required]

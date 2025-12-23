@@ -1,11 +1,8 @@
-using BBCowDataLibrary.SQL;
 using Serilog;
 using Serilog.Sinks.MariaDB.Extensions;
+using System;
 
 namespace BB_Cow.Services;
-
-using Serilog;
-using System;
 
 public class LoggerService
 {
@@ -35,14 +32,14 @@ public class LoggerService
         }
     }
 
-    public static void InitializeDBLogger()
+    public static void InitializeDBLogger(string connectionString)
     {
         LogInformation(typeof(LoggerService), "Switched to DB Logger");
         Logger = new LoggerConfiguration()
             .Enrich.FromLogContext()
             .WriteTo.Console()
             .WriteTo.MariaDB(
-                DatabaseService.GetConnectionString(),
+                connectionString,
                 autoCreateTable: true,
                 tableName: "LOGS",
                 useBulkInsert: true

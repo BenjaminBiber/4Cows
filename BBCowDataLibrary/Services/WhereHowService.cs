@@ -1,72 +1,93 @@
 using System.Collections.Immutable;
 using BB_Cow.Class;
 using BBCowDataLibrary.SQL;
+using Microsoft.EntityFrameworkCore;
 
 namespace BB_Cow.Services;
 
 public class WhereHowService
 {
     private ImmutableDictionary<int, WhereHow> _cachedWhereHows = ImmutableDictionary<int, WhereHow>.Empty;
+    private readonly IDbContextFactory<DatabaseContext> _contextFactory;
+    private readonly DatabaseStatusService _databaseStatusService;
     public ImmutableDictionary<int, WhereHow> WhereHows => _cachedWhereHows;
 
     public List<string> WhereHowNames => _cachedWhereHows.Values.Select(x => x.WhereHowName).Distinct().ToList();
 
+        public WhereHowService(IDbContextFactory<DatabaseContext> contextFactory, DatabaseStatusService databaseStatusService)
+        {
+            _contextFactory = contextFactory;
+            _databaseStatusService = databaseStatusService;
+        }
+
         public async Task GetAllDataAsync()
         {
-            var whereHows = await DatabaseService.ReadDataAsync(@"SELECT * FROM WhereHow;", reader =>
+            try
             {
-                var whereHow = new WhereHow
-                {
-                    WhereHowId = reader.GetInt32("WhereHow_ID"),
-                    WhereHowName = reader.GetString("WhereHow_Name"),
-                    ShowDialog = reader.GetBoolean("ShowDialog")
-                };
-                return whereHow;
-            });
-
-            _cachedWhereHows = whereHows.ToImmutableDictionary(c => c.WhereHowId);
-            LoggerService.LogInformation(typeof(CowService), $"Loaded {_cachedWhereHows.Count} WhereHows.");
+                await using var context = await _contextFactory.CreateDbContextAsync();
+                var whereHows = await context.WhereHows.AsNoTracking().ToListAsync();
+                _cachedWhereHows = whereHows.ToImmutableDictionary(c => c.WhereHowId);
+                _databaseStatusService.ReportSuccess();
+                LoggerService.LogInformation(typeof(WhereHowService), $"Loaded {_cachedWhereHows.Count} WhereHows.");
+            }
+            catch (Exception ex)
+            {
+                _databaseStatusService.ReportFailure();
+                LoggerService.LogError(typeof(WhereHowService), "Failed to load WhereHows, with {@Message}", ex, ex.Message);
+            }
         }
 
         public async Task<bool> InsertDataAsync(WhereHow whereHow)
         {
-            bool isSuccess = false;
-            await DatabaseService.ExecuteQueryAsync(async command =>
+            try
             {
-                command.CommandText = @"INSERT INTO `WhereHow` 
-                                (`WhereHow_Name`, `ShowDialog`) 
-                                VALUES (@WhereHowName, @ShowDialog);";
-                command.Parameters.AddWithValue("@WhereHowName", whereHow.WhereHowName);
-                command.Parameters.AddWithValue("@ShowDialog", whereHow.ShowDialog);
-                isSuccess = (await command.ExecuteNonQueryAsync()) > 0;
-            });
+                await using var context = await _contextFactory.CreateDbContextAsync();
+                await context.WhereHows.AddAsync(whereHow);
+                var isSuccess = await context.SaveChangesAsync() > 0;
+                _databaseStatusService.ReportSuccess();
 
-            if (isSuccess)
-            {
-                await GetAllDataAsync();
-                LoggerService.LogInformation(typeof(WhereHowService), "Inserted WhereHow: {@whereHow}.", whereHow);
+                if (isSuccess)
+                {
+                    await GetAllDataAsync();
+                    LoggerService.LogInformation(typeof(WhereHowService), "Inserted WhereHow: {@whereHow}.", whereHow);
+                }
+
+                return isSuccess;
             }
-
-            return isSuccess;
+            catch (Exception ex)
+            {
+                _databaseStatusService.ReportFailure();
+                LoggerService.LogError(typeof(WhereHowService), "Failed to insert WhereHow, with {@Message}", ex, ex.Message);
+                return false;
+            }
         }
 
 
         public async Task<bool> RemoveByIdAsync(int whereHowId)
         {
-            bool isSuccess = false;
-            await DatabaseService.ExecuteQueryAsync(async command =>
+            try
             {
-                command.CommandText = @"DELETE FROM `WhereHow` WHERE `WhereHow_ID` = @ID;";
-                command.Parameters.AddWithValue("@ID", whereHowId);
-                isSuccess = (await command.ExecuteNonQueryAsync()) > 0;
-            });
+                await using var context = await _contextFactory.CreateDbContextAsync();
+                var affectedRows = await context.WhereHows
+                    .Where(w => w.WhereHowId == whereHowId)
+                    .ExecuteDeleteAsync();
 
-            if (isSuccess && _cachedWhereHows.ContainsKey(whereHowId))
-            {
-                _cachedWhereHows = _cachedWhereHows.Remove(whereHowId);
+                var isSuccess = affectedRows > 0;
+                _databaseStatusService.ReportSuccess();
+
+                if (isSuccess && _cachedWhereHows.ContainsKey(whereHowId))
+                {
+                    _cachedWhereHows = _cachedWhereHows.Remove(whereHowId);
+                }
+
+                return isSuccess;
             }
-
-            return isSuccess;
+            catch (Exception ex)
+            {
+                _databaseStatusService.ReportFailure();
+                LoggerService.LogError(typeof(WhereHowService), "Failed to delete WhereHow, with {@Message}", ex, ex.Message);
+                return false;
+            }
         }
 
         public WhereHow GetById(int whereHowID)

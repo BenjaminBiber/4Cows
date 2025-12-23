@@ -1,86 +1,119 @@
 using System.Collections.Immutable;
 using BB_Cow.Class;
 using BBCowDataLibrary.SQL;
+using Microsoft.EntityFrameworkCore;
 
 namespace BB_Cow.Services;
 
 public class MedicineService
 {
     private ImmutableDictionary<int, Medicine> _cachedMedicines = ImmutableDictionary<int, Medicine>.Empty;
+    private readonly IDbContextFactory<DatabaseContext> _contextFactory;
+    private readonly DatabaseStatusService _databaseStatusService;
 
         public ImmutableDictionary<int, Medicine> Medicines => _cachedMedicines;
 
+        public MedicineService(IDbContextFactory<DatabaseContext> contextFactory, DatabaseStatusService databaseStatusService)
+        {
+            _contextFactory = contextFactory;
+            _databaseStatusService = databaseStatusService;
+        }
+
         public async Task GetAllDataAsync()
         {
-            var medicines = await DatabaseService.ReadDataAsync(@"SELECT * FROM Medicine;", reader =>
+            try
             {
-                var medicine = new Medicine
-                {
-                    MedicineId = reader.GetInt32("Medicine_ID"),
-                    MedicineName = reader.GetString("Medicine_Name")
-                };
-                return medicine;
-            });
-
-            _cachedMedicines = medicines.ToImmutableDictionary(m => m.MedicineId);
-            LoggerService.LogInformation(typeof(MedicineService), $"Loaded {_cachedMedicines.Count} medicines.");
+                await using var context = await _contextFactory.CreateDbContextAsync();
+                var medicines = await context.Medicines.AsNoTracking().ToListAsync();
+                _cachedMedicines = medicines.ToImmutableDictionary(m => m.MedicineId);
+                _databaseStatusService.ReportSuccess();
+                LoggerService.LogInformation(typeof(MedicineService), $"Loaded {_cachedMedicines.Count} medicines.");
+            }
+            catch (Exception ex)
+            {
+                _databaseStatusService.ReportFailure();
+                LoggerService.LogError(typeof(MedicineService), "Failed to load medicines, with {@Message}", ex, ex.Message);
+            }
         }
 
         public async Task<bool> InsertDataAsync(Medicine medicine)
         {
-            bool isSuccess = false;
-            await DatabaseService.ExecuteQueryAsync(async command =>
+            try
             {
-                command.CommandText = @"INSERT INTO `Medicine` (`Medicine_Name`) VALUES (@MedicineName);";
-                command.Parameters.AddWithValue("@MedicineName", medicine.MedicineName);
-                isSuccess = (await command.ExecuteNonQueryAsync()) > 0;
-            });
+                await using var context = await _contextFactory.CreateDbContextAsync();
+                await context.Medicines.AddAsync(medicine);
+                var isSuccess = await context.SaveChangesAsync() > 0;
+                _databaseStatusService.ReportSuccess();
 
-            if (isSuccess)
-            {
-                await GetAllDataAsync();
-                LoggerService.LogInformation(typeof(MedicineService), $"Inserted medicine {medicine.MedicineName}.");
+                if (isSuccess)
+                {
+                    await GetAllDataAsync();
+                    LoggerService.LogInformation(typeof(MedicineService), $"Inserted medicine {medicine.MedicineName}.");
+                }
+
+                return isSuccess;
             }
-
-            return isSuccess;
+            catch (Exception ex)
+            {
+                _databaseStatusService.ReportFailure();
+                LoggerService.LogError(typeof(MedicineService), "Failed to insert medicine, with {@Message}", ex, ex.Message);
+                return false;
+            }
         }
 
         public async Task<bool> RemoveByIdAsync(int medicineId)
         {
-            bool isSuccess = false;
-            await DatabaseService.ExecuteQueryAsync(async command =>
+            try
             {
-                command.CommandText = @"DELETE FROM `Medicine` WHERE `Medicine_ID` = @MedicineId;";
-                command.Parameters.AddWithValue("@MedicineId", medicineId);
-                isSuccess = (await command.ExecuteNonQueryAsync()) > 0;
-            });
+                await using var context = await _contextFactory.CreateDbContextAsync();
+                var affectedRows = await context.Medicines
+                    .Where(m => m.MedicineId == medicineId)
+                    .ExecuteDeleteAsync();
 
-            if (isSuccess && _cachedMedicines.ContainsKey(medicineId))
-            {
-                _cachedMedicines = _cachedMedicines.Remove(medicineId);
+                var isSuccess = affectedRows > 0;
+                _databaseStatusService.ReportSuccess();
+
+                if (isSuccess && _cachedMedicines.ContainsKey(medicineId))
+                {
+                    _cachedMedicines = _cachedMedicines.Remove(medicineId);
+                }
+
+                return isSuccess;
             }
-
-            return isSuccess;
+            catch (Exception ex)
+            {
+                _databaseStatusService.ReportFailure();
+                LoggerService.LogError(typeof(MedicineService), "Failed to delete medicine, with {@Message}", ex, ex.Message);
+                return false;
+            }
         }
 
         public async Task<bool> UpdateDataAsync(Medicine medicine)
         {
-            bool isSuccess = false;
-            await DatabaseService.ExecuteQueryAsync(async command =>
+            try
             {
-                command.CommandText = @"UPDATE `Medicine` SET `Medicine_Name` = @MedicineName WHERE `Medicine_ID` = @MedicineId;";
-                command.Parameters.AddWithValue("@MedicineName", medicine.MedicineName);
-                command.Parameters.AddWithValue("@MedicineId", medicine.MedicineId);
-                isSuccess = (await command.ExecuteNonQueryAsync()) > 0;
-            });
+                await using var context = await _contextFactory.CreateDbContextAsync();
+                var affectedRows = await context.Medicines
+                    .Where(m => m.MedicineId == medicine.MedicineId)
+                    .ExecuteUpdateAsync(setters => setters.SetProperty(m => m.MedicineName, medicine.MedicineName));
 
-            if (isSuccess)
-            {
-                await GetAllDataAsync();
-                LoggerService.LogInformation(typeof(MedicineService), $"Updated medicine {medicine.MedicineName}.");
+                var isSuccess = affectedRows > 0;
+                _databaseStatusService.ReportSuccess();
+
+                if (isSuccess)
+                {
+                    await GetAllDataAsync();
+                    LoggerService.LogInformation(typeof(MedicineService), $"Updated medicine {medicine.MedicineName}.");
+                }
+
+                return isSuccess;
             }
-
-            return isSuccess;
+            catch (Exception ex)
+            {
+                _databaseStatusService.ReportFailure();
+                LoggerService.LogError(typeof(MedicineService), "Failed to update medicine, with {@Message}", ex, ex.Message);
+                return false;
+            }
         }
         
         public Medicine GetById(int medicineId)

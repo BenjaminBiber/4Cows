@@ -11,6 +11,8 @@
         <PackageReference Include="Hangfire" Version="1.8.17" />
         <PackageReference Include="Hangfire.AspNetCore" Version="1.8.17" />
         <PackageReference Include="Hangfire.Redis.StackExchange" Version="1.10.1-beta2" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.6" />
+        <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="8.0.2" />
         <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2"/>
     </ItemGroup>
 

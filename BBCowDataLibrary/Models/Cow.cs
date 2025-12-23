@@ -1,15 +1,19 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace BB_Cow.Class;
 
+[Table("Cow")]
 public class Cow
 {
     [Key]
     [Required]
     [StringLength(64)]
+    [Column("Ear_Tag_Number")]
     public string EarTagNumber { get; set; }
 
     [Required]
+    [Column("Collar_Number")]
     public int CollarNumber { get; set; }
 
     [Required]
