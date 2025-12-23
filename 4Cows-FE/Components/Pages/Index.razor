@@ -3,6 +3,7 @@
 @inject IJSRuntime JSRuntime
 @using _4Cows_FE.Components._4CowsComponent.Dialogs
 @using _4Cows_FE.Components._4CowsComponent
+@using _4Cows_FE.Components.Services
 @using BB_KPI.Services
 @inject ISnackbar Snackbar
 @inject CowTreatmentService cowTreatmentService
@@ -13,6 +14,18 @@
 @inject CowService cowService
 @inject WhereHowService WhereHowService
 @inject KPIService KPIService
+@inject DatabaseConnectionState DatabaseConnectionState
+@implements IDisposable
+
+<MudOverlay Visible="@ShowDatabaseConnectionIssue" DarkBackground="true" Absolute="true" Class="db-connection-overlay">
+    <MudPaper Elevation="12" Class="db-connection-overlay__card">
+        <MudIcon Class="d-flex align-items-center" Icon="@Icons.Material.Filled.CloudOff" Size="Size.Large" Color="Color.Error" />
+        <MudText Typo="Typo.h5" Align="Align.Center">Keine Datenbank verbunden</MudText>
+        <MudText Typo="Typo.subtitle2" Align="Align.Center">
+            Bitte prüfe die Datenbankverbindung oder kontaktiere den Administrator.
+        </MudText>
+    </MudPaper>
+</MudOverlay>
 
 <div id="Index_Top">
     <div id="KPI_Div">
@@ -67,9 +80,13 @@
     
     protected override async Task OnInitializedAsync()
     {
+        DatabaseConnectionState.ConnectionStateChanged += HandleDatabaseConnectionStateChanged;
+        await DatabaseConnectionState.EnsureLatestStatusAsync();
         await GetLists();
         await GetKPIs();
     }
+
+    private bool ShowDatabaseConnectionIssue => !DatabaseConnectionState.IsConnected;
 
     private async Task GetLists()
     {
@@ -149,6 +166,11 @@
     {
         var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
         DialogService.Show<Add_Planned_Claw_Treatment_Dialog>("", options);
+    }
+
+    private void HandleDatabaseConnectionStateChanged()
+    {
+        _ = InvokeAsync(StateHasChanged);
     }
 
     private async Task InitilizeLineChartAsync(string ChartName, string _label, int[] _data)
@@ -358,5 +380,9 @@
                 }
             }
         }
+    }
+    public void Dispose()
+    {
+        DatabaseConnectionState.ConnectionStateChanged -= HandleDatabaseConnectionStateChanged;
     }
 }

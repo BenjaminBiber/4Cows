@@ -1,4 +1,5 @@
 using _4Cows_FE.Components;
+using _4Cows_FE.Components.Services;
 using BB_Cow;
 using BB_Cow.Services;
 using BB_KPI.Services;
@@ -10,7 +11,7 @@ using MudBlazor.Services;
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddEnvironmentVariables();
 LoggerService.InitializeLogger();
-DatabaseService.GetDBStringFromCSV();
+DatabaseService.GetDBStringFromEnvironment();
 LoggerService.InitializeDBLogger();
 StaticWebAssetsLoader.UseStaticWebAssets(builder.Environment, builder.Configuration); 
 
@@ -27,6 +28,7 @@ builder.Services.AddSingleton<CowService>();
 builder.Services.AddSingleton<WhereHowService>();
 builder.Services.AddSingleton<UdderService>();
 builder.Services.AddSingleton<KPIService>();
+builder.Services.AddSingleton<DatabaseConnectionState>();
 builder.WebHost.UseStaticWebAssets();
 var app = builder.Build();
 app.UseStaticFiles();

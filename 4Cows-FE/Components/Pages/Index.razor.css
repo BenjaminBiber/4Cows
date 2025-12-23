@@ -1,0 +1,16 @@
+.db-connection-overlay {
+    z-index: 1500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.db-connection-overlay__card {
+    padding: 2rem;
+    text-align: center;
+    gap: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    min-width: 280px;
+    max-width: 420px;
+}
