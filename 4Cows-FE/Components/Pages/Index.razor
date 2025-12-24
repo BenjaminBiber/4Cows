@@ -27,17 +27,21 @@
     </MudPaper>
 </MudOverlay>
 
-<div id="Index_Top">
-    <div id="KPI_Div">
-        @foreach (var entry in KPIs)
-        {
-            <div class="KPI-Element">
-                <KPI_Component Link="@entry.Key.Url" Value="@entry.Value" Header="@entry.Key.Title"></KPI_Component>
-            </div>
+<div class="row g-0 h-50">
+    <div class="col-8 row g-0 gap-0 justify-content-around align-items-center">
+        @{
+            var counter = 0;
+            foreach (var entry in KPIs)
+            {
+                <div class="@($"col-3 h-50 p-2 {(counter > 1 ? "d-lg-flex d-none" : "")}")">
+                    <KPI_Component Link="@entry.Key.Url" Value="@entry.Value" Header="@entry.Key.Title"></KPI_Component>
+                </div>
+                counter++;
+            }
         }
     </div>
     
-    <div id="Action_Div">
+    <div class="col-4 d-flex align-items-center flex-column justify-content-center gap-2 p-2">
         <MudButton StartIcon="@Icons.Material.Filled.BackupTable" Style="height: 5em;" IconColor="Color.Surface" Align="Align.Center" Variant="Variant.Filled" Color="Color.Tertiary" FullWidth="true" OnClick="OpenCowDialog">Kuh Behandlung hinzufügen</MudButton>
         <MudButton StartIcon="@Icons.Material.Filled.Construction" Style="height: 5em;" IconColor="Color.Surface" Align="Align.Center" Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true" OnClick="OpenPlannedDialog">geplante Kuh Behandlung hinzufügen</MudButton>
         <MudButton StartIcon="@Icons.Material.Filled.Pets" Style="height: 5em;" IconColor="Color.Surface" Align="Align.Center" Variant="Variant.Filled" Color="Color.Tertiary" FullWidth="true" OnClick="OpenClawDialog">Klauen Behandlung hinzufügen</MudButton>
