@@ -1,0 +1,55 @@
+@inject ISnackbar Snackbar
+@inject CowService cowService
+
+<MudDialog>
+    <DialogContent>
+        <MudStack>
+            <MudText Class="table-Header" Align="Align.Center" Typo="Typo.h3">Ohrenmarke zuweisen</MudText>
+
+            <MudTextField Value="@Calf.CollarNumber.ToString()" Label="Halsbandnummer:" ReadOnly="true" Variant="Variant.Text" />
+            <MudTextField @bind-Value="EarTagNumber" Label="Ohrmarkennummer:" Immediate="true" Variant="Variant.Text" />
+
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@Save">Speichern</MudButton>
+        </MudStack>
+    </DialogContent>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+
+    [Parameter] public Cow Calf { get; set; }
+
+    private string EarTagNumber = "";
+
+    private async Task Save()
+    {
+        Snackbar.Configuration.SnackbarVariant = Variant.Outlined;
+
+        var earTag = EarTagNumber?.Trim() ?? "";
+        if (string.IsNullOrEmpty(earTag))
+        {
+            Snackbar.Add("Ohrmarkennummer darf nicht leer sein!", Severity.Error);
+            return;
+        }
+
+        // The ear tag must not already be in use by another cow (identified or already-promoted).
+        // The DB unique index enforces this too, but a friendly message is nicer than a failed save.
+        var existing = cowService.GetByEarTagNumber(earTag);
+        if (existing != null && existing.CowId != Calf.CowId)
+        {
+            Snackbar.Add($"Ohrmarkennummer {earTag} ist bereits vergeben!", Severity.Error);
+            return;
+        }
+
+        var success = await cowService.PromoteCalfAsync(Calf.CowId, earTag);
+        if (success)
+        {
+            Snackbar.Add($"Ohrenmarke {earTag} zugewiesen.", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        else
+        {
+            Snackbar.Add("Zuweisen fehlgeschlagen.", Severity.Error);
+        }
+    }
+}

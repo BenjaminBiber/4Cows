@@ -18,7 +18,7 @@
                 {
                     <MudItem xs="12">
                         <MudNumericField TextChanged="@((string s) => GetEarNumber(number))" Immediate="true" @bind-Value="number.Value" OnValue Label="Halsbandnummer:" Variant="Variant.Text" />
-                        <MudAutocomplete TextChanged="() => GetCollarNumber(number)" SearchFunc="cowService.SearchCowEarTagNumbers" ResetValueOnEmptyText="true" Immediate="true" @bind-Value="number.EarValue" Label="Ohrmarkennummer:" Variant="Variant.Text" />
+                        <MudAutocomplete TextChanged="() => GetCollarNumber(number)" SearchFunc="cowService.SearchCows" ToStringFunc="cowService.GetDisplayLabel" ResetValueOnEmptyText="true" Immediate="true" @bind-Value="number.EarValue" Label="Kuh / Kalb:" Variant="Variant.Text" />
                     </MudItem>
                 }
                 <MudItem xs="5"></MudItem>
@@ -89,7 +89,7 @@
     public void GetEarNumber(NumberEntry entry)
     {
         var index = numbers.IndexOf(entry);
-        numbers[index].EarValue = entry.Value.HasValue ? cowService.GetEarTagNumberByCollarNumber(entry.Value.Value, false) : null;
+        numbers[index].EarValue = entry.Value.HasValue ? cowService.GetCowIdByCollarNumber(entry.Value.Value) : null;
         StateHasChanged();
     }
 
@@ -126,7 +126,7 @@
                     }
                     else
                     {
-                        Snackbar.Add($"Behandlung für Kuh {Planned_Cow_Treatment.EarTagNumber} erfolgreich gespeichert!", Severity.Success);
+                        Snackbar.Add($"Behandlung für Kuh {cowService.GetDisplayLabel(Planned_Cow_Treatment.EarTagNumber)} erfolgreich gespeichert!", Severity.Success);
                     }
                 }
             }
@@ -151,7 +151,7 @@
     private void GetCollarNumber(NumberEntry entry)
     {
         var index = numbers.IndexOf(entry);
-        numbers[index].Value = entry.EarValue != null ? cowService.GetCollarNumberByEarTagNumber(entry.EarValue) : null;
+        numbers[index].Value = entry.EarValue != null ? cowService.GetCollarNumberByCowId(entry.EarValue) : null;
         StateHasChanged();
     }
     

@@ -82,7 +82,12 @@
         if (TestForNullInput())
         {    
             Planned_Claw_Treatment.TreatmentDate = NullDate.Value;
-            Planned_Claw_Treatment.EarTagNumber = cowService.GetEarTagNumberByCollarNumber(CollarNumber, false);
+            Planned_Claw_Treatment.EarTagNumber = cowService.GetCowIdByCollarNumber(CollarNumber);
+            if (string.IsNullOrEmpty(Planned_Claw_Treatment.EarTagNumber))
+            {
+                Snackbar.Add($"Halsbandnummer {CollarNumber} nicht gefunden!", Severity.Error);
+                return;
+            }
             SaveSuccesfulBool = await pClawTreatmentService.InsertDataAsync(Planned_Claw_Treatment);
             MudDialog.Close();
             if (SaveSuccesfulBool)

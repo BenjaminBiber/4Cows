@@ -26,7 +26,7 @@
     </ToolBarContent>
     
     <HeaderContent>
-        <MudTh><MudTableSortLabel SortBy="new Func<PlannedCowTreatment, object>(x=>cowService.GetCollarNumberByEarTagNumber(x.EarTagNumber))">Halsbandnummer</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<PlannedCowTreatment, object>(x=>cowService.GetCollarNumberByCowId(x.EarTagNumber))">Halsbandnummer</MudTableSortLabel></MudTh>
         <MudTh><MudTableSortLabel SortBy="new Func<PlannedCowTreatment, object>(x=>x.EarTagNumber)">Ohrmarkennummer</MudTableSortLabel></MudTh>
         <MudTh><MudTableSortLabel SortBy="new Func<PlannedCowTreatment, object>(x=>x.MedicineId)">Medikament</MudTableSortLabel></MudTh>
         <MudTh><MudTableSortLabel SortBy="new Func<PlannedCowTreatment, object>(x=> WhereHowService.GetFullWhereHowName(x.WhereHowId, UdderService, x.UdderId))">Wie/Wo</MudTableSortLabel></MudTh>
@@ -42,8 +42,13 @@
 
     </HeaderContent>
     <RowTemplate>
-        <MudTd Style="" DataLabel="Halsbandnummer">@cowService.GetCollarNumberByEarTagNumber(context.EarTagNumber)</MudTd>
-        <MudTd DataLabel="Ohrmarkennummer">@(!isSimpleView ? @context.EarTagNumber : @context.EarTagNumber.Substring(context.EarTagNumber.Length - 5))</MudTd>
+        <MudTd Style="" DataLabel="Halsbandnummer">@cowService.GetCollarNumberByCowId(context.EarTagNumber)</MudTd>
+        <MudTd DataLabel="Ohrmarkennummer">
+            @{
+                var earTag = cowService.GetEarTagDisplay(context.EarTagNumber);
+            }
+            @(isSimpleView && earTag.Length > 5 ? earTag.Substring(earTag.Length - 5) : earTag)
+        </MudTd>
         <MudTd DataLabel="Medikament">@medicineService.GetMedicineNameById(context.MedicineId)</MudTd>
         <MudTd DataLabel="Wie/Wo">@WhereHowService.GetFullWhereHowName(context.WhereHowId, UdderService, context.UdderId)</MudTd>
 

@@ -14,7 +14,7 @@
     </HeaderContent>
 
     <RowTemplate>
-        <MudTd DataLabel="Halsbandnummer">@CowService.GetCollarNumberByEarTagNumber(context.EarTagNumber)</MudTd>
+        <MudTd DataLabel="Halsbandnummer">@CowService.GetCollarNumberByCowId(context.EarTagNumber)</MudTd>
         <MudTd DataLabel="Datum">@context.TreatmentDate.ToString("dd.MM.yyyy")</MudTd>
         <MudTd>
             <MudButton Variant="Variant.Filled" Size="Size.Small" OnClick="@(() => DeleteClawTreatment(context))" StartIcon="@Icons.Material.Filled.Delete" Color="Color.Error">Behandlung Löschen</MudButton>
@@ -36,7 +36,7 @@
     {
         if (string.IsNullOrWhiteSpace(searchString))
             return true;
-        if (CowService.GetCollarNumberByEarTagNumber(Treatment_Cow.EarTagNumber).ToString() == searchString)
+        if (CowService.GetCollarNumberByCowId(Treatment_Cow.EarTagNumber).ToString() == searchString)
             return true;
         return false;
     }

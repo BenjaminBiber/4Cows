@@ -26,7 +26,7 @@
         <MudTextField @bind-Value="searchClaw" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
     </ToolBarContent>
     <HeaderContent>
-        <MudTh><MudTableSortLabel SortBy="new Func<CowTreatment, object>(x=>cowService.GetCollarNumberByEarTagNumber(x.EarTagNumber))">Halsbandnummer</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<CowTreatment, object>(x=>cowService.GetCollarNumberByCowId(x.EarTagNumber))">Halsbandnummer</MudTableSortLabel></MudTh>
         <MudTh><MudTableSortLabel SortBy="new Func<PlannedClawTreatment, object>(x=>x.Desciption)">Beschreibung</MudTableSortLabel></MudTh>
         <MudTh></MudTh>
         <MudTh></MudTh>
@@ -35,7 +35,7 @@
 
     </HeaderContent>
     <RowTemplate>
-        <MudTd DataLabel="Halsbandnummer">@cowService.GetCollarNumberByEarTagNumber(context.EarTagNumber)</MudTd>
+        <MudTd DataLabel="Halsbandnummer">@cowService.GetCollarNumberByCowId(context.EarTagNumber)</MudTd>
         <MudTd DataLabel="Beschreibung">@context.Desciption</MudTd>
         <MudTd><MudButton Color="Color.Tertiary" Variant="Variant.Filled" OnClick="@(() => OpenClawInformation(context))">Behandlung öffnen</MudButton></MudTd>
         <MudTd><MudButton Color="Color.Secondary" Variant="Variant.Filled" OnClick="@(() => AddClawTreatment(context))">Behandlung abschließen</MudButton></MudTd>

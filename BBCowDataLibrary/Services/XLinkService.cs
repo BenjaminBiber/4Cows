@@ -99,27 +99,55 @@ public class XLinkService
     {
         await _cowService.GetAllDataAsync();
 
-        var scraperLifeNums = cows.Select(c => c.LifeNumb).Where(ln => !string.IsNullOrWhiteSpace(ln)).ToList();
+        var scraperLifeNums = cows
+            .Select(c => c.LifeNumb)
+            .Where(ln => !string.IsNullOrWhiteSpace(ln))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        var databaseOnlyLifeNums = _cowService.Cows.Keys.ToList().Except(scraperLifeNums).ToList();
+        // Mark IsGone only for IDENTIFIED cows (with an ear tag) that are no longer in XLink.
+        // Calves have no ear tag and are never part of the scraper set, so they must be excluded
+        // here — otherwise every calf would be wrongly flagged as gone on each sync.
+        var goneCandidates = _cowService.Cows.Values
+            .Where(c => !c.IsGone
+                && !string.IsNullOrWhiteSpace(c.EarTagNumber)
+                && !scraperLifeNums.Contains(c.EarTagNumber))
+            .ToList();
 
-        foreach (var lifeNumb in databaseOnlyLifeNums)
+        foreach (var cow in goneCandidates)
         {
-            await _cowService.UpdateIsGoneAsync(lifeNumb, true);
+            await _cowService.UpdateIsGoneAsync(cow.CowId, true);
         }
 
         foreach (var cow in cows)
         {
-            var newCow = new Cow(cow.LifeNumb, cow.CowNumb, false);
+            if (string.IsNullOrWhiteSpace(cow.LifeNumb))
+            {
+                continue;
+            }
 
-            if (_cowService.Cows.ContainsKey(cow.LifeNumb) && _cowService.Cows[cow.LifeNumb].CollarNumber != cow.CowNumb)
+            // (a) A cow already carries this ear tag -> keep collar in sync. Matching on the ear tag
+            // FIELD (not the Cow_ID key) also covers promoted calves, whose Cow_ID stays a GUID.
+            var identified = _cowService.GetByEarTagNumber(cow.LifeNumb);
+            if (identified != null)
             {
-                await _cowService.UpdateCollarNumberAsync(newCow.EarTagNumber, newCow.CollarNumber);
+                if (identified.CollarNumber != cow.CowNumb)
+                {
+                    await _cowService.UpdateCollarNumberAsync(identified.CowId, cow.CowNumb);
+                }
+                continue;
             }
-            else if (!_cowService.Cows.ContainsKey(cow.LifeNumb) && !string.IsNullOrWhiteSpace(cow.LifeNumb))
+
+            // (b) A local calf carries this collar number but has no ear tag yet -> promote it.
+            // The Cow_ID (PK) stays unchanged, so its treatment history remains linked.
+            var calf = _cowService.GetCalfByCollarNumber(cow.CowNumb);
+            if (calf != null)
             {
-                await _cowService.InsertDataAsync(newCow);
+                await _cowService.PromoteCalfAsync(calf.CowId, cow.LifeNumb);
+                continue;
             }
+
+            // (c) Brand-new identified cow: Cow_ID = ear tag.
+            await _cowService.InsertDataAsync(new Cow(cow.LifeNumb, cow.CowNumb, false));
         }
     }
 }

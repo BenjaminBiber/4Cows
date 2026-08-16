@@ -28,13 +28,13 @@
         <MudTextField @bind-Value="searchClaw" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
     </ToolBarContent>
     <HeaderContent>
-        <MudTh><MudTableSortLabel SortBy="new Func<CowTreatment, object>(x=>cowService.GetCollarNumberByEarTagNumber(x.EarTagNumber))">Halsbandnummer</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<CowTreatment, object>(x=>cowService.GetCollarNumberByCowId(x.EarTagNumber))">Halsbandnummer</MudTableSortLabel></MudTh>
         <MudTh><MudTableSortLabel SortBy="new Func<ClawTreatment, object>(x=>x.TreatmentDate)">Datum</MudTableSortLabel></MudTh>
         <MudTh></MudTh>
 
     </HeaderContent>
     <RowTemplate>
-        <MudTd DataLabel="Halsbandnummer">@cowService.GetCollarNumberByEarTagNumber(context.EarTagNumber)</MudTd>
+        <MudTd DataLabel="Halsbandnummer">@cowService.GetCollarNumberByCowId(context.EarTagNumber)</MudTd>
             <MudTd DataLabel="Datum">@context.TreatmentDate.ToString("dd.MM.yyyy")</MudTd>
             <MudTd><MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="@(() => OpenClawInformation(context))">Behandlung öffnen</MudButton></MudTd>
         </RowTemplate>
@@ -100,8 +100,8 @@
 
             for (int i = 0; i < Treatment_Claws.Count; i++)
             {
-                worksheet.Cells[i + 3, 1].Value = Treatment_Claws[i].EarTagNumber; 
-                worksheet.Cells[i + 3, 2].Value = cowService.GetCollarNumberByEarTagNumber(Treatment_Claws[i].EarTagNumber); 
+                worksheet.Cells[i + 3, 1].Value = cowService.GetEarTagDisplay(Treatment_Claws[i].EarTagNumber);
+                worksheet.Cells[i + 3, 2].Value = cowService.GetCollarNumberByCowId(Treatment_Claws[i].EarTagNumber); 
                 worksheet.Cells[i + 3, 3].Value = Treatment_Claws[i].TreatmentDate;
                 worksheet.Cells[i + 3, 4].Value = Treatment_Claws[i].ClawFindingLV;
                 worksheet.Cells[i + 3, 5].Value = Treatment_Claws[i].BandageLV ? "Verband" : "Kein Verband";

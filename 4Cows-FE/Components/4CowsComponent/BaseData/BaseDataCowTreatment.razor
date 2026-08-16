@@ -21,8 +21,8 @@
 
     </HeaderContent>
     <RowTemplate>
-        <MudTd DataLabel="Halsbandnummer">@CowService.GetCollarNumberByEarTagNumber(context.EarTagNumber)</MudTd>
-        <MudTd DataLabel="Ohrmarkennummer">@context.EarTagNumber</MudTd>
+        <MudTd DataLabel="Halsbandnummer">@CowService.GetCollarNumberByCowId(context.EarTagNumber)</MudTd>
+        <MudTd DataLabel="Ohrmarkennummer">@CowService.GetEarTagDisplay(context.EarTagNumber)</MudTd>
         <MudTd DataLabel="Datum">@context.AdministrationDate</MudTd>
         <MudTd DataLabel="Medikament">@MedicineService.GetMedicineNameById(context.MedicineId)</MudTd>
         <MudTd DataLabel="Wie/Wo">@WhereHowService.GetFullWhereHowName(context.WhereHowId, UdderService, context.UdderId)</MudTd>
@@ -43,7 +43,7 @@
     {
         if (string.IsNullOrWhiteSpace(searchString))
             return true;
-        if (CowService.GetCollarNumberByEarTagNumber(CowTreatment.EarTagNumber).ToString() == searchString)
+        if (CowService.GetCollarNumberByCowId(CowTreatment.EarTagNumber).ToString() == searchString)
             return true;
         return false;
     }

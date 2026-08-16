@@ -1,0 +1,52 @@
+@inject ISnackbar Snackbar
+@inject CowService cowService
+
+<MudDialog>
+    <DialogContent>
+        <MudStack>
+            <MudText Class="table-Header" Align="Align.Center" Typo="Typo.h3">Kalb anlegen</MudText>
+
+            <MudNumericField @bind-Value="CollarNumber" Label="Halsbandnummer:" Min="1" Immediate="true" Variant="Variant.Text" />
+            <MudText Typo="Typo.caption">
+                Ein Kalb wird ohne Ohrenmarkennummer angelegt. Sobald es (über XLink oder manuell)
+                eine Ohrenmarke erhält, wird sie zugewiesen.
+            </MudText>
+
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@Save">Speichern</MudButton>
+        </MudStack>
+    </DialogContent>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+
+    private int CollarNumber;
+
+    private async Task Save()
+    {
+        Snackbar.Configuration.SnackbarVariant = Variant.Outlined;
+
+        if (CollarNumber <= 0)
+        {
+            Snackbar.Add("Halsbandnummer muss größer als 0 sein!", Severity.Error);
+            return;
+        }
+
+        if (cowService.IsCollarInUse(CollarNumber))
+        {
+            Snackbar.Add($"Halsbandnummer {CollarNumber} ist bereits vergeben!", Severity.Error);
+            return;
+        }
+
+        var success = await cowService.InsertDataAsync(Cow.CreateCalf(CollarNumber));
+        if (success)
+        {
+            Snackbar.Add($"Kalb mit Halsbandnummer {CollarNumber} angelegt.", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        else
+        {
+            Snackbar.Add("Anlegen fehlgeschlagen.", Severity.Error);
+        }
+    }
+}

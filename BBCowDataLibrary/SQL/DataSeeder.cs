@@ -53,11 +53,11 @@ public static class DataSeeder
             {
                 Title = "Kuh mit den meisten Behandlungen",
                 Url = "Kuh_Daten",
-                Script = @"SELECT CAST(c.Collar_Number AS CHAR) AS value 
-                            FROM Cow_Treatment ct 
-                            LEFT JOIN Cow c ON ct.Ear_Tag_Number = c.Ear_Tag_Number 
-                            GROUP BY ct.Ear_Tag_Number 
-                            ORDER BY COUNT(*) DESC 
+                Script = @"SELECT CAST(c.Collar_Number AS CHAR) AS value
+                            FROM Cow_Treatment ct
+                            LEFT JOIN Cow c ON ct.Ear_Tag_Number = c.Cow_ID
+                            GROUP BY ct.Ear_Tag_Number
+                            ORDER BY COUNT(*) DESC
                             LIMIT 1;",
                 SortOrder = 4
             },
@@ -82,11 +82,11 @@ public static class DataSeeder
             {
                 Title = "Kuh mit den meisten Klauen Behandlungen",
                 Url = "Klauen_Daten",
-                Script = @"SELECT CAST(c.Collar_Number AS CHAR) AS value 
-                            FROM Claw_Treatment ct 
-                            LEFT JOIN Cow c ON ct.Ear_Tag_Number = c.Ear_Tag_Number 
-                            GROUP BY ct.Ear_Tag_Number 
-                            ORDER BY COUNT(*) DESC 
+                Script = @"SELECT CAST(c.Collar_Number AS CHAR) AS value
+                            FROM Claw_Treatment ct
+                            LEFT JOIN Cow c ON ct.Ear_Tag_Number = c.Cow_ID
+                            GROUP BY ct.Ear_Tag_Number
+                            ORDER BY COUNT(*) DESC
                             LIMIT 1;",
                 SortOrder = 6
             }

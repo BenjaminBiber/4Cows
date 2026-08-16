@@ -16,7 +16,7 @@
                 {
                     <MudItem xs="12">
                         <MudNumericField Immediate="true" @bind-Value="number.Value" TextChanged="@((string s) => GetEarNumber(number))" Label="Halsbandnummer:" Variant="Variant.Text" />
-                        <MudAutocomplete TextChanged="() => GetCollarNumber(number)" SearchFunc="cowService.SearchCowEarTagNumbers" ResetValueOnEmptyText="true" Immediate="true" @bind-Value="number.EarValue" Label="Ohrmarkennummer:" Variant="Variant.Text" />
+                        <MudAutocomplete TextChanged="() => GetCollarNumber(number)" SearchFunc="cowService.SearchCows" ToStringFunc="cowService.GetDisplayLabel" ResetValueOnEmptyText="true" Immediate="true" @bind-Value="number.EarValue" Label="Kuh / Kalb:" Variant="Variant.Text" />
                     </MudItem>
                 }
                 <MudItem xs="5"></MudItem>
@@ -75,7 +75,7 @@
     {
         if(!string.IsNullOrEmpty(Cow_Treatment.EarTagNumber))
         {
-            numbers.Add(new NumberEntry(cowService.GetCollarNumberByEarTagNumber(Cow_Treatment.EarTagNumber), Cow_Treatment.EarTagNumber));
+            numbers.Add(new NumberEntry(cowService.GetCollarNumberByCowId(Cow_Treatment.EarTagNumber), Cow_Treatment.EarTagNumber));
             MedicineName = medicineService.GetMedicineNameById(Cow_Treatment.MedicineId);
         }
         else
@@ -99,14 +99,14 @@
     public void GetEarNumber(NumberEntry entry)
     {
         var index = numbers.IndexOf(entry);
-        numbers[index].EarValue = entry.Value.HasValue ? cowService.GetEarTagNumberByCollarNumber(entry.Value.Value, false) : null;
+        numbers[index].EarValue = entry.Value.HasValue ? cowService.GetCowIdByCollarNumber(entry.Value.Value) : null;
         StateHasChanged();
     }
-    
+
     private void GetCollarNumber(NumberEntry entry)
     {
         var index = numbers.IndexOf(entry);
-        numbers[index].Value = entry.EarValue != null ? cowService.GetCollarNumberByEarTagNumber(entry.EarValue) : null;
+        numbers[index].Value = entry.EarValue != null ? cowService.GetCollarNumberByCowId(entry.EarValue) : null;
         StateHasChanged();
     }
 
