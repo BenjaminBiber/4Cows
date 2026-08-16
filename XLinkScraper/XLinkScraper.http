@@ -1,6 +1,0 @@
-@XLinkScraper_HostAddress = http://localhost:5241
-
-GET {{XLinkScraper_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###

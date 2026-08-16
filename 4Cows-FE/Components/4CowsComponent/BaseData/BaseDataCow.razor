@@ -1,9 +1,23 @@
 @inject CowService CowService
 @inject MedicineService MedicineService
 @inject CowTreatmentService CowTreatmentService
+@inject XLinkService XLinkService
+@inject ISnackbar Snackbar
 
 <MudTable Elevation="5" Dense="true" Items="@Cows" Hover="true" Striped="@true" Filter="(Func<Cow, bool>)FilterFunc1">
     <ToolBarContent>
+        <MudButton StartIcon="@Icons.Material.Filled.Sync" Variant="Variant.Filled" Color="Color.Primary"
+                   OnClick="RefreshFromXLink" Disabled="@_isRefreshing">
+            @if (_isRefreshing)
+            {
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true"/>
+                <MudText Class="ms-2">Aktualisiere…</MudText>
+            }
+            else
+            {
+                <MudText>Kühe von XLink aktualisieren</MudText>
+            }
+        </MudButton>
         <MudSpacer/>
         <MudTextField T="string" @bind-value="cowSearchString" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
     </ToolBarContent>
@@ -24,6 +38,7 @@
 @code {
     private IEnumerable<Cow> Cows = new List<Cow>();
     private string cowSearchString = "";
+    private bool _isRefreshing;
     private bool FilterFunc1(Cow CowTreatment) => FilterFunc(CowTreatment, cowSearchString);
 
     private bool FilterFunc(Cow CowTreatment, string searchString)
@@ -39,5 +54,28 @@
     {
         await CowTreatmentService.GetAllDataAsync();
         Cows = CowService.Cows.Values;
+    }
+
+    private async Task RefreshFromXLink()
+    {
+        if (_isRefreshing)
+            return;
+
+        _isRefreshing = true;
+        try
+        {
+            await XLinkService.RefreshCowsAsync();
+            await CowService.GetAllDataAsync();
+            Cows = CowService.Cows.Values;
+            Snackbar.Add("Kühe wurden erfolgreich von XLink aktualisiert.", Severity.Success);
+        }
+        catch (Exception e)
+        {
+            Snackbar.Add($"Fehler beim Aktualisieren der Kühe: {e.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isRefreshing = false;
+        }
     }
 }

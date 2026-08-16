@@ -4,7 +4,6 @@ using BB_Cow.Class;
 using BB_Cow.Services;
 using BBCowDataLibrary.SQL;
 using Microsoft.EntityFrameworkCore;
-using OpenQA.Selenium;
 
 namespace BB_KPI.Services;
 

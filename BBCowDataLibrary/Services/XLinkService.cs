@@ -1,118 +1,125 @@
+using System.Text.RegularExpressions;
 using BB_Cow.Class;
-using Microsoft.Extensions.Hosting;
-using OpenQA.Selenium;
-using OpenQA.Selenium.Chrome;
-using OpenQA.Selenium.Remote;
 
 namespace BB_Cow.Services;
 
 public class XLinkService
 {
-    public CowService _CowService;
+    // Matches a single data row of the XLink ReportTable: two adjacent
+    // <td ...><nobr>VALUE</nobr></td> cells (col 1 = collar number, col 2 = life number).
+    // The header row uses <th>/<a> without <nobr>, so it is skipped automatically.
+    private static readonly Regex RowRegex = new(
+        @"<td[^>]*>\s*<nobr>([^<]*)</nobr>\s*</td>\s*<td[^>]*>\s*<nobr>([^<]*)</nobr>\s*</td>",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    // Matches the pager label, e.g. <span id="PageCurrentLabel">1&nbsp;/&nbsp;17</span>
+    // Group 1 = current page, group 2 = total page count.
+    private static readonly Regex PageCountRegex = new(
+        "PageCurrentLabel\">\\s*(\\d+)\\D+(\\d+)",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    private const int MaxPages = 1000;
+
+    // A single long-lived client is the recommended pattern for a fixed endpoint
+    // and avoids socket exhaustion; the ReportTable is fetched at most daily/on demand.
+    private static readonly HttpClient HttpClient = new();
+
+    private readonly CowService _cowService;
 
     public XLinkService(CowService cowService)
     {
-        _CowService = cowService;
+        _cowService = cowService;
     }
 
-    public void ExecuteScraper()
+    public async Task RefreshCowsAsync(CancellationToken cancellationToken = default)
     {
-        try
-        {
-            var driver = InitzialieDriver();
-            OpenWebsite(driver);
-            GetCowData(driver);
-            driver.Close();
-            driver.Quit();
-        }
-        catch (Exception e)
-        {
-            LoggerService.LogError(typeof(XLinkService), "Error at Execution of Webscraper: {@Message}",e, e.Message);
-        }
-       
+        var cows = await FetchCowsAsync(cancellationToken);
+        await SaveCowData(cows);
     }
 
-    private RemoteWebDriver InitzialieDriver()
+    private async Task<List<XLinkCow>> FetchCowsAsync(CancellationToken cancellationToken)
     {
-        var options = new ChromeOptions();
-        LoggerService.LogInformation(typeof(XLinkService), "Found Selenium URL: {@Selenium_URL}", Environment.GetEnvironmentVariable("Selenium_URL"));
-        var url = new Uri(Environment.GetEnvironmentVariable("Selenium_URL") ?? "http://192.168.50.225:4444/wd/hub");
-        return new RemoteWebDriver(url, options);
-
-    }
-
-    private void OpenWebsite(RemoteWebDriver driver, int page = 0)
-    {
-        LoggerService.LogInformation(typeof(XLinkService), "Found XLink URL: {@XLinkUrl}", Environment.GetEnvironmentVariable("XLinkUrl"));
-        var url = Environment.GetEnvironmentVariable("XLinkUrl") ?? "http://192.168.50.9/Xlink/";
-        LoggerService.LogInformation(typeof(XLinkService), "Found XLink ID: {@XLinkID}", Environment.GetEnvironmentVariable("XLinkID"));
+        var baseUrl = Environment.GetEnvironmentVariable("XLinkUrl") ?? "http://192.168.50.9/Xlink/";
         var id = Environment.GetEnvironmentVariable("XLinkID") ?? "10672";
-        var completeUrl = url + $"ReportTable.aspx?id={id}&sort=1&dir=True&page={page}&ALAN=&LDN=";
-        driver.Navigate().GoToUrl(completeUrl);
-    }
+        LoggerService.LogInformation(typeof(XLinkService), "Fetching XLink data from {@XLinkUrl} (id {@XLinkID})", baseUrl, id);
 
-    private void GetCowData(RemoteWebDriver driver)
-    {
         var cows = new List<XLinkCow>();
-        var flag = false;
-        var lineCount = 3;
-        var pageCounter = 1;
 
-        while (!flag)
+        var firstHtml = await HttpClient.GetStringAsync(BuildUrl(baseUrl, id, 0), cancellationToken);
+        var totalPages = ParseTotalPages(firstHtml);
+        ParseRows(firstHtml, cows);
+
+        for (var page = 1; page < totalPages; page++)
         {
-            if (driver.FindElements(By.XPath($"/html/body/form/div[3]/table/tbody/tr[{lineCount}]")).Count > 0)
-            {
-                var newCow = new XLinkCow();
-                newCow.CowNumb = int.TryParse(driver.FindElement(By.XPath($"/html/body/form/div[3]/table/tbody/tr[{lineCount}]/td[1]")).Text, out var cowNumb) ? cowNumb : 0;
-                newCow.LifeNumb = driver.FindElement(By.XPath($"/html/body/form/div[3]/table/tbody/tr[{lineCount}]/td[2]")).Text;
-
-                if (cows.Any(x => x.LifeNumb == newCow.LifeNumb && x.CowNumb == newCow.CowNumb && !string.IsNullOrWhiteSpace(newCow.LifeNumb)))
-                {
-                    flag = true;
-                }
-                else
-                {
-                    cows.Add(newCow);
-                }
-
-                lineCount++;
-            }
-            else
-            {
-                OpenWebsite(driver, pageCounter++);
-                lineCount = 3;
-            }
+            var html = await HttpClient.GetStringAsync(BuildUrl(baseUrl, id, page), cancellationToken);
+            ParseRows(html, cows);
         }
 
-        SaveCowData(cows).Wait();
+        LoggerService.LogInformation(typeof(XLinkService), "Fetched {@Count} cows from XLink across {@Pages} page(s).", cows.Count, totalPages);
+        return cows;
     }
-    
+
+    private static string BuildUrl(string baseUrl, string id, int page)
+        => $"{baseUrl}ReportTable.aspx?id={id}&sort=1&dir=True&page={page}&ALAN=&LDN=";
+
+    private static int ParseTotalPages(string html)
+    {
+        var match = PageCountRegex.Match(html);
+        if (match.Success && int.TryParse(match.Groups[2].Value, out var total) && total > 0)
+        {
+            return Math.Min(total, MaxPages);
+        }
+
+        return 1;
+    }
+
+    private static void ParseRows(string html, List<XLinkCow> cows)
+    {
+        foreach (Match match in RowRegex.Matches(html))
+        {
+            var collarText = match.Groups[1].Value.Trim();
+            var lifeNumb = match.Groups[2].Value.Trim();
+
+            // Life number is the primary key; skip empty rows. No "DE" restriction:
+            // ear tags without a "DE" prefix are stored as-is.
+            if (string.IsNullOrWhiteSpace(lifeNumb))
+            {
+                continue;
+            }
+
+            cows.Add(new XLinkCow
+            {
+                CowNumb = int.TryParse(collarText, out var cowNumb) ? cowNumb : 0,
+                LifeNumb = lifeNumb
+            });
+        }
+    }
+
     private async Task SaveCowData(List<XLinkCow> cows)
     {
-        await _CowService.GetAllDataAsync();
+        await _cowService.GetAllDataAsync();
 
         var scraperLifeNums = cows.Select(c => c.LifeNumb).Where(ln => !string.IsNullOrWhiteSpace(ln)).ToList();
 
-        var databaseOnlyLifeNums = _CowService.Cows.Keys.ToList().Except(scraperLifeNums).ToList();
+        var databaseOnlyLifeNums = _cowService.Cows.Keys.ToList().Except(scraperLifeNums).ToList();
 
         foreach (var lifeNumb in databaseOnlyLifeNums)
         {
-            await _CowService.UpdateIsGoneAsync(lifeNumb, true);
+            await _cowService.UpdateIsGoneAsync(lifeNumb, true);
         }
 
         foreach (var cow in cows)
         {
             var newCow = new Cow(cow.LifeNumb, cow.CowNumb, false);
 
-            if (_CowService.Cows.ContainsKey(cow.LifeNumb) && _CowService.Cows[cow.LifeNumb].CollarNumber != cow.CowNumb)
+            if (_cowService.Cows.ContainsKey(cow.LifeNumb) && _cowService.Cows[cow.LifeNumb].CollarNumber != cow.CowNumb)
             {
-                await _CowService.UpdateCollarNumberAsync(newCow.EarTagNumber, newCow.CollarNumber);
+                await _cowService.UpdateCollarNumberAsync(newCow.EarTagNumber, newCow.CollarNumber);
             }
-            else if (!_CowService.Cows.ContainsKey(cow.LifeNumb) && !string.IsNullOrWhiteSpace(cow.LifeNumb))
+            else if (!_cowService.Cows.ContainsKey(cow.LifeNumb) && !string.IsNullOrWhiteSpace(cow.LifeNumb))
             {
-                await _CowService.InsertDataAsync(newCow);
+                await _cowService.InsertDataAsync(newCow);
             }
         }
     }
-
 }

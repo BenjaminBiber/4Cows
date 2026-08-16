@@ -1,0 +1,46 @@
+# Lokale Entwicklungs-Datenbank für 4Cows.
+#
+# Zieht nur MariaDB (+ Adminer als Web-UI) hoch. Die App selbst läuft beim
+# Entwickeln lokal per `dotnet run --project 4Cows-FE`.
+#
+# Die Werte hier entsprechen exakt den Defaults in Program.cs
+# (DB_SERVER=127.0.0.1, DB_User=root, DB_Password=admin, DB_DB=4cows_v2, DB_PORT=3306),
+# d.h. die App verbindet sich ohne gesetzte Umgebungsvariablen automatisch.
+#
+# Start:   docker compose -f docker-compose.dev.yml up -d
+# Stop:    docker compose -f docker-compose.dev.yml down
+# Reset:   docker compose -f docker-compose.dev.yml down -v   (löscht die DB-Daten)
+
+services:
+  4cows-db:
+    image: mariadb:11.4
+    container_name: 4cows-dev-db
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: admin
+      MARIADB_DATABASE: 4cows_v2
+    ports:
+      - "3306:3306"
+    volumes:
+      - 4cows-dev-db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  # Optional: schlanke Web-UI für die DB unter http://localhost:8080
+  # Login: System "MySQL", Server "4cows-db", Benutzer "root", Passwort "admin".
+  adminer:
+    image: adminer:latest
+    container_name: 4cows-dev-adminer
+    restart: unless-stopped
+    depends_on:
+      4cows-db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+
+volumes:
+  4cows-dev-db-data:

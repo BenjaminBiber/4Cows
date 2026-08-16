@@ -41,6 +41,8 @@ builder.Services.AddSingleton<WhereHowService>();
 builder.Services.AddSingleton<UdderService>();
 builder.Services.AddSingleton<KPIService>();
 builder.Services.AddSingleton<DatabaseConnectionState>();
+builder.Services.AddSingleton<XLinkService>();
+builder.Services.AddHostedService<CowSyncBackgroundService>();
 builder.WebHost.UseStaticWebAssets();
 var app = builder.Build();
 using (var scope = app.Services.CreateScope())

@@ -25,16 +25,22 @@ public static class MigrationHelper
 
         try
         {
+            // Only backfill the migration record for a database that already contains the
+            // application schema from before EF migrations were introduced. We key this on a
+            // real EF-created table ('Cow') rather than "any table": other components create
+            // tables early (e.g. the Serilog MariaDB sink creates 'LOGS' with autoCreateTable),
+            // and counting those would falsely flag a fresh database as pre-existing, causing
+            // MigrateAsync to skip creating the schema.
             await using var command = connection.CreateCommand();
-            command.CommandText = @"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = @schema AND table_name <> '__EFMigrationsHistory'";
+            command.CommandText = @"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = @schema AND table_name = 'Cow'";
             var schemaParameter = command.CreateParameter();
             schemaParameter.ParameterName = "@schema";
             schemaParameter.Value = connection.Database;
             command.Parameters.Add(schemaParameter);
 
-            var existingTables = Convert.ToInt64(await command.ExecuteScalarAsync());
+            var schemaAlreadyExists = Convert.ToInt64(await command.ExecuteScalarAsync()) > 0;
 
-            if (existingTables == 0)
+            if (!schemaAlreadyExists)
             {
                 return;
             }
