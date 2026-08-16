@@ -11,6 +11,15 @@ namespace BBCowDataLibrary.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            // 0. Databases created from the legacy 4Cows-DB-V3.sql script carry foreign keys on
+            //    Cow(Ear_Tag_Number) (from Cow_Treatment, Claw_Treatment, Planned_Cow_Treatment,
+            //    Planned_Claw_Treatment) that the EF model does not know about. MySQL refuses to
+            //    DROP the Cow primary key while an FK references it (errno 150), so we suspend FK
+            //    checks for the swap. The unique index on Ear_Tag_Number is recreated in step 8,
+            //    so those FKs stay valid afterwards; on a fresh EF-built DB (no such FKs) this is
+            //    a harmless no-op.
+            migrationBuilder.Sql("SET FOREIGN_KEY_CHECKS = 0;");
+
             // 1. Add the new stable identity column as NULLABLE first, so it can be added to a
             //    table that already has rows (a NOT NULL string column without a default would fail).
             migrationBuilder.AddColumn<string>(
@@ -85,11 +94,19 @@ namespace BBCowDataLibrary.Migrations
             migrationBuilder.Sql(
                 "UPDATE `KPI` SET `Script` = REPLACE(`Script`, 'c.Ear_Tag_Number', 'c.Cow_ID') " +
                 "WHERE `Script` LIKE '%LEFT JOIN Cow c%';");
+
+            // 10. Re-enable FK checks. Setting this back to 1 does not re-validate existing rows,
+            //     so the legacy FKs (now backed by the recreated unique index) remain intact.
+            migrationBuilder.Sql("SET FOREIGN_KEY_CHECKS = 1;");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            // Legacy FKs reference Ear_Tag_Number via the unique index dropped below; suspend FK
+            // checks so the index/PK rollback does not fail (errno 150 / error 1553). See Up().
+            migrationBuilder.Sql("SET FOREIGN_KEY_CHECKS = 0;");
+
             migrationBuilder.Sql(
                 "UPDATE `KPI` SET `Script` = REPLACE(`Script`, 'c.Cow_ID', 'c.Ear_Tag_Number') " +
                 "WHERE `Script` LIKE '%LEFT JOIN Cow c%';");
@@ -130,6 +147,8 @@ namespace BBCowDataLibrary.Migrations
             migrationBuilder.DropColumn(
                 name: "Cow_ID",
                 table: "Cow");
+
+            migrationBuilder.Sql("SET FOREIGN_KEY_CHECKS = 1;");
         }
     }
 }
