@@ -16,25 +16,15 @@
 
 <MeadowToolbar>
     <Left>
-        <span class="mw-section-title mw-only-desktop">Geplante Kuh Behandlungen</span>
-        @if (!_simpleView)
+        <MeadowSearchBox Value="@_search" ValueChanged="OnSearchChanged"
+                         AriaLabel="Geplante Kuh Behandlungen durchsuchen" />
+        @if (_search.Length > 0)
         {
-            <MeadowSearchBox Value="@_search" ValueChanged="OnSearchChanged"
-                             AriaLabel="Geplante Kuh Behandlungen durchsuchen" />
-            @if (_search.Length > 0)
-            {
-                <span class="mw-result-count mw-only-desktop">@CountText</span>
-            }
+            <span class="mw-result-count mw-only-desktop">@CountText</span>
         }
     </Left>
     <Right>
-        @* Stall-Modus: blendet Suche, Zaehler, Pager und zwei Spalten aus und
-           ueberspringt die Speichern-Bestaetigung. Bleibt in der Toolbar, weil
-           es der einzige Weg zurueck ist. *@
-        <MeadowSwitch Value="_simpleView" ValueChanged="OnSimpleViewChanged"
-                      Label="Simple Ansicht" />
-
-        <button type="button" class="mw-btn mw-btn--primary" @onclick="Plan">
+        <button type="button" class="mw-btn mw-btn--primary mw-only-desktop" @onclick="Plan">
             <MeadowIcon Name="MeadowIconName.Plus" Size="20" />
             <span>Planen</span>
         </button>
@@ -44,7 +34,6 @@
 <MeadowTable TItem="PlannedCowTreatment" Items="_rows" Columns="_columns"
              RowKey="@(r => r.PlannedCowTreatmentId)"
              DefaultSortTitle="Geplant für"
-             ShowPager="@(!_simpleView)"
              PagerLabel="Behandlungen pro Seite"
              EmptyText="Keine geplanten Behandlungen gefunden.">
     <MobileCard Context="row">
@@ -74,7 +63,6 @@
     private List<MeadowColumn<PlannedCowTreatment>> _columns = new();
 
     private string _search = "";
-    private bool _simpleView;
 
     protected override async Task OnInitializedAsync()
     {
@@ -85,15 +73,11 @@
     private void Reload()
     {
         _all = pCowTreatmentService.Treatments.Values.ToList();
-        _columns = BuildColumns(_simpleView);
+        _columns = BuildColumns();
         Apply();
     }
 
-    /// <summary>
-    /// Beide Spaltenformen an einer Stelle, damit die einfache Ansicht nicht
-    /// an zwei Orten gepflegt werden muss.
-    /// </summary>
-    private List<MeadowColumn<PlannedCowTreatment>> BuildColumns(bool simple)
+    private List<MeadowColumn<PlannedCowTreatment>> BuildColumns()
     {
         var columns = new List<MeadowColumn<PlannedCowTreatment>>
         {
@@ -107,24 +91,19 @@
             new()
             {
                 Title = "Ohrmarke",
-                // Im Stall-Modus nur die letzten fuenf Stellen - so war es
-                // auch bisher.
-                Text = r => simple ? ShortEarTag(r) : EarTag(r),
+                Text = EarTag,
                 SortBy = EarTag,
                 Style = MeadowCellStyle.Mono
             }
         };
 
-        if (!simple)
+        columns.Add(new MeadowColumn<PlannedCowTreatment>
         {
-            columns.Add(new MeadowColumn<PlannedCowTreatment>
-            {
-                Title = "Geplant für",
-                Text = r => r.AdministrationDate.ToString("dd.MM.yyyy"),
-                SortBy = r => r.AdministrationDate,
-                NoWrap = true
-            });
-        }
+            Title = "Geplant für",
+            Text = r => r.AdministrationDate.ToString("dd.MM.yyyy"),
+            SortBy = r => r.AdministrationDate,
+            NoWrap = true
+        });
 
         columns.Add(new MeadowColumn<PlannedCowTreatment>
         {
@@ -143,16 +122,13 @@
             SortBy = WhereHow
         });
 
-        if (!simple)
+        columns.Add(new MeadowColumn<PlannedCowTreatment>
         {
-            columns.Add(new MeadowColumn<PlannedCowTreatment>
-            {
-                Title = "Menge",
-                Text = Dosage,
-                SortBy = r => r.MedicineDosage,
-                NoWrap = true
-            });
-        }
+            Title = "Menge",
+            Text = Dosage,
+            SortBy = r => r.MedicineDosage,
+            NoWrap = true
+        });
 
         // Der bisherige Kopf "Behandelt" hatte keine zugehoerige Zelle -
         // Kopf- und Zellenzahl liefen dadurch auseinander.
@@ -187,12 +163,6 @@
 
     private string EarTag(PlannedCowTreatment r) => cowService.GetEarTagDisplay(r.EarTagNumber);
 
-    private string ShortEarTag(PlannedCowTreatment r)
-    {
-        var tag = EarTag(r);
-        return tag.Length > 5 ? tag[^5..] : tag;
-    }
-
     private string Medicine(PlannedCowTreatment r) => medicineService.GetMedicineNameById(r.MedicineId);
 
     private string WhereHow(PlannedCowTreatment r)
@@ -209,7 +179,7 @@
         IEnumerable<PlannedCowTreatment> query = _all;
 
         var search = _search.Trim();
-        if (search.Length > 0 && !_simpleView)
+        if (search.Length > 0)
         {
             query = query.Where(r =>
                 Collar(r).Contains(search, StringComparison.OrdinalIgnoreCase)
@@ -227,13 +197,6 @@
         Apply();
     }
 
-    private void OnSimpleViewChanged(bool value)
-    {
-        _simpleView = value;
-        _columns = BuildColumns(_simpleView);
-        Apply();
-    }
-
     // ---- Aktionen -----------------------------------------------------
 
     private async Task Plan()
@@ -247,7 +210,7 @@
 
     private async Task Complete(PlannedCowTreatment planned)
     {
-        if (!_simpleView && !await Confirm(
+        if (!await Confirm(
                 "Speichern",
                 "Wollen Sie die Behandlung wirklich speichern?",
                 "Ja", Color.Success))

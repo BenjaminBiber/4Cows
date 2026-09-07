@@ -1,0 +1,57 @@
+@*
+    Primaerbutton mit angesetztem Aktionsmenue: links die Hauptaktion, rechts
+    ein Chevron, das die selteneren Aktionen aufklappt. Gedacht fuer Toolbars,
+    in denen sonst mehrere gleichrangig aussehende Buttons nebeneinander
+    stehen wuerden.
+
+    Aufbau und Schliessverhalten wie MeadowFilterPopover: ein Backdrop-Button
+    faengt den Klick daneben, Escape schliesst ueber den Anker.
+*@
+<div class="mw-pop-anchor mw-split @Class" @onkeydown="OnKeyDown">
+    <button type="button" class="mw-btn mw-btn--primary mw-split__main"
+            @onclick="OnClick">
+        <MeadowIcon Name="Icon" Size="20" />
+        <span>@Label</span>
+    </button>
+
+    <button type="button" class="mw-btn mw-btn--primary mw-split__toggle"
+            aria-haspopup="menu" aria-expanded="@(Open ? "true" : "false")"
+            aria-label="@MenuLabel" title="@MenuLabel"
+            @onclick="OnToggle">
+        <MeadowIcon Name="MeadowIconName.ChevronDown" Size="16" />
+    </button>
+
+    @if (Open)
+    {
+        <button type="button" class="mw-pop-backdrop" tabindex="-1"
+                aria-label="Menü schließen" @onclick="OnClose"></button>
+
+        <div class="mw-split__menu" role="menu" aria-label="@MenuLabel">
+            @ChildContent
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>Beschriftung der Hauptaktion.</summary>
+    [Parameter] public string Label { get; set; } = "";
+
+    [Parameter] public MeadowIconName Icon { get; set; } = MeadowIconName.Plus;
+
+    /// <summary>Name des Menues - fuer Tooltip und Screenreader.</summary>
+    [Parameter] public string MenuLabel { get; set; } = "Weitere Aktionen";
+
+    [Parameter] public bool Open { get; set; }
+
+    /// <summary>Die Menueeintraege, ueblicherweise .mw-split__item-Buttons.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    [Parameter] public EventCallback OnClick { get; set; }
+    [Parameter] public EventCallback OnToggle { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    [Parameter] public string? Class { get; set; }
+
+    private Task OnKeyDown(KeyboardEventArgs e)
+        => Open && e.Key == "Escape" ? OnClose.InvokeAsync() : Task.CompletedTask;
+}

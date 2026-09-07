@@ -34,7 +34,6 @@ services:
       DB_User: "root" 
       DB_Password: "4cows"
       DB_DB: "4cows_v2"
-      AdminToken: "AdminToken"
       XLinkUrl: "http://<Xlink-Server-IP>/Xlink/"
       XLinkID: "10672"
     networks:

@@ -32,12 +32,16 @@
                                      Placeholder="DE 08 1523 …" />
                 </div>
             </div>
-            <div class="mw-col">
-                <span class="mw-label">Behandlungsdatum</span>
-                <div class="mw-field">
-                    <MudDatePicker Label="Behandlungsdatum" Variant="Variant.Text" Editable="true"
-                                   DateFormat="dd.MM.yyyy" @bind-Date="NullDate" />
-                </div>
+        </div>
+
+        @* Eigene Zeile unter der Tierauswahl - wie in den beiden Kuh-Dialogen.
+           In der Dreierzeile blieb fuer den Picker so wenig Platz, dass die
+           Beschriftung ueber die Nachbarn hinauslief. *@
+        <div>
+            <span class="mw-label">Behandlungsdatum</span>
+            <div class="mw-field">
+                <MudDatePicker Label="Behandlungsdatum" Variant="Variant.Text" Editable="true"
+                               DateFormat="dd.MM.yyyy" @bind-Date="NullDate" />
             </div>
         </div>
 

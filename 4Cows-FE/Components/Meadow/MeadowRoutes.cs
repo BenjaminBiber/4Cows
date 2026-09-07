@@ -70,6 +70,14 @@ public static class MeadowRoutes
     };
 
     /// <summary>
+    /// Ob die Seite die volle Inhaltsbreite bekommt statt des 1260px-Deckels
+    /// aus --mw-shell-max. Nur das Dashboard: dessen Kacheln und Diagramme
+    /// fuellen die Breite, waehrend die Tabellen mit vier Spalten davon
+    /// nichts haetten ausser laengeren Zeilen.
+    /// </summary>
+    public static bool IsWide(string route) => route is Dashboard;
+
+    /// <summary>
     /// Ob der Seitentitel ein Dropdown bekommt. Bewusst ein anderes Praedikat
     /// als GroupFor: das Menue zeigt nur die beiden Zweier-Gruppen, Verbände
     /// hat dort keine Geschwister.

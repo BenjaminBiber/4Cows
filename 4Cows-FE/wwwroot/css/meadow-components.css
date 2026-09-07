@@ -48,6 +48,10 @@
   max-width: var(--mw-shell-max);
   margin-inline: auto;
 }
+/* Das Dashboard laesst den Deckel fallen (MeadowRoutes.IsWide). Unterhalb
+   von --mw-shell-max aendert das nichts, dort greift die max-width ohnehin
+   nie - die Regel wirkt also erst auf breiten Schirmen. */
+.mw-content-inner--wide { max-width: none; }
 
 /* ============================================================
    HEADER   (st.header / st.mHeader)
@@ -411,6 +415,8 @@
 .mw-btn--wide { padding: 10px 22px; border-radius: var(--mw-r-lg); }
 /* st.openBtn: 7px 14px, 13px, radius 8 */
 .mw-btn--sm   { padding: 7px 14px; font-size: 13px; border-radius: var(--mw-r-lg); }
+/* Nur ein Icon, kein Label - schmaler als die 16px Seitenpolsterung. */
+.mw-btn--icon { padding-inline: 12px; }
 /* Volle Breite (Auth-Karte, Formular-Fuesse) */
 .mw-btn--block   { width: 100%; padding: 11px 22px; border-radius: var(--mw-r-lg); }
 .mw-btn--spaced  { margin-top: 18px; }
@@ -553,7 +559,14 @@
   flex: 2;
   min-width: 420px;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  /* Statt fester Vierteilung: die Spalten kommen aus der verfuegbaren
+     Breite - ohne eigene Media Query. Der Mindestwert ist auf 210px
+     eingenordet, weil er nach beiden Seiten knapp ist: bei 200px kippt
+     schon ein 1728px-Schirm auf sechs Spalten (die acht Kacheln brechen
+     dann zu 6+2), bei 230px faellt ein 1280px-Laptop auf drei zurueck.
+     Mit 210px bleibt es bis 1440px bei den heutigen vier Spalten und
+     wird darueber fuenf. */
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
   gap: 14px;
 }
 
@@ -603,7 +616,11 @@
 
 /* Aktionsspalte (act) */
 .mw-dash-actions {
-  flex: 1;
+  /* Nicht flex:1 - sonst waechst die Spalte auf voller Breite auf ueber
+     500px und die vier Buttons wirken auseinandergezogen. Der Rest der
+     Reihe gehoert dem KPI-Gitter. Die Mobile-Query weiter unten setzt
+     das wieder auf volle Breite. */
+  flex: 0 0 clamp(280px, 22%, 380px);
   min-width: 250px;
   display: flex;
   flex-direction: column;
@@ -655,6 +672,13 @@
 .mw-chart-canvas {
   position: relative;
   height: var(--mw-bars-h);
+}
+/* Auf dem Desktop stand unter den Diagrammen bisher rund ein Drittel der
+   Flaeche leer. Chart.js laeuft mit responsive:true und
+   maintainAspectRatio:false, folgt dieser Hoehe also von selbst.
+   Bewusst nur ab 1024px: mobil bleibt es bei --mw-bars-h. */
+@media (min-width: 1024px) {
+  .mw-chart-canvas { height: clamp(var(--mw-bars-h), 30vh, 300px); }
 }
 
 /* ============================================================
@@ -767,9 +791,14 @@
   display: flex;
   align-items: center;
   gap: 9px;
+  /* Kein max-width: die Suche nimmt den Platz, den die linke Toolbar-Haelfte
+     uebrig laesst. Links steht sie damit buendig zur Tabellenkante, rechts
+     reicht sie bis an den Aktionsblock. Betrifft alle Toolbars mit Suche -
+     die fuenf Tabellenseiten und die vier Stammdaten-Ansichten, die
+     denselben Aufbau haben. */
   flex: 1;
   min-width: 260px;
-  max-width: 360px;
+  height: var(--mw-control-h);
   padding: 9px 13px;
   background: var(--mw-panel);
   border: 1px solid var(--mw-border);
@@ -804,6 +833,69 @@
 /* ============================================================
    FILTER   (fbtn / st.filterBadge / st.filterPop* / fchip)
    ============================================================ */
+/* ============================================================
+   SPLIT-BUTTON   (Hauptaktion + angesetztes Aktionsmenue)
+   ============================================================ */
+.mw-split { display: inline-flex; }
+
+/* Die beiden Haelften stossen aneinander: aussen rund, innen eckig. */
+.mw-split__main {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.mw-split__toggle {
+  padding-inline: 9px;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  /* Trennlinie als inset-Schatten statt als Rahmen - ein echter Rahmen
+     wuerde die Hoehe gegen den Hauptteil verschieben. */
+  box-shadow: inset 1px 0 0 rgba(255, 255, 255, .3);
+}
+
+.mw-split__menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 220px;
+  padding: 6px;
+  background: var(--mw-panel);
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-2xl);
+  box-shadow: var(--mw-shadow-pop);
+  z-index: var(--mw-z-filter);
+  animation: mwPop var(--mw-t-pop) var(--mw-ease);
+}
+
+.mw-split__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: var(--mw-r-lg);
+  background: transparent;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  color: var(--mw-text);
+  cursor: pointer;
+  transition: background var(--mw-t);
+}
+.mw-split__item > svg { color: var(--mw-muted); flex-shrink: 0; }
+@media (hover: hover) {
+  .mw-split__item:hover { background: var(--mw-tint); }
+}
+
+/* Buttons in der Toolbar teilen die Hoehe der Suche. Bewusst auf die
+   Toolbar begrenzt: .mw-btn steckt auch in Tabellenzeilen (mw-btn--sm) und
+   in Dialogen, wo diese Hoehe nichts zu suchen hat. */
+.mw-toolbar .mw-btn,
+.mw-toolbar .mw-filter-btn {
+  height: var(--mw-control-h);
+}
+
 .mw-pop-anchor { position: relative; }
 
 .mw-filter-btn {
@@ -1251,65 +1343,31 @@
   outline-offset: 2px;
 }
 
-/* ============================================================
-   AUTH-KARTE   (st.authCard) — Einstellungen, Etappe 4
-   ============================================================ */
-.mw-auth-card {
-  width: 400px;
-  max-width: 100%;
-  margin: 40px auto;
-  padding: 36px 32px;
-  background: var(--mw-panel);
-  border: 1px solid var(--mw-border);
-  border-radius: var(--mw-r-5xl);
-  box-shadow: var(--mw-shadow-card);
-}
-.mw-auth-card__badge {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 60px;
-  height: 60px;
-  margin: 0 auto 18px;
-  border-radius: 14px;
-  background: var(--mw-soft);
-  color: var(--mw-primary);
-}
-.mw-auth-card__title {
-  font-family: var(--mw-font-display);
-  font-weight: 700;
-  font-size: 24px;
-  text-align: center;
-  color: var(--mw-text);
-}
-.mw-auth-card__text {
-  margin: 6px 0 20px;
-  font-size: 13px;
-  text-align: center;
-  color: var(--mw-muted);
-}
-.mw-auth-card__error {
-  margin-top: 8px;
-  font-size: 12px;
-  color: var(--mw-danger);
-}
-
 /* ── Tabellen mobil: Karten statt Tabelle ─────────────────────── */
 @media (max-width: 1023.98px) {
   .mw-table-wrap { display: none; }
   .mw-cards      { display: block; }
 
   .mw-toolbar { gap: 10px; margin-bottom: 14px; }
-  .mw-toolbar__left,
-  .mw-toolbar__right { width: 100%; }
+
+  /* Der Aktionsblock sitzt neben der Suche statt darunter - mobil bleibt
+     dort nach dem Ausblenden der Hinzufuegen-Buttons meist nur der Filter.
+     Die min-width haelt die Suche brauchbar breit und sorgt dafuer, dass
+     ein breiter Aktionsblock (Stammdaten: "Von XLink aktualisieren") wie
+     bisher in die naechste Zeile umbricht, statt die Suche zu zerdruecken. */
+  .mw-toolbar__left  { width: auto; min-width: 60%; }
+  .mw-toolbar__right { width: auto; }
 
   .mw-search {
     flex: 1;
     min-width: 0;
-    max-width: none;
+    height: var(--mw-control-h-m);
     padding: 10px 13px;
     border-radius: var(--mw-r-lg);
   }
+  .mw-toolbar .mw-btn,
+  .mw-toolbar .mw-filter-btn { height: var(--mw-control-h-m); }
+
 
   /* Mobil nur das Icon, kein Label (Design L440) */
   .mw-filter-btn { padding: 10px 12px; }
