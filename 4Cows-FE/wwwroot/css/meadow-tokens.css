@@ -133,6 +133,11 @@
   --mw-header-h-m:    52px;
   --mw-drawer-w:      284px;
   --mw-drawer-w-m:    252px;
+  /* Hoehe der Bedienelemente in der Toolbar. Suche und Buttons standen
+     bisher auf 40 gegen 42px, weil beide ihre Hoehe nur aus Padding und
+     Inhalt bezogen. Ein gemeinsamer Wert haelt sie zusammen. */
+  --mw-control-h:     40px;
+  --mw-control-h-m:   42px;
   --mw-content-pad:   26px;
   --mw-content-pad-m: 16px;
   --mw-tabbar-h:      66px;

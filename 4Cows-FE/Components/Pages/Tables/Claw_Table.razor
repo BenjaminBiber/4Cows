@@ -39,15 +39,27 @@
             </ChildContent>
         </MeadowFilterPopover>
 
-        <button type="button" class="mw-btn mw-btn--ghost" @onclick="DownloadFile"
-                title="Behandlungen als Excel exportieren">
-            <MeadowIcon Name="MeadowIconName.Download" Size="20" />
-            <span>Export</span>
-        </button>
+        <MeadowSplitButton Label="Neue Behandlung" Icon="MeadowIconName.Plus"
+                           Class="mw-only-desktop"
+                           Open="_actionsOpen"
+                           OnClick="AddTreatment"
+                           OnToggle="ToggleActions"
+                           OnClose="CloseActions">
+            <button type="button" role="menuitem" class="mw-split__item"
+                    @onclick="ExportFile">
+                <MeadowIcon Name="MeadowIconName.Download" Size="17" />
+                <span>Als Excel exportieren</span>
+            </button>
+        </MeadowSplitButton>
 
-        <button type="button" class="mw-btn mw-btn--primary" @onclick="AddTreatment">
-            <MeadowIcon Name="MeadowIconName.Plus" Size="20" />
-            <span>Neue Behandlung</span>
+        @* Mobil faellt der Split-Button weg: die Hauptaktion deckt der FAB in
+           der Tabbar ab, und im Menue bleibt nur der Export - der bekommt
+           deshalb einen eigenen Icon-Button statt eines Chevrons, der erst
+           ein Menue mit einem einzigen Eintrag aufklappt. *@
+        <button type="button" class="mw-btn mw-btn--ghost mw-btn--icon mw-only-mobile"
+                title="Als Excel exportieren" aria-label="Als Excel exportieren"
+                @onclick="DownloadFile">
+            <MeadowIcon Name="MeadowIconName.Download" Size="18" />
         </button>
     </Right>
 </MeadowToolbar>
@@ -80,6 +92,7 @@
 @code {
     private readonly ClawTableFilter _filter = new();
     private bool _filterOpen;
+    private bool _actionsOpen;
 
     private List<ClawTreatment> _all = new();
     private List<ClawTreatment> _rows = new();
@@ -233,7 +246,27 @@
         Apply();
     }
 
-    private void ToggleFilter() => _filterOpen = !_filterOpen;
+    // Die beiden Popover schliessen sich gegenseitig - sonst liegen zwei
+    // Backdrops uebereinander und der erste Klick daneben trifft nur einen.
+    private void ToggleFilter()
+    {
+        _filterOpen = !_filterOpen;
+        _actionsOpen = false;
+    }
+
+    private void ToggleActions()
+    {
+        _actionsOpen = !_actionsOpen;
+        _filterOpen = false;
+    }
+
+    private void CloseActions() => _actionsOpen = false;
+
+    private async Task ExportFile()
+    {
+        _actionsOpen = false;
+        await DownloadFile();
+    }
 
     private void CloseFilter() => _filterOpen = false;
 

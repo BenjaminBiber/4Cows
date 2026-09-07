@@ -14,7 +14,6 @@
 
 <MeadowToolbar>
     <Left>
-        <span class="mw-section-title mw-only-desktop">Geplante Klauen Behandlungen</span>
         <MeadowSearchBox Value="@_search" ValueChanged="OnSearchChanged"
                          AriaLabel="Geplante Klauen Behandlungen durchsuchen" />
         @if (_search.Length > 0)
@@ -23,7 +22,7 @@
         }
     </Left>
     <Right>
-        <button type="button" class="mw-btn mw-btn--primary" @onclick="Plan">
+        <button type="button" class="mw-btn mw-btn--primary mw-only-desktop" @onclick="Plan">
             <MeadowIcon Name="MeadowIconName.Plus" Size="20" />
             <span>Planen</span>
         </button>

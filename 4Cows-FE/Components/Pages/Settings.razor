@@ -12,93 +12,86 @@
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 
-@if (!_isAuthenticated)
+<div class="mw-tabs">
+    @foreach (var tab in Tabs)
+    {
+        <button type="button" class="mw-tab @(_tab == tab ? "is-active" : "")"
+                @onclick="() => _tab = tab">
+            @tab
+        </button>
+    }
+</div>
+
+@if (_tab == TabKpi)
 {
-    <SettingsAuth IsAuthenticated="OnAuthenticated" />
+    <MeadowTable TItem="KPI" Items="_kpis" Columns="_kpiColumns"
+                 RowKey="@(k => k.KPIId)"
+                 DefaultSortTitle="Sortierung"
+                 ShowMobileCards="false"
+                 PagerLabel="KPIs pro Seite"
+                 EmptyText="Noch keine KPIs angelegt." />
+
+    <div class="mw-table-foot">
+        <button type="button" class="mw-btn mw-btn--primary"
+                @onclick="() => OpenKpiDialog(new KPI(), true)">
+            <MeadowIcon Name="MeadowIconName.Plus" Size="20" />
+            <span>KPI hinzufügen</span>
+        </button>
+    </div>
 }
-else
+else if (_tab == TabBaseData)
 {
-    <div class="mw-tabs">
-        @foreach (var tab in Tabs)
+    <div class="mw-chip-tabs">
+        @foreach (var sub in BaseDataTabs)
         {
-            <button type="button" class="mw-tab @(_tab == tab ? "is-active" : "")"
-                    @onclick="() => _tab = tab">
-                @tab
+            <button type="button" class="mw-mini-chip @(_baseTab == sub ? "is-active" : "")"
+                    @onclick="() => _baseTab = sub">
+                @sub
             </button>
         }
     </div>
 
-    @if (_tab == TabKpi)
+    @* Nur der aktive Zweig wird gerendert - MudTabs hielt alle vier
+       Tabellen gleichzeitig im DOM. *@
+    @switch (_baseTab)
     {
-        <MeadowTable TItem="KPI" Items="_kpis" Columns="_kpiColumns"
-                     RowKey="@(k => k.KPIId)"
-                     DefaultSortTitle="Sortierung"
-                     ShowMobileCards="false"
-                     PagerLabel="KPIs pro Seite"
-                     EmptyText="Noch keine KPIs angelegt." />
+        case "Kuh Behandlung":
+            <BaseDataCowTreatment />
+            break;
+        case "Klauen Behandlung":
+            <BaseDataClawTreatment />
+            break;
+        case "Kühe":
+            <BaseDataCow />
+            break;
+        default:
+            <BaseDataMedicine />
+            break;
+    }
+}
+else
+{
+    <div class="mw-card mw-settings-card">
+        <h2 class="mw-section-title">Standardwerte</h2>
+
+        <label class="mw-label" for="mw-claw-fallback">
+            Anzeigetext für Klauen ohne erfassten Befund
+        </label>
+        <input id="mw-claw-fallback" class="mw-input" type="text"
+               value="@_fallbackDraft"
+               @oninput="e => _fallbackDraft = e.Value?.ToString() ?? string.Empty" />
+        <p class="mw-hint">
+            Wird nur angezeigt, nicht gespeichert: unberührte Klauen bleiben in der
+            Datenbank leer. Ältere Behandlungen, in denen „Pflege" wirklich
+            gespeichert wurde, zeigen weiter ihren eigenen Wert.
+        </p>
 
         <div class="mw-table-foot">
-            <button type="button" class="mw-btn mw-btn--primary"
-                    @onclick="() => OpenKpiDialog(new KPI(), true)">
-                <MeadowIcon Name="MeadowIconName.Plus" Size="20" />
-                <span>KPI hinzufügen</span>
+            <button type="button" class="mw-btn mw-btn--primary" @onclick="SaveFallback">
+                Speichern
             </button>
         </div>
-    }
-    else if (_tab == TabBaseData)
-    {
-        <div class="mw-chip-tabs">
-            @foreach (var sub in BaseDataTabs)
-            {
-                <button type="button" class="mw-mini-chip @(_baseTab == sub ? "is-active" : "")"
-                        @onclick="() => _baseTab = sub">
-                    @sub
-                </button>
-            }
-        </div>
-
-        @* Nur der aktive Zweig wird gerendert - MudTabs hielt alle vier
-           Tabellen gleichzeitig im DOM. *@
-        @switch (_baseTab)
-        {
-            case "Kuh Behandlung":
-                <BaseDataCowTreatment />
-                break;
-            case "Klauen Behandlung":
-                <BaseDataClawTreatment />
-                break;
-            case "Kühe":
-                <BaseDataCow />
-                break;
-            default:
-                <BaseDataMedicine />
-                break;
-        }
-    }
-    else
-    {
-        <div class="mw-card mw-settings-card">
-            <h2 class="mw-section-title">Standardwerte</h2>
-
-            <label class="mw-label" for="mw-claw-fallback">
-                Anzeigetext für Klauen ohne erfassten Befund
-            </label>
-            <input id="mw-claw-fallback" class="mw-input" type="text"
-                   value="@_fallbackDraft"
-                   @oninput="e => _fallbackDraft = e.Value?.ToString() ?? string.Empty" />
-            <p class="mw-hint">
-                Wird nur angezeigt, nicht gespeichert: unberührte Klauen bleiben in der
-                Datenbank leer. Ältere Behandlungen, in denen „Pflege" wirklich
-                gespeichert wurde, zeigen weiter ihren eigenen Wert.
-            </p>
-
-            <div class="mw-table-foot">
-                <button type="button" class="mw-btn mw-btn--primary" @onclick="SaveFallback">
-                    Speichern
-                </button>
-            </div>
-        </div>
-    }
+    </div>
 }
 
 @code {
@@ -113,7 +106,6 @@ else
         "Kuh Behandlung", "Klauen Behandlung", "Kühe", "Medikamente"
     };
 
-    private bool _isAuthenticated;
     private string _tab = TabKpi;
     private string _baseTab = BaseDataTabs[0];
 
@@ -122,19 +114,11 @@ else
 
     private IReadOnlyList<MeadowColumn<KPI>> _kpiColumns = Array.Empty<MeadowColumn<KPI>>();
 
-    protected override void OnInitialized() => BuildColumns();
-
-    // Erst nach der Anmeldung laden. Bisher las die Seite KPIs und alle
-    // Caches schon, waehrend noch die Auth-Karte stand - sieben
-    // DB-Runden fuer einen Bildschirm, den niemand sehen darf.
-    private async Task OnAuthenticated(bool value)
+    protected override async Task OnInitializedAsync()
     {
-        _isAuthenticated = value;
-        if (!value)
-        {
-            return;
-        }
+        BuildColumns();
 
+        // Haengte bisher am Auth-Callback und lief erst nach der Anmeldung.
         await Data.EnsureDashboardAsync();
         _fallbackDraft = Defaults.ClawFindingFallback;
         await LoadKpis();

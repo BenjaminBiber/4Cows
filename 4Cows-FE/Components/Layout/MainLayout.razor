@@ -33,7 +33,7 @@
         <MeadowDrawer Open="@Layout.DrawerOpen" OnClose="@Layout.CloseAll" OnInfo="OpenInfo" />
 
         <main class="mw-content mw-scroll">
-            <div class="mw-content-inner">
+            <div class="mw-content-inner @(_wide ? "mw-content-inner--wide" : null)">
                 @Body
             </div>
         </main>
@@ -50,6 +50,7 @@
     private string _title = "Dashboard";
     private string _fabTitle = "Hinzufügen";
     private bool _hasSiblings;
+    private bool _wide;
 
     protected override void OnInitialized()
     {
@@ -76,6 +77,7 @@
         _title = MeadowRoutes.TitleFor(_route);
         _hasSiblings = MeadowRoutes.HasSiblings(_route);
         _fabTitle = MeadowDialogLauncher.FabTitleFor(_route);
+        _wide = MeadowRoutes.IsWide(_route);
     }
 
     private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
