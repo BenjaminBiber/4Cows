@@ -1,135 +1,101 @@
-﻿@inject ISnackbar Snackbar
+@using _4Cows_FE.Components.Meadow
+
+@inject ISnackbar Snackbar
 @inject PClawTreatmentService pClawTreatmentService
 @inject CowService cowService
 
-<MudDialog>
-    <DialogContent>
-        <MudStack>
-            <MudText Class="table-Header" Align="Align.Center" Typo="Typo.h3">geplante Klauen Behandlung hinzufügen</MudText>
+@*
+    Bewusst ein Aufsatz aufs Design: der Prototyp zeigt im "geplant"-Zweig nur
+    ein Beschreibungsfeld. Die vier Booleans Claw_Finding_* sind aber
+    NOT NULL-Spalten, werden im Anzeige-Dialog dargestellt und in der Tabelle
+    als Spalte "Klauen" gelistet - sie wegzulassen wuerde Daten zerstoeren.
+    Also Beschreibung UND Klauen-Auswahl.
+*@
+<MeadowDialog Title="Geplante Klauen Behandlung" Size="MeadowDialogSize.Claw">
+    <ChildContent>
+        <div class="mw-field-row">
+            <div class="mw-col">
+                <label class="mw-label" for="mw-pcollar">Halsbandnummer</label>
+                <div class="mw-field">
+                    <MudNumericField T="int" InputId="mw-pcollar" Variant="Variant.Text"
+                                     HideSpinButtons="true" @bind-Value="CollarNumber"
+                                     Placeholder="z.B. 142" />
+                </div>
+            </div>
+            <div class="mw-col">
+                <span class="mw-label">Geplant für</span>
+                <div class="mw-field">
+                    <MudDatePicker Label="Geplant für" Variant="Variant.Text" Editable="true"
+                                   DateFormat="dd.MM.yyyy" @bind-Date="NullDate" />
+                </div>
+            </div>
+        </div>
 
-            <MudNumericField @bind-Value="CollarNumber" Label="Halsbandnummer:" Variant="Variant.Text" />
-            <MudDatePicker Label="Erkennungsdatum:" Editable="true" @bind-Date="NullDate" />
-            <MudTextField Label="Grund für Behandlung:" @bind-Value="Planned_Claw_Treatment.Desciption"></MudTextField>
-            <MudSpacer></MudSpacer>
-            <MudText>Auffällige Klauen:</MudText>
-                <MudGrid Justify="Justify.Center">
-                    <MudItem xs="6">
-                        @if (Planned_Claw_Treatment.ClawFindingLV)
-                        {
-                        <button type="button" id="LV_Hoof_Standart" class="Show_Hoof_Input" onclick="@(() => ClawInput("LV"))"></button>
-                        }
-                        else
-                        {
-                        <button type="button" id="LV_HOOF" class="Show_Hoof_Input" onclick="@(() => ClawInput("LV"))"></button>
-                        }
-                    </MudItem>
-                    <MudItem xs="6">
-                        @if (Planned_Claw_Treatment.ClawFindingRV)
-                        {
-                        <button type="button" id="RV_Hoof_Standart" class="Show_Hoof_Input" onclick="@(() => ClawInput("RV"))"></button>
-                        }
-                        else
-                        {
-                        <button type="button" id="RV_HOOF" class="Show_Hoof_Input" onclick="@(() => ClawInput("RV"))"></button>
-                        }
-                    </MudItem>
-                    <MudItem xs="6">
-                        @if (Planned_Claw_Treatment.ClawFindingLH)
-                        {
-                        <button type="button" id="LH_Hoof_Standart" class="Show_Hoof_Input" onclick="@(() => ClawInput("LH"))"></button>
-                        }
-                        else
-                        {
-                        <button type="button" id="LH_HOOF" class="Show_Hoof_Input" onclick="@(() => ClawInput("LH"))"></button>
-                        }
-                    </MudItem> 
-                    <MudItem xs="6">
-                        @if (Planned_Claw_Treatment.ClawFindingRH)
-                        {
-                        <button type="button" id="RH_Hoof_Standart" class="Show_Hoof_Input" onclick="@(() => ClawInput("RH"))"></button>
-                        }
-                        else
-                        {
-                        <button type="button" id="RH_HOOF" class="Show_Hoof_Input" onclick="@(() => ClawInput("RH"))"></button>
-                        }
-                    </MudItem>
-                    </MudGrid>
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@SaveClawTreatmentModalInput">Speichern</MudButton>
-        </MudStack>
-    </DialogContent>
-</MudDialog>
+        <div>
+            <label class="mw-label" for="mw-pdesc">Beschreibung</label>
+            <div class="mw-field">
+                <MudTextField T="string" InputId="mw-pdesc" Variant="Variant.Text"
+                              @bind-Value="Planned.Desciption"
+                              Placeholder="z.B. Klotz entfernen, Verband kontrollieren…" />
+            </div>
+        </div>
 
+        <span class="mw-label mw-label--spaced">Auffällige Klauen — tippe auf eine Position</span>
 
+        <ClawSelector Planned="Planned" Mode="ClawSelectorMode.Flags"
+                      OnChanged="StateHasChanged" />
+    </ChildContent>
+    <Footer>
+        <button type="button" class="mw-btn mw-btn--plain mw-btn--wide" @onclick="Cancel">
+            Abbrechen
+        </button>
+        <button type="button" class="mw-btn mw-btn--primary mw-btn--wide" @onclick="Save">
+            Planen
+        </button>
+    </Footer>
+</MeadowDialog>
 
 @code {
-    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = default!;
 
-    public DateTime? NullDate;
-    public bool SaveSuccesfulBool;
-    public int CollarNumber;
-    
-    public PlannedClawTreatment Planned_Claw_Treatment = new PlannedClawTreatment();
+    private PlannedClawTreatment Planned = new();
+    private DateTime? NullDate = DateTime.Today;
+    private int CollarNumber;
 
-    protected override void OnInitialized()
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Save()
     {
-        NullDate = DateTime.Today;
-    }
+        if (NullDate is null)
+        {
+            Snackbar.Add("Bitte ein Datum wählen.", Severity.Error);
+            return;
+        }
 
-    public async Task SaveClawTreatmentModalInput()
-    {
-        Snackbar.Configuration.SnackbarVariant = Variant.Outlined;
-        Snackbar.Configuration.MaxDisplayedSnackbars = 10;
-        if (TestForNullInput())
-        {    
-            Planned_Claw_Treatment.TreatmentDate = NullDate.Value;
-            Planned_Claw_Treatment.EarTagNumber = cowService.GetCowIdByCollarNumber(CollarNumber);
-            if (string.IsNullOrEmpty(Planned_Claw_Treatment.EarTagNumber))
-            {
-                Snackbar.Add($"Halsbandnummer {CollarNumber} nicht gefunden!", Severity.Error);
-                return;
-            }
-            SaveSuccesfulBool = await pClawTreatmentService.InsertDataAsync(Planned_Claw_Treatment);
-            MudDialog.Close();
-            if (SaveSuccesfulBool)
-            {
-                Snackbar.Add($"Speichern erfolgreich!", Severity.Success);
-            }
-            else
-            {
-                Snackbar.Add($"Speichern fehlgeschlagen!", Severity.Error);
-            }
+        if (string.IsNullOrWhiteSpace(Planned.Desciption))
+        {
+            Snackbar.Add("Bitte eine Beschreibung angeben.", Severity.Error);
+            return;
+        }
+
+        var cowId = cowService.GetCowIdByCollarNumber(CollarNumber);
+        if (string.IsNullOrEmpty(cowId))
+        {
+            Snackbar.Add($"Halsbandnummer {CollarNumber} nicht gefunden!", Severity.Error);
+            return;
+        }
+
+        Planned.TreatmentDate = NullDate.Value;
+        Planned.EarTagNumber = cowId;
+
+        if (await pClawTreatmentService.InsertDataAsync(Planned))
+        {
+            Snackbar.Add("Behandlung geplant.", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(true));
         }
         else
         {
-            Snackbar.Add($"Alle Felder müssen ausgefüllt werden!", Severity.Error);
-        }
-    }
-
-    private bool TestForNullInput()
-    {
-        bool returnBool;
-        returnBool = NullDate != null &&  !string.IsNullOrEmpty(Planned_Claw_Treatment.Desciption);
-        return returnBool;
-    }
-
-    private void ClawInput(string currentClaw)
-    {
-        if(currentClaw == "LV")
-        {
-            Planned_Claw_Treatment.ClawFindingLV = !Planned_Claw_Treatment.ClawFindingLV;
-        }
-        else if (currentClaw == "RV")
-        {
-            Planned_Claw_Treatment.ClawFindingRV = !Planned_Claw_Treatment.ClawFindingRV;
-        }
-        else if (currentClaw == "LH")
-        {
-            Planned_Claw_Treatment.ClawFindingLH = !Planned_Claw_Treatment.ClawFindingLH;
-        }
-        else if (currentClaw == "RH")
-        {
-            Planned_Claw_Treatment.ClawFindingRH = !Planned_Claw_Treatment.ClawFindingRH;
+            Snackbar.Add("Speichern fehlgeschlagen!", Severity.Error);
         }
     }
 }
-

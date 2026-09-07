@@ -1,0 +1,29 @@
+@*
+    Der geteilte Huf-Umriss aus Hoof.dc.html.
+
+    Inline-SVG, nicht <img> (nicht umfaerbbar) und nicht <use href="x.svg#id">
+    (Cross-Document-fill bricht in Safari).
+
+    Die Farbe kommt aus der CSS-Custom-Property --mw-hoof. Damit setzt sie
+    entweder C# ueber die Zustandsklasse am Elternelement (.has-data,
+    .is-selected) oder direkt CSS beim Hover - letzteres ohne
+    Server-Roundtrip, was auf Blazor Server den Unterschied macht.
+
+    Ersetzt alle acht images/Hoofs/HOOF_*.svg und alle zwanzig
+    images/Data_Hoofs/*.svg. Nebenbei behebt es doppelte DOM-IDs: id="LV_HOOF"
+    existierte in zwei Dialogen gleichzeitig.
+*@
+<svg viewBox="0 0 1656.604 1506.538" class="mw-hoof-svg"
+     role="@(Title is null ? "presentation" : "img")" aria-hidden="@(Title is null ? "true" : null)"
+     focusable="false">
+    @if (Title is not null)
+    {
+        <title>@Title</title>
+    }
+    <path d="M805.954,1307.23c-21.629,77.421-77.715,129.99-154.238,162.136-165.542,69.539-361.795,47.275-487.027-115.996-71.39-93.075-111.77-197.809-139.849-307.575C-.714,945.898-7.064,845.075,8.176,743.503c22.826-152.132,85.513-290.071,179.087-416.356,75.334-101.669,163.121-192.763,271.803-265.35,40.251-26.883,82.844-49.939,132.623-58.931,65.199-11.778,109.834,17.623,114.679,78.372,2.697,33.812,.484,67.957,.484,101.952-.827,.001-1.654,.002-2.481,.004,0,100.502-2.215,201.056,.549,301.493,3.627,131.81,19.42,262.688,46.329,392.304,16.863,81.229,34.382,162.348,50.337,243.729,12.122,61.831,21.724,124.385,4.368,186.511Zm710.694,8.635c-45.551,70.91-105.107,129.087-188.534,163.082-128.379,52.312-320.068,28.105-420.723-73.505-51.489-51.978-70.071-113.158-67.004-181.719,3.841-85.875,28.158-168.682,43.84-252.807,18.314-98.246,36.222-196.637,50.364-295.445,16.541-115.565,19.302-232.05,16.945-348.55-1.463-72.296-4.265-144.57-5.74-216.866-.29-14.227,1.414-28.76,4.482-42.725,11.129-50.662,52.023-74.955,109.192-65.22,52.832,8.996,98.065,33.331,140.213,62.468,145.068,100.282,255.821,227.391,340.241,374.612,51.214,89.313,86.211,183.992,103.152,283.797,7.461,43.954,9.872,88.638,13.527,123.092-8.374,173.446-49.022,328.228-139.955,469.785Z" />
+</svg>
+
+@code {
+    /// <summary>Nur setzen, wenn der Huf allein Information traegt.</summary>
+    [Parameter] public string? Title { get; set; }
+}

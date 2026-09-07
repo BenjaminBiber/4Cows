@@ -1,77 +1,297 @@
-﻿@page "/Verband_Daten"
-@using _4Cows_FE.Components._4CowsComponent
+@page "/Verband_Daten"
+
+@using _4Cows_FE.Components._4CowsComponent.Dialogs
+@using _4Cows_FE.Components.Meadow
+@using _4Cows_FE.Components.Services
+
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject MeadowDataLoader Data
+@inject MeadowDialogLauncher Launcher
 @inject ClawTreatmentService clawTreatmentService
 @inject CowService cowService
-@using BB_Cow.Class
-@using _4Cows_FE.Components._4CowsComponent.Dialogs
 
-<MudGrid Justify="Justify.FlexEnd">
-    <MudIconButton Icon="@Icons.Material.Filled.AddCircle" Color="Color.Secondary" Size="Size.Large" OnClick="OpenClawDialog"></MudIconButton>
-</MudGrid>
-<div style="height: 90dvh">
-    <MudTable Elevation="5" Items="@ClawTreatments" Hover="true" Striped="@true" Filter="new Func<ClawTreatment,bool>(ClawFilterFunc1)" @bind-SelectedItem="selectedClaw">
-        <ToolBarContent>
-            <MudText Class="table-Header" Typo="Typo.h3">Verbände</MudText>
-            <MudSpacer/>
-            <MudTextField @bind-Value="searchClaw" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
-        </ToolBarContent>
-        <HeaderContent>
-            <MudTh><MudTableSortLabel SortBy="new Func<CowTreatment, object>(x=>cowService.GetCollarNumberByCowId(x.EarTagNumber))">Halsbandnummer</MudTableSortLabel></MudTh>
-            <MudTh><MudTableSortLabel SortBy="new Func<ClawTreatment, object>(x=>x.TreatmentDate)">Verband seit</MudTableSortLabel></MudTh>
-            <MudTh></MudTh>
-            <MudTh></MudTh>
+<MeadowToolbar>
+    <Left>
+        <span class="mw-section-title mw-only-desktop">Offene Verbände</span>
+        <MeadowSearchBox Value="@_search" ValueChanged="OnSearchChanged"
+                         AriaLabel="Verbände durchsuchen" />
+        <MeadowChip Label="@OverdueLabel" Selected="_onlyOverdue" OnClick="ToggleOverdue" />
+    </Left>
+    <Right>
+        <button type="button" class="mw-btn mw-btn--primary" @onclick="AddTreatment">
+            <MeadowIcon Name="MeadowIconName.Plus" Size="20" />
+            <span>Neue Behandlung</span>
+        </button>
+    </Right>
+</MeadowToolbar>
 
-        </HeaderContent>
-        <RowTemplate>
-            <MudTd DataLabel="Halsbandnummer">@cowService.GetCollarNumberByCowId(context.EarTagNumber)</MudTd>
-            <MudTd>@($"{(DateTime.Now - context.TreatmentDate).Days} Tage")</MudTd>
-            <MudTd><MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="@(() => OpenClawInformation(context))">Behandlung öffnen</MudButton></MudTd>
-            <MudTd><MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="@(() => RemoveBandage(context))"> Verband Löschen</MudButton></MudTd>
+<MeadowTable TItem="BandagedClaw" Items="_rows" Columns="_columns"
+             RowKey="@(r => r.Key)"
+             DefaultSortTitle="Tage" DefaultSortDescending="true"
+             PagerLabel="Verbände pro Seite"
+             EmptyText="Keine offenen Verbände gefunden.">
+    <MobileCard Context="row">
+        <div class="mw-row-card">
+            <div class="mw-row-card__top">
+                <span class="mw-row-card__title">Nr. @Collar(row)</span>
+                <MeadowDayChip Days="row.Days" />
+            </div>
+            <div class="mw-row-card__meta">
+                <span>@row.HoofText</span>
+                <span>seit @row.Since.ToString("dd.MM.yyyy")</span>
+            </div>
+            <div class="mw-row-card__actions">
+                <button type="button" class="mw-btn mw-btn--ghost mw-btn--sm"
+                        @onclick="() => OpenTreatment(row)">Öffnen</button>
+                <button type="button" class="mw-btn mw-btn--primary mw-btn--sm"
+                        @onclick="() => RemoveBandage(row)">Entfernen</button>
+            </div>
+        </div>
+    </MobileCard>
+</MeadowTable>
 
-        </RowTemplate>
-        <PagerContent>
-            <MudTablePager RowsPerPageString="Verbände pro Seite" PageSizeOptions="new int[]{25, 50, 100}" />
-        </PagerContent>
-    </MudTable>
-</div>
+@code {
+    // Eine Zeile pro bandagierter Klaue. Die Datenbank kennt nur ein
+    // gemeinsames IsBandageRemoved pro Behandlung - das ist der Grund,
+    // warum das Entfernen die Geschwister-Klauen benennen muss.
+    private List<BandagedClaw> _all = new();
+    private List<BandagedClaw> _rows = new();
+    private List<MeadowColumn<BandagedClaw>> _columns = new();
 
+    private string _search = "";
+    private bool _onlyOverdue;
 
-    @code {
-    private ClawTreatment selectedClaw = null;
-    private string searchClaw = "";
-    private IEnumerable<ClawTreatment> ClawTreatments = new List<ClawTreatment>();
+    private string OverdueLabel => "Nur überfällig";
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        ClawTreatments = clawTreatmentService.GetClawTreatmentsWithBandage();
+        // OnInitialized war synchron und lud gar nichts - beim Direktaufruf
+        // dieser Route war die Seite deshalb immer leer.
+        await Data.EnsureClawTreatmentsAsync();
+        Rebuild();
+        BuildColumns();
     }
-    private bool ClawFilterFunc1(ClawTreatment Treatment_Cow) => cowService.FilterFuncCow(Treatment_Cow.EarTagNumber, searchClaw);
 
-    private async Task OpenClawInformation(ClawTreatment Claw_Treatment)
+    private void Rebuild()
     {
-        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
-        await clawTreatmentService.GetAllDataAsync();
-        var parameters = new DialogParameters<Show_Claw_Treatment_Dialog> { { x => x.Claw_Treatment, Claw_Treatment } };
-        await DialogService.ShowAsync<Show_Claw_Treatment_Dialog>("", parameters, options);
+        _all = BandagedClaw.Project(clawTreatmentService.GetClawTreatmentsWithBandage()).ToList();
+        Apply();
     }
 
-    private void OpenClawDialog()
+    private void BuildColumns() => _columns = new()
     {
-        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
-        DialogService.Show<Add_Claw_Treatment_Dialog>("", options);
-    }
-
-    private async Task RemoveBandage(ClawTreatment Claw_Treatment)
-    {
-        if(await clawTreatmentService.RemoveBandageAsync(Claw_Treatment.ClawTreatmentId))
+        new MeadowColumn<BandagedClaw>
         {
-            Snackbar.Add($"Verband erfolgreich entfernt!", Severity.Success);
+            Title = "Halsband",
+            Text = Collar,
+            SortBy = r => CollarSortKey(r),
+            Style = MeadowCellStyle.Bold
+        },
+        new MeadowColumn<BandagedClaw>
+        {
+            Title = "Klaue",
+            Text = r => r.HoofText,
+            SortBy = r => r.Position.ToString()
+        },
+        new MeadowColumn<BandagedClaw>
+        {
+            Title = "Angelegt",
+            Text = r => r.Since.ToString("dd.MM.yyyy"),
+            SortBy = r => r.Since,
+            NoWrap = true
+        },
+        new MeadowColumn<BandagedClaw>
+        {
+            Title = "Tage",
+            Text = r => $"{r.Days} Tage",
+            SortBy = r => r.Days,
+            Template = row => @<MeadowDayChip Days="row.Days" />
+        },
+        new MeadowColumn<BandagedClaw>
+        {
+            IsActions = true,
+            Template = row =>
+                @<text>
+                    <button type="button" class="mw-btn mw-btn--sm mw-btn--ghost"
+                            @onclick="() => OpenTreatment(row)">Behandlung öffnen</button>
+                    <button type="button" class="mw-btn mw-btn--sm mw-btn--primary"
+                            @onclick="() => RemoveBandage(row)">Entfernen</button>
+                </text>
+        }
+    };
+
+    // ---- Anzeige-Helfer -----------------------------------------------
+
+    private string Collar(BandagedClaw r)
+    {
+        var collar = cowService.GetCollarNumberByCowId(r.CowId);
+        return collar == int.MinValue ? "–" : collar.ToString();
+    }
+
+    private int CollarSortKey(BandagedClaw r)
+    {
+        var collar = cowService.GetCollarNumberByCowId(r.CowId);
+        return collar == int.MinValue ? int.MaxValue : collar;
+    }
+
+    // ---- Filter -------------------------------------------------------
+
+    private void Apply()
+    {
+        IEnumerable<BandagedClaw> query = _all;
+
+        var search = _search.Trim();
+        if (search.Length > 0)
+        {
+            query = query.Where(r =>
+                Collar(r).Contains(search, StringComparison.OrdinalIgnoreCase)
+                || cowService.GetEarTagDisplay(r.CowId)
+                    .Contains(search, StringComparison.OrdinalIgnoreCase)
+                || r.Position.ToString().Contains(search, StringComparison.OrdinalIgnoreCase)
+                || HoofPositions.SideLabel(r.Position)
+                    .Contains(search, StringComparison.OrdinalIgnoreCase)
+                || r.Finding.Contains(search, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (_onlyOverdue)
+        {
+            query = query.Where(r => r.IsOverdue);
+        }
+
+        _rows = query.ToList();
+    }
+
+    private void OnSearchChanged(string value)
+    {
+        _search = value;
+        Apply();
+    }
+
+    private void ToggleOverdue()
+    {
+        _onlyOverdue = !_onlyOverdue;
+        Apply();
+    }
+
+    // ---- Aktionen -----------------------------------------------------
+
+    private async Task OpenTreatment(BandagedClaw row)
+    {
+        var treatment = clawTreatmentService.Treatments.Values
+            .FirstOrDefault(t => t.ClawTreatmentId == row.TreatmentId);
+        if (treatment is null)
+        {
+            return;
+        }
+
+        var options = new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            CloseButton = true,
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true
+        };
+        var parameters = new DialogParameters<Show_Claw_Treatment_Dialog>
+        {
+            { x => x.Claw_Treatment, treatment }
+        };
+
+        var dialog = await DialogService.ShowAsync<Show_Claw_Treatment_Dialog>(
+            string.Empty, parameters, options);
+        var result = await dialog.Result;
+
+        if (result is null || result.Canceled || result.Data is not ClawTreatment edit)
+        {
+            return;
+        }
+
+        await EditTreatment(edit);
+    }
+
+    private async Task EditTreatment(ClawTreatment treatment)
+    {
+        var options = new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true
+        };
+        var parameters = new DialogParameters<Add_Claw_Treatment_Dialog>
+        {
+            { x => x.Claw_Treatment, treatment }
+        };
+
+        var dialog = await DialogService.ShowAsync<Add_Claw_Treatment_Dialog>(
+            string.Empty, parameters, options);
+        var result = await dialog.Result;
+
+        if (result is null || result.Canceled)
+        {
+            return;
+        }
+
+        // Der Verband kann jetzt woanders sitzen - Projektion neu bauen.
+        await clawTreatmentService.GetAllDataAsync();
+        Rebuild();
+    }
+
+    private async Task RemoveBandage(BandagedClaw row)
+    {
+        // RemoveBandageAsync legt das eine IsBandageRemoved der ganzen
+        // Behandlung um. Bei mehreren bandagierten Klauen verschwinden
+        // deshalb alle - das muss vorher dastehen. Bisher gab es hier
+        // ueberhaupt keine Bestaetigung.
+        var siblings = _all.Where(r => r.TreatmentId == row.TreatmentId).ToList();
+        var collar = Collar(row);
+
+        var description = siblings.Count == 1
+            ? $"Verband {row.HoofText} bei Halsband {collar} als entfernt markieren?"
+            : $"Bei Halsband {collar} sind {siblings.Count} Verbände erfasst "
+              + $"({string.Join(", ", siblings.Select(s => s.Position))}). "
+              + "Diese Behandlung speichert nur ein gemeinsames Kennzeichen — beim "
+              + $"Entfernen werden ALLE {siblings.Count} Verbände als entfernt markiert. Fortfahren?";
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, NoHeader = true };
+        var parameters = new DialogParameters<GenericDialog>
+        {
+            { x => x.HeaderText, "Verband entfernen" },
+            { x => x.Description, description },
+            { x => x.AcceptButtonText, "Entfernen" },
+            { x => x.CancelButtonText, "Abbrechen" },
+            { x => x.ColorScheme, Color.Error }
+        };
+
+        var dialog = await DialogService.ShowAsync<GenericDialog>(string.Empty, parameters, options);
+        var result = await dialog.Result;
+        if (result is null || result.Canceled)
+        {
+            return;
+        }
+
+        if (await clawTreatmentService.RemoveBandageAsync(row.TreatmentId))
+        {
+            Snackbar.Add(
+                siblings.Count == 1
+                    ? "Verband als entfernt markiert."
+                    : $"{siblings.Count} Verbände als entfernt markiert.",
+                Severity.Success);
+
+            // Ohne das blieb die Zeile bis zum Reload stehen.
+            Rebuild();
         }
         else
         {
-            Snackbar.Add($"Entfernen des Verbands fehlgeschlagen!", Severity.Error);
+            Snackbar.Add("Entfernen des Verbands fehlgeschlagen.", Severity.Error);
+        }
+    }
+
+    private async Task AddTreatment()
+    {
+        if (await Launcher.ShowAndAwaitAsync<Add_Claw_Treatment_Dialog>())
+        {
+            await clawTreatmentService.GetAllDataAsync();
+            Rebuild();
         }
     }
 }

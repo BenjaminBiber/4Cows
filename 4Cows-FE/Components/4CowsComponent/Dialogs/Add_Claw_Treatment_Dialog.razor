@@ -1,170 +1,153 @@
-﻿@inject ISnackbar Snackbar
+@using _4Cows_FE.Components.Meadow
+
+@inject ISnackbar Snackbar
 @inject ClawTreatmentService clawTreatmentService
 @inject CowService cowService
 
-<MudDialog>
-    <DialogContent>
-            <MudStack>
-                <MudText Class="table-Header" Align="Align.Center" Typo="Typo.h3">Klauen Behandlung hinzufügen</MudText>
+@*
+    Aus vier if/else-Zweigen mit je drei duplizierten Eingaben (und dem
+    #Claw_Treatment_Modal-Sprite-Gitter) wird ein ClawSelector.
+*@
+<MeadowDialog Title="@Title" Size="MeadowDialogSize.Claw">
+    <ChildContent>
+        <div class="mw-field-row">
+            <div class="mw-col">
+                <label class="mw-label" for="mw-collar">Halsbandnummer</label>
+                <div class="mw-field">
+                    <MudNumericField T="int" InputId="mw-collar" Variant="Variant.Text"
+                                     HideSpinButtons="true" Immediate="true"
+                                     Value="@CollarNumber" ValueChanged="OnCollarChanged"
+                                     Placeholder="z.B. 142" />
+                </div>
+            </div>
+            <div class="mw-col mw-col--wide">
+                <label class="mw-label" for="mw-cow">Kuh / Kalb</label>
+                <div class="mw-field">
+                    <MudAutocomplete T="string" InputId="mw-cow" Variant="Variant.Text"
+                                     SearchFunc="cowService.SearchCows"
+                                     ToStringFunc="cowService.GetDisplayLabel"
+                                     ResetValueOnEmptyText="true" Immediate="true"
+                                     Value="@Claw_Treatment.EarTagNumber"
+                                     ValueChanged="OnCowChanged"
+                                     Placeholder="DE 08 1523 …" />
+                </div>
+            </div>
+            <div class="mw-col">
+                <span class="mw-label">Behandlungsdatum</span>
+                <div class="mw-field">
+                    <MudDatePicker Label="Behandlungsdatum" Variant="Variant.Text" Editable="true"
+                                   DateFormat="dd.MM.yyyy" @bind-Date="NullDate" />
+                </div>
+            </div>
+        </div>
 
-                <MudNumericField TextChanged="(string s) => UpdateEarTagNumber(s)" @bind-Value="CollarNumber" Label="Halsbandnummer:" Immediate="true" Variant="Variant.Text" />
-                <MudAutocomplete TextChanged="() => GetCollarNumber()" SearchFunc="cowService.SearchCows" ToStringFunc="cowService.GetDisplayLabel" ResetValueOnEmptyText="true" Immediate="true" @bind-Value="Claw_Treatment.EarTagNumber" Label="Kuh / Kalb:" Variant="Variant.Text" />
+        <span class="mw-label mw-label--spaced">Klaue auswählen — tippe auf eine Position</span>
 
-                <MudDatePicker Label="Behandlungsdatum:" Editable="true" @bind-Date="NullDate" />
-            <MudContainer MaxWidth="MaxWidth.ExtraSmall" id="Claw_Treatment_Modal" class="@(showTreatmentModal ? "showTreatmentModal" : "hideTreatmentModal")">
-                        <MudStack Justify="Justify.Center" >
-                        <MudText Align="Align.Center" Typo="Typo.h5">@($"Klauen Behandlung {currentClaw}")</MudText>
-                        @if (currentClaw == "LV")
-                        {
-                            <MudAutocomplete T="string" Label="Befund:" @bind-Value="Claw_Treatment.ClawFindingLV" SearchFunc="@Search_Claw_Treatment_Claw_Finding" CoerceValue="true" />
-                            <MudCheckBox Label="Verband:" @bind-Value="@Claw_Treatment.BandageLV" Size="Size.Medium" Color="Color.Primary"></MudCheckBox>
-                            <MudCheckBox Label="Klotz:" @bind-Value="@Claw_Treatment.BlockLV" Size="Size.Medium" Color="Color.Primary"></MudCheckBox>
-                        }
-                        else if (currentClaw == "LH")
-                        {
-                        <MudAutocomplete T="string" Label="Befund:" @bind-Value="Claw_Treatment.ClawFindingLH" SearchFunc="@Search_Claw_Treatment_Claw_Finding" CoerceValue="true" />
-                        <MudCheckBox Label="Verband:" @bind-Value="@Claw_Treatment.BandageLH" Size="Size.Medium" Color="Color.Primary"></MudCheckBox>
-                        <MudCheckBox Label="Klotz:" @bind-Value="@Claw_Treatment.BlockLH" Size="Size.Medium" Color="Color.Primary"></MudCheckBox>
-                        }
-                        else if (currentClaw == "RV")
-                        {
-                        <MudAutocomplete T="string" Label="Befund:" @bind-Value="Claw_Treatment.ClawFindingRV" SearchFunc="@Search_Claw_Treatment_Claw_Finding" CoerceValue="true" />
-                        <MudCheckBox Label="Verband:" @bind-Value="@Claw_Treatment.BandageRV" Size="Size.Medium" Color="Color.Primary"></MudCheckBox>
-                        <MudCheckBox Label="Klotz:" @bind-Value="@Claw_Treatment.BlockRV" Size="Size.Medium" Color="Color.Primary"></MudCheckBox>
-                        }
-                        else if (currentClaw == "RH")
-                        {
-                        <MudAutocomplete T="string" Label="Befund:" @bind-Value="Claw_Treatment.ClawFindingRH" SearchFunc="@Search_Claw_Treatment_Claw_Finding" CoerceValue="true" />
-                        <MudCheckBox Label="Verband:" @bind-Value="@Claw_Treatment.BandageRH" Size="Size.Medium" Color="Color.Primary"></MudCheckBox>
-                        <MudCheckBox Label="Klotz:" @bind-Value="@Claw_Treatment.BlockRH" Size="Size.Medium" Color="Color.Primary"></MudCheckBox>
-                        }
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="CloseClawTreatmentModal">Schließen</MudButton>
-            </MudStack>
-            </MudContainer>
-                        <div id="Hoof_Input_Grid">
-                            <button type="button" id="LV_HOOF" class="Hoof_Input" onclick="@(() => SetCurrentClaw("LV"))"></button>
-                            <button type="button" id="RV_HOOF" class="Hoof_Input" onclick="@(() => SetCurrentClaw("RV"))"></button>
-                            <button type="button" id="LH_HOOF" class="Hoof_Input" onclick="@(() => SetCurrentClaw("LH"))"></button>
-                            <button type="button" id="RH_HOOF" class="Hoof_Input" onclick="@(() => SetCurrentClaw("RH"))"></button>
-                        </div>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@SaveClawTreatmentModalInput">Speichern</MudButton>
-            </MudStack>
-    </DialogContent>
-</MudDialog>
-
-
+        <ClawSelector Treatment="Claw_Treatment"
+                      Mode="ClawSelectorMode.Findings"
+                      Findings="clawTreatmentService.ClawFindingList"
+                      @bind-Selected="_selected"
+                      OnChanged="StateHasChanged" />
+    </ChildContent>
+    <Footer>
+        <button type="button" class="mw-btn mw-btn--plain mw-btn--wide" @onclick="Cancel">
+            Abbrechen
+        </button>
+        <button type="button" class="mw-btn mw-btn--primary mw-btn--wide" @onclick="Save">
+            @(IsEdit ? "Änderungen speichern" : "Speichern")
+        </button>
+    </Footer>
+</MeadowDialog>
 
 @code {
-    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = default!;
 
-    [Parameter]
-    public ClawTreatment Claw_Treatment { get; set; } = new ClawTreatment();
+    [Parameter] public ClawTreatment Claw_Treatment { get; set; } = new();
 
-    public DateTime? NullDate;
-    public string currentClaw = "";
-    public bool SaveSuccesfulBool;
-    public bool showTreatmentModal = false;
-    public int CollarNumber;
+    private DateTime? NullDate;
+    private int CollarNumber;
+    private HoofPosition? _selected;
+
+    /// <summary>
+    /// Eine bestehende Behandlung wird geaendert, nicht angelegt. Moeglich,
+    /// seit ClawTreatmentService ein UpdateDataAsync hat - vorher haette
+    /// "Bearbeiten" jedes Speichern zu einer zweiten Behandlung gemacht.
+    /// </summary>
+    private bool IsEdit => Claw_Treatment.ClawTreatmentId != 0;
+
+    private string Title => IsEdit ? "Klauen Behandlung bearbeiten" : "Klauen Behandlung hinzufügen";
 
     protected override void OnInitialized()
     {
         if (!string.IsNullOrEmpty(Claw_Treatment.EarTagNumber))
         {
-            CollarNumber = cowService.GetCollarNumberByCowId(Claw_Treatment.EarTagNumber);
+            var collar = cowService.GetCollarNumberByCowId(Claw_Treatment.EarTagNumber);
+            CollarNumber = collar == int.MinValue ? 0 : collar;
         }
-        NullDate = DateTime.Today;
+
+        NullDate = Claw_Treatment.TreatmentDate == default
+            ? DateTime.Today
+            : Claw_Treatment.TreatmentDate;
     }
 
-    public void SetCurrentClaw(string InputClaw)
+    // Halsbandnummer und Kuh/Kalb befuellen sich gegenseitig - wie bisher.
+    private void OnCollarChanged(int value)
     {
-        currentClaw = InputClaw;
-        showTreatmentModal = true;
-    }
-
-    public void CloseClawTreatmentModal()
-    {
-        showTreatmentModal = false;
-    }
-
-    public async Task SaveClawTreatmentModalInput()
-    {
-        Snackbar.Configuration.SnackbarVariant = Variant.Outlined;
-        Snackbar.Configuration.MaxDisplayedSnackbars = 10;
-        if (TestForNullInput())
+        CollarNumber = value;
+        var cowId = cowService.GetCowIdByCollarNumber(value);
+        if (!string.IsNullOrEmpty(cowId))
         {
-            Claw_Treatment.TreatmentDate = NullDate.Value;
-            Claw_Treatment.EarTagNumber = cowService.GetCowIdByCollarNumber(CollarNumber);
-            if (Claw_Treatment.EarTagNumber == string.Empty)
-            {
-                Snackbar.Add($"Halsbandnummer {CollarNumber} nicht gefunden!", Severity.Error);
-                return;
-            }
-            SaveSuccesfulBool = await clawTreatmentService.InsertDataAsync(Claw_Treatment);
-            MudDialog.Close();
-            Claw_Treatment = new ClawTreatment();
-            Claw_Treatment.TreatmentDate = DateTime.Now;
-            if (SaveSuccesfulBool)
-            {
-                Snackbar.Add($"Speichern erfolgreich!", Severity.Success);
-            }
-            else
-            {
-                Snackbar.Add($"Speichern fehlgeschlagen!", Severity.Error);
-            }
-        }
-        else
-        {
-            Snackbar.Add($"Alle Felder müssen ausgefüllt werden!", Severity.Error);
+            Claw_Treatment.EarTagNumber = cowId;
         }
     }
 
-    private bool TestForNullInput()
+    private void OnCowChanged(string? cowId)
     {
-        var returnBool = false;
-        if (string.IsNullOrEmpty(Claw_Treatment.ClawFindingLV))
-        {
-            Claw_Treatment.ClawFindingLV = "Pflege";
-        }
-        if (string.IsNullOrEmpty(Claw_Treatment.ClawFindingRV))
-        {
-            Claw_Treatment.ClawFindingRV = "Pflege";
-        }
-        if (string.IsNullOrEmpty(Claw_Treatment.ClawFindingLH))
-        {
-            Claw_Treatment.ClawFindingLH = "Pflege";
-        }
-        if (string.IsNullOrEmpty(Claw_Treatment.ClawFindingRH))
-        {
-            Claw_Treatment.ClawFindingRH = "Pflege";
-        }
-        returnBool =  NullDate != null && !string.IsNullOrEmpty(Claw_Treatment.ClawFindingLV) && !string.IsNullOrEmpty(Claw_Treatment.ClawFindingLH) && !string.IsNullOrEmpty(Claw_Treatment.ClawFindingRV) && !string.IsNullOrEmpty(Claw_Treatment.ClawFindingRH);
-        return returnBool;
-    }
-
-    private async Task<IEnumerable<string>> Search_Claw_Treatment_Claw_Finding(string value, CancellationToken token)
-    {
-        await Task.Delay(0);
-        if (string.IsNullOrEmpty(value))
-        {
-            return clawTreatmentService.ClawFindingList;
-        }
-        return clawTreatmentService.ClawFindingList.Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
-    }
-    
-    private void GetCollarNumber()
-    {
-        var cowId = Claw_Treatment.EarTagNumber;
-        var collar = !string.IsNullOrEmpty(cowId) ? cowService.GetCollarNumberByCowId(cowId) : 0;
+        Claw_Treatment.EarTagNumber = cowId ?? string.Empty;
+        var collar = string.IsNullOrEmpty(cowId) ? 0 : cowService.GetCollarNumberByCowId(cowId);
         CollarNumber = collar == int.MinValue ? 0 : collar;
-        StateHasChanged();
     }
 
-    private void UpdateEarTagNumber(string collarNumber)
-    {
-        if (string.IsNullOrWhiteSpace(collarNumber) || string.IsNullOrEmpty(collarNumber)) return;
+    private void Cancel() => MudDialog.Cancel();
 
-        Claw_Treatment.EarTagNumber = cowService.GetCowIdByCollarNumber(Convert.ToInt32(collarNumber));
-        StateHasChanged();
+    private async Task Save()
+    {
+        if (NullDate is null)
+        {
+            Snackbar.Add("Bitte ein Behandlungsdatum wählen.", Severity.Error);
+            return;
+        }
+
+        var cowId = cowService.GetCowIdByCollarNumber(CollarNumber);
+        if (string.IsNullOrEmpty(cowId))
+        {
+            Snackbar.Add($"Halsbandnummer {CollarNumber} nicht gefunden!", Severity.Error);
+            return;
+        }
+
+        Claw_Treatment.TreatmentDate = NullDate.Value;
+        Claw_Treatment.EarTagNumber = cowId;
+
+        // "Pflege" wird NICHT mehr in unberuehrte Klauen geschrieben. Leere
+        // Befunde bleiben leer; angezeigt wird der pflegbare Standardwert
+        // aus den Einstellungen. Die Spalten sind NOT NULL, aber Leerstring
+        // ist erlaubt - kein Schema-Eingriff.
+        foreach (var position in HoofPositions.All)
+        {
+            Claw_Treatment.SetFinding(position, Claw_Treatment.GetFinding(position)?.Trim() ?? "");
+        }
+
+        var success = IsEdit
+            ? await clawTreatmentService.UpdateDataAsync(Claw_Treatment)
+            : await clawTreatmentService.InsertDataAsync(Claw_Treatment);
+
+        if (!success)
+        {
+            Snackbar.Add("Speichern fehlgeschlagen!", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add(IsEdit ? "Änderungen gespeichert." : "Speichern erfolgreich!", Severity.Success);
+        MudDialog.Close(DialogResult.Ok(true));
     }
 }
-

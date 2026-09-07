@@ -1,0 +1,1942 @@
+/* ============================================================
+   Meadow — Components
+   Jede Klasse hier entspricht einem st.*-Eintrag aus Meadow.dc.html.
+   Desktop ist die Basis; EINE Media Query (max-width:1023.98px) macht mobil.
+   ============================================================ */
+
+/* ============================================================
+   SICHTBARKEIT / RESPONSIVE UTILITIES
+
+   Die Utilities blenden nur AUS, sie schalten nie ein. Ein
+   "display: revert !important" fuer den sichtbaren Fall wuerde den
+   eigenen display-Wert des Elements ueberschreiben - ein
+   .mw-title-btn.mw-only-mobile faellt damit von flex auf inline-block
+   zurueck und sein Chevron bricht in die naechste Zeile um.
+   ============================================================ */
+@media (min-width: 1024px) {
+  .mw-only-mobile { display: none !important; }
+}
+@media (max-width: 1023.98px) {
+  .mw-only-desktop { display: none !important; }
+}
+
+/* ============================================================
+   SHELL   (st.shell — ohne die Rahmen-Attrappe des Prototyps)
+   ============================================================ */
+.mw-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--mw-bg);
+}
+
+.mw-body {
+  position: relative;
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* st.content */
+.mw-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--mw-content-pad);
+}
+.mw-content-inner {
+  max-width: var(--mw-shell-max);
+  margin-inline: auto;
+}
+
+/* ============================================================
+   HEADER   (st.header / st.mHeader)
+   ============================================================ */
+.mw-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+  height: var(--mw-header-h);
+  padding: 0 18px;
+  background: var(--mw-header);
+  border-bottom: 1px solid var(--mw-border);
+  z-index: var(--mw-z-header);
+}
+
+/* Der Seitentitel ist ein <h1> - Routes.razor fokussiert nach der Navigation
+   per FocusOnNavigate Selector="h1", und ohne Ueberschrift bliebe der Fokus
+   auf dem angeklickten Nav-Item haengen. Darin sitzt ein Button, der auf
+   Desktop inert ist und mobil das Seitenmenue oeffnet. */
+.mw-header__title {
+  min-width: 0;
+  margin: 0;
+  font-family: var(--mw-font-display);
+  font-weight: 700;
+  font-size: 24px;
+  letter-spacing: -.01em;
+  color: var(--mw-text);
+}
+.mw-title-btn__label {
+  display: block;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mw-header__actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* st.mTitleBtn — existiert nur mobil (siehe MeadowHeader) */
+.mw-title-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border-radius: var(--mw-r-xl);
+  transition: background var(--mw-t);
+}
+.mw-title-btn__chevron { color: var(--mw-muted); flex-shrink: 0; }
+
+/* ============================================================
+   ICON-BUTTONS   (st.hamburger / st.iconBtn / st.iconBtnSm)
+   ============================================================ */
+.mw-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--mw-r-xl);
+  background: none;
+  color: var(--mw-muted);
+  cursor: pointer;
+  transition: background var(--mw-t), color var(--mw-t);
+}
+.mw-icon-btn--text { color: var(--mw-text); }
+
+.mw-icon-btn-sm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-md);
+  background: var(--mw-panel);
+  color: var(--mw-muted);
+  cursor: pointer;
+  transition: background var(--mw-t), color var(--mw-t);
+}
+
+@media (hover: hover) {
+  .mw-icon-btn:hover    { background: var(--mw-tint); color: var(--mw-text); }
+  .mw-icon-btn-sm:hover { background: var(--mw-tint); color: var(--mw-text); }
+}
+
+/* ============================================================
+   DRAWER   (st.drawerBackdrop / st.drawer / st.navGroupLabel / navItem)
+   ============================================================ */
+.mw-drawer-backdrop {
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  border: 0;
+  background: var(--mw-backdrop-drawer);
+  backdrop-filter: blur(2px);
+  cursor: default;
+  z-index: var(--mw-z-drawer-backdrop);
+  animation: mwFade .2s ease;
+}
+
+.mw-drawer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: var(--mw-drawer-w);
+  padding: 18px 14px;
+  overflow-y: auto;
+  background: var(--mw-navy);
+  box-shadow: var(--mw-shadow-drawer);
+  z-index: var(--mw-z-drawer);
+  animation: mwSlide var(--mw-t-slide) var(--mw-ease);
+}
+
+.mw-drawer__brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 8px 20px;
+}
+.mw-drawer__logo {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: var(--mw-r-lg);
+  object-fit: cover;
+}
+.mw-drawer__wordmark {
+  font-family: var(--mw-font-display);
+  font-weight: 800;
+  font-size: 24px;
+  letter-spacing: .02em;
+  color: #fff;
+}
+
+.mw-nav-group {
+  padding: 14px 12px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, .4);
+}
+
+.mw-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 11px 14px;
+  border-radius: var(--mw-r-xl);
+  border-left: 3px solid transparent;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, .74);
+  background: transparent;
+  cursor: pointer;
+  transition: background var(--mw-t), color var(--mw-t), border-color var(--mw-t);
+}
+.mw-nav-item > svg { flex-shrink: 0; }
+.mw-nav-item.is-active {
+  color: #fff;
+  background: var(--mw-navy-active);
+  border-left-color: var(--mw-nav-accent, var(--mw-primary));
+}
+@media (hover: hover) {
+  .mw-nav-item:hover { color: #fff; background: rgba(255, 255, 255, .07); }
+  .mw-nav-item.is-active:hover { background: var(--mw-navy-active); }
+}
+
+.mw-nav-item--success { --mw-nav-accent: var(--mw-success); }
+.mw-nav-item--blue    { --mw-nav-accent: var(--mw-blue); }
+.mw-nav-item--sage    { --mw-nav-accent: var(--mw-sage); }
+.mw-nav-item--teal    { --mw-nav-accent: var(--mw-teal); }
+
+/* ============================================================
+   MOBILE TABBAR + FAB   (st.mTabbar / st.mFab / mtabS)
+   Flex-Geschwister des Inhalts, nicht absolut positioniert:
+   dann braucht die Leiste keinen z-index gegen den Inhalt und der
+   ueberstehende FAB nur overflow:visible.
+   ============================================================ */
+.mw-tabbar {
+  display: none;
+  align-items: center;
+  justify-content: space-around;
+  flex-shrink: 0;
+  height: calc(var(--mw-tabbar-h) + env(safe-area-inset-bottom));
+  padding-bottom: calc(10px + env(safe-area-inset-bottom));
+  background: var(--mw-panel);
+  border-top: 1px solid var(--mw-border);
+  overflow: visible;
+  z-index: var(--mw-z-tabbar);
+}
+
+.mw-tabbar__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 10px;
+  border: 0;
+  background: none;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--mw-muted);
+  cursor: pointer;
+  transition: color var(--mw-t);
+}
+.mw-tabbar__item.is-active { color: var(--mw-primary); }
+
+.mw-fab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--mw-fab);
+  height: var(--mw-fab);
+  flex-shrink: 0;
+  margin-top: -26px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--mw-primary);
+  color: #fff;
+  cursor: pointer;
+  box-shadow: var(--mw-glow-fab), 0 0 0 5px var(--mw-bg);
+  transition: transform var(--mw-t), filter var(--mw-t);
+  z-index: var(--mw-z-fab);
+}
+.mw-fab:active { transform: scale(.94); }
+
+/* ============================================================
+   MOBILE MENUES   (st.mMenuBackdrop / st.mMenu / st.mAddMenu / pmi / ami*)
+   ============================================================ */
+.mw-menu-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: default;
+  z-index: var(--mw-z-menu-backdrop);
+}
+
+.mw-menu {
+  display: none;
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 262px;
+  max-width: calc(100% - 26px);
+  padding: 6px;
+  background: var(--mw-panel);
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-4xl);
+  z-index: var(--mw-z-menu);
+  animation: mwPop var(--mw-t-pop) var(--mw-ease);
+}
+.mw-menu--page {
+  top: calc(var(--mw-header-h-m) + 8px);
+  box-shadow: var(--mw-shadow-menu);
+}
+.mw-menu--add {
+  bottom: calc(var(--mw-tabbar-h) + 24px + env(safe-area-inset-bottom));
+  box-shadow: var(--mw-shadow-addmenu);
+}
+
+.mw-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 11px 13px;
+  border: 0;
+  border-radius: var(--mw-r-lg);
+  background: transparent;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  color: var(--mw-text);
+  cursor: pointer;
+  transition: background var(--mw-t-fast);
+}
+.mw-menu__item.is-active { color: var(--mw-primary); background: var(--mw-soft); }
+@media (hover: hover) {
+  .mw-menu__item:hover { background: var(--mw-tint); }
+  .mw-menu__item.is-active:hover { background: var(--mw-soft); }
+}
+
+/* st.amiItem: 12px gap, 12px/13px padding */
+.mw-menu--add .mw-menu__item { gap: 12px; padding: 12px 13px; }
+
+.mw-menu__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: var(--mw-r-lg);
+  background: var(--mw-soft);
+  color: var(--mw-primary);
+}
+
+/* ============================================================
+   BUTTONS   (st.primaryBtn / ghostBtn / addIconBtn / ghostIconBtn / openBtn)
+   ============================================================ */
+.mw-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 1px solid transparent;
+  border-radius: var(--mw-r-xl);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  cursor: pointer;
+  transition: filter var(--mw-t), background var(--mw-t), border-color var(--mw-t);
+}
+.mw-btn--primary {
+  background: var(--mw-primary);
+  color: #fff;
+  box-shadow: var(--mw-glow-btn);
+}
+.mw-btn--ghost {
+  background: var(--mw-panel);
+  color: var(--mw-text);
+  border-color: var(--mw-border);
+}
+.mw-btn--plain {
+  background: transparent;
+  color: var(--mw-text);
+  border-color: var(--mw-border);
+}
+.mw-btn--danger  { background: var(--mw-danger);  color: #fff; }
+.mw-btn--warning { background: var(--mw-warning); color: #fff; }
+.mw-btn--success { background: var(--mw-success); color: #fff; }
+
+/* st.primaryBtn / st.ghostBtn: 10px 22px, radius 8 */
+.mw-btn--wide { padding: 10px 22px; border-radius: var(--mw-r-lg); }
+/* st.openBtn: 7px 14px, 13px, radius 8 */
+.mw-btn--sm   { padding: 7px 14px; font-size: 13px; border-radius: var(--mw-r-lg); }
+/* Volle Breite (Auth-Karte, Formular-Fuesse) */
+.mw-btn--block   { width: 100%; padding: 11px 22px; border-radius: var(--mw-r-lg); }
+.mw-btn--spaced  { margin-top: 18px; }
+
+.mw-btn:disabled { opacity: .55; cursor: default; box-shadow: none; }
+@media (hover: hover) {
+  .mw-btn:not(:disabled):hover { filter: brightness(1.06); }
+  .mw-btn--ghost:not(:disabled):hover,
+  .mw-btn--plain:not(:disabled):hover { filter: none; background: var(--mw-tint); }
+}
+
+/* ============================================================
+   PANEL / KARTE   (st.chartCard als generische Flaeche)
+   ============================================================ */
+.mw-card {
+  padding: 20px 22px;
+  background: var(--mw-panel);
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-3xl);
+  box-shadow: var(--mw-shadow-card);
+}
+.mw-card-title {
+  font-family: var(--mw-font-display);
+  font-weight: 700;
+  font-size: 19px;
+  letter-spacing: .01em;
+  color: var(--mw-text);
+}
+
+/* st.mSectionTitle */
+.mw-section-title {
+  margin-bottom: 12px;
+  font-family: var(--mw-font-display);
+  font-weight: 700;
+  font-size: 19px;
+  color: var(--mw-text);
+}
+
+/* ============================================================
+   MOBIL — die eine Grenze.
+   1023.98 statt 1023, damit gebrochene Viewport-Breiten (Browser-Zoom)
+   nicht in eine Luecke fallen, die keine der beiden Queries trifft.
+   ============================================================ */
+@media (max-width: 1023.98px) {
+
+  /* Header wird zur Titelleiste mit antippbarem Titel */
+  .mw-header {
+    height: auto;
+    min-height: var(--mw-header-h-m);
+    padding: 6px 14px 10px;
+    gap: 8px;
+    background: var(--mw-bg);
+    border-bottom: 0;
+    justify-content: space-between;
+  }
+  .mw-header__title { font-size: 20px; }
+  .mw-header__actions { margin-left: 0; }
+
+  /* Inhalt: schmaleres Padding */
+  .mw-content { padding: var(--mw-content-pad-m); }
+
+  /* Drawer und Backdrop muessen die Tabbar ueberdecken */
+  .mw-drawer-backdrop { position: fixed; }
+  .mw-drawer {
+    position: fixed;
+    width: var(--mw-drawer-w-m);
+    padding: 16px 12px;
+    box-shadow: none;
+  }
+  .mw-drawer__brand { gap: 11px; padding: 6px 8px 18px; }
+  .mw-drawer__logo { width: 40px; height: 40px; }
+  .mw-drawer__wordmark { font-size: 22px; }
+  .mw-nav-item { gap: 12px; }
+
+  /* Tabbar und Menues erscheinen */
+  .mw-tabbar        { display: flex; }
+  .mw-menu-backdrop { display: block; }
+  .mw-menu          { display: block; }
+}
+
+@media (max-width: 1023.98px) and (hover: hover) {
+  .mw-title-btn:hover { background: var(--mw-tint); }
+}
+
+/* ============================================================
+   404
+   ============================================================ */
+.mw-notfound {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  max-width: 420px;
+  margin: 60px auto;
+  padding: 36px 32px;
+  text-align: center;
+  background: var(--mw-panel);
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-5xl);
+  box-shadow: var(--mw-shadow-card);
+}
+.mw-notfound__badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  margin-bottom: 12px;
+  border-radius: 14px;
+  background: var(--mw-soft);
+  color: var(--mw-primary);
+}
+.mw-notfound__title {
+  font-family: var(--mw-font-display);
+  font-weight: 700;
+  font-size: 24px;
+  color: var(--mw-text);
+}
+.mw-notfound__text {
+  margin-bottom: 14px;
+  font-size: 13px;
+  color: var(--mw-muted);
+}
+
+/* ============================================================
+   DASHBOARD
+   ============================================================ */
+
+/* Obere Reihe: KPI-Gitter + Aktionsspalte.
+   Die min-width-Werte sind der Grund, warum es zwischen 700 und 1259px
+   keine weitere Media Query braucht - die Reihe bricht von selbst um. */
+.mw-dash-top {
+  display: flex;
+  gap: 20px;
+  align-items: stretch;
+  flex-wrap: wrap;
+}
+
+.mw-kpi-grid {
+  flex: 2;
+  min-width: 420px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+
+/* kpiCard */
+.mw-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  background: var(--mw-panel);
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-2xl);
+  box-shadow: var(--mw-shadow-card);
+  color: inherit;
+  cursor: pointer;
+  transition: transform var(--mw-t), box-shadow var(--mw-t);
+}
+@media (hover: hover) {
+  .mw-kpi:hover { transform: translateY(-2px); box-shadow: var(--mw-shadow-pop); }
+}
+
+.mw-kpi__title {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--mw-muted);
+}
+.mw-kpi__value {
+  font-family: var(--mw-font-display);
+  font-weight: 800;
+  font-size: 40px;
+  line-height: 1;
+  color: var(--mw-primary);
+}
+
+/* Die synthetische "KPI hinzufuegen"-Kachel (st.addRow-Optik) */
+.mw-kpi--add {
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1.5px dashed var(--mw-border);
+  box-shadow: none;
+  color: var(--mw-primary);
+}
+.mw-kpi--add .mw-kpi__title { color: var(--mw-primary); font-weight: 700; }
+.mw-kpi--add .mw-kpi__value { font-size: 32px; }
+
+/* Aktionsspalte (act) */
+.mw-dash-actions {
+  flex: 1;
+  min-width: 250px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  justify-content: center;
+}
+
+.mw-act {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 16px 18px;
+  border: 0;
+  border-radius: var(--mw-r-2xl);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  color: #fff;
+  cursor: pointer;
+  transition: transform var(--mw-t), filter var(--mw-t);
+}
+.mw-act > svg { flex-shrink: 0; }
+.mw-act--primary { background: var(--mw-primary); box-shadow: var(--mw-glow-primary); }
+.mw-act--teal    { background: var(--mw-teal);    box-shadow: var(--mw-glow-teal); }
+@media (hover: hover) {
+  .mw-act:hover { filter: brightness(1.06); transform: translateY(-1px); }
+}
+
+/* Diagrammreihe */
+.mw-dash-charts {
+  display: flex;
+  gap: 20px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+.mw-card--chart { flex: 1; min-width: 300px; }
+.mw-card__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.mw-card__tools { display: flex; gap: 6px; }
+
+/* st.barsRow — der Canvas-Container hat die gezeichnete Balkenhoehe */
+.mw-chart-canvas {
+  position: relative;
+  height: var(--mw-bars-h);
+}
+
+/* ============================================================
+   OFFLINE-GATE   (st.backdrop + Karte)
+   ============================================================ */
+.mw-offline-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: var(--mw-backdrop-dialog);
+  backdrop-filter: blur(4px);
+  animation: mwFade var(--mw-t-pop) ease;
+}
+.mw-offline-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 400px;
+  max-width: 100%;
+  padding: 36px 32px;
+  text-align: center;
+  background: var(--mw-panel);
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-5xl);
+  box-shadow: var(--mw-shadow-dialog);
+  animation: mwPop var(--mw-t-dialog) var(--mw-ease);
+}
+.mw-offline-card__badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  margin-bottom: 12px;
+  border-radius: 14px;
+  background: var(--mw-neg-bg);
+  color: var(--mw-danger);
+}
+.mw-offline-card__title {
+  font-family: var(--mw-font-display);
+  font-weight: 700;
+  font-size: 24px;
+  color: var(--mw-text);
+}
+.mw-offline-card__text {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--mw-muted);
+}
+
+/* ── Dashboard mobil ──────────────────────────────────────────── */
+@media (max-width: 1023.98px) {
+  .mw-kpi-grid {
+    flex: 1 1 100%;
+    min-width: 0;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  /* Das Design zeigt mobil vier Kacheln - heute waren es nur zwei
+     (d-lg-flex d-none ab dem dritten Element). */
+  .mw-kpi-grid > *:nth-child(n+5) { display: none; }
+
+  .mw-kpi { padding: 12px 14px; gap: 4px; }
+  .mw-kpi__value { font-size: 32px; }
+
+  .mw-dash-actions { flex: 1 1 100%; min-width: 0; margin-top: 14px; }
+  .mw-act { padding: 14px 16px; }
+
+  .mw-dash-charts { margin-top: 14px; }
+  .mw-card--chart { flex: 1 1 100%; min-width: 0; }
+}
+
+.mw-chart-error {
+  margin-top: 14px;
+  padding: 12px 16px;
+  border: 1px solid var(--mw-border);
+  border-left: 3px solid var(--mw-warning);
+  border-radius: var(--mw-r-lg);
+  background: var(--mw-panel);
+  font-size: 13px;
+  color: var(--mw-muted);
+}
+
+/* ============================================================
+   TOOLBAR / SUCHE   (st.tbToolbar / st.searchWrap / st.searchInput)
+   ============================================================ */
+.mw-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+.mw-toolbar__left,
+.mw-toolbar__right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.mw-toolbar__left { flex: 1; min-width: 0; }
+
+.mw-search {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex: 1;
+  min-width: 260px;
+  max-width: 360px;
+  padding: 9px 13px;
+  background: var(--mw-panel);
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-xl);
+  box-shadow: var(--mw-shadow-card);
+  transition: border-color var(--mw-t), box-shadow var(--mw-t);
+}
+.mw-search:focus-within {
+  border-color: var(--mw-primary);
+  box-shadow: 0 0 0 3px rgba(var(--mw-primary-rgb), .18);
+}
+.mw-search > svg { color: var(--mw-muted); flex-shrink: 0; }
+
+.mw-search__input {
+  width: 100%;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--mw-text);
+}
+.mw-search__input::placeholder { color: var(--mw-muted); }
+
+.mw-result-count {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--mw-muted);
+  white-space: nowrap;
+}
+
+/* ============================================================
+   FILTER   (fbtn / st.filterBadge / st.filterPop* / fchip)
+   ============================================================ */
+.mw-pop-anchor { position: relative; }
+
+.mw-filter-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-xl);
+  background: var(--mw-panel);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--mw-text);
+  cursor: pointer;
+  transition: border-color var(--mw-t), background var(--mw-t), color var(--mw-t);
+}
+.mw-filter-btn.is-active {
+  border-color: var(--mw-primary);
+  background: var(--mw-soft);
+  color: var(--mw-soft-fg);
+}
+
+.mw-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--mw-r-xl);
+  background: var(--mw-primary);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.mw-pop-backdrop {
+  position: fixed;
+  inset: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: default;
+  z-index: var(--mw-z-filter-backdrop);
+}
+
+.mw-pop {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  background: var(--mw-panel);
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-3xl);
+  box-shadow: var(--mw-shadow-pop);
+  z-index: var(--mw-z-filter);
+  animation: mwPop var(--mw-t-pop) var(--mw-ease);
+}
+.mw-pop__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.mw-pop__title {
+  font-family: var(--mw-font-display);
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--mw-text);
+}
+.mw-pop__reset {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--mw-primary);
+  cursor: pointer;
+}
+.mw-pop__count {
+  padding-top: 12px;
+  border-top: 1px solid var(--mw-border);
+  font-size: 12px;
+  color: var(--mw-muted);
+}
+
+.mw-filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mw-filter-group__label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--mw-muted);
+}
+.mw-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  max-height: 168px;
+  overflow-y: auto;
+}
+
+.mw-chip {
+  padding: 6px 13px;
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-md);
+  background: var(--mw-panel);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--mw-muted);
+  cursor: pointer;
+  transition: border-color var(--mw-t), background var(--mw-t), color var(--mw-t);
+}
+.mw-chip.is-on {
+  border-color: var(--mw-primary);
+  background: var(--mw-soft);
+  color: var(--mw-soft-fg);
+}
+
+/* ============================================================
+   TABELLE   (st.tableWrap / st.th / st.td / st.tr / st.emptyRow)
+   ============================================================ */
+.mw-table-wrap {
+  background: var(--mw-panel);
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-3xl);
+  box-shadow: var(--mw-shadow-card);
+  overflow: hidden;
+}
+.mw-table-scroll { overflow-x: auto; }
+
+.mw-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.mw-table th {
+  padding: 13px 16px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--mw-muted);
+  background: var(--mw-tint);
+  border-bottom: 1px solid var(--mw-border);
+  white-space: nowrap;
+}
+.mw-table td {
+  padding: 13px 16px;
+  font-size: 14px;
+  color: var(--mw-text);
+  border-bottom: 1px solid var(--mw-border);
+}
+.mw-table tbody tr:last-child td { border-bottom: 0; }
+.mw-table tbody tr { transition: background var(--mw-t-fast); }
+@media (hover: hover) {
+  .mw-table tbody tr:hover { background: var(--mw-tint); }
+}
+
+.mw-td--bold    { font-weight: 700; }
+.mw-td--mono    { font-family: var(--mw-font-mono); font-size: 13px; color: var(--mw-muted); }
+.mw-td--right   { text-align: right; }
+.mw-td--nowrap  { white-space: nowrap; }
+.mw-td--actions { text-align: right; white-space: nowrap; }
+.mw-td--actions > * + * { margin-left: 6px; }
+
+.mw-th-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
+.mw-th-sort__caret { opacity: 0; flex-shrink: 0; transition: opacity var(--mw-t); }
+.mw-th-sort.is-sorted .mw-th-sort__caret { opacity: 1; }
+.mw-th-sort.is-desc .mw-th-sort__caret { transform: rotate(180deg); }
+@media (hover: hover) {
+  .mw-th-sort:hover { color: var(--mw-text); }
+  .mw-th-sort:hover .mw-th-sort__caret { opacity: .5; }
+  .mw-th-sort.is-sorted:hover .mw-th-sort__caret { opacity: 1; }
+}
+
+.mw-empty {
+  padding: 40px 16px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--mw-muted);
+}
+.mw-empty__reset {
+  display: block;
+  margin: 10px auto 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: var(--mw-primary);
+  cursor: pointer;
+}
+
+/* Pager — nicht im Prototyp gezeichnet, aber die Datenmenge ist unbegrenzt.
+   Wird ausgeblendet, solange alles auf eine Seite passt. */
+.mw-pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--mw-tint);
+  border-top: 1px solid var(--mw-border);
+  font-size: 13px;
+  color: var(--mw-muted);
+}
+.mw-pager select {
+  padding: 5px 8px;
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-sm);
+  background: var(--mw-panel);
+  font: inherit;
+  color: var(--mw-text);
+}
+.mw-pager__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-md);
+  background: var(--mw-panel);
+  color: var(--mw-muted);
+  cursor: pointer;
+}
+.mw-pager__btn:disabled { opacity: .4; cursor: default; }
+.mw-pager__btn--prev svg { transform: rotate(90deg); }
+.mw-pager__btn--next svg { transform: rotate(-90deg); }
+
+/* ============================================================
+   ZELLEN-BAUSTEINE   (st.pill / dayChip / st.tinyBtn)
+   ============================================================ */
+.mw-pill {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: var(--mw-r-pill);
+  background: var(--mw-soft);
+  color: var(--mw-soft-fg);
+  font-size: 12px;
+  font-weight: 600;
+}
+/* dayChip ab 7 Tagen. Achtung: hier immer --mw-danger, NICHT --mw-neg-fg -
+   das gilt nur fuer das "Verband entfernt"-Badge. */
+.mw-pill--overdue { background: var(--mw-neg-bg); color: var(--mw-danger); }
+
+.mw-tiny-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--mw-r-md);
+  background: var(--mw-soft);
+  color: var(--mw-primary);
+  cursor: pointer;
+  transition: filter var(--mw-t);
+}
+.mw-tiny-btn--danger { background: var(--mw-neg-bg); color: var(--mw-danger); }
+@media (hover: hover) {
+  .mw-tiny-btn:hover { filter: brightness(.95); }
+}
+
+/* ============================================================
+   MOBILE KARTENLISTE   (st.mCard / st.mFilterWrap / st.mSearchWrap)
+   ============================================================ */
+.mw-cards { display: none; }
+
+.mw-row-card {
+  display: block;
+  width: 100%;
+  padding: 15px;
+  margin-bottom: 11px;
+  text-align: left;
+  background: var(--mw-panel);
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-4xl);
+  box-shadow: var(--mw-shadow-card);
+  font: inherit;
+  color: inherit;
+}
+.mw-row-card--clickable { cursor: pointer; }
+.mw-row-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.mw-row-card__title { font-size: 16px; font-weight: 700; color: var(--mw-text); }
+.mw-row-card__sub   { margin-top: 4px; font-size: 12px; color: var(--mw-muted); }
+.mw-row-card__mono  { margin-top: 4px; font-family: var(--mw-font-mono); font-size: 12px; color: var(--mw-muted); }
+.mw-row-card__meta {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--mw-text);
+}
+.mw-row-card__actions { display: flex; gap: 8px; margin-top: 12px; }
+.mw-row-card__actions > * { flex: 1; }
+
+.mw-filter-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  margin-bottom: 14px;
+}
+
+/* ============================================================
+   TABS   (st.setTabs / setTabS / st.miniChip)
+   ============================================================ */
+.mw-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--mw-border);
+}
+.mw-tab {
+  padding: 11px 20px;
+  margin-bottom: -1px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--mw-muted);
+  cursor: pointer;
+  transition: color var(--mw-t), border-color var(--mw-t);
+}
+.mw-tab.is-active { color: var(--mw-primary); border-bottom-color: var(--mw-primary); }
+
+.mw-chip-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 16px 0;
+}
+.mw-mini-chip {
+  padding: 7px 14px;
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-lg);
+  background: var(--mw-panel);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--mw-text);
+  cursor: pointer;
+  transition: border-color var(--mw-t), background var(--mw-t), color var(--mw-t);
+}
+.mw-mini-chip.is-active {
+  border-color: var(--mw-primary);
+  background: var(--mw-soft);
+  color: var(--mw-soft-fg);
+}
+
+/* ============================================================
+   FORMULAR-BAUSTEINE   (st.label / st.input) — auch von Etappe 4 genutzt
+   ============================================================ */
+.mw-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--mw-muted);
+}
+.mw-input {
+  width: 100%;
+  padding: 10px 13px;
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-lg);
+  background: var(--mw-bg);
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--mw-text);
+  outline: none;
+  transition: border-color var(--mw-t), box-shadow var(--mw-t);
+}
+.mw-input:focus {
+  border-color: var(--mw-primary);
+  box-shadow: 0 0 0 3px rgba(var(--mw-primary-rgb), .18);
+}
+
+/* Schalter — ersetzt MudSwitch ("Simple Ansicht") */
+.mw-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--mw-text);
+  cursor: pointer;
+}
+.mw-switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.mw-switch__track {
+  position: relative;
+  width: 38px;
+  height: 22px;
+  flex-shrink: 0;
+  border-radius: var(--mw-r-pill);
+  background: var(--mw-border);
+  transition: background var(--mw-t);
+}
+.mw-switch__track::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--mw-panel);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
+  transition: transform var(--mw-t);
+}
+.mw-switch input:checked + .mw-switch__track { background: var(--mw-primary); }
+.mw-switch input:checked + .mw-switch__track::after { transform: translateX(16px); }
+.mw-switch input:focus-visible + .mw-switch__track {
+  outline: 2px solid var(--mw-primary);
+  outline-offset: 2px;
+}
+
+/* ============================================================
+   AUTH-KARTE   (st.authCard) — Einstellungen, Etappe 4
+   ============================================================ */
+.mw-auth-card {
+  width: 400px;
+  max-width: 100%;
+  margin: 40px auto;
+  padding: 36px 32px;
+  background: var(--mw-panel);
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-5xl);
+  box-shadow: var(--mw-shadow-card);
+}
+.mw-auth-card__badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  margin: 0 auto 18px;
+  border-radius: 14px;
+  background: var(--mw-soft);
+  color: var(--mw-primary);
+}
+.mw-auth-card__title {
+  font-family: var(--mw-font-display);
+  font-weight: 700;
+  font-size: 24px;
+  text-align: center;
+  color: var(--mw-text);
+}
+.mw-auth-card__text {
+  margin: 6px 0 20px;
+  font-size: 13px;
+  text-align: center;
+  color: var(--mw-muted);
+}
+.mw-auth-card__error {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--mw-danger);
+}
+
+/* ── Tabellen mobil: Karten statt Tabelle ─────────────────────── */
+@media (max-width: 1023.98px) {
+  .mw-table-wrap { display: none; }
+  .mw-cards      { display: block; }
+
+  .mw-toolbar { gap: 10px; margin-bottom: 14px; }
+  .mw-toolbar__left,
+  .mw-toolbar__right { width: 100%; }
+
+  .mw-search {
+    flex: 1;
+    min-width: 0;
+    max-width: none;
+    padding: 10px 13px;
+    border-radius: var(--mw-r-lg);
+  }
+
+  /* Mobil nur das Icon, kein Label (Design L440) */
+  .mw-filter-btn { padding: 10px 12px; }
+
+  /* Mobil steht der Filter-Button links in der Toolbar. Mit right:0 wuerde
+     der 250px-Popover vom rechten Rand des schmalen Ankers nach links
+     aufklappen und aus dem Bild laufen. */
+  .mw-pop {
+    width: 250px;
+    left: 0;
+    right: auto;
+  }
+
+  .mw-tab { padding: 11px 14px; }
+}
+
+/* ============================================================
+   DIALOGE
+   ============================================================
+   MudDialogProvider bleibt der Wirt: MudDialogInstance besitzt Result-Task,
+   Escape, Backdrop-Klick und den Stapel fuer verschachtelte Dialoge, und
+   alle 16 Aufrufstellen fangen sie schon als CascadingParameter.
+
+   Die Dialoge rendern aber kein <MudDialog> mehr, sondern MeadowDialog -
+   mit der Klasse mud-dialog. Zwei Gruende:
+   1) MudDialog liest NoHeader/CloseButton/FullWidth/MaxWidth. Ohne sie
+      werden diese Optionen an allen Aufrufstellen wirkungslos, statt gegen
+      die festen Dialogbreiten zu kaempfen - kein Aufruf muss angepasst werden.
+   2) Muds eigene Regel .mud-dialog .mud-popover-cascading-value hebt
+      Picker- und Autocomplete-Popover ueber den Dialog. Sie greift nur bei
+      genau dieser Klasse.
+   ============================================================ */
+
+/* st.backdrop */
+.mud-overlay.mud-overlay-dialog .mud-overlay-scrim {
+  background: var(--mw-backdrop-dialog);
+  backdrop-filter: blur(4px);
+  animation: mwFade var(--mw-t-pop) ease;
+}
+
+.mud-dialog-container { padding: 0; }
+
+/* st.dialog — zentriert wird ueber Muds vorhandenes Flex-Centering, nicht
+   ueber translate(-50%,-50%): der Prototyp tut das, sein eigenes mwPop
+   ueberschreibt transform dann aber waehrend der Animation. */
+.mud-dialog.mw-dlg {
+  width: var(--mw-dlg-w, 480px);
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--mw-panel);
+  color: var(--mw-text);
+  border-radius: var(--mw-r-5xl);
+  border-top: 3px solid var(--mw-primary);
+  box-shadow: var(--mw-shadow-dialog);
+  animation: mwPop var(--mw-t-dialog) var(--mw-ease);
+}
+
+/* MudDialogInstance legt um den Inhalt noch .mud-dialog-content mit eigenem
+   Padding, Margin und overflow:auto. Der einzige Scroller soll aber
+   .mw-dlg-body sein, damit Kopf und Footer stehenbleiben. */
+.mw-dlg .mud-dialog-content.mw-dlg-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+  border-radius: inherit;
+}
+.mw-dlg-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  outline: none;
+}
+
+/* Breiten-Klassen, die MudDialogInstance zusaetzlich setzt, ausschalten. */
+.mud-dialog.mw-dlg.mud-dialog-width-full,
+.mud-dialog.mw-dlg.mud-dialog-width-false,
+.mud-dialog.mw-dlg[class*="mud-dialog-width-"] {
+  width: var(--mw-dlg-w, 480px);
+  max-width: calc(100vw - 32px);
+}
+.mw-dlg--info     { --mw-dlg-w: 420px; }
+.mw-dlg--cow      { --mw-dlg-w: 480px; }
+.mw-dlg--showclaw { --mw-dlg-w: 520px; }
+.mw-dlg--claw     { --mw-dlg-w: 560px; }
+.mw-dlg--wide     { --mw-dlg-w: 760px; }
+
+/* st.dlgHead / st.dlgTitle / st.dlgClose */
+.mw-dlg-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+  padding: 18px 22px 14px;
+  border-bottom: 1px solid var(--mw-border);
+}
+.mw-dlg-title {
+  font-family: var(--mw-font-display);
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: .01em;
+  color: var(--mw-text);
+}
+.mw-dlg-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--mw-r-lg);
+  background: none;
+  color: var(--mw-muted);
+  cursor: pointer;
+  transition: background var(--mw-t), color var(--mw-t);
+}
+@media (hover: hover) {
+  .mw-dlg-close:hover { background: var(--mw-tint); color: var(--mw-text); }
+}
+
+/* Meta-Zeile ausserhalb des scrollenden Bodys (ShowClaw) */
+.mw-dlg-meta {
+  display: flex;
+  gap: 28px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  padding: 12px 22px 0;
+}
+.mw-dlg-meta__value { font-size: 15px; font-weight: 700; color: var(--mw-text); }
+.mw-dlg-meta__mono  { font-family: var(--mw-font-mono); font-size: 14px; color: var(--mw-text); }
+
+/* st.dlgBody — der einzige Scroller, damit Kopf und Footer stehenbleiben */
+.mw-dlg-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 16px 20px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.mw-dlg-body--flush { padding: 0; }
+
+/* st.dlgFooter */
+.mw-dlg-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-shrink: 0;
+  padding: 14px 22px;
+  border-top: 1px solid var(--mw-border);
+  background: var(--mw-tint);
+}
+
+/* st.mSheetGrab — immer im Markup, per CSS nur mobil sichtbar */
+.mw-sheet-grab { display: none; }
+
+/* st.addRow */
+.mw-add-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 11px;
+  border: 1.5px dashed var(--mw-border);
+  border-radius: var(--mw-r-xl);
+  background: none;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--mw-primary);
+  cursor: pointer;
+  transition: border-color var(--mw-t), background var(--mw-t);
+}
+@media (hover: hover) {
+  .mw-add-row:hover { border-color: var(--mw-primary); background: var(--mw-soft); }
+}
+
+.mw-hint { font-size: 12px; line-height: 1.5; color: var(--mw-muted); }
+.mw-readonly {
+  padding: 10px 13px;
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-lg);
+  background: var(--mw-tint);
+  font-size: 14px;
+  color: var(--mw-muted);
+}
+.mw-field-row { display: flex; gap: 10px; align-items: flex-end; }
+.mw-field-row > * { min-width: 0; }
+.mw-field--row { display: flex; gap: 8px; align-items: center; }
+.mw-field--row > .mud-input-control { flex: 1; }
+
+/* Ace-Editor im KPI-Dialog: feste Hoehe, nie flex:1 - er misst beim
+   Initialisieren und rendert in einem 0px-hohen Container unbrauchbar. */
+.mw-ace {
+  flex: 0 0 300px;
+  height: 300px;
+  min-height: 300px;
+  overflow: hidden;
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-lg);
+}
+
+/* ── Dialog mobil: Bottom-Sheet ───────────────────────────────
+   Eine Regel statt der doppelten Dialog-Saetze des Prototyps. */
+@media (max-width: 1023.98px) {
+  .mud-dialog-container .mud-dialog.mw-dlg {
+    position: absolute;
+    inset: auto 0 0 0;
+    width: auto;
+    max-width: var(--mw-sheet-max);
+    max-height: 97%;
+    margin-inline: auto;
+    transform: none;
+    border-radius: var(--mw-r-6xl) var(--mw-r-6xl) 0 0;
+    box-shadow: var(--mw-shadow-sheet);
+    padding-bottom: env(safe-area-inset-bottom);
+    animation: mwSheetUp var(--mw-t-sheet) var(--mw-ease);
+  }
+
+  .mw-sheet-grab {
+    display: block;
+    width: 38px;
+    height: 4px;
+    flex-shrink: 0;
+    margin: 9px auto 2px;
+    border-radius: 2px;
+    background: var(--mw-border);
+  }
+
+  .mw-dlg-head { padding: 10px 18px 12px; }
+  .mw-dlg-body { padding: 14px 18px; }
+  .mw-dlg-footer { padding: 12px 18px; }
+  .mw-dlg-meta { padding: 10px 18px 0; gap: 20px; }
+}
+
+/* ============================================================
+   KLAUEN-SELEKTOR   (st.clawRow / st.hoofCell / hoofWrap / st.subPanel)
+   ============================================================ */
+.mw-claw-row {
+  display: flex;
+  gap: 18px;
+  align-items: stretch;
+}
+.mw-claw-hoofs { flex: 0 0 196px; }
+
+.mw-claw-sides {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 8px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  color: var(--mw-muted);
+}
+
+.mw-hoof-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 14px;
+}
+.mw-hoof-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.mw-hoof-lbl {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .03em;
+  color: var(--mw-muted);
+}
+
+/* hoofWrap / hoofColor — die Farbe kommt aus der Klasse, nicht aus C#,
+   damit Hover ohne Server-Roundtrip funktioniert. */
+.mw-hoof-btn {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  margin: 0 auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform var(--mw-t);
+  --mw-hoof: var(--mw-hoof-idle);
+}
+.mw-hoof-btn.has-data    { --mw-hoof: var(--mw-teal); }
+.mw-hoof-btn.is-selected { --mw-hoof: var(--mw-primary); transform: scale(1.08); }
+@media (hover: hover) {
+  .mw-hoof-btn:not(.is-selected):hover { transform: scale(1.03); --mw-hoof: var(--mw-teal); }
+}
+
+.mw-subpanel {
+  flex: 1;
+  min-height: 170px;
+  padding: 16px;
+  background: var(--mw-tint);
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-2xl);
+}
+.mw-subpanel-empty {
+  padding: 24px 8px;
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--mw-muted);
+}
+.mw-subpanel-title {
+  font-family: var(--mw-font-display);
+  font-weight: 700;
+  font-size: 19px;
+  color: var(--mw-text);
+}
+
+/* toggle(on) — "Verband" / "Klotz". Das Design hat hier keine Checkboxen. */
+.mw-toggle-row { display: flex; gap: 8px; margin-top: 12px; }
+.mw-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 9px;
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-lg);
+  background: var(--mw-panel);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--mw-muted);
+  cursor: pointer;
+  transition: background var(--mw-t), color var(--mw-t), border-color var(--mw-t);
+}
+.mw-toggle.is-on {
+  background: var(--mw-primary);
+  border-color: var(--mw-primary);
+  color: #fff;
+}
+
+/* ============================================================
+   KLAUEN-ANZEIGE   (st.legBandage / legBlock / legRemoved / st.showCell)
+   ============================================================ */
+.mw-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: var(--mw-r-sm);
+  font-size: 12px;
+  font-weight: 600;
+}
+.mw-tag--bandage { background: var(--mw-soft);      color: var(--mw-soft-fg); }
+.mw-tag--block   { background: var(--mw-block-bg);  color: var(--mw-block-fg); }
+/* Nur hier --mw-neg-fg; Tage-Chip und tinyBtnDanger nutzen --mw-danger. */
+.mw-tag--removed { background: var(--mw-neg-bg);    color: var(--mw-neg-fg); }
+
+
+.mw-show-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.mw-show-cell {
+  padding: 14px;
+  background: var(--mw-tint);
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-2xl);
+}
+.mw-show-cell__row { display: flex; gap: 12px; align-items: center; }
+.mw-show-cell__body { flex: 1; min-width: 0; }
+.mw-show-cell__title { font-size: 14px; font-weight: 700; color: var(--mw-text); }
+.mw-show-cell__finding { margin-top: 2px; font-size: 13px; color: var(--mw-muted); }
+.mw-show-cell__tags { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 8px; }
+
+.mw-hoof-thumb {
+  display: block;
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+  --mw-hoof: var(--mw-teal);
+}
+.mw-hoof-thumb.is-treated { --mw-hoof: var(--mw-primary); }
+.mw-hoof-thumb.is-idle    { --mw-hoof: var(--mw-hoof-idle); }
+
+/* ── Klauen mobil ─────────────────────────────────────────────── */
+@media (max-width: 1023.98px) {
+  .mw-claw-row { flex-direction: column; gap: 14px; }
+  .mw-claw-hoofs { flex: 1 1 auto; }
+  .mw-hoof-btn { width: 76px; }
+  .mw-subpanel { min-height: 0; padding: 12px; }
+  .mw-show-grid { grid-template-columns: 1fr; gap: 10px; }
+}
+
+/* Der Huf selbst: Groesse kommt vom Elternelement, Farbe aus --mw-hoof. */
+.mw-hoof-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: hidden;
+  fill: var(--mw-hoof, var(--mw-teal));
+  transition: fill var(--mw-t);
+}
+.mw-label--spaced { margin-top: 10px; }
+
+/* ============================================================
+   INFO-DIALOG   (Statuszeile + Schluessel/Wert-Zeilen)
+   ============================================================ */
+.mw-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border-radius: var(--mw-r-lg);
+  font-weight: 600;
+  color: var(--mw-text);
+}
+.mw-status--ok  { background: var(--mw-soft); }
+.mw-status--bad { background: var(--mw-neg-bg); }
+
+.mw-status__dot {
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+  border-radius: 50%;
+}
+.mw-status--ok  .mw-status__dot {
+  background: var(--mw-success);
+  box-shadow: 0 0 0 4px rgba(var(--mw-success-rgb), .18);
+}
+.mw-status--bad .mw-status__dot {
+  background: var(--mw-danger);
+  box-shadow: 0 0 0 4px rgba(var(--mw-danger-rgb), .18);
+}
+
+.mw-kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 14px;
+  color: var(--mw-text);
+}
+.mw-kv > span:first-child { color: var(--mw-muted); }
+.mw-kv__mono { font-family: var(--mw-font-mono); }
+.mw-kv__ok   { color: var(--mw-success); font-weight: 600; }
+.mw-kv__bad  { color: var(--mw-danger); font-weight: 600; }
+.mw-kv__sub {
+  margin-top: -6px;
+  font-family: var(--mw-font-mono);
+  font-size: 12px;
+  color: var(--mw-muted);
+  word-break: break-all;
+}
+
+/* MudDialogInstance rendert .mud-dialog-title aus dem Titel-STRING der
+   Aufrufstelle - unabhaengig von NoHeader an MudDialog. Der Meadow-Dialog
+   bringt seinen eigenen Kopf mit, also hier ausblenden. Per display:none
+   ist die Zeile auch aus dem Accessibility-Baum; den zugaenglichen Namen
+   liefert aria-labelledby auf .mw-dlg-title. */
+.mw-dlg .mud-dialog-title { display: none; }
+
+/* Muds Zwischenelement zwischen Panel und Content (es steht als Geschwister
+   hinter .mud-dialog-title) darf die Flex-Kette nicht unterbrechen. */
+.mw-dlg > div:not(.mud-dialog-title):not(.mud-dialog-actions) {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Spalten in einer Formularzeile — statt Inline-Styles. */
+.mw-col        { flex: 1; min-width: 0; }
+.mw-col--wide  { flex: 1.4; }
+.mw-col--narrow{ flex: .7; }
+.mw-col--double{ flex: 2; }
+
+/* Euterviertel-Auswahl (ersetzt .UdderButton*) */
+.mw-quarter-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.mw-quarter {
+  padding: 22px 0;
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-2xl);
+  background: var(--mw-panel);
+  font-family: var(--mw-font-display);
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--mw-muted);
+  cursor: pointer;
+  transition: background var(--mw-t), color var(--mw-t), border-color var(--mw-t);
+}
+.mw-quarter.is-on {
+  background: var(--mw-primary);
+  border-color: var(--mw-primary);
+  color: #fff;
+}
+
+/* ============================================================
+   MEHRFACHAUSWAHL-LISTE   (ersetzt die MudTable im ChartEditor)
+   ============================================================ */
+.mw-check-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-lg);
+  overflow: hidden;
+}
+.mw-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--mw-border);
+  font-size: 14px;
+  color: var(--mw-text);
+  cursor: pointer;
+  transition: background var(--mw-t);
+}
+.mw-check:last-child { border-bottom: none; }
+.mw-check.is-on { background: var(--mw-soft); font-weight: 600; }
+@media (hover: hover) {
+  .mw-check:hover { background: var(--mw-tint); }
+}
+
+/* Natives input[type=checkbox]: accent-color reicht, damit es die
+   Markenfarbe traegt - kein Nachbau, keine MudCheckBox. */
+.mw-check > input[type="checkbox"] {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+  margin: 0;
+  accent-color: var(--mw-primary);
+  cursor: pointer;
+}
+
+.mw-check-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--mw-muted);
+}
+.mw-check-bar > div { display: flex; gap: 8px; }
+
+/* ============================================================
+   FEHLERKASTEN   (SQL-Fehler im KPI-Dialog)
+   ============================================================ */
+.mw-errbox {
+  max-height: 160px;
+  overflow: auto;
+  padding: 10px 12px;
+  border: 1px solid var(--mw-danger);
+  border-radius: var(--mw-r-md);
+  background: var(--mw-neg-bg);
+  font-family: var(--mw-font-mono);
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--mw-neg-fg);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Der statische Jahres-Picker im ChartDateDialog wird von Mud mit
+   einer eigenen Elevation-Karte geliefert - die stoert im Meadow-Body. */
+.mw-yearpicker { display: flex; justify-content: center; }
+
+/* ============================================================
+   EINSTELLUNGEN   (Tabellenfuss, Standardwerte-Karte)
+   ============================================================ */
+.mw-table-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 14px;
+}
+.mw-settings-card {
+  max-width: 560px;
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mw-settings-card .mw-section-title { margin-bottom: 4px; }
+
+/* Basisdaten sind eine Desktop-Admin-Flaeche: dichter, ohne Mobile-Karten. */
+.mw-table-wrap--dense .mw-table th,
+.mw-table-wrap--dense .mw-table td {
+  padding-top: 7px;
+  padding-bottom: 7px;
+  font-size: 13px;
+}
+
+/* Gedaempfter Text in Zellen (Gegenstueck zu .mw-tag--removed). */
+.mw-dim { color: var(--mw-muted); }
+
+/* Fuss der Mobil-Kartenliste (Pager). Eigene Klasse, weil .mw-table-wrap
+   unter 1024px display:none ist. */
+.mw-cards-foot {
+  margin-top: 10px;
+  background: var(--mw-panel);
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-3xl);
+  overflow: hidden;
+}
+
+/* Der Info-Eintrag im Drawer ist ein <button>, kein NavLink - er braucht
+   die Reset-Werte, die NavLink von sich aus mitbringt. */
+button.mw-nav-item {
+  width: 100%;
+  border: 0;
+  border-left: 3px solid transparent;
+  font-family: inherit;
+  text-align: left;
+}

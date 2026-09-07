@@ -1,0 +1,10 @@
+@* st.filterGroup / st.filterLabel / st.filterChipsWrap *@
+<div class="mw-filter-group">
+    <span class="mw-filter-group__label">@Label</span>
+    <div class="mw-chips">@ChildContent</div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Label { get; set; } = "";
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

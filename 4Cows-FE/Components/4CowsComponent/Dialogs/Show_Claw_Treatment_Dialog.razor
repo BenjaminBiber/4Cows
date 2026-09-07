@@ -1,155 +1,68 @@
-﻿@inject ISnackbar Snackbar
+@using _4Cows_FE.Components.Meadow
+@using BB_Cow.Services
 
-<MudDialog>
-    <DialogContent>
-        <MudStack Justify="Justify.Center">
-            <MudText Align="Align.Center" Typo="Typo.h3">Klauen Behandlung</MudText>
-            <MudSpacer></MudSpacer>
-            <MudGrid Justify="Justify.Center">
-                <MudItem xs="3">
-                    <MudText Color="Color.Info" Typo="Typo.h6">Verband &</MudText><MudText Color="Color.Tertiary" Typo="Typo.h6">Klotz</MudText>
-                </MudItem>
-                <MudItem xs="3">
-                    <MudText Color="Color.Tertiary" Typo="Typo.h6">Verband</MudText>
-                </MudItem>
-                <MudItem xs="3">
-                    <MudText Color="Color.Info" Typo="Typo.h6">Klotz</MudText>
-                </MudItem>
-                <MudItem xs="3">
-                    <MudText Color="Color.Error" Typo="Typo.h6">Verband entfernt</MudText>
-                </MudItem>
-            </MudGrid>
-               
+@inject CowService cowService
+@inject SettingsService Settings
 
-            <MudGrid Justify="Justify.Center">
-                <MudItem xs="6">
-                    @if(Claw_Treatment.BandageLV && Claw_Treatment.BlockLV && !Claw_Treatment.IsBandageRemoved)
-                    {
-                        <button type="button" id="LV_Hoof_Bandage_Block" class="Show_Hoof_Input"></button>
-                    }
-                    else if (Claw_Treatment.BandageLV && !Claw_Treatment.IsBandageRemoved)
-                    {
-                        <button type="button" id="LV_Hoof_Bandage" class="Show_Hoof_Input"></button>
-                    }
-                    else if (Claw_Treatment.BlockLV && !Claw_Treatment.IsBandageRemoved)
-                    {
-                        <button type="button" id="LV_Hoof_Block" class="Show_Hoof_Input"></button>
-                    }
-                    else if (Claw_Treatment.BlockLV && Claw_Treatment.IsBandageRemoved)
-                    {
-                        <button type="button" id="LV_Hoof_Block_Removed" class="Show_Hoof_Input"></button>
-                    }
-                    else if (Claw_Treatment.BandageLV && Claw_Treatment.IsBandageRemoved)
-                    {
-                        <button type="button" id="LV_Hoof_Bandage_Removed" class="Show_Hoof_Input"></button>
-                    }
-                    else
-                    {
-                        <button type="button" id="LV_Hoof_Standart" class="Show_Hoof_Input"></button>
-                    }
-                    <MudField>@Claw_Treatment.ClawFindingLV</MudField>
-                </MudItem>
-                <MudItem xs="6">
-                    @if (Claw_Treatment.BandageRV && Claw_Treatment.BlockRV && !Claw_Treatment.IsBandageRemoved)
-                    {
-                        <button type="button" id="RV_Hoof_Bandage_Block" class="Show_Hoof_Input"></button>
-                    }
-                    else if (Claw_Treatment.BandageRV && !Claw_Treatment.IsBandageRemoved)
-                    {
-                        <button type="button" id="RV_Hoof_Bandage" class="Show_Hoof_Input"></button>
-                    }
-                    else if (Claw_Treatment.BlockRV && !Claw_Treatment.IsBandageRemoved)
-                    {
-                        <button type="button" id="RV_Hoof_Block" class="Show_Hoof_Input"></button>
-                    }
-                    else if (Claw_Treatment.BlockRV && Claw_Treatment.IsBandageRemoved)
-                    {
-                        <button type="button" id="RV_Hoof_Block_Removed" class="Show_Hoof_Input"></button>
-                    }
-                    else if (Claw_Treatment.BandageRV && Claw_Treatment.IsBandageRemoved)
-                    {
-                        <button type="button" id="RV_Hoof_Bandage_Removed" class="Show_Hoof_Input"></button>
-                    }
-                    else
-                    {
-                        <button type="button" id="RV_Hoof_Standart" class="Show_Hoof_Input"></button>
-                    }                    
-                    <MudField>@Claw_Treatment.ClawFindingRV</MudField>
-                </MudItem>
-                <MudItem xs="6">
-                    @if (Claw_Treatment.BandageLH && Claw_Treatment.BlockLH && !Claw_Treatment.IsBandageRemoved)
-                    {
-                        <button type="button" id="LH_Hoof_Bandage_Block" class="Show_Hoof_Input"></button>
-                    }
-                    else if (Claw_Treatment.BandageLH && !Claw_Treatment.IsBandageRemoved)
-                    {
-                        <button type="button" id="LH_Hoof_Bandage" class="Show_Hoof_Input"></button>
-                    }
-                    else if (Claw_Treatment.BlockLH && !Claw_Treatment.IsBandageRemoved)
-                    {
-                        <button type="button" id="LH_Hoof_Block" class="Show_Hoof_Input"></button>
-                    }
-                    else if (Claw_Treatment.BlockLH && Claw_Treatment.IsBandageRemoved)
-                    {
-                        <button type="button" id="LH_Hoof_Block_Removed" class="Show_Hoof_Input"></button>
-                    }
-                    else if (Claw_Treatment.BandageLH && Claw_Treatment.IsBandageRemoved)
-                    {
-                        <button type="button" id="LH_Hoof_Bandage_Removed" class="Show_Hoof_Input"></button>
-                    }
-                    else
-                    {
-                        <button type="button" id="LH_Hoof_Standart" class="Show_Hoof_Input"></button>
-                    }                                       
-                    <MudField>@Claw_Treatment.ClawFindingLH</MudField>
-                </MudItem>
-                <MudItem xs="6">
-                    @if (Claw_Treatment.BandageRH && Claw_Treatment.BlockRH && !Claw_Treatment.IsBandageRemoved)
-                    {
-                        <button type="button" id="RH_Hoof_Bandage_Block" class="Show_Hoof_Input"></button>
-                    }
-                    else if (Claw_Treatment.BandageRH && !Claw_Treatment.IsBandageRemoved)
-                    {
-                        <button type="button" id="RH_Hoof_Bandage" class="Show_Hoof_Input"></button>
-                    }
-                    else if (Claw_Treatment.BlockRH && !Claw_Treatment.IsBandageRemoved)
-                    {
-                        <button type="button" id="RH_Hoof_Block" class="Show_Hoof_Input"></button>
-                    }
-                    else if (Claw_Treatment.BlockRH && Claw_Treatment.IsBandageRemoved)
-                    {
-                        <button type="button" id="RH_Hoof_Block_Removed" class="Show_Hoof_Input"></button>
-                    }
-                    else if (Claw_Treatment.BandageRH && Claw_Treatment.IsBandageRemoved)
-                    {
-                        <button type="button" id="RH_Hoof_Bandage_Removed" class="Show_Hoof_Input"></button>
-                    }
-                    else
-                    {
-                        <button type="button" id="RH_Hoof_Standart" class="Show_Hoof_Input"></button>
-                    }                                   <MudField>@Claw_Treatment.ClawFindingRH</MudField>
-                </MudItem>
-            </MudGrid>            
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@CloseModal">Schließen</MudButton>
-        </MudStack>
-    </DialogContent>
-</MudDialog>
+@*
+    Aus 24 if/else-Zweigen mit Zustands-SVGs wird eine ClawSummary.
 
-    @code {
-    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+    Behoben ist dabei auch, dass OnInitialized hier
+    Claw_Treatment.TreatmentDate = DateTime.Today gesetzt hat - auf der
+    gecachten Entitaet. Das Oeffnen dieses Dialogs setzte damit das
+    Verbandsalter derselben Behandlung fuer den Rest des Circuits auf
+    "0 Tage", und angezeigt wurde das Datum nie.
+*@
+<MeadowDialog Title="@($"Klauen Behandlung · Nr. {Collar}")" Size="MeadowDialogSize.ShowClaw">
+    <Meta>
+        <div>
+            <span class="mw-label">Halsband</span>
+            <div class="mw-dlg-meta__value">Nr. @Collar</div>
+        </div>
+        <div>
+            <span class="mw-label">Ohrmarke</span>
+            <div class="mw-dlg-meta__mono">@EarTag</div>
+        </div>
+        <div>
+            <span class="mw-label">Datum</span>
+            <div class="mw-dlg-meta__value">@Claw_Treatment.TreatmentDate.ToString("dd.MM.yyyy")</div>
+        </div>
+    </Meta>
+    <ChildContent>
+        <ClawSummary Treatment="Claw_Treatment" FallbackFinding="@Settings.ClawFindingFallback" />
+    </ChildContent>
+    <Footer>
+        <button type="button" class="mw-btn mw-btn--plain mw-btn--wide" @onclick="Close">
+            Schließen
+        </button>
+        <button type="button" class="mw-btn mw-btn--primary mw-btn--wide" @onclick="Edit">
+            <MeadowIcon Name="MeadowIconName.Edit" Size="16" />
+            <span>Bearbeiten</span>
+        </button>
+    </Footer>
+</MeadowDialog>
 
-    [Parameter]
-    public ClawTreatment Claw_Treatment { get; set; } = new ClawTreatment();
+@code {
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = default!;
 
-    protected override void OnInitialized()
+    [Parameter] public ClawTreatment Claw_Treatment { get; set; } = new();
+
+    private string Collar
     {
-        DateTime currentDateTime = DateTime.Today;
-        Claw_Treatment.TreatmentDate = currentDateTime.Date;
+        get
+        {
+            var collar = cowService.GetCollarNumberByCowId(Claw_Treatment.EarTagNumber);
+            return collar == int.MinValue ? "–" : collar.ToString();
+        }
     }
 
-    public void CloseModal()
-    {
-        MudDialog.Close();
-    }
+    private string EarTag => cowService.GetEarTagDisplay(Claw_Treatment.EarTagNumber);
+
+    private void Close() => MudDialog.Cancel();
+
+    /// <summary>
+    /// Gibt die Behandlung an den Aufrufer zurueck, damit er den
+    /// Bearbeiten-Dialog oeffnet. So bleibt der Dialog-Stapel flach.
+    /// </summary>
+    private void Edit() => MudDialog.Close(DialogResult.Ok(Claw_Treatment));
 }
-

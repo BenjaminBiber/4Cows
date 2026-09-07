@@ -1,0 +1,47 @@
+@* Blaettern und Seitengroesse. Im Prototyp nicht gezeichnet - die Datenmenge
+   ist aber unbegrenzt, und auf einem Blazor-Server-Circuit ist jede
+   ungeblaetterte Zeile Diff-Verkehr bei jedem Tastendruck in der Suche.
+   MeadowTable blendet den Pager aus, solange alles auf eine Seite passt. *@
+<div class="mw-pager">
+    <span>@Label</span>
+
+    <select aria-label="@Label" @onchange="OnPageSizeChanged">
+        @foreach (var option in PageSizeOptions)
+        {
+            <option value="@option" selected="@(option == PageSize)">@option</option>
+        }
+    </select>
+
+    <span>@From&ndash;@To von @Total</span>
+
+    <button type="button" class="mw-pager__btn mw-pager__btn--prev"
+            title="Vorherige Seite" aria-label="Vorherige Seite"
+            disabled="@(Page == 0)" @onclick="() => PageChanged.InvokeAsync(Page - 1)">
+        <MeadowIcon Name="MeadowIconName.ChevronDown" Size="14" />
+    </button>
+
+    <button type="button" class="mw-pager__btn mw-pager__btn--next"
+            title="Nächste Seite" aria-label="Nächste Seite"
+            disabled="@(Page >= PageCount - 1)" @onclick="() => PageChanged.InvokeAsync(Page + 1)">
+        <MeadowIcon Name="MeadowIconName.ChevronDown" Size="14" />
+    </button>
+</div>
+
+@code {
+    [Parameter] public string Label { get; set; } = "Einträge pro Seite";
+    [Parameter] public int Page { get; set; }
+    [Parameter] public int PageCount { get; set; } = 1;
+    [Parameter] public int PageSize { get; set; } = 25;
+    [Parameter] public int Total { get; set; }
+    [Parameter] public int[] PageSizeOptions { get; set; } = { 25, 50, 100 };
+    [Parameter] public EventCallback<int> PageChanged { get; set; }
+    [Parameter] public EventCallback<int> PageSizeChanged { get; set; }
+
+    private int From => Total == 0 ? 0 : Page * PageSize + 1;
+    private int To => Math.Min((Page + 1) * PageSize, Total);
+
+    private Task OnPageSizeChanged(ChangeEventArgs e)
+        => int.TryParse(e.Value?.ToString(), out var size) && size > 0
+            ? PageSizeChanged.InvokeAsync(size)
+            : Task.CompletedTask;
+}

@@ -1,136 +1,281 @@
-﻿@page "/geplante_Klauen_Daten"
+@page "/geplante_Klauen_Daten"
+
+@using _4Cows_FE.Components._4CowsComponent.Dialogs
+@using _4Cows_FE.Components.Meadow
+@using _4Cows_FE.Components.Services
+
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
-@using _4Cows_FE.Components._4CowsComponent
-@using _4Cows_FE.Components._4CowsComponent.Dialogs
+@inject MeadowDataLoader Data
+@inject MeadowDialogLauncher Launcher
 @inject PClawTreatmentService pClawTreatmentService
 @inject ClawTreatmentService clawTreatmentService
 @inject CowService cowService
 
+<MeadowToolbar>
+    <Left>
+        <span class="mw-section-title mw-only-desktop">Geplante Klauen Behandlungen</span>
+        <MeadowSearchBox Value="@_search" ValueChanged="OnSearchChanged"
+                         AriaLabel="Geplante Klauen Behandlungen durchsuchen" />
+        @if (_search.Length > 0)
+        {
+            <span class="mw-result-count mw-only-desktop">@CountText</span>
+        }
+    </Left>
+    <Right>
+        <button type="button" class="mw-btn mw-btn--primary" @onclick="Plan">
+            <MeadowIcon Name="MeadowIconName.Plus" Size="20" />
+            <span>Planen</span>
+        </button>
+    </Right>
+</MeadowToolbar>
 
-<MudGrid Justify="Justify.FlexEnd">
-    <MudIconButton Icon="@Icons.Material.Filled.AddCircle" Color="Color.Secondary" Size="Size.Large" OnClick="OpenPlannedClawDialog"></MudIconButton>
-</MudGrid>
-
-<MudTable Elevation="5" Items="@Treatment_Claws" Hover="true" Striped="@true" Filter="new Func<PlannedClawTreatment,bool>(ClawFilterFunc1)" @bind-SelectedItem="selectedClaw">
-    <ColGroup>
-        <col />
-        <col />
-        <col style="width:15%" />
-        <col style="width:15%" />
-        <col style="width:15%" />
-    </ColGroup>
-    <ToolBarContent>
-        <MudText Typo="Typo.h3" Class="mb-3 table-Header">geplante Klauen Behandlungen</MudText>
-        <MudSpacer />
-        <MudTextField @bind-Value="searchClaw" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
-    </ToolBarContent>
-    <HeaderContent>
-        <MudTh><MudTableSortLabel SortBy="new Func<CowTreatment, object>(x=>cowService.GetCollarNumberByCowId(x.EarTagNumber))">Halsbandnummer</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel SortBy="new Func<PlannedClawTreatment, object>(x=>x.Desciption)">Beschreibung</MudTableSortLabel></MudTh>
-        <MudTh></MudTh>
-        <MudTh></MudTh>
-        <MudTh></MudTh>
-
-
-    </HeaderContent>
-    <RowTemplate>
-        <MudTd DataLabel="Halsbandnummer">@cowService.GetCollarNumberByCowId(context.EarTagNumber)</MudTd>
-        <MudTd DataLabel="Beschreibung">@context.Desciption</MudTd>
-        <MudTd><MudButton Color="Color.Tertiary" Variant="Variant.Filled" OnClick="@(() => OpenClawInformation(context))">Behandlung öffnen</MudButton></MudTd>
-        <MudTd><MudButton Color="Color.Secondary" Variant="Variant.Filled" OnClick="@(() => AddClawTreatment(context))">Behandlung abschließen</MudButton></MudTd>
-        <MudTd><MudButton Color="Color.Tertiary" Variant="Variant.Filled" OnClick="@(() => RemovePlannedClawDialog(context))">Behandlung entfernen</MudButton></MudTd>
-
-        </RowTemplate>
-        <PagerContent>
-            <MudTablePager RowsPerPageString="Behandlungen pro Seite" PageSizeOptions="new int[]{25, 50, 100}" />
-        </PagerContent>
-    </MudTable>
+<MeadowTable TItem="PlannedClawTreatment" Items="_rows" Columns="_columns"
+             RowKey="@(r => r.PlannedClawTreatmentId)"
+             DefaultSortTitle="Geplant für"
+             PagerLabel="Behandlungen pro Seite"
+             EmptyText="Keine geplanten Behandlungen gefunden.">
+    <MobileCard Context="row">
+        <div class="mw-row-card">
+            <div class="mw-row-card__top">
+                <span class="mw-row-card__title">Nr. @Collar(row)</span>
+                <span class="mw-row-card__sub">@row.TreatmentDate.ToString("dd.MM.yyyy")</span>
+            </div>
+            <div class="mw-row-card__meta">
+                <span>@Description(row)</span>
+                <span>@AffectedClaws(row)</span>
+            </div>
+            <div class="mw-row-card__actions">
+                <button type="button" class="mw-btn mw-btn--sm mw-btn--ghost"
+                        @onclick="() => OpenTreatment(row)">Öffnen</button>
+                <button type="button" class="mw-btn mw-btn--sm mw-btn--primary"
+                        @onclick="() => Complete(row)">Abschließen</button>
+                @* Die Desktop-Zeile hat drei Aktionen; ohne diese waere das
+                   Entfernen mobil nicht erreichbar. *@
+                <MeadowIconButton Icon="MeadowIconName.Trash" Title="Planung entfernen"
+                                  Danger="true" OnClick="() => Remove(row)" />
+            </div>
+        </div>
+    </MobileCard>
+</MeadowTable>
 
 @code {
-    private PlannedClawTreatment selectedClaw = null;
-    private string searchClaw = "";
-    private IEnumerable<PlannedClawTreatment> Treatment_Claws = new List<PlannedClawTreatment>();
+    private List<PlannedClawTreatment> _all = new();
+    private List<PlannedClawTreatment> _rows = new();
+    private List<MeadowColumn<PlannedClawTreatment>> _columns = new();
+
+    private string _search = "";
 
     protected override async Task OnInitializedAsync()
     {
-        await pClawTreatmentService.GetAllDataAsync();
-        Treatment_Claws = pClawTreatmentService.Treatments.Values;
+        await Data.EnsurePlannedClawAsync();
+        Reload();
+        BuildColumns();
     }
-    private bool ClawFilterFunc1(PlannedClawTreatment Treatment_Cow) => cowService.FilterFuncCow(Treatment_Cow.EarTagNumber, searchClaw);
-    
-    private async Task OpenClawInformation(PlannedClawTreatment Claw_Treatment)
+
+    private void Reload()
     {
-        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        _all = pClawTreatmentService.Treatments.Values.ToList();
+        Apply();
+    }
+
+    private void BuildColumns() => _columns = new()
+    {
+        new MeadowColumn<PlannedClawTreatment>
+        {
+            Title = "Halsband",
+            Text = Collar,
+            SortBy = r => CollarSortKey(r),
+            Style = MeadowCellStyle.Bold
+        },
+        new MeadowColumn<PlannedClawTreatment>
+        {
+            // Diese Spalte fehlte der Seite komplett, obwohl das Datum in der
+            // Datenbank steht (Treatment_Date).
+            Title = "Geplant für",
+            Text = r => r.TreatmentDate.ToString("dd.MM.yyyy"),
+            SortBy = r => r.TreatmentDate,
+            NoWrap = true
+        },
+        new MeadowColumn<PlannedClawTreatment>
+        {
+            Title = "Klauen",
+            Text = AffectedClaws,
+            SortBy = AffectedClaws,
+            NoWrap = true
+        },
+        new MeadowColumn<PlannedClawTreatment>
+        {
+            Title = "Beschreibung",
+            Text = Description,
+            SortBy = Description
+        },
+        new MeadowColumn<PlannedClawTreatment>
+        {
+            IsActions = true,
+            Template = row =>
+                @<text>
+                    <button type="button" class="mw-btn mw-btn--sm mw-btn--ghost"
+                            @onclick="() => OpenTreatment(row)">Öffnen</button>
+                    <button type="button" class="mw-btn mw-btn--sm mw-btn--primary"
+                            @onclick="() => Complete(row)">Abschließen</button>
+                    <MeadowIconButton Icon="MeadowIconName.Trash" Title="Behandlung entfernen"
+                                      Danger="true" OnClick="() => Remove(row)" />
+                </text>
+        }
+    };
+
+    // ---- Anzeige-Helfer -----------------------------------------------
+
+    private string Collar(PlannedClawTreatment r)
+    {
+        var collar = cowService.GetCollarNumberByCowId(r.EarTagNumber);
+        return collar == int.MinValue ? "–" : collar.ToString();
+    }
+
+    private int CollarSortKey(PlannedClawTreatment r)
+    {
+        var collar = cowService.GetCollarNumberByCowId(r.EarTagNumber);
+        return collar == int.MinValue ? int.MaxValue : collar;
+    }
+
+    private string Description(PlannedClawTreatment r)
+        => string.IsNullOrWhiteSpace(r.Desciption) ? "–" : r.Desciption!;
+
+    /// <summary>Die als auffaellig markierten Klauen, z.B. "LV/RH".</summary>
+    private string AffectedClaws(PlannedClawTreatment r)
+    {
+        var claws = HoofPositions.All.Where(r.GetFlag).ToList();
+        return claws.Count == 0 ? "–" : string.Join("/", claws);
+    }
+
+    private string CountText => $"{_rows.Count} von {_all.Count}";
+
+    // ---- Filter -------------------------------------------------------
+
+    private void Apply()
+    {
+        IEnumerable<PlannedClawTreatment> query = _all;
+
+        var search = _search.Trim();
+        if (search.Length > 0)
+        {
+            query = query.Where(r =>
+                Collar(r).Contains(search, StringComparison.OrdinalIgnoreCase)
+                || cowService.GetEarTagDisplay(r.EarTagNumber)
+                    .Contains(search, StringComparison.OrdinalIgnoreCase)
+                || (r.Desciption ?? "").Contains(search, StringComparison.OrdinalIgnoreCase));
+        }
+
+        _rows = query.ToList();
+    }
+
+    private void OnSearchChanged(string value)
+    {
+        _search = value;
+        Apply();
+    }
+
+    // ---- Aktionen -----------------------------------------------------
+
+    private async Task OpenTreatment(PlannedClawTreatment planned)
+    {
+        var options = new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            CloseButton = true,
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true
+        };
+        var parameters = new DialogParameters<Show_Planned_Treatment_Claw_Dialog>
+        {
+            { x => x.Planned_Claw_Treatment, planned }
+        };
+
+        await DialogService.ShowAsync<Show_Planned_Treatment_Claw_Dialog>(
+            string.Empty, parameters, options);
+    }
+
+    private async Task Plan()
+    {
+        if (await Launcher.ShowAndAwaitAsync<Add_Planned_Claw_Treatment_Dialog>())
+        {
+            await pClawTreatmentService.GetAllDataAsync();
+            Reload();
+        }
+    }
+
+    private async Task Complete(PlannedClawTreatment planned)
+    {
+        if (!await Confirm("Speichern", "Wollen Sie die Behandlung wirklich speichern?",
+                "Ja", Color.Success))
+        {
+            return;
+        }
+
+        var treatment = new ClawTreatment
+        {
+            EarTagNumber = planned.EarTagNumber,
+            TreatmentDate = DateTime.Now
+        };
+
+        var options = new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            CloseButton = true,
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true
+        };
+        var parameters = new DialogParameters<Add_Claw_Treatment_Dialog>
+        {
+            { x => x.Claw_Treatment, treatment }
+        };
+
+        // Der Aufruf war bisher nicht awaitet, und die Planung wurde direkt
+        // danach geloescht - egal ob gespeichert oder abgebrochen.
+        var dialog = await DialogService.ShowAsync<Add_Claw_Treatment_Dialog>(
+            string.Empty, parameters, options);
+        var result = await dialog.Result;
+
+        if (result is null || result.Canceled)
+        {
+            Snackbar.Add("Abgebrochen — die Planung bleibt bestehen.", Severity.Warning);
+            return;
+        }
+
+        await pClawTreatmentService.RemoveByIDAsync(planned.PlannedClawTreatmentId);
         await clawTreatmentService.GetAllDataAsync();
-        var parameters = new DialogParameters<Show_Planned_Treatment_Claw_Dialog> { { x => x.Planned_Claw_Treatment, Claw_Treatment } };
-        DialogService.Show<Show_Planned_Treatment_Claw_Dialog>("", parameters, options);
+        Snackbar.Add("Behandlung abgeschlossen.", Severity.Success);
+        Reload();
     }
 
-    async Task AddClawTreatment(PlannedClawTreatment Planned_Claw_Treatment)
+    private async Task Remove(PlannedClawTreatment planned)
     {
-        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, NoHeader = true};
-        var parametersGenericDialog = new DialogParameters<GenericDialog> { { x => x.HeaderText, "Speichern" }, { x => x.Description, "Wollen Sie die Behandlung wirklich Speichern?" }, { x => x.AcceptButtonText, "Ja" }, { x => x.CancelButtonText, "Nein" }, { x => x.ColorScheme, Color.Success } };
-        var dialog = await DialogService.ShowAsync<GenericDialog>("", parametersGenericDialog, options);
+        if (!await Confirm("Löschen", "Wollen Sie die geplante Behandlung wirklich löschen?",
+                "Löschen", Color.Error))
+        {
+            return;
+        }
+
+        await pClawTreatmentService.RemoveByIDAsync(planned.PlannedClawTreatmentId);
+        Snackbar.Add("Geplante Behandlung gelöscht.", Severity.Success);
+        Reload();
+    }
+
+    private async Task<bool> Confirm(string header, string description, string accept, Color scheme)
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, NoHeader = true };
+        var parameters = new DialogParameters<GenericDialog>
+        {
+            { x => x.HeaderText, header },
+            { x => x.Description, description },
+            { x => x.AcceptButtonText, accept },
+            { x => x.CancelButtonText, "Abbrechen" },
+            { x => x.ColorScheme, scheme }
+        };
+
+        var dialog = await DialogService.ShowAsync<GenericDialog>(string.Empty, parameters, options);
         var result = await dialog.Result;
-        if (result.Data == null)
-        {
-
-        }
-        else
-        {
-
-            if ((bool)result.Data && result.Data != null)
-            {
-                var Claw_Treatment = new ClawTreatment();
-                Claw_Treatment.EarTagNumber = Planned_Claw_Treatment.EarTagNumber;
-                Claw_Treatment.TreatmentDate = DateTime.Now;
-                var options1 = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
-                var parameters = new DialogParameters<Add_Claw_Treatment_Dialog> { { x => x.Claw_Treatment, Claw_Treatment } };
-                DialogService.Show<Add_Claw_Treatment_Dialog>("", parameters, options1);
-                await pClawTreatmentService.RemoveByIDAsync(Planned_Claw_Treatment.PlannedClawTreatmentId);
-                Snackbar.Add("Speichern abgeschlossen", Severity.Success);
-
-            }
-            else
-            {
-                Snackbar.Add("Löschen abgebrochen", Severity.Warning);
-            }
-        }
-
-        StateHasChanged();
+        return result is not null && !result.Canceled;
     }
-
-    private void OpenPlannedClawDialog()
-    {
-        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, NoHeader=true };
-        DialogService.Show<Add_Planned_Claw_Treatment_Dialog>("", options);
-    }
-
-    async Task RemovePlannedClawDialog(PlannedClawTreatment Planned_Claw_Treatment)
-    {
-        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
-        var parameters = new DialogParameters<GenericDialog> { { x => x.HeaderText, "Löschen" }, { x => x.Description, "Wollen Sie die Behandlung wirklich Löschen?" }, { x => x.AcceptButtonText, "Ja" }, { x => x.CancelButtonText, "Nein" }, { x => x.ColorScheme, Color.Error } };
-        var dialog = await DialogService.ShowAsync<GenericDialog>("",parameters, options);
-        var result = await dialog.Result;
-        if (result.Data == null)
-        {
-
-        }
-        else
-        {
-
-            if ((bool)result.Data && result.Data != null)
-            {
-                await pClawTreatmentService.RemoveByIDAsync(Planned_Claw_Treatment.PlannedClawTreatmentId);
-                Snackbar.Add("Löschen abgeschlossen", Severity.Success);
-            }
-            else
-            {
-                Snackbar.Add("Löschen abgebrochen", Severity.Warning);
-            }
-            StateHasChanged();
-        }
-    }
-
 }

@@ -1,64 +1,141 @@
 @using _4Cows_FE.Components._4CowsComponent.Dialogs
+@using _4Cows_FE.Components.Meadow
+
 @inject CowService CowService
 @inject ClawTreatmentService ClawTreatmentService
+@inject SettingsService Settings
 @inject IDialogService DialogService
+@inject ISnackbar Snackbar
 
-<MudTable Elevation="5" Dense="true" Items="@Treatment_Claws" Hover="true" Striped="@true" Filter="new Func<ClawTreatment,bool>(ClawFilterFunc1)">
-    <ToolBarContent>
-        <MudSpacer/>
-        <MudTextField @bind-Value="searchClaw" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
-    </ToolBarContent>
-    <HeaderContent>
-        <MudTh><MudTableSortLabel SortBy="new Func<int, object>(x=>x)">Halsbandnummer</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel SortBy="new Func<ClawTreatment, object>(x=>x.TreatmentDate)">Datum</MudTableSortLabel></MudTh>
-    </HeaderContent>
+<MeadowToolbar>
+    <Left>
+        <MeadowSearchBox Value="@_search" ValueChanged="OnSearchChanged"
+                         AriaLabel="Klauen Behandlungen durchsuchen" />
+    </Left>
+</MeadowToolbar>
 
-    <RowTemplate>
-        <MudTd DataLabel="Halsbandnummer">@CowService.GetCollarNumberByCowId(context.EarTagNumber)</MudTd>
-        <MudTd DataLabel="Datum">@context.TreatmentDate.ToString("dd.MM.yyyy")</MudTd>
-        <MudTd>
-            <MudButton Variant="Variant.Filled" Size="Size.Small" OnClick="@(() => DeleteClawTreatment(context))" StartIcon="@Icons.Material.Filled.Delete" Color="Color.Error">Behandlung Löschen</MudButton>
-        </MudTd>
-    </RowTemplate>
-
-    <PagerContent>
-        <MudTablePager RowsPerPageString="Behandlungen pro Seite" PageSizeOptions="new int[]{25, 50, 100}" />
-    </PagerContent>
-</MudTable>
+<MeadowTable TItem="ClawTreatment" Items="_rows" Columns="_columns"
+             RowKey="@(r => r.ClawTreatmentId)"
+             Class="mw-table-wrap--dense" ShowMobileCards="false"
+             DefaultSortTitle="Datum" DefaultSortDescending="true"
+             PagerLabel="Behandlungen pro Seite"
+             EmptyText="Keine Behandlungen gefunden." />
 
 @code {
-    private string searchClaw = "";
-    private List<ClawTreatment> Treatment_Claws = new List<ClawTreatment>();
-    
-    private bool ClawFilterFunc1(ClawTreatment Treatment_Cow) => FilterFuncClaw(Treatment_Cow, searchClaw);
+    private List<ClawTreatment> _all = new();
+    private List<ClawTreatment> _rows = new();
+    private string _search = "";
 
-    private bool FilterFuncClaw(ClawTreatment Treatment_Cow, string searchString)
-    {
-        if (string.IsNullOrWhiteSpace(searchString))
-            return true;
-        if (CowService.GetCollarNumberByCowId(Treatment_Cow.EarTagNumber).ToString() == searchString)
-            return true;
-        return false;
-    }
-    
-    private async Task DeleteClawTreatment(ClawTreatment Treatment_Cow)
-    {
-        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, NoHeader = true };
-        var parametersGeneric = new DialogParameters<GenericDialog> { { x => x.HeaderText, "Löschen" }, { x => x.Description, "Wollen Sie die Behandlung wirklich Löschen?" }, { x => x.AcceptButtonText, "Ja" }, { x => x.CancelButtonText, "Nein" }, { x => x.ColorScheme, Color.Error } };
-        var dialog = await DialogService.ShowAsync<GenericDialog>("",parametersGeneric, options);
-        var result = await dialog.Result;
-        if (!result.Canceled)
-        {
-            await ClawTreatmentService.DeleteDataAsync(Treatment_Cow.ClawTreatmentId);
-            await ClawTreatmentService.GetAllDataAsync();
-            Treatment_Claws = ClawTreatmentService.GetClawTreatments();
-        }
-        
-    }
-    
+    // Die Zusammenfassung wird einmal pro Datenladen gebaut, nicht pro
+    // Tastendruck - sie liest alle vier Befunde plus Verband und Klotz.
+    private Dictionary<int, string> _summaries = new();
+
+    private IReadOnlyList<MeadowColumn<ClawTreatment>> _columns = Array.Empty<MeadowColumn<ClawTreatment>>();
+
     protected override async Task OnInitializedAsync()
     {
+        BuildColumns();
         await ClawTreatmentService.GetAllDataAsync();
-        Treatment_Claws = ClawTreatmentService.GetClawTreatments();
+        Rebuild();
+    }
+
+    private void BuildColumns() => _columns = new List<MeadowColumn<ClawTreatment>>
+    {
+        new()
+        {
+            Title = "Halsbandnummer",
+            Text = r => CollarText(r),
+            SortBy = r => CollarSortKey(r),
+            Style = MeadowCellStyle.Bold
+        },
+        new()
+        {
+            Title = "Datum",
+            Text = r => r.TreatmentDate.ToString("dd.MM.yyyy"),
+            SortBy = r => r.TreatmentDate,
+            NoWrap = true
+        },
+        new()
+        {
+            Title = "Befunde",
+            Text = r => Summary(r),
+            SortBy = r => Summary(r),
+            MaxWidth = "360px",
+            NoWrap = true
+        },
+        new()
+        {
+            IsActions = true,
+            Template = row =>
+                @<MeadowIconButton Icon="MeadowIconName.Trash" Title="Behandlung löschen"
+                                   Danger="true" OnClick="() => Delete(row)" />
+        }
+    };
+
+    private void Rebuild()
+    {
+        _all = ClawTreatmentService.GetClawTreatments();
+        var fallback = Settings.ClawFindingFallback;
+        _summaries = _all.ToDictionary(
+            r => r.ClawTreatmentId,
+            r => ClawFindingSummary.Build(r, fallback));
+        ApplyFilter();
+    }
+
+    private string Summary(ClawTreatment row)
+        => _summaries.TryGetValue(row.ClawTreatmentId, out var text) ? text : "";
+
+    private string CollarText(ClawTreatment row)
+    {
+        var collar = CowService.GetCollarNumberByCowId(row.EarTagNumber);
+        return collar == int.MinValue ? "—" : collar.ToString();
+    }
+
+    private int CollarSortKey(ClawTreatment row)
+    {
+        var collar = CowService.GetCollarNumberByCowId(row.EarTagNumber);
+        return collar == int.MinValue ? int.MaxValue : collar;
+    }
+
+    private void OnSearchChanged(string value)
+    {
+        _search = value;
+        ApplyFilter();
+    }
+
+    private void ApplyFilter()
+    {
+        var term = _search.Trim();
+        _rows = term.Length == 0
+            ? _all.ToList()
+            : _all.Where(r =>
+                CollarText(r).Contains(term, StringComparison.OrdinalIgnoreCase)
+                || Summary(r).Contains(term, StringComparison.OrdinalIgnoreCase)).ToList();
+    }
+
+    private async Task Delete(ClawTreatment row)
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var parameters = new DialogParameters<GenericDialog>
+        {
+            { x => x.HeaderText, "Löschen" },
+            { x => x.Description, "Soll die Behandlung wirklich gelöscht werden?" },
+            { x => x.AcceptButtonText, "Löschen" },
+            { x => x.CancelButtonText, "Abbrechen" },
+            { x => x.ColorScheme, Color.Error }
+        };
+
+        var dialog = await DialogService.ShowAsync<GenericDialog>(string.Empty, parameters, options);
+        var result = await dialog.Result;
+
+        if (result is null || result.Canceled)
+        {
+            return;
+        }
+
+        await ClawTreatmentService.DeleteDataAsync(row.ClawTreatmentId);
+        await ClawTreatmentService.GetAllDataAsync();
+        Rebuild();
+        Snackbar.Add("Behandlung gelöscht.", Severity.Success);
     }
 }

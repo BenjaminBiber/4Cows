@@ -1,0 +1,22 @@
+@* fbtn(active) + st.filterBadge — der Badge zaehlt nur die Chips, nicht den
+   Suchtext (so auch der Prototyp). *@
+<button type="button" class="@(ActiveCount > 0 ? "mw-filter-btn is-active" : "mw-filter-btn")"
+        title="Filter" aria-label="Filter" aria-expanded="@(Open ? "true" : "false")"
+        @onclick="OnClick">
+    <MeadowIcon Name="MeadowIconName.Filter" Size="18" />
+    @if (!IconOnly)
+    {
+        <span class="mw-only-desktop">Filter</span>
+    }
+    @if (ActiveCount > 0)
+    {
+        <span class="mw-badge">@ActiveCount</span>
+    }
+</button>
+
+@code {
+    [Parameter] public int ActiveCount { get; set; }
+    [Parameter] public bool Open { get; set; }
+    [Parameter] public bool IconOnly { get; set; }
+    [Parameter] public EventCallback OnClick { get; set; }
+}

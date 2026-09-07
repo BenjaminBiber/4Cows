@@ -1,0 +1,28 @@
+@*
+    Ein Drawer-Eintrag. NavLink statt manuellem Routenvergleich: es kennt
+    base-href, Query-Strings und Slashes schon.
+
+    ActiveClass ist bewusst "is-active" und nicht die Voreinstellung "active" -
+    diese Klasse stylen sowohl Bootstrap als auch MudBlazor.
+*@
+<NavLink href="@Href" Match="Match" ActiveClass="is-active"
+         class="@($"mw-nav-item mw-nav-item--{AccentClass}")">
+    <MeadowIcon Name="Icon" Size="19" />
+    <span>@ChildContent</span>
+</NavLink>
+
+@code {
+    [Parameter, EditorRequired] public string Href { get; set; } = "";
+    [Parameter] public NavLinkMatch Match { get; set; } = NavLinkMatch.Prefix;
+    [Parameter, EditorRequired] public NavGroup Accent { get; set; }
+    [Parameter, EditorRequired] public MeadowIconName Icon { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private string AccentClass => Accent switch
+    {
+        NavGroup.Dashboard => "success",
+        NavGroup.Cow => "blue",
+        NavGroup.Claw => "sage",
+        _ => "teal"
+    };
+}

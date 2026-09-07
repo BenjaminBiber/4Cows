@@ -1,0 +1,275 @@
+/* ============================================================
+   Meadow — MudBlazor-Bruecke
+   MUSS nach _content/MudBlazor/MudBlazor.min.css geladen werden.
+
+   Warum :root:root und nicht :root
+   --------------------------------
+   MudThemeProvider rendert seinen <style> aus dem <body>, also SPAETER im
+   Dokument als jedes <link>. Bei gleicher Spezifitaet (0-1-0) gewinnt damit
+   Mud. :root:root ist 0-2-0 und gewinnt unabhaengig von der Reihenfolge.
+
+   Die Meadow-Tokens sind die einzige Quelle der Wahrheit: hier wird Muds
+   Palette auf var(--mw-*) umgeleitet, statt Farben doppelt zu pflegen.
+   Dark Mode kommt dadurch allein ueber das data-mw-theme-Attribut.
+   ============================================================ */
+
+:root:root {
+  /* ── Primaer / Sekundaer / Tertiaer ───────────────────────── */
+  --mud-palette-primary:         var(--mw-primary);
+  --mud-palette-primary-rgb:     var(--mw-primary-rgb);
+  --mud-palette-primary-text:    #ffffff;
+  --mud-palette-primary-darken:  var(--mw-primary-dark);
+  --mud-palette-primary-lighten: var(--mw-blue);
+  --mud-palette-primary-hover:   rgba(var(--mw-primary-rgb), .07);
+
+  --mud-palette-secondary:         var(--mw-teal);
+  --mud-palette-secondary-rgb:     var(--mw-teal-rgb);
+  --mud-palette-secondary-text:    #ffffff;
+  --mud-palette-secondary-darken:  var(--mw-teal-dark);
+  --mud-palette-secondary-lighten: var(--mw-sage);
+  --mud-palette-secondary-hover:   rgba(var(--mw-teal-rgb), .07);
+
+  --mud-palette-tertiary:      var(--mw-sage);
+  --mud-palette-tertiary-rgb:  var(--mw-sage-rgb);
+  --mud-palette-tertiary-text: #ffffff;
+
+  /* ── Semantisch ───────────────────────────────────────────── */
+  --mud-palette-success:         var(--mw-success);
+  --mud-palette-success-rgb:     var(--mw-success-rgb);
+  --mud-palette-success-text:    #ffffff;
+  --mud-palette-success-lighten: var(--mw-block-bg);
+  --mud-palette-warning:         var(--mw-warning);
+  --mud-palette-warning-rgb:     var(--mw-warning-rgb);
+  --mud-palette-warning-text:    #ffffff;
+  --mud-palette-error:           var(--mw-danger);
+  --mud-palette-error-rgb:       var(--mw-danger-rgb);
+  --mud-palette-error-text:      #ffffff;
+  --mud-palette-error-lighten:   var(--mw-neg-bg);
+  --mud-palette-info:            var(--mw-blue);
+  --mud-palette-info-rgb:        var(--mw-blue-rgb);
+  --mud-palette-info-text:       #ffffff;
+
+  /* ── Flaechen und Text ────────────────────────────────────── */
+  --mud-palette-surface:         var(--mw-panel);
+  --mud-palette-background:      var(--mw-bg);
+  --mud-palette-background-gray: var(--mw-tint);
+  --mud-palette-text-primary:    var(--mw-text);
+  --mud-palette-text-secondary:  var(--mw-muted);
+  --mud-palette-text-disabled:   var(--mw-muted);
+
+  --mud-palette-action-default:              var(--mw-muted);
+  --mud-palette-action-default-hover:        rgba(var(--mw-primary-rgb), .07);
+  --mud-palette-action-disabled:             var(--mw-border);
+  --mud-palette-action-disabled-background:  var(--mw-tint);
+
+  --mud-palette-divider:       var(--mw-border);
+  --mud-palette-divider-light: var(--mw-border);
+  --mud-palette-lines-default: var(--mw-border);
+  --mud-palette-lines-inputs:  var(--mw-border);
+
+  --mud-palette-table-lines:   var(--mw-border);
+  --mud-palette-table-hover:   var(--mw-tint);
+  --mud-palette-table-striped: var(--mw-tint);
+
+  --mud-palette-gray-light:  var(--mw-border);
+  --mud-palette-gray-default: var(--mw-muted);
+  --mud-palette-gray-darker: var(--mw-text);
+
+  --mud-palette-overlay-dark:  var(--mw-backdrop-dialog);
+  --mud-palette-overlay-light: rgba(255, 255, 255, .5);
+
+  /* ── Layout ───────────────────────────────────────────────── */
+  --mud-default-borderradius:      var(--mw-r-lg);
+  --mud-typography-default-family: var(--mw-font-sans);
+}
+
+/* ============================================================
+   Snackbar   (ISnackbar bleibt MudBlazor)
+   ============================================================ */
+.mud-snackbar {
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-2xl);
+  background: var(--mw-panel);
+  color: var(--mw-text);
+  font-family: var(--mw-font-sans);
+  font-size: 14px;
+  box-shadow: var(--mw-shadow-pop);
+}
+.mud-snackbar.mud-alert-outlined-success { border-left: 3px solid var(--mw-success); }
+.mud-snackbar.mud-alert-outlined-error   { border-left: 3px solid var(--mw-danger); }
+.mud-snackbar.mud-alert-outlined-warning { border-left: 3px solid var(--mw-warning); }
+.mud-snackbar.mud-alert-outlined-info    { border-left: 3px solid var(--mw-blue); }
+
+/* Mobil ueber die Tabbar schieben, sonst verdeckt sie den FAB */
+@media (max-width: 1023.98px) {
+  .mud-snackbar-location-bottom-right,
+  .mud-snackbar-location-bottom-center,
+  .mud-snackbar-location-bottom-start,
+  .mud-snackbar-location-bottom-end {
+    right: 8px;
+    left: 8px;
+    bottom: calc(var(--mw-tabbar-h) + 8px + env(safe-area-inset-bottom));
+  }
+  .mud-snackbar { max-width: none; }
+}
+
+/* ============================================================
+   Popover und Picker
+   Rendern am Ende des <body> im MudPopoverProvider, also ausserhalb
+   jedes Meadow-Wrappers -> global toenen.
+   ============================================================ */
+.mud-popover {
+  background: var(--mw-panel);
+  color: var(--mw-text);
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-3xl);
+  box-shadow: var(--mw-shadow-pop);
+}
+.mud-popover .mud-list-item {
+  font-family: var(--mw-font-sans);
+  font-size: 14px;
+  padding: 9px 13px;
+}
+.mud-popover .mud-list-item.mud-selected-item {
+  background: var(--mw-soft);
+  color: var(--mw-soft-fg);
+}
+@media (hover: hover) {
+  .mud-popover .mud-list-item:hover { background: var(--mw-tint); }
+  .mud-popover .mud-list-item.mud-selected-item:hover { background: var(--mw-soft); }
+}
+
+.mud-picker-inline-paper,
+.mud-picker-container,
+.mud-picker-static {
+  background: var(--mw-panel);
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-3xl);
+}
+.mud-picker-toolbar,
+.mud-picker-datepicker-toolbar { background: var(--mw-primary); color: #fff; }
+.mud-picker-calendar-header-day { color: var(--mw-muted); font-weight: 700; }
+.mud-picker-calendar-day.mud-selected,
+.mud-picker-year.mud-picker-year-selected { background: var(--mw-primary); color: #fff; }
+.mud-picker-calendar-day.mud-current { border-color: var(--mw-primary); color: var(--mw-primary); }
+
+/* ============================================================
+   Mud-Eingaben -> st.input
+   ============================================================
+   Variante ist ueberall Variant.Text, nicht Outlined: Outlined rendert ein
+   zusaetzliches absolut positioniertes Rahmen-Div plus ein Floating-Label,
+   das den Rahmen einkerbt - drei Kaempfe, um bei st.input zu landen. Text
+   hat als einzige Chrome eine border-bottom auf :before/:after.
+
+   Das Label rendern wir selbst als .mw-label-Zeile darueber (so das Design),
+   Muds eigenes wird ausgeblendet. Verbunden wird ueber InputId + for.
+
+   Muds Label wird VISUELL versteckt, nicht per display:none entfernt:
+   MudDatePicker kennt kein InputId (MudBlazor-Analyzer MUD0002 - das
+   Attribut landete in UserAttributes und damit als id auf dem Wurzel-Div,
+   das for="" unseres Labels zeigte also ins Leere). Dort ist Muds Label
+   die einzige Verbindung zum inneren <input>. Bei MudTextField,
+   MudNumericField und MudAutocomplete traegt InputId; ihr Label bleibt
+   trotzdem im Baum, was nur zu einem zweiten, identischen Namen fuehrt.
+
+   Alles ist auf .mw-field begrenzt, damit die Regeln nicht auf MudField,
+   MudSelect oder die Picker-Innereien durchschlagen.
+   ============================================================ */
+
+.mw-field .mud-input-control,
+.mw-field.mud-input-control { margin: 0; width: 100%; }
+
+.mw-field .mud-input-control.mud-input-outlined-with-label,
+.mw-field .mud-input-control.mud-input-control-margin-dense,
+.mw-field .mud-input-control.mud-input-control-margin-normal { margin: 0; }
+
+.mw-field .mud-input-label,
+.mw-field .mud-input-label-inputcontrol,
+.mw-field .mud-input-label-outlined,
+.mw-field .mud-input-label-filled {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.mw-field .mud-input-outlined-border { display: none; }
+
+/* Die Box selbst */
+.mw-field .mud-input,
+.mw-field .mud-input.mud-input-underline,
+.mw-field .mud-input.mud-input-outlined,
+.mw-field .mud-input.mud-input-filled {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 13px;
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-lg);
+  background: var(--mw-bg);
+  color: var(--mw-text);
+  font-family: var(--mw-font-sans);
+  font-size: 14px;
+  line-height: 1.35;
+  transition: border-color var(--mw-t), box-shadow var(--mw-t);
+}
+.mw-field .mud-input.mud-input-underline:before,
+.mw-field .mud-input.mud-input-underline:after,
+.mw-field .mud-input.mud-input-filled:before,
+.mw-field .mud-input.mud-input-filled:after { display: none; }
+
+/* Das Design sagt outline:none - Tastaturnutzer brauchen trotzdem etwas. */
+.mw-field .mud-input:focus-within {
+  border-color: var(--mw-primary);
+  box-shadow: 0 0 0 3px rgba(var(--mw-primary-rgb), .18);
+}
+
+/* Innenfeld: Muds Padding wandert auf die Box */
+.mw-field .mud-input > input.mud-input-root,
+.mw-field .mud-input > input.mud-input-root-outlined,
+.mw-field .mud-input > input.mud-input-root-filled,
+.mw-field div.mud-input-slot.mud-input-root,
+.mw-field div.mud-input-slot.mud-input-root-outlined {
+  padding: 0;
+  height: auto;
+  min-height: 19px;
+  font: inherit;
+  color: inherit;
+  background: none;
+}
+.mw-field .mud-input > textarea.mud-input-root { margin: 0; padding: 0; }
+
+/* Adornments: Wie/Wo-Icons, Kalendersymbol */
+.mw-field .mud-input.mud-input-adorned-start { padding-inline-start: 13px; }
+.mw-field .mud-input.mud-input-adorned-end   { padding-inline-end: 6px; }
+.mw-field .mud-input-adornment { color: var(--mw-muted); }
+.mw-field .mud-input-adornment .mud-icon-button { padding: 5px; }
+
+/* Zahlenfelder ohne Spinner - das Design hat keine */
+.mw-field .mud-input-numeric-spin { display: none; }
+.mw-field .mud-input-control.mud-input-showspin .mud-input:not(.mud-input-adorned-end) input {
+  padding-right: 0;
+  padding-inline-end: 0;
+}
+
+/* Hilfetext und Validierung (RequiredError in EditMedicineDialog) */
+.mw-field .mud-input-helper-text {
+  margin: 5px 0 0;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--mw-muted);
+}
+.mw-field .mud-input-helper-text-contained { margin-left: 0; margin-right: 0; }
+.mw-field .mud-input-helper-text.mud-input-error { color: var(--mw-danger); }
+.mw-field .mud-input.mud-input-error { border-color: var(--mw-danger); }
+
+/* MudCheckBox — nach dem Umbau der Verband/Klotz-Umschalter auf Buttons
+   bleibt nur noch der Stall-Modus-Rest; trotzdem getoent. */
+.mw-field.mud-checkbox .mud-button-root { padding: 6px; }
+.mw-field.mud-checkbox .mud-icon-root { color: var(--mw-muted); }
+.mw-field.mud-checkbox .mud-checked .mud-icon-root { color: var(--mw-primary); }
+.mw-field.mud-checkbox .mud-typography { font-size: 14px; color: var(--mw-text); }

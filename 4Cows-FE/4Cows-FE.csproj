@@ -28,10 +28,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <AdditionalFiles Include="Components\4CowsComponent\Confirm_Planned_Treatment_Cow_Add_Dialog.razor" />
-      <AdditionalFiles Include="Components\4CowsComponent\Confirm_Planned_Treatment_Delete.razor" />
-      <AdditionalFiles Include="Components\4CowsComponent\LoadingScreen.razor" />
-      <AdditionalFiles Include="Components\4CowsComponent\NotFound.razor" />
       <AdditionalFiles Include="Components\Layout\MainLayout.razor" />
       <AdditionalFiles Include="Components\Pages\Error.cshtml" />
       <AdditionalFiles Include="Components\Pages\Index.razor" />

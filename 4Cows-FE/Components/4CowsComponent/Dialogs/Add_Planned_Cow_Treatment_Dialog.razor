@@ -1,225 +1,328 @@
-﻿@inject ISnackbar Snackbar
-@using BB_Cow.Class
+@using _4Cows_FE.Components.Meadow
+
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
 @inject PCowTreatmentService pCowTreatmentService
 @inject CowTreatmentService cowTreatmentService
-@inject MedicineService medicineService
 @inject CowService cowService
-@inject UdderService UdderService
+@inject MedicineService medicineService
 @inject WhereHowService WhereHowService
-@inject IDialogService DialogService
+@inject UdderService UdderService
 
-<MudDialog>
-    <DialogContent>
-        <MudStack>
-            <MudText Class="table-Header" Align="Align.Center" Typo="Typo.h3">geplante Kuh Behandlung hinzufügen</MudText>
-
-            <MudGrid>
-                @foreach (var number in numbers)
+<MeadowDialog Title="Kuh Behandlung planen" Size="MeadowDialogSize.Cow">
+    <ChildContent>
+        @foreach (var entry in _numbers)
+        {
+            <div class="mw-field-row" @key="entry">
+                <div class="mw-col">
+                    <span class="mw-label">Halsbandnummer</span>
+                    <div class="mw-field">
+                        <MudNumericField T="int?" Label="Halsbandnummer" Variant="Variant.Text" HideSpinButtons="true"
+                                         Immediate="true" Value="@entry.Value"
+                                         ValueChanged="@(v => OnCollarChanged(entry, v))"
+                                         Placeholder="z.B. 142" />
+                    </div>
+                </div>
+                <div class="mw-col mw-col--wide">
+                    <span class="mw-label">Kuh / Kalb</span>
+                    <div class="mw-field">
+                        <MudAutocomplete T="string" Label="Kuh / Kalb" Variant="Variant.Text"
+                                         SearchFunc="cowService.SearchCows"
+                                         ToStringFunc="cowService.GetDisplayLabel"
+                                         ResetValueOnEmptyText="true" Immediate="true"
+                                         Value="@entry.EarValue"
+                                         ValueChanged="@(v => OnCowChanged(entry, v))"
+                                         Placeholder="DE 08 1523 …" />
+                    </div>
+                </div>
+                @if (_numbers.Count > 1)
                 {
-                    <MudItem xs="12">
-                        <MudNumericField TextChanged="@((string s) => GetEarNumber(number))" Immediate="true" @bind-Value="number.Value" OnValue Label="Halsbandnummer:" Variant="Variant.Text" />
-                        <MudAutocomplete TextChanged="() => GetCollarNumber(number)" SearchFunc="cowService.SearchCows" ToStringFunc="cowService.GetDisplayLabel" ResetValueOnEmptyText="true" Immediate="true" @bind-Value="number.EarValue" Label="Kuh / Kalb:" Variant="Variant.Text" />
-                    </MudItem>
-                }
-                <MudItem xs="5"></MudItem>
-                <MudItem xs="2">
-                    <MudIconButton Icon="@Icons.Material.Filled.Add" OnClick="AddNumberField" />
-                </MudItem>
-                <MudItem xs="5"></MudItem>
-            </MudGrid>
-
-            <MudDatePicker Label="Verabreichungsdatum:" Editable="true" @bind-Date="NullDate"/>
-
-            <MudAutocomplete SelectValueOnTab="true" T="string" Label="Medikament:" @bind-Value="MedicineName" SearchFunc="@((string s, CancellationToken c) => cowTreatmentService.SearchCowTreatmentMedicaments(s , c, medicineService))" CoerceValue="true" />
-
-            <div style="width: 100%; display: flex; justify-content: center; align-items:  center; gap:  2.5%;">
-                <MudAutocomplete TextChanged="(string s) => OpenWhereHowDialog(s)" SelectValueOnTab="true" T="string" Label="Wie / Wo:" @bind-Value="_selectedWhereHow" SearchFunc="@((string s, CancellationToken c) => cowTreatmentService.SearchCowTreatmentWhereHow(s , c))" CoerceValue="true" />
-                @if (showEditWhereHowOptions)
-                {
-                <MudToggleIconButton @bind-Toggled="ShowDialogForNewWhereHow"
-                                     Icon="@Icons.Material.Filled.Window"
-                                     Color="@Color.Default"
-                                     ToggledIcon="@Icons.Material.Filled.Window"
-                                     ToggledColor="@Color.Success"/>
-
-                <MudIconButton Icon="@Icons.Material.Filled.Save" Color="Color.Primary" OnClick="SaveNewWhereHow"/>
-                }else if (showDialog)
-                {
-                <MudIconButton Icon="@Icons.Material.Filled.OpenInNew" Color="Color.Primary" OnClick="OpenUdderDialog"/>
+                    <MeadowIconButton Icon="MeadowIconName.Trash" Title="Tier entfernen"
+                                      Danger="true" OnClick="() => _numbers.Remove(entry)" />
                 }
             </div>
+        }
 
-            <MudNumericField @bind-Value="Planned_Cow_Treatment.MedicineDosage" Label="Menge:" Variant="Variant.Text" />
+        <button type="button" class="mw-add-row" @onclick="AddRow">
+            <MeadowIcon Name="MeadowIconName.Plus" Size="16" />
+            <span>Weiteres Tier hinzufügen</span>
+        </button>
 
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@SaveCowTreatmentModalInput">Speichern</MudButton>
-        </MudStack>
-    </DialogContent>
-</MudDialog>
+        <div>
+            <span class="mw-label">Geplant für</span>
+            <div class="mw-field">
+                <MudDatePicker Label="Geplant für" Variant="Variant.Text" Editable="true"
+                               DateFormat="dd.MM.yyyy" @bind-Date="NullDate" />
+            </div>
+        </div>
 
+        <div>
+            <label class="mw-label" for="mw-planned-medicine">Medikament</label>
+            <div class="mw-field">
+                <MudAutocomplete T="string" InputId="mw-planned-medicine" Variant="Variant.Text"
+                                 SelectValueOnTab="true" CoerceValue="true"
+                                 @bind-Value="MedicineName"
+                                 SearchFunc="@((string s, CancellationToken c) =>
+                                     cowTreatmentService.SearchCowTreatmentMedicaments(s, c, medicineService))"
+                                 Placeholder="Medikament suchen…" />
+            </div>
+        </div>
 
+        <div class="mw-field-row">
+            <div class="mw-col mw-col--double">
+                <label class="mw-label" for="mw-planned-wherehow">Wie / Wo</label>
+                <div class="mw-field mw-field--row">
+                    <MudAutocomplete T="string" InputId="mw-planned-wherehow" Variant="Variant.Text"
+                                     SelectValueOnTab="true" CoerceValue="true" CoerceText="true"
+                                     Immediate="true"
+                                     Value="@_selectedWhereHow"
+                                     ValueChanged="OnWhereHowChanged"
+                                     SearchFunc="@((string s, CancellationToken c) =>
+                                         cowTreatmentService.SearchCowTreatmentWhereHow(s, c))"
+                                     Placeholder="z.B. Euter · VL" />
+
+                    @if (_showEditWhereHowOptions)
+                    {
+                        <MeadowIconButton Icon="@(_showDialogForNewWhereHow ? MeadowIconName.Claw : MeadowIconName.Cow)"
+                                          Title="@(_showDialogForNewWhereHow
+                                                   ? "Mit Viertel-Auswahl (aktiv)"
+                                                   : "Ohne Viertel-Auswahl")"
+                                          Size="16"
+                                          OnClick="() => _showDialogForNewWhereHow = !_showDialogForNewWhereHow" />
+                        <MeadowIconButton Icon="MeadowIconName.Plus" Title="Wie / Wo speichern"
+                                          Size="16" OnClick="SaveNewWhereHow" />
+                    }
+                    else if (_showUdderButton)
+                    {
+                        <MeadowIconButton Icon="MeadowIconName.Cow" Title="Euterviertel wählen"
+                                          Size="16" OnClick="OpenUdderDialog" />
+                    }
+                </div>
+            </div>
+            <div class="mw-col">
+                <label class="mw-label" for="mw-planned-dosage">Menge</label>
+                <div class="mw-field">
+                    <MudNumericField T="float" InputId="mw-planned-dosage" Variant="Variant.Text"
+                                     HideSpinButtons="true" @bind-Value="_dosage"
+                                     Placeholder="20" />
+                </div>
+            </div>
+        </div>
+    </ChildContent>
+    <Footer>
+        <button type="button" class="mw-btn mw-btn--plain mw-btn--wide" @onclick="Cancel">
+            Abbrechen
+        </button>
+        <button type="button" class="mw-btn mw-btn--primary mw-btn--wide" @onclick="Save">
+            Planen
+        </button>
+    </Footer>
+</MeadowDialog>
 
 @code {
-    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = default!;
 
-    public bool SaveSuccesfulBool;
-    public DateTime? NullDate;
-    public string MedicineName;
+    private readonly List<NumberEntry> _numbers = new();
+    private DateTime? NullDate;
+    private string? MedicineName;
+    private float _dosage;
     private string _selectedWhereHow = "";
-    private bool showEditWhereHowOptions = false;
-    private bool ShowDialogForNewWhereHow = false;
-    private bool showDialog = false;
-    private int _selectedUdder = int.MinValue;
-    
-    public PlannedCowTreatment Planned_Cow_Treatment = new PlannedCowTreatment();
+    private int _udderId = int.MinValue;
+    private bool _showEditWhereHowOptions;
+    private bool _showDialogForNewWhereHow;
+    private bool _showUdderButton;
 
     protected override void OnInitialized()
     {
         NullDate = DateTime.Now;
-        numbers.Add(new NumberEntry());
-        cowTreatmentService.GetAllDataAsync();
+        _numbers.Add(new NumberEntry());
     }
 
-    List<NumberEntry> numbers = new List<NumberEntry>();
+    private void AddRow() => _numbers.Add(new NumberEntry());
 
-    private void AddNumberField()
+    private void OnCollarChanged(NumberEntry entry, int? value)
     {
-        numbers.Add(new NumberEntry());
+        entry.Value = value;
+        entry.EarValue = value.HasValue ? cowService.GetCowIdByCollarNumber(value.Value) : null;
     }
 
-    public void GetEarNumber(NumberEntry entry)
+    private void OnCowChanged(NumberEntry entry, string? cowId)
     {
-        var index = numbers.IndexOf(entry);
-        numbers[index].EarValue = entry.Value.HasValue ? cowService.GetCowIdByCollarNumber(entry.Value.Value) : null;
-        StateHasChanged();
-    }
-
-    public async Task SaveCowTreatmentModalInput()
-    {
-        bool allSavedSuccessfully = true;
-        if (NullDate != null && !string.IsNullOrEmpty(MedicineName) && Planned_Cow_Treatment.MedicineDosage != 0)
+        entry.EarValue = cowId;
+        if (string.IsNullOrEmpty(cowId))
         {
-            Snackbar.Configuration.SnackbarVariant = Variant.Outlined;
-            Snackbar.Configuration.MaxDisplayedSnackbars = 10;
-            var medicineId = await medicineService.GetMedicineIdByName(MedicineName);
-            var whereHowId = await WhereHowService.GetWhereHowIDByName(_selectedWhereHow);
+            entry.Value = null;
+            return;
+        }
 
-            if (whereHowId == int.MinValue)
-            {
-                Snackbar.Add("Wie / Wo nicht gefunden", Severity.Error);
-            }
+        var collar = cowService.GetCollarNumberByCowId(cowId);
+        entry.Value = collar == int.MinValue ? null : collar;
+    }
 
-            Planned_Cow_Treatment.UdderId = (Planned_Cow_Treatment.UdderId == int.MinValue ? await UdderService.GetIdForNoQuarters() : Planned_Cow_Treatment.UdderId);
+    private void OnWhereHowChanged(string? value)
+    {
+        _selectedWhereHow = value ?? "";
+        var text = _selectedWhereHow.Trim();
 
-            foreach (var number in numbers)
-            {
-                if (number.Value.HasValue && number.Value != 0 && !string.IsNullOrEmpty(number.EarValue))
-                {
-                    Planned_Cow_Treatment.EarTagNumber = number.EarValue;
-                    Planned_Cow_Treatment.AdministrationDate = NullDate.Value;
-                    Planned_Cow_Treatment.MedicineId = medicineId;
-                    Planned_Cow_Treatment.WhereHowId = whereHowId;
+        var known = WhereHowService.WhereHows.Values
+            .FirstOrDefault(w => string.Equals(w.WhereHowName.Trim(), text, StringComparison.OrdinalIgnoreCase));
 
-                    var saveSuccessful = await pCowTreatmentService.InsertDataAsync(Planned_Cow_Treatment);
-                    if (!saveSuccessful)
-                    {
-                        allSavedSuccessfully = false;
-                    }
-                    else
-                    {
-                        Snackbar.Add($"Behandlung für Kuh {cowService.GetDisplayLabel(Planned_Cow_Treatment.EarTagNumber)} erfolgreich gespeichert!", Severity.Success);
-                    }
-                }
-            }
+        if (known is not null)
+        {
+            _showUdderButton = known.ShowDialog;
+            _showEditWhereHowOptions = false;
+            return;
+        }
 
-            if (allSavedSuccessfully)
-            {
-                Snackbar.Add($"Alle Behandlungen erfolgreich gespeichert!", Severity.Success);
-                MudDialog.Close();
-            }
-            else
-            {
-                Snackbar.Add($"Nicht alle Behandlungen konnten gespeichert werden.", Severity.Error);
-            }
+        _showUdderButton = false;
+        _showEditWhereHowOptions = text.Length > 0;
+    }
+
+    private async Task SaveNewWhereHow()
+    {
+        if (string.IsNullOrWhiteSpace(_selectedWhereHow))
+        {
+            Snackbar.Add("Wie / Wo ist leer.", Severity.Error);
+            return;
+        }
+
+        if (!await Confirm("Speichern", $"„{_selectedWhereHow}\" als Wie / Wo speichern?", "Ja", Color.Warning))
+        {
+            return;
+        }
+
+        await WhereHowService.InsertDataAsync(new WhereHow
+        {
+            WhereHowName = _selectedWhereHow,
+            ShowDialog = _showDialogForNewWhereHow
+        });
+
+        _showEditWhereHowOptions = false;
+
+        if (_showDialogForNewWhereHow)
+        {
+            await OpenUdderDialog();
         }
         else
         {
-            Snackbar.Add("Alle Felder müssen ausgefüllt werden!", Severity.Error);
-        }
-
-    }
-    
-    private void GetCollarNumber(NumberEntry entry)
-    {
-        var index = numbers.IndexOf(entry);
-        numbers[index].Value = entry.EarValue != null ? cowService.GetCollarNumberByCowId(entry.EarValue) : null;
-        StateHasChanged();
-    }
-    
-    private async Task OpenWhereHowDialog(string text)
-    {
-        if (WhereHowService.WhereHows.Values.Where(x => x.WhereHowName.Trim().ToLower() == text.ToLower().Trim()).Select(x => x.ShowDialog).FirstOrDefault())
-        {
-            showDialog = true;
-            showEditWhereHowOptions = false;
-        }
-        else if (WhereHowService.WhereHowNames.Any(x => x.ToLower().Trim() == text.Trim().ToLower()) || string.IsNullOrEmpty(text))
-        {
-            showEditWhereHowOptions = false;
-        }
-        else
-        {
-            showEditWhereHowOptions = true;
+            _udderId = await UdderService.GetIdForNoQuarters();
         }
     }
 
     private async Task OpenUdderDialog()
     {
-        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, NoHeader = true };
-        var dialog = await DialogService.ShowAsync<UdderDialog>("", options);
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<UdderDialog>(string.Empty, options);
         var result = await dialog.Result;
-        if (!result.Canceled && result.Data is int id && id != int.MinValue)
+
+        if (result is null || result.Canceled || result.Data is not int id || id == int.MinValue)
         {
-            showDialog = false;
-            Planned_Cow_Treatment.UdderId = id;
-        }
-        else
-        {
-            Planned_Cow_Treatment.UdderId = await UdderService.GetIdForNoQuarters();
-        }
-    }
-    
-    private async Task SaveNewWhereHow()
-    {
-        if (string.IsNullOrEmpty(_selectedWhereHow))
-        {
-            Snackbar.Add("Wie / Wo ist Leer!", Severity.Error);
             return;
         }
-        
-        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, NoHeader = true };
-        var parametersGeneric = new DialogParameters<GenericDialog> { { x => x.HeaderText, "Speichern" }, { x => x.Description, $"Wollen Sie {_selectedWhereHow} als Wie / Wo speichern? ?" }, { x => x.AcceptButtonText, "Ja" }, { x => x.CancelButtonText, "Nein" }, { x => x.ColorScheme, Color.Warning } };
-        var dialog = await DialogService.ShowAsync<GenericDialog>("",parametersGeneric, options);
-        var result = await dialog.Result;
 
-        if (!result.Canceled)
+        _udderId = id;
+        _showUdderButton = false;
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Save()
+    {
+        if (NullDate is null)
         {
-            var newWhereHow = new WhereHow
+            Snackbar.Add("Bitte ein Datum wählen.", Severity.Error);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(MedicineName))
+        {
+            Snackbar.Add("Bitte ein Medikament angeben.", Severity.Error);
+            return;
+        }
+
+        if (_dosage == 0)
+        {
+            Snackbar.Add("Bitte eine Menge angeben.", Severity.Error);
+            return;
+        }
+
+        // Erst alle Zeilen pruefen, dann speichern.
+        if (_numbers.Any(n => !n.Value.HasValue || n.Value == 0 || string.IsNullOrEmpty(n.EarValue)))
+        {
+            Snackbar.Add(
+                "Hals- und Ohrmarkennummer müssen bei jedem Tier gesetzt sein.",
+                Severity.Error);
+            return;
+        }
+
+        var medicineId = await medicineService.GetMedicineIdByName(MedicineName);
+        if (medicineId == int.MinValue)
+        {
+            Snackbar.Add("Medikament nicht gefunden!", Severity.Error);
+            return;
+        }
+
+        var whereHowId = await WhereHowService.GetWhereHowIDByName(_selectedWhereHow);
+        if (whereHowId == int.MinValue)
+        {
+            Snackbar.Add("Wie / Wo nicht gefunden!", Severity.Error);
+            return;
+        }
+
+        var udderId = _udderId == int.MinValue
+            ? await UdderService.GetIdForNoQuarters()
+            : _udderId;
+
+        var saved = 0;
+        foreach (var entry in _numbers)
+        {
+            // Pro Zeile eine NEUE Entitaet. Bisher wurde eine einzige Instanz
+            // wiederverwendet und nur EarTagNumber umgesetzt - EF haette beim
+            // zweiten Add dieselbe (nun getrackte) Instanz gesehen.
+            var success = await pCowTreatmentService.InsertDataAsync(new PlannedCowTreatment
             {
-                WhereHowName = _selectedWhereHow,
-                ShowDialog = ShowDialogForNewWhereHow
-            };
-            await WhereHowService.InsertDataAsync(newWhereHow);
-            if (ShowDialogForNewWhereHow)
+                EarTagNumber = entry.EarValue!,
+                MedicineId = medicineId,
+                MedicineDosage = _dosage,
+                WhereHowId = whereHowId,
+                AdministrationDate = NullDate.Value,
+                UdderId = udderId
+            });
+
+            if (!success)
             {
-                await OpenUdderDialog();
-            }
-            else
-            {
-                Planned_Cow_Treatment.UdderId = await UdderService.GetIdForNoQuarters();
+                Snackbar.Add(
+                    $"Speichern fehlgeschlagen bei Halsbandnummer {entry.Value}. "
+                    + $"{saved} von {_numbers.Count} Planungen wurden gespeichert.",
+                    Severity.Error);
+                MudDialog.Close(DialogResult.Ok(saved > 0));
+                return;
             }
 
-            showEditWhereHowOptions = false;
+            saved++;
         }
+
+        Snackbar.Add(
+            saved == 1 ? "Behandlung geplant." : $"{saved} Behandlungen geplant.",
+            Severity.Success);
+
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+
+    private async Task<bool> Confirm(string header, string description, string accept, Color scheme)
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var parameters = new DialogParameters<GenericDialog>
+        {
+            { x => x.HeaderText, header },
+            { x => x.Description, description },
+            { x => x.AcceptButtonText, accept },
+            { x => x.CancelButtonText, "Abbrechen" },
+            { x => x.ColorScheme, scheme }
+        };
+
+        var dialog = await DialogService.ShowAsync<GenericDialog>(string.Empty, parameters, options);
+        var result = await dialog.Result;
+        return result is not null && !result.Canceled;
     }
 }
-

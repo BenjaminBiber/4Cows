@@ -1,74 +1,60 @@
-﻿@inject ISnackbar Snackbar
+@using _4Cows_FE.Components.Meadow
 
-<MudDialog>
-    <DialogContent>
-        <MudStack Justify="Justify.Center">
-            <MudText Align="Align.Center" Typo="Typo.h3">Klauen Behandlung</MudText>
-            <MudSpacer></MudSpacer>
+@inject CowService cowService
 
-            <MudGrid Justify="Justify.Center">
-                <MudItem xs="6">
-                    @if (Planned_Claw_Treatment.ClawFindingLV)
-                    {
-                        <button type="button" id="LV_Hoof_Block" class="Show_Hoof_Input"></button>
-                    }
-                    else
-                    {
-                        <button type="button" id="LV_Hoof_Standart" class="Show_Hoof_Input"></button>
-                    }
-                </MudItem>
-                    <MudItem xs="6">
-                        @if (Planned_Claw_Treatment.ClawFindingRV)
-                    {
-                        <button type="button" id="RV_Hoof_Block" class="Show_Hoof_Input"></button>
-                    }
-                    else
-                    {
-                        <button type="button" id="RV_Hoof_Standart" class="Show_Hoof_Input"></button>
-                    }
-                    </MudItem>
-                    <MudItem xs="6">
-                        @if (Planned_Claw_Treatment.ClawFindingLH)
-                    {
-                        <button type="button" id="LH_Hoof_Block" class="Show_Hoof_Input"></button>
-                    }
-                    else
-                    {
-                        <button type="button" id="LH_Hoof_Standart" class="Show_Hoof_Input"></button>
-                    }
-                    </MudItem>
-                    <MudItem xs="6">
-                        @if (Planned_Claw_Treatment.ClawFindingRH)
-                    {
-                        <button type="button" id="RH_Hoof_Block" class="Show_Hoof_Input"></button>
-                    }
-                    else
-                    {
-                        <button type="button" id="RH_Hoof_Standart" class="Show_Hoof_Input"></button>
-                    }                               
-                    </MudItem>
-                </MudGrid>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@CloseModal">Schließen</MudButton>
-            </MudStack>
-        </DialogContent>
-    </MudDialog>
+@* Zeigt jetzt auch Beschreibung und Datum - beides wurde bisher nie angezeigt. *@
+<MeadowDialog Title="@($"Geplante Klauen Behandlung · Nr. {Collar}")"
+              Size="MeadowDialogSize.ShowClaw">
+    <Meta>
+        <div>
+            <span class="mw-label">Halsband</span>
+            <div class="mw-dlg-meta__value">Nr. @Collar</div>
+        </div>
+        <div>
+            <span class="mw-label">Ohrmarke</span>
+            <div class="mw-dlg-meta__mono">@EarTag</div>
+        </div>
+        <div>
+            <span class="mw-label">Geplant für</span>
+            <div class="mw-dlg-meta__value">
+                @Planned_Claw_Treatment.TreatmentDate.ToString("dd.MM.yyyy")
+            </div>
+        </div>
+    </Meta>
+    <ChildContent>
+        <div>
+            <span class="mw-label">Beschreibung</span>
+            <div class="mw-readonly">@Description</div>
+        </div>
 
-    @code {
-    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+        <ClawSummary Planned="Planned_Claw_Treatment" />
+    </ChildContent>
+    <Footer>
+        <button type="button" class="mw-btn mw-btn--plain mw-btn--wide" @onclick="Close">
+            Schließen
+        </button>
+    </Footer>
+</MeadowDialog>
 
-    [Parameter]
-    public PlannedClawTreatment Planned_Claw_Treatment { get; set; } = new PlannedClawTreatment();
+@code {
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = default!;
 
-    public bool showTreatmentModal = false;
+    [Parameter] public PlannedClawTreatment Planned_Claw_Treatment { get; set; } = new();
 
-    protected override void OnInitialized()
+    private string Collar
     {
-        DateTime currentDateTime = DateTime.Today;
+        get
+        {
+            var collar = cowService.GetCollarNumberByCowId(Planned_Claw_Treatment.EarTagNumber);
+            return collar == int.MinValue ? "–" : collar.ToString();
+        }
     }
 
-    public void CloseModal()
-    {
-        MudDialog.Close();
-    }
+    private string EarTag => cowService.GetEarTagDisplay(Planned_Claw_Treatment.EarTagNumber);
+
+    private string Description => string.IsNullOrWhiteSpace(Planned_Claw_Treatment.Desciption)
+        ? "–"
+        : Planned_Claw_Treatment.Desciption!;
+
+    private void Close() => MudDialog.Cancel();
 }
-

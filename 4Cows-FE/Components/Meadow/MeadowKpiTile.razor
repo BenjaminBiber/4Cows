@@ -1,0 +1,28 @@
+@*
+    kpiCard / st.kpiTitle / st.kpiVal — ersetzt KPI_Component.razor.
+
+    Bleibt ein echtes <a href>: der Prototyp nutzt ein onClick-Div, aber die
+    Kacheln zeigen auf Routen, und ein Link ist tastaturerreichbar und
+    mit der mittleren Maustaste in einem neuen Tab oeffenbar.
+
+    Die dritte Zeile des Prototyps (st.kpiSub) entfaellt - die KPI-Tabelle
+    hat kein Untertitel-Feld, und dafuer sollte es keine Migration geben.
+*@
+<a class="@CssClass" href="@Href">
+    <span class="mw-kpi__title">@Title</span>
+    <span class="mw-kpi__value">@Value</span>
+</a>
+
+@code {
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public string Value { get; set; } = "";
+    [Parameter] public string Href { get; set; } = "";
+
+    /// <summary>
+    /// Die synthetische "KPI hinzufuegen"-Kachel, die KPIService bei weniger
+    /// als acht KPIs anhaengt (erkennbar an KPIId == int.MinValue).
+    /// </summary>
+    [Parameter] public bool IsAddTile { get; set; }
+
+    private string CssClass => IsAddTile ? "mw-kpi mw-kpi--add" : "mw-kpi";
+}

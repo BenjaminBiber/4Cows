@@ -1,37 +1,62 @@
-@using System.Drawing.Text
-@using OfficeOpenXml.Utils
-@inject CowTreatmentService CowTreatmentService
+@using _4Cows_FE.Components.Meadow
+@using BB_Cow.Services
+
 @inject UdderService UdderService
 @inject ISnackbar Snackbar
 
-<MudDialog>
-    <DialogContent>
-        <div style="height: 100%; aspect-ratio: 2; width: 100%; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 2.5%">
-            <button class="UdderButton @(!Udder.QuarterLV ? "UdderButton_Normal" : "UdderButton_Highlighted")" @onclick="() => Udder.QuarterLV = !Udder.QuarterLV">LV</button>
-            <button class="UdderButton @(!Udder.QuarterRV ? "UdderButton_Normal" : "UdderButton_Highlighted")" @onclick="() => Udder.QuarterRV = !Udder.QuarterRV">RV</button>
-            <button class="UdderButton @(!Udder.QuarterLH ? "UdderButton_Normal" : "UdderButton_Highlighted")" @onclick="() => Udder.QuarterLH = !Udder.QuarterLH">LH</button>
-            <button class="UdderButton @(!Udder.QuarterRH ? "UdderButton_Normal" : "UdderButton_Highlighted")" @onclick="() => Udder.QuarterRH = !Udder.QuarterRH">RH</button>
+@* Die vier Euterviertel, gleiche Umschalter-Sprache wie beim Klauen-Selektor. *@
+<MeadowDialog Title="Euterviertel auswählen" Size="MeadowDialogSize.Info">
+    <ChildContent>
+        <div class="mw-quarter-grid" role="group" aria-label="Euterviertel">
+            @foreach (var quarter in Quarters)
+            {
+                <button type="button" class="@ToggleClass(quarter.Get())"
+                        aria-pressed="@(quarter.Get() ? "true" : "false")"
+                        @onclick="() => quarter.Toggle()">@quarter.Label</button>
+            }
         </div>
-    </DialogContent>
-    <DialogActions>
-        <MudButton Color="Color.Primary" OnClick="CloseDialog">Speichern</MudButton>
-    </DialogActions>
-</MudDialog>
+        <div class="mw-hint">Nicht ausgewählt bedeutet: kein bestimmtes Viertel.</div>
+    </ChildContent>
+    <Footer>
+        <button type="button" class="mw-btn mw-btn--plain mw-btn--wide" @onclick="Cancel">
+            Abbrechen
+        </button>
+        <button type="button" class="mw-btn mw-btn--primary mw-btn--wide" @onclick="Save">
+            Speichern
+        </button>
+    </Footer>
+</MeadowDialog>
 
 @code {
-    [CascadingParameter] private MudDialogInstance MudDialog { get; set; }
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = default!;
 
-    private Udder Udder = new Udder();
-    
-    private async Task CloseDialog()
+    private readonly Udder _udder = new();
+
+    private sealed record Quarter(string Label, Func<bool> Get, Action Toggle);
+
+    private Quarter[] Quarters => new[]
     {
-        var id = await UdderService.GetIDByBools(Udder);
+        new Quarter("LV", () => _udder.QuarterLV, () => _udder.QuarterLV = !_udder.QuarterLV),
+        new Quarter("RV", () => _udder.QuarterRV, () => _udder.QuarterRV = !_udder.QuarterRV),
+        new Quarter("LH", () => _udder.QuarterLH, () => _udder.QuarterLH = !_udder.QuarterLH),
+        new Quarter("RH", () => _udder.QuarterRH, () => _udder.QuarterRH = !_udder.QuarterRH)
+    };
+
+    private static string ToggleClass(bool on) => on ? "mw-quarter is-on" : "mw-quarter";
+
+    // Abbrechen MUSS Cancel liefern: der Aufrufer setzt bei einem
+    // Ok-Ergebnis die Viertel-ID, bei Abbruch dagegen "keine Viertel".
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Save()
+    {
+        var id = await UdderService.GetIDByBools(_udder);
         if (id == int.MinValue)
         {
-            Snackbar.Add("Kein Euter gefunden!", Severity.Error);
+            Snackbar.Add("Euterviertel konnten nicht gespeichert werden.", Severity.Error);
             return;
         }
+
         MudDialog.Close(DialogResult.Ok(id));
     }
-
 }

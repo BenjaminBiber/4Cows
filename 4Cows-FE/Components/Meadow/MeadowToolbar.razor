@@ -1,0 +1,11 @@
+@* st.tbToolbar *@
+<div class="mw-toolbar @Class">
+    <div class="mw-toolbar__left">@Left</div>
+    <div class="mw-toolbar__right">@Right</div>
+</div>
+
+@code {
+    [Parameter] public RenderFragment? Left { get; set; }
+    [Parameter] public RenderFragment? Right { get; set; }
+    [Parameter] public string? Class { get; set; }
+}

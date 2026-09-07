@@ -1,31 +1,43 @@
+@using _4Cows_FE.Components.Meadow
+
 @inject ISnackbar Snackbar
 @inject CowService cowService
 
-<MudDialog>
-    <DialogContent>
-        <MudStack>
-            <MudText Class="table-Header" Align="Align.Center" Typo="Typo.h3">Kalb anlegen</MudText>
+<MeadowDialog Title="Kalb anlegen" Size="MeadowDialogSize.Info">
+    <ChildContent>
+        <div>
+            <label class="mw-label" for="mw-calf-collar">Halsbandnummer</label>
+            <div class="mw-field">
+                <MudNumericField T="int" InputId="mw-calf-collar" Variant="Variant.Text"
+                                 HideSpinButtons="true" Min="1" Immediate="true"
+                                 @bind-Value="CollarNumber" Placeholder="z.B. 142" />
+            </div>
+        </div>
 
-            <MudNumericField @bind-Value="CollarNumber" Label="Halsbandnummer:" Min="1" Immediate="true" Variant="Variant.Text" />
-            <MudText Typo="Typo.caption">
-                Ein Kalb wird ohne Ohrenmarkennummer angelegt. Sobald es (über XLink oder manuell)
-                eine Ohrenmarke erhält, wird sie zugewiesen.
-            </MudText>
-
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@Save">Speichern</MudButton>
-        </MudStack>
-    </DialogContent>
-</MudDialog>
+        <p class="mw-hint">
+            Ein Kalb wird ohne Ohrenmarkennummer angelegt. Sobald es (über XLink oder
+            manuell) eine Ohrenmarke erhält, wird sie zugewiesen.
+        </p>
+    </ChildContent>
+    <Footer>
+        <button type="button" class="mw-btn mw-btn--plain mw-btn--wide" @onclick="Cancel">
+            Abbrechen
+        </button>
+        <button type="button" class="mw-btn mw-btn--primary mw-btn--wide" @onclick="Save">
+            Speichern
+        </button>
+    </Footer>
+</MeadowDialog>
 
 @code {
-    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = default!;
 
     private int CollarNumber;
 
+    private void Cancel() => MudDialog.Cancel();
+
     private async Task Save()
     {
-        Snackbar.Configuration.SnackbarVariant = Variant.Outlined;
-
         if (CollarNumber <= 0)
         {
             Snackbar.Add("Halsbandnummer muss größer als 0 sein!", Severity.Error);
@@ -39,14 +51,13 @@
         }
 
         var success = await cowService.InsertDataAsync(Cow.CreateCalf(CollarNumber));
-        if (success)
-        {
-            Snackbar.Add($"Kalb mit Halsbandnummer {CollarNumber} angelegt.", Severity.Success);
-            MudDialog.Close(DialogResult.Ok(true));
-        }
-        else
+        if (!success)
         {
             Snackbar.Add("Anlegen fehlgeschlagen.", Severity.Error);
+            return;
         }
+
+        Snackbar.Add($"Kalb mit Halsbandnummer {CollarNumber} angelegt.", Severity.Success);
+        MudDialog.Close(DialogResult.Ok(true));
     }
 }

@@ -1,36 +1,80 @@
-@using System.Drawing.Text
-@inject MedicineService MedicineService
-@inject IDialogService DialogService
-@inject ISnackbar Snackbar
+@using _4Cows_FE.Components.Meadow
 
-<MudPaper Style="width: 50em; height: 10em; display: flex; flex-direction: column; justify-content: center; align-items: center" Class="pa-4">
-    <MudText Typo="Typo.h4">Sie müssen sich Authentifizieren:</MudText>
-    <MudForm @ref="_form" @bind-IsValid="@_success" Style="width: 80%">
-        <MudTextField T="string" Label="Admintoken" Required="true" @bind-Value="_adminToken" RequiredError="Admintoken muss ausgefüllt werden!"/>
-    </MudForm>
-    <MudButton Color="Color.Primary" OnClick="CloseDialog">Authentifizieren</MudButton>
-</MudPaper>
-    
+@*
+    Der Hinweistext des Prototyps ("Tipp: AdminToken") ist hier absichtlich
+    NICHT uebernommen - er wuerde jedem anonymen Besucher das Passwort zeigen.
+
+    Ebenso unveraendert: das ist kein Framework-Auth, sondern ein
+    Komponentenfeld. Es schuetzt serverseitig nichts und ist nach einem
+    Reload weg. Der Umbau ist rein visuell.
+*@
+<div class="mw-auth-card">
+    <div class="mw-auth-card__badge">
+        <MeadowIcon Name="MeadowIconName.Lock" Size="28" />
+    </div>
+
+    <h2 class="mw-auth-card__title">Authentifizierung</h2>
+    <p class="mw-auth-card__text">
+        Die Einstellungen sind geschützt. Bitte Admintoken eingeben.
+    </p>
+
+    <label class="mw-label" for="mw-admin-token">Admintoken</label>
+
+    @*
+        Ein einfaches <input>, kein MudTextField - wie bei den Suchfeldern
+        der Toolbars. Ein einzelnes Passwortfeld braucht von Mud nichts
+        (kein Label-Float, keine Validierung, kein Adornment), und der
+        Enter-Handler haengt so direkt am Element statt an Muds
+        Event-Kette.
+    *@
+    <input id="mw-admin-token" class="mw-input" type="password"
+           placeholder="••••••••" autocomplete="current-password"
+           value="@_adminToken"
+           @oninput="e => _adminToken = e.Value?.ToString() ?? string.Empty"
+           @onkeydown="OnKeyDown" />
+
+    @if (_error.Length > 0)
+    {
+        <div class="mw-auth-card__error" role="alert">@_error</div>
+    }
+
+    <button type="button" class="mw-btn mw-btn--primary mw-btn--block mw-btn--spaced"
+            @onclick="Authenticate">
+        Authentifizieren
+    </button>
+</div>
+
 @code {
     [Parameter] public EventCallback<bool> IsAuthenticated { get; set; }
-    MudForm _form;
-    bool _success;
-    string _adminToken;
-    
-    
-    private async Task CloseDialog()
+
+    private string _adminToken = "";
+    private string _error = "";
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
     {
-        if (_success)
+        if (e.Key == "Enter")
         {
-            if (_adminToken == (Environment.GetEnvironmentVariable("AdminToken") ?? "4CowsAdminToken"))
-            {
-                await IsAuthenticated.InvokeAsync(true);
-            }
-            else
-            {
-                Snackbar.Add("Falscher Admintoken", Severity.Error);
-            }
+            await Authenticate();
         }
     }
 
+    private async Task Authenticate()
+    {
+        if (string.IsNullOrWhiteSpace(_adminToken))
+        {
+            _error = "Admintoken muss ausgefüllt werden.";
+            return;
+        }
+
+        var expected = Environment.GetEnvironmentVariable("AdminToken") ?? "4CowsAdminToken";
+        if (_adminToken != expected)
+        {
+            // Nennt den erwarteten Wert nicht.
+            _error = "Falscher Admintoken.";
+            return;
+        }
+
+        _error = "";
+        await IsAuthenticated.InvokeAsync(true);
+    }
 }

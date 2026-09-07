@@ -1,0 +1,46 @@
+@*
+    st.mAddMenu / st.amiItem / st.amiIcon — die Vier-Punkte-Auswahl ueber dem
+    FAB. Erscheint nur dort, wo die Route keine eindeutige Hinzufuegen-Aktion
+    hat, also auf Dashboard und Einstellungen.
+*@
+@inject MeadowDialogLauncher Launcher
+
+@if (Open)
+{
+    <button type="button" class="mw-menu-backdrop" tabindex="-1"
+            aria-label="Menü schließen" @onclick="OnClose"></button>
+
+    <div class="mw-menu mw-menu--add" role="menu" aria-label="Hinzufügen">
+        <button type="button" role="menuitem" class="mw-menu__item"
+                @onclick="() => Run(Launcher.OpenCowTreatmentAsync)">
+            <span class="mw-menu__icon"><MeadowIcon Name="MeadowIconName.Cow" Size="17" /></span>
+            Kuh Behandlung
+        </button>
+        <button type="button" role="menuitem" class="mw-menu__item"
+                @onclick="() => Run(Launcher.OpenPlannedCowTreatmentAsync)">
+            <span class="mw-menu__icon"><MeadowIcon Name="MeadowIconName.PlannedCow" Size="17" /></span>
+            Geplante Kuh Behandlung
+        </button>
+        <button type="button" role="menuitem" class="mw-menu__item"
+                @onclick="() => Run(Launcher.OpenClawTreatmentAsync)">
+            <span class="mw-menu__icon"><MeadowIcon Name="MeadowIconName.Claw" Size="17" /></span>
+            Klauen Behandlung
+        </button>
+        <button type="button" role="menuitem" class="mw-menu__item"
+                @onclick="() => Run(Launcher.OpenPlannedClawTreatmentAsync)">
+            <span class="mw-menu__icon"><MeadowIcon Name="MeadowIconName.PlannedClaw" Size="17" /></span>
+            Geplante Klauen Behandlung
+        </button>
+    </div>
+}
+
+@code {
+    [Parameter] public bool Open { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private async Task Run(Func<Task> open)
+    {
+        await OnClose.InvokeAsync();
+        await open();
+    }
+}

@@ -31,10 +31,36 @@ public class XLinkService
         _cowService = cowService;
     }
 
+    /// <summary>
+    /// Zeitpunkt des letzten Abgleichs, null vor dem ersten Lauf.
+    /// Der Hintergrunddienst hat bisher nur geloggt und nichts gemerkt -
+    /// der Info-Dialog konnte deshalb nur "aktiv" behaupten.
+    /// </summary>
+    public DateTimeOffset? LastSyncUtc { get; private set; }
+
+    public bool LastSyncSucceeded { get; private set; }
+
+    /// <summary>Fehlermeldung des letzten fehlgeschlagenen Abgleichs.</summary>
+    public string? LastSyncError { get; private set; }
+
     public async Task RefreshCowsAsync(CancellationToken cancellationToken = default)
     {
-        var cows = await FetchCowsAsync(cancellationToken);
-        await SaveCowData(cows);
+        try
+        {
+            var cows = await FetchCowsAsync(cancellationToken);
+            await SaveCowData(cows);
+
+            LastSyncUtc = DateTimeOffset.UtcNow;
+            LastSyncSucceeded = true;
+            LastSyncError = null;
+        }
+        catch (Exception ex)
+        {
+            LastSyncUtc = DateTimeOffset.UtcNow;
+            LastSyncSucceeded = false;
+            LastSyncError = ex.Message;
+            throw;
+        }
     }
 
     private async Task<List<XLinkCow>> FetchCowsAsync(CancellationToken cancellationToken)

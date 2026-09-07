@@ -1,81 +1,129 @@
 @using _4Cows_FE.Components._4CowsComponent.Dialogs
+@using _4Cows_FE.Components.Meadow
+
 @inject CowService CowService
 @inject XLinkService XLinkService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 
-<MudTable Elevation="5" Dense="true" Items="@Cows" Hover="true" Striped="@true" Filter="(Func<Cow, bool>)FilterFunc1">
-    <ToolBarContent>
-        <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled" Color="Color.Secondary"
-                   OnClick="OpenAddCalfDialog" Class="me-2">Kalb anlegen</MudButton>
-        <MudButton StartIcon="@Icons.Material.Filled.Sync" Variant="Variant.Filled" Color="Color.Primary"
-                   OnClick="RefreshFromXLink" Disabled="@_isRefreshing">
-            @if (_isRefreshing)
-            {
-                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true"/>
-                <MudText Class="ms-2">Aktualisiere…</MudText>
-            }
-            else
-            {
-                <MudText>Kühe von XLink aktualisieren</MudText>
-            }
-        </MudButton>
-        <MudSpacer/>
-        <MudTextField T="string" @bind-value="cowSearchString" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
-    </ToolBarContent>
-    <HeaderContent>
-        <MudTh><MudTableSortLabel SortBy="new Func<Cow, object>(x=>x.CollarNumber)">Halsbandnummer</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel SortBy="new Func<Cow, object>(x=>x.EarTagNumber ?? string.Empty)">Ohrmarkennummer</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel SortBy="new Func<Cow, object>(x=>x.IsCalv)">Typ</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel SortBy="new Func<Cow, object>(x=>x.IsGone)">Betrieb Verlassen?</MudTableSortLabel></MudTh>
-        <MudTh>Aktionen</MudTh>
-       </HeaderContent>
-    <RowTemplate>
-        <MudTd DataLabel="Halsbandnummer">@context.CollarNumber</MudTd>
-        <MudTd DataLabel="Ohrmarkennummer">@(string.IsNullOrWhiteSpace(context.EarTagNumber) ? "-" : context.EarTagNumber)</MudTd>
-        <MudTd DataLabel="Typ">@(context.IsCalv ? "Kalb" : "Kuh")</MudTd>
-        <MudTd DataLabel="Betrieb Verlassen?">@(context.IsGone ? "Verlassen" : "Noch im Betrieb")</MudTd>
-        <MudTd DataLabel="Aktionen">
-            @if (context.IsCalv)
-            {
-                <MudTooltip Text="Ohrenmarke zuweisen">
-                    <MudIconButton Icon="@Icons.Material.Filled.Loyalty" Color="Color.Primary" Size="Size.Small" OnClick="@(() => OpenAssignEarTagDialog(context))"/>
-                </MudTooltip>
-            }
-            @if (!context.IsGone)
-            {
-                <MudTooltip Text="Als verlassen markieren">
-                    <MudIconButton Icon="@Icons.Material.Filled.ExitToApp" Color="Color.Warning" Size="Size.Small" OnClick="@(() => MarkGone(context))"/>
-                </MudTooltip>
-            }
-            <MudTooltip Text="Löschen">
-                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => DeleteCow(context))"/>
-            </MudTooltip>
-        </MudTd>
-    </RowTemplate>
-    <PagerContent>
-        <MudTablePager RowsPerPageString="Kühe pro Seite" PageSizeOptions="new int[]{25, 50, 100}" />
-    </PagerContent>
-</MudTable>
+<MeadowToolbar>
+    <Left>
+        <MeadowSearchBox Value="@_search" ValueChanged="OnSearchChanged"
+                         AriaLabel="Kühe durchsuchen" />
+    </Left>
+    <Right>
+        <button type="button" class="mw-btn mw-btn--ghost" @onclick="OpenAddCalfDialog">
+            <MeadowIcon Name="MeadowIconName.Plus" Size="20" />
+            <span>Kalb anlegen</span>
+        </button>
+        <button type="button" class="mw-btn mw-btn--primary" @onclick="RefreshFromXLink"
+                disabled="@_isRefreshing">
+            <MeadowIcon Name="MeadowIconName.Download" Size="20" />
+            <span>@(_isRefreshing ? "Aktualisiere…" : "Von XLink aktualisieren")</span>
+        </button>
+    </Right>
+</MeadowToolbar>
+
+<MeadowTable TItem="Cow" Items="_rows" Columns="_columns"
+             RowKey="@(c => c.CowId)"
+             Class="mw-table-wrap--dense" ShowMobileCards="false"
+             DefaultSortTitle="Halsbandnummer"
+             PagerLabel="Kühe pro Seite"
+             EmptyText="Keine Kühe gefunden." />
+
 @code {
-    private IEnumerable<Cow> Cows = new List<Cow>();
-    private string cowSearchString = "";
+    private List<Cow> _all = new();
+    private List<Cow> _rows = new();
+    private string _search = "";
     private bool _isRefreshing;
 
-    private bool FilterFunc1(Cow cow) => CowService.FilterFuncCow(cow.CowId, cowSearchString);
+    private IReadOnlyList<MeadowColumn<Cow>> _columns = Array.Empty<MeadowColumn<Cow>>();
 
     protected override async Task OnInitializedAsync()
     {
+        BuildColumns();
         await CowService.GetAllDataAsync();
         Reload();
     }
 
-    private void Reload() => Cows = CowService.Cows.Values.ToList();
+    private void BuildColumns() => _columns = new List<MeadowColumn<Cow>>
+    {
+        new()
+        {
+            Title = "Halsbandnummer",
+            Text = c => c.CollarNumber.ToString(),
+            SortBy = c => c.CollarNumber,
+            Style = MeadowCellStyle.Bold
+        },
+        new()
+        {
+            Title = "Ohrmarkennummer",
+            Text = c => string.IsNullOrWhiteSpace(c.EarTagNumber) ? "—" : c.EarTagNumber,
+            SortBy = c => c.EarTagNumber ?? string.Empty
+        },
+        new()
+        {
+            Title = "Typ",
+            Template = cow =>
+                @<span class="mw-pill">@(cow.IsCalv ? "Kalb" : "Kuh")</span>,
+            SortBy = c => c.IsCalv ? 1 : 0
+        },
+        new()
+        {
+            Title = "Status",
+            Template = cow => cow.IsGone
+                ? @<span class="mw-tag mw-tag--removed">Betrieb verlassen</span>
+                : @<span class="mw-dim">Im Betrieb</span>,
+            SortBy = c => c.IsGone ? 1 : 0
+        },
+        new()
+        {
+            IsActions = true,
+            Template = cow =>
+                @<text>
+                    @if (cow.IsCalv)
+                    {
+                        <MeadowIconButton Icon="MeadowIconName.Edit" Title="Ohrenmarke zuweisen"
+                                          OnClick="() => OpenAssignEarTagDialog(cow)" />
+                    }
+                    @if (!cow.IsGone)
+                    {
+                        <MeadowIconButton Icon="MeadowIconName.CloudOff"
+                                          Title="Als 'Betrieb verlassen' markieren"
+                                          OnClick="() => MarkGone(cow)" />
+                    }
+                    <MeadowIconButton Icon="MeadowIconName.Trash" Title="Kuh löschen"
+                                      Danger="true" OnClick="() => DeleteCow(cow)" />
+                </text>
+        }
+    };
+
+    private void Reload()
+    {
+        _all = CowService.Cows.Values.ToList();
+        ApplyFilter();
+    }
+
+    private void OnSearchChanged(string value)
+    {
+        _search = value;
+        ApplyFilter();
+    }
+
+    private void ApplyFilter()
+    {
+        var term = _search.Trim();
+        _rows = term.Length == 0
+            ? _all.ToList()
+            : _all.Where(c => CowService.FilterFuncCow(c.CowId, term)).ToList();
+    }
 
     private async Task RefreshFromXLink()
     {
         if (_isRefreshing)
+        {
             return;
+        }
 
         _isRefreshing = true;
         try
@@ -97,52 +145,83 @@
 
     private async Task OpenAddCalfDialog()
     {
-        var options = new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true, CloseButton = true };
-        var dialog = await DialogService.ShowAsync<Add_Calf_Dialog>("Kalb anlegen", options);
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<Add_Calf_Dialog>(string.Empty, options);
         var result = await dialog.Result;
-        if (!result.Canceled)
+
+        if (result is null || result.Canceled)
         {
-            Reload();
+            return;
         }
+
+        Reload();
     }
 
     private async Task OpenAssignEarTagDialog(Cow calf)
     {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
         var parameters = new DialogParameters<Assign_EarTag_Dialog> { { x => x.Calf, calf } };
-        var options = new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true, CloseButton = true };
-        var dialog = await DialogService.ShowAsync<Assign_EarTag_Dialog>("Ohrenmarke zuweisen", parameters, options);
+
+        var dialog = await DialogService.ShowAsync<Assign_EarTag_Dialog>(
+            string.Empty, parameters, options);
         var result = await dialog.Result;
-        if (!result.Canceled)
+
+        if (result is null || result.Canceled)
         {
-            Reload();
+            return;
         }
+
+        Reload();
     }
 
     private async Task MarkGone(Cow cow)
     {
-        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, NoHeader = true };
-        var parametersGeneric = new DialogParameters<GenericDialog> { { x => x.HeaderText, "Verlassen" }, { x => x.Description, $"Halsbandnummer {cow.CollarNumber} als 'Betrieb verlassen' markieren?" }, { x => x.AcceptButtonText, "Ja" }, { x => x.CancelButtonText, "Nein" }, { x => x.ColorScheme, Color.Warning } };
-        var dialog = await DialogService.ShowAsync<GenericDialog>("", parametersGeneric, options);
-        var result = await dialog.Result;
-        if (result.Canceled)
+        if (!await Confirm(
+                "Verlassen",
+                $"Halsbandnummer {cow.CollarNumber} als „Betrieb verlassen\" markieren?",
+                "Markieren", Color.Warning))
+        {
             return;
+        }
 
         var success = await CowService.UpdateIsGoneAsync(cow.CowId, true);
-        Snackbar.Add(success ? "Als verlassen markiert." : "Aktion fehlgeschlagen.", success ? Severity.Success : Severity.Error);
+        Snackbar.Add(
+            success ? "Als verlassen markiert." : "Aktion fehlgeschlagen.",
+            success ? Severity.Success : Severity.Error);
         Reload();
     }
 
     private async Task DeleteCow(Cow cow)
     {
-        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, NoHeader = true };
-        var parametersGeneric = new DialogParameters<GenericDialog> { { x => x.HeaderText, "Löschen" }, { x => x.Description, $"Halsbandnummer {cow.CollarNumber} wirklich löschen?" }, { x => x.AcceptButtonText, "Ja" }, { x => x.CancelButtonText, "Nein" }, { x => x.ColorScheme, Color.Error } };
-        var dialog = await DialogService.ShowAsync<GenericDialog>("", parametersGeneric, options);
-        var result = await dialog.Result;
-        if (result.Canceled)
+        if (!await Confirm(
+                "Löschen",
+                $"Halsbandnummer {cow.CollarNumber} wirklich löschen?",
+                "Löschen", Color.Error))
+        {
             return;
+        }
 
         var success = await CowService.RemoveByIdAsync(cow.CowId);
-        Snackbar.Add(success ? "Gelöscht." : "Löschen fehlgeschlagen.", success ? Severity.Success : Severity.Error);
+        Snackbar.Add(
+            success ? "Gelöscht." : "Löschen fehlgeschlagen.",
+            success ? Severity.Success : Severity.Error);
         Reload();
+    }
+
+    private async Task<bool> Confirm(string header, string description, string accept, Color scheme)
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var parameters = new DialogParameters<GenericDialog>
+        {
+            { x => x.HeaderText, header },
+            { x => x.Description, description },
+            { x => x.AcceptButtonText, accept },
+            { x => x.CancelButtonText, "Abbrechen" },
+            { x => x.ColorScheme, scheme }
+        };
+
+        var dialog = await DialogService.ShowAsync<GenericDialog>(string.Empty, parameters, options);
+        var result = await dialog.Result;
+        return result is not null && !result.Canceled;
     }
 }

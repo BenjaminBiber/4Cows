@@ -177,6 +177,14 @@ public class CowTreatmentService
 
     public int GetMinYear()
     {
+        // Min() auf einer leeren Sequenz wirft. Erreichbar ueber
+        // ChartDateDialog, also genau im Zustand direkt nach der
+        // Erstinstallation - dort riss die Jahresauswahl den Circuit ab.
+        if (_cachedTreatments.IsEmpty)
+        {
+            return DateTime.Now.Year;
+        }
+
         return _cachedTreatments.Values.Min(t => t.AdministrationDate).Year;
     }
 }

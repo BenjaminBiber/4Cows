@@ -1,0 +1,23 @@
+@* Einfachauswahl mit "Alle" als Sentinel — Medikament, Zeitraum, Befund. *@
+<MeadowFilterGroup Label="@Label">
+    @foreach (var option in AllOptions)
+    {
+        <MeadowChip Label="@option" Selected="@(option == Selected)"
+                    OnClick="() => Select(option)" />
+    }
+</MeadowFilterGroup>
+
+@code {
+    [Parameter, EditorRequired] public string Label { get; set; } = "";
+    [Parameter] public IReadOnlyList<string> Options { get; set; } = Array.Empty<string>();
+    [Parameter] public string Selected { get; set; } = AllLabel;
+    [Parameter] public EventCallback<string> SelectedChanged { get; set; }
+
+    public const string AllLabel = "Alle";
+
+    private IEnumerable<string> AllOptions => Options.Contains(AllLabel)
+        ? Options
+        : new[] { AllLabel }.Concat(Options);
+
+    private Task Select(string option) => SelectedChanged.InvokeAsync(option);
+}

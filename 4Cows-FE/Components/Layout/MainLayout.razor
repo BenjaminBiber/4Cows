@@ -1,178 +1,124 @@
-﻿@using _4Cows_FE.Components._4CowsComponent.Dialogs
-@using Microsoft.AspNetCore.Mvc.Routing
-@using MudBlazor
 @inherits LayoutComponentBase
-@inject IDialogService DialogService
-@inject NavigationManager navigationManager
+@implements IDisposable
 
-<PageTitle>4Cows</PageTitle>
-<MudThemeProvider IsDarkMode="@_isDarkMode" Theme="CustomTheme" />
-<MudDialogProvider />
-<MudSnackbarProvider />
+@using _4Cows_FE.Components.Meadow
+@using _4Cows_FE.Components.Services
+
+@inject NavigationManager Nav
+@inject LayoutState Layout
+@inject ThemeState Theme
+@inject MeadowDialogLauncher Launcher
+
+<PageTitle>@_title · Meadow</PageTitle>
+
+@* MudBlazor bleibt als Wirt fuer Dialoge, Snackbars und die Formular-Popover.
+   MudThemeProvider ist nicht das, was die App dunkel macht - das erledigt das
+   data-mw-theme-Attribut. Er wird trotzdem gebunden, damit Muds C#-seitige
+   Schattierungen zum Theme passen. *@
+<MudThemeProvider IsDarkMode="@Theme.IsDark" Theme="@MeadowMudTheme.Instance" />
 <MudPopoverProvider />
+<MudDialogProvider Position="DialogPosition.Center" CloseOnEscapeKey="true" BackdropClick="true" />
+<MudSnackbarProvider />
 
-<MudLayout>
-     <CascadingValue Value="@_isDarkMode" Name="IsDarkMode"/>
-    <MudAppBar Elevation="3" Color="Color.Primary">
-        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" />
-        <MudText Class="ml-5" Typo="Typo.h4">@GetSiteName()</MudText>
-        <MudSpacer />
-        <MudIconButton Icon="@Icons.Material.Filled.Info" Color="Color.Default" OnClick="OpenInfoDialog"></MudIconButton>
-        <MudToggleIconButton @bind-Toggled="@_isDarkMode"
-                             Icon="@Icons.Material.Filled.LightMode" Color="@Color.Default" Title="LightMode"
-                             ToggledIcon="@Icons.Material.Filled.DarkMode" ToggledColor="@Color.Default" ToggledTitle="DarkMode" />
-    </MudAppBar>
-    <MudDrawer @bind-Open="@open" Variant="@DrawerVariant.Temporary" Elevation="3">
-        <MudDrawerHeader>
-            <div style="display: flex; align-items: center;">
-                    <img src="LOGO.png" style="width: 30%; aspect-ratio: 1 / 1;" />
-                <MudText Typo="Typo.h5" Style="text-align: center;"><b>4Cows</b></MudText>
+<div class="mw-shell">
+    <MeadowHeader PageTitle="@_title"
+                  HasSiblings="@_hasSiblings"
+                  IsDark="@Theme.IsDark"
+                  OnMenu="@Layout.ToggleDrawer"
+                  OnTitle="@OnTitleClick"
+                  OnInfo="@OpenInfo"
+                  OnToggleTheme="@Theme.ToggleAsync" />
+
+    <div class="mw-body">
+        <MeadowDrawer Open="@Layout.DrawerOpen" OnClose="@Layout.CloseAll" OnInfo="OpenInfo" />
+
+        <main class="mw-content mw-scroll">
+            <div class="mw-content-inner">
+                @Body
             </div>
-        </MudDrawerHeader>
-        <MudNavMenu>
-            <div style="background: var(--mud-palette-success); color: white;" class="mb-2">
-                <MudNavLink Icon="@Icons.Material.Filled.SpaceDashboard" Style="color: white" IconColor="Color.Default" Href="" Match="NavLinkMatch.All">Dashboard</MudNavLink>
-            </div>
+        </main>
+    </div>
 
-            <div style="background: var(--mud-palette-primary); color: white;" class="mb-2">
-                <MudNavLink Icon="@Icons.Material.Filled.BackupTable" IconColor="Color.Default" Href="Kuh_Daten" Match="NavLinkMatch.Prefix">Kuh Behandlungen</MudNavLink>
-                <MudNavLink Icon="@Icons.Material.Filled.Construction" IconColor="Color.Default" Href="geplante_Kuh_Daten" Match="NavLinkMatch.Prefix">geplante Kuh Behandlungen</MudNavLink>
-            </div>
+    <MeadowTabbar Route="@_route" FabTitle="@_fabTitle" OnFab="@OnFab" />
+</div>
 
-            <div style="background: var(--mud-palette-secondary); color: white;" class="mb-2">
-                <MudNavLink Icon="@Icons.Material.Filled.Healing" IconColor="Color.Default" Href="Verband_Daten" Match="NavLinkMatch.Prefix">Verbände</MudNavLink>
-                <MudNavLink Icon="@Icons.Material.Filled.Pets" IconColor="Color.Default" Href="Klauen_Daten" Match="NavLinkMatch.Prefix">Klauen Behandlungen</MudNavLink>
-                <MudNavLink Icon="@Icons.Material.Filled.Plumbing" IconColor="Color.Default" Href="geplante_Klauen_Daten" Match="NavLinkMatch.Prefix">geplante Klauen Behandlungen</MudNavLink>
-            </div>
-
-            <div style="background: var(--mud-palette-tertiary); color: white;" class="mb-2">
-                <MudNavLink Icon="@Icons.Material.Filled.Settings" IconColor="Color.Default" Href="Settings" Match="NavLinkMatch.Prefix">Einstellungen</MudNavLink>
-            </div>
-
-
-
-        </MudNavMenu>
-    </MudDrawer>
-    <MudMainContent >
-        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-6">
-            @Body
-        </MudContainer>
-    </MudMainContent>
-</MudLayout>
-
+<MeadowPageMenu Open="@Layout.PageMenuOpen" Route="@_route" OnClose="@Layout.CloseAll" />
+<MeadowAddMenu Open="@Layout.AddMenuOpen" OnClose="@Layout.CloseAll" />
 
 @code {
-    bool open = false;
-    private MudTheme _theme = new();
-    public bool _isDarkMode { get; set; } = false;
-    public TimeSpan _startSpan = new TimeSpan(7, 0, 0);
-    public TimeSpan _endSpan = new TimeSpan(19, 0, 0);
-
-
-    void ToggleDrawer()
-    {
-        open = !open;
-    }
+    private string _route = "";
+    private string _title = "Dashboard";
+    private string _fabTitle = "Hinzufügen";
+    private bool _hasSiblings;
 
     protected override void OnInitialized()
     {
-        base.OnInitialized();
-        DarkSwitch();
+        ReadRoute();
+        Layout.Changed += OnStateChanged;
+        Theme.Changed += OnStateChanged;
+        Nav.LocationChanged += OnLocationChanged;
     }
 
-    private void OpenInfoDialog()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        var options = new DialogOptions()
+        if (firstRender)
         {
-            MaxWidth = MaxWidth.Medium,
-            FullWidth = true
-        };
-        DialogService.Show<DatabaseInfoDialog>("Datenbank Informationen", options);
-    }
-
-    void DarkSwitch()
-    {
-        if (DateTime.Now.TimeOfDay > _endSpan)
-        {
-            _isDarkMode = true;
-        }
-        else
-        {
-            _isDarkMode = false;
+            // Erst hier gibt es JS. Das Attribut steht dank des Inline-Skripts
+            // in App.razor schon vor dem ersten Paint; nachgelesen wird es nur,
+            // damit MudThemeProvider denselben Zustand kennt.
+            await Theme.InitializeAsync();
         }
     }
 
-    MudTheme CustomTheme = new()
+    private void ReadRoute()
     {
-        PaletteLight = new PaletteLight()
-        {
-            Primary = "#60ADC9",
-            TextPrimary = "#404040",
-            TextSecondary = "#EEBE88",
-            Success = "#00C853",
-            SuccessLighten = "#E3F0CC",
-            Warning = "#DC8F00",
-            WarningLighten = "#FFDD9E",
-            Error = "#E00F03",
-            ErrorLighten = "#FAB7B7",
-            TableHover = "#E8E8E8",
-            GrayLight = "#D1D1D1",
-            GrayDark = "#8C8C8C",
-            White = "#FFFFFF",
-            PrimaryLighten = "#acc1c8",
-            Secondary = "#8DC2B0",
-            Tertiary = "#619B98"
-        },
-        PaletteDark = new PaletteDark()
-        {
-            Primary = "#60ADC9",
-            TextPrimary = "#ffffff",
-            TextSecondary = "#FFFFFF",
-            Success = "#00C853",
-            SuccessLighten = "#E3F0CC",
-            Warning = "#DC8F00",
-            WarningLighten = "#FFDD9E",
-            Error = "#E00F03",
-            ErrorLighten = "#FAB7B7",
-            TableHover = "#53545e",
-            GrayLight = "#82838d",
-            GrayDark = "#FFFFFF",
-            White = "#FFFFFF",
-            PrimaryLighten = "#FFD2AD",
-            Surface = "#393A46",
-            Secondary = "#8DC2B0",
-            AppbarBackground = "#60ADC9",
-            Tertiary = "619B98"
-        },
-        Typography = new Typography()
-        {
-            Button = new Button()
-            {
-                TextTransform = "none",
-            }
-        },
+        _route = MeadowRoutes.Normalize(Nav.ToBaseRelativePath(Nav.Uri));
+        _title = MeadowRoutes.TitleFor(_route);
+        _hasSiblings = MeadowRoutes.HasSiblings(_route);
+        _fabTitle = MeadowDialogLauncher.FabTitleFor(_route);
+    }
 
-    };
-
-    private Dictionary<string, string> PageNames = new Dictionary<string, string>
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
     {
-        { "", "Dashboard" },
-        { "Settings", "Einstellungen" },
-        { "geplante_Klauen_Daten", "geplante Klauen Behandlungen" },
-        { "Klauen_Daten", "Klauen Behandlungen" },
-        { "Verband_Daten", "Verbände" },
-        { "geplante_Kuh_Daten", "geplante Kuh Behandlungen" },
-        { "Kuh_Daten", "Kuh Behandlungen" }
-    };
+        ReadRoute();
+        // Jede Navigation schliesst Drawer und Mobile-Menues (Prototyp: go()).
+        Layout.CloseAll();
+        StateHasChanged();
+    }
 
-    
-    private string GetSiteName()
+    private void OnStateChanged() => InvokeAsync(StateHasChanged);
+
+    private void OnTitleClick()
     {
-        var uri = navigationManager.Uri;
-        uri = uri.Replace("https://localhost:7111/", "");
-        uri = uri.Replace("http://192.168.50.225:5750/", "");
-        uri = uri.Replace("https://4cows.duckdns.org/", "");
-        uri = uri.Replace("https://4cows.benjaminbiber.de/", "");
-        return PageNames.TryGetValue(uri, out string result) ? result : "";
+        if (_hasSiblings)
+        {
+            Layout.TogglePageMenu();
+        }
+    }
+
+    private Task OpenInfo()
+    {
+        Layout.CloseAll();
+        return Launcher.OpenDatabaseInfoAsync();
+    }
+
+    private Task OnFab()
+    {
+        var action = Launcher.FabActionFor(_route);
+        if (action is null)
+        {
+            Layout.ToggleAddMenu();
+            return Task.CompletedTask;
+        }
+
+        Layout.CloseAll();
+        return action();
+    }
+
+    public void Dispose()
+    {
+        Layout.Changed -= OnStateChanged;
+        Theme.Changed -= OnStateChanged;
+        Nav.LocationChanged -= OnLocationChanged;
     }
 }

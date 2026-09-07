@@ -18,4 +18,5 @@ public sealed class DatabaseContext : DbContext
     public DbSet<CowTreatment> CowTreatments => Set<CowTreatment>();
     public DbSet<Udder> Udders => Set<Udder>();
     public DbSet<WhereHow> WhereHows => Set<WhereHow>();
+    public DbSet<AppSetting> AppSettings => Set<AppSetting>();
 }

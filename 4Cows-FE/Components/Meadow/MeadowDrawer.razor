@@ -1,0 +1,67 @@
+@* st.drawer / st.drawerBackdrop / st.navGroupLabel — Overlay-Drawer, standardmaessig zu. *@
+@if (Open)
+{
+    <button type="button" class="mw-drawer-backdrop" tabindex="-1"
+            aria-label="Navigation schließen" @onclick="OnClose"></button>
+
+    <nav class="mw-drawer mw-scroll" aria-label="Hauptnavigation">
+        <div class="mw-drawer__brand">
+            <img class="mw-drawer__logo" src="LOGO.png" alt="" />
+            <span class="mw-drawer__wordmark">MEADOW</span>
+        </div>
+
+        <div class="mw-nav-group">Übersicht</div>
+        <MeadowNavItem Href="@MeadowRoutes.Dashboard" Match="NavLinkMatch.All"
+                       Accent="NavGroup.Dashboard" Icon="MeadowIconName.Dashboard">
+            Dashboard
+        </MeadowNavItem>
+
+        <div class="mw-nav-group">Kuh</div>
+        <MeadowNavItem Href="@MeadowRoutes.CowTreatments"
+                       Accent="NavGroup.Cow" Icon="MeadowIconName.Cow">
+            Kuh Behandlungen
+        </MeadowNavItem>
+        <MeadowNavItem Href="@MeadowRoutes.PlannedCowTreatments"
+                       Accent="NavGroup.Cow" Icon="MeadowIconName.PlannedCow">
+            Geplante Kuh Behandl.
+        </MeadowNavItem>
+
+        <div class="mw-nav-group">Klaue</div>
+        <MeadowNavItem Href="@MeadowRoutes.Bandages"
+                       Accent="NavGroup.Claw" Icon="MeadowIconName.Bandage">
+            Verbände
+        </MeadowNavItem>
+        <MeadowNavItem Href="@MeadowRoutes.ClawTreatments"
+                       Accent="NavGroup.Claw" Icon="MeadowIconName.Claw">
+            Klauen Behandlungen
+        </MeadowNavItem>
+        <MeadowNavItem Href="@MeadowRoutes.PlannedClawTreatments"
+                       Accent="NavGroup.Claw" Icon="MeadowIconName.PlannedClaw">
+            Geplante Klauen Behandl.
+        </MeadowNavItem>
+
+        <div class="mw-nav-group">System</div>
+        <MeadowNavItem Href="@MeadowRoutes.Settings"
+                       Accent="NavGroup.System" Icon="MeadowIconName.Settings">
+            Einstellungen
+        </MeadowNavItem>
+
+        @*
+            Der Info-Button im Header ist mw-only-desktop (so zeichnet der
+            Prototyp den mobilen Kopf). Ohne diesen Eintrag waeren die
+            Datenbank-Informationen mobil ueberhaupt nicht erreichbar. Kein
+            NavItem, weil das eine Route braucht - hier oeffnet ein Dialog.
+        *@
+        <button type="button" class="mw-nav-item mw-nav-item--teal"
+                @onclick="OnInfo">
+            <MeadowIcon Name="MeadowIconName.Info" Size="19" />
+            <span>Datenbank Informationen</span>
+        </button>
+    </nav>
+}
+
+@code {
+    [Parameter] public bool Open { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback OnInfo { get; set; }
+}

@@ -1,0 +1,24 @@
+@*
+    Ersetzt das MudOverlay/MudPaper-Gate in Index.razor. Die Logik dahinter
+    (DatabaseConnectionState, Event-Abo, IDisposable) bleibt unveraendert -
+    hier wird nur das Markup neu.
+*@
+@if (Visible)
+{
+    <div class="mw-offline-backdrop" role="alertdialog" aria-modal="true"
+         aria-labelledby="mw-offline-title">
+        <div class="mw-offline-card">
+            <div class="mw-offline-card__badge">
+                <MeadowIcon Name="MeadowIconName.CloudOff" Size="30" />
+            </div>
+            <div class="mw-offline-card__title" id="mw-offline-title">Keine Datenbank verbunden</div>
+            <div class="mw-offline-card__text">
+                Bitte prüfe die Datenbankverbindung oder kontaktiere den Administrator.
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool Visible { get; set; }
+}

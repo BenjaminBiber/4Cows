@@ -1,63 +1,267 @@
-﻿@page "/Kuh_Daten"
-@inject IDialogService DialogService
-@using _4Cows_FE.Components._4CowsComponent
+@page "/Kuh_Daten"
+
 @using _4Cows_FE.Components._4CowsComponent.Dialogs
+@using _4Cows_FE.Components.Meadow
+@using _4Cows_FE.Components.Services
+
+@inject MeadowDataLoader Data
+@inject MeadowDialogLauncher Launcher
 @inject CowTreatmentService cowTreatmentService
 @inject CowService cowService
 @inject MedicineService medicineService
 @inject WhereHowService WhereHowService
 @inject UdderService UdderService
 
-<MudGrid Justify="Justify.FlexEnd">
-    <MudIconButton Icon="@Icons.Material.Filled.AddCircle" Color="Color.Secondary" Size="Size.Large" OnClick="OpenCowDialog"></MudIconButton>
-</MudGrid>
+<MeadowToolbar>
+    <Left>
+        <MeadowSearchBox Value="@_filter.Search" ValueChanged="OnSearchChanged"
+                         AriaLabel="Kuh Behandlungen durchsuchen" />
+        @if (_filter.HasAny)
+        {
+            <span class="mw-result-count mw-only-desktop">@CountText</span>
+        }
+    </Left>
+    <Right>
+        <MeadowFilterPopover Open="_filterOpen" ShowReset="@(_filter.ActiveCount > 0)"
+                             CountText="@($"{CountText} Behandlungen")"
+                             OnClose="CloseFilter" OnReset="ResetFilter">
+            <Trigger>
+                <MeadowFilterButton ActiveCount="_filter.ActiveCount" Open="_filterOpen"
+                                    OnClick="ToggleFilter" />
+            </Trigger>
+            <ChildContent>
+                <MeadowChipSelect Label="Medikament" Options="MedicineOptions"
+                                  Selected="@_filter.Medicine"
+                                  SelectedChanged="OnMedicineChanged" />
+                <MeadowChipSelect Label="Zeitraum" Options="DateRanges.Labels"
+                                  Selected="@DateRanges.ToLabel(_filter.Range)"
+                                  SelectedChanged="OnRangeChanged" />
+            </ChildContent>
+        </MeadowFilterPopover>
 
-<MudTable Elevation="5" Items="@CowTreatments" Hover="true" Striped="@true" Filter="(Func<CowTreatment, bool>)FilterFunc1" @bind-SelectedItem="selectedCow">
-    <ToolBarContent>
-        <MudText Class="table-Header" Typo="Typo.h3">Kuh Behandlungen</MudText>
-        <MudSpacer/>
-        <MudTextField @bind-Value="cowSearchString" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
-    </ToolBarContent>
-    <HeaderContent>
-        <MudTh><MudTableSortLabel SortBy="new Func<CowTreatment, object>(x=>cowService.GetCollarNumberByCowId(x.EarTagNumber))">Halsbandnummer</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel SortBy="new Func<CowTreatment, object>(x=>x.EarTagNumber)">Ohrmarkennummer</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel SortBy="new Func<CowTreatment, object>(x=>x.AdministrationDate)">Datum</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel SortBy="new Func<CowTreatment, object>(x=>x.MedicineId)">Medikament</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel SortBy="new Func<CowTreatment, object>(x=> WhereHowService.GetFullWhereHowName(x.WhereHowId,UdderService, x.UdderId))">Wie/Wo</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel SortBy="new Func<CowTreatment, object>(x=>x.MedicineDosage)">Menge</MudTableSortLabel></MudTh>
+        <button type="button" class="mw-btn mw-btn--primary" @onclick="AddTreatment">
+            <MeadowIcon Name="MeadowIconName.Plus" Size="20" />
+            <span>Neue Behandlung</span>
+        </button>
+    </Right>
+</MeadowToolbar>
 
-    </HeaderContent>
-    <RowTemplate>
-        <MudTd DataLabel="Halsbandnummer">@cowService.GetCollarNumberByCowId(context.EarTagNumber)</MudTd>
-        <MudTd DataLabel="Ohrmarkennummer">@cowService.GetEarTagDisplay(context.EarTagNumber)</MudTd>
-            <MudTd DataLabel="Datum">@context.AdministrationDate.ToString("dd.MM.yyyy")</MudTd>
-            <MudTd DataLabel="Medikament">@medicineService.GetMedicineNameById(context.MedicineId)</MudTd>
-            <MudTd DataLabel="Wie/Wo">@WhereHowService.GetFullWhereHowName(context.WhereHowId, UdderService, context.UdderId)</MudTd>
-            <MudTd DataLabel="Menge">@context.MedicineDosage</MudTd>
+<MeadowTable TItem="CowTreatment" Items="_rows" Columns="_columns"
+             RowKey="@(r => r.CowTreatmentId)"
+             DefaultSortTitle="Datum" DefaultSortDescending="true"
+             PagerLabel="Behandlungen pro Seite"
+             EmptyText="Keine Behandlungen gefunden.">
+    <EmptyContent>
+        @if (_filter.HasAny)
+        {
+            <button type="button" class="mw-empty__reset" @onclick="ClearAll">
+                Suche und Filter zurücksetzen
+            </button>
+        }
+    </EmptyContent>
+    <MobileCard Context="row">
+        <div class="mw-row-card">
+            <div class="mw-row-card__top">
+                <span class="mw-row-card__title">Nr. @Collar(row)</span>
+                <span class="mw-pill">@Medicine(row)</span>
+            </div>
+            <div class="mw-row-card__mono">@EarTag(row)</div>
+            <div class="mw-row-card__meta">
+                <span>@row.AdministrationDate.ToString("dd.MM.yyyy")</span>
+                <span>@WhereHow(row)</span>
+                <span>@Dosage(row)</span>
+            </div>
+        </div>
+    </MobileCard>
+</MeadowTable>
 
-        </RowTemplate>
-        <PagerContent>
-            <MudTablePager RowsPerPageString="Behandlungen pro Seite" PageSizeOptions="new int[]{25, 50, 100}" />
-        </PagerContent>
-    </MudTable>
+@code {
+    private readonly CowTableFilter _filter = new();
+    private bool _filterOpen;
 
-    @code{
-    private string cowSearchString = "";
-    private CowTreatment selectedCow = null;
-    private IEnumerable<CowTreatment> CowTreatments = new List<CowTreatment>();
-
-    private bool FilterFunc1(CowTreatment CowTreatment) => cowService.FilterFuncCow(CowTreatment.EarTagNumber, cowSearchString);
+    private List<CowTreatment> _all = new();
+    private List<CowTreatment> _rows = new();
+    private List<MeadowColumn<CowTreatment>> _columns = new();
 
     protected override async Task OnInitializedAsync()
     {
-        await cowTreatmentService.GetAllDataAsync();
-        await UdderService.GetAllDataAsync();
-        CowTreatments = cowTreatmentService.Treatments.Values.OrderByDescending(x => x.AdministrationDate);
+        // Vorher fehlten hier Medicine, WhereHow und Cow. Folge: beim
+        // Direktaufruf blieben Halsband und Medikament leer - und weil
+        // FilterFuncCow bei unbekannter Cow_ID false liefert, filterte die
+        // Suche zusaetzlich ALLE Zeilen weg.
+        await Data.EnsureCowTreatmentsAsync();
+        _all = cowTreatmentService.Treatments.Values.ToList();
+        BuildColumns();
+        Apply();
     }
 
-    private void OpenCowDialog()
+    // ---- Spalten ------------------------------------------------------
+
+    private void BuildColumns() => _columns = new()
     {
-        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
-        DialogService.Show<Add_Cow_Treatment_Dialog>("", options);
+        new MeadowColumn<CowTreatment>
+        {
+            Title = "Halsband",
+            Text = Collar,
+            SortBy = r => CollarSortKey(r),
+            Style = MeadowCellStyle.Bold
+        },
+        new MeadowColumn<CowTreatment>
+        {
+            Title = "Ohrmarke",
+            Text = EarTag,
+            SortBy = EarTag,
+            Style = MeadowCellStyle.Mono
+        },
+        new MeadowColumn<CowTreatment>
+        {
+            Title = "Datum",
+            Text = r => r.AdministrationDate.ToString("dd.MM.yyyy"),
+            SortBy = r => r.AdministrationDate,
+            NoWrap = true
+        },
+        new MeadowColumn<CowTreatment>
+        {
+            Title = "Medikament",
+            Text = Medicine,
+            // Sortiert nach dem Namen. Vorher stand hier x.MedicineId, also
+            // nach einer ID, die niemand sieht.
+            SortBy = Medicine,
+            Template = row => @<span class="mw-pill">@Medicine(row)</span>
+        },
+        new MeadowColumn<CowTreatment>
+        {
+            Title = "Wie / Wo",
+            Text = WhereHow,
+            SortBy = WhereHow
+        },
+        new MeadowColumn<CowTreatment>
+        {
+            Title = "Menge",
+            Text = Dosage,
+            SortBy = r => r.MedicineDosage,
+            NoWrap = true
+        }
+    };
+
+    // ---- Anzeige-Helfer -----------------------------------------------
+
+    private string Collar(CowTreatment r)
+    {
+        var collar = cowService.GetCollarNumberByCowId(r.EarTagNumber);
+        return collar == int.MinValue ? "–" : collar.ToString();
+    }
+
+    // Unbekannt ist int.MinValue und wuerde sonst VOR allen echten
+    // Halsbandnummern sortieren.
+    private int CollarSortKey(CowTreatment r)
+    {
+        var collar = cowService.GetCollarNumberByCowId(r.EarTagNumber);
+        return collar == int.MinValue ? int.MaxValue : collar;
+    }
+
+    private string EarTag(CowTreatment r) => cowService.GetEarTagDisplay(r.EarTagNumber);
+
+    private string Medicine(CowTreatment r) => medicineService.GetMedicineNameById(r.MedicineId);
+
+    private string WhereHow(CowTreatment r)
+        => WhereHowService.GetFullWhereHowName(r.WhereHowId, UdderService, r.UdderId);
+
+    private string Dosage(CowTreatment r) => r.MedicineDosage.ToString("0.##");
+
+    // ---- Filter -------------------------------------------------------
+
+    /// <summary>
+    /// Nur die tatsaechlich vorkommenden Medikamente - nicht die fuenf
+    /// hartcodierten des Prototyps und auch nicht GetMedicineNames(), das
+    /// nie benutzte und automatisch angelegte Namen enthaelt und nicht
+    /// einmal Distinct() macht.
+    /// </summary>
+    private IReadOnlyList<string> MedicineOptions => _all
+        .Select(r => medicineService.GetMedicineNameById(r.MedicineId))
+        .Where(n => !string.IsNullOrEmpty(n) && n != "--")
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(n => n, StringComparer.CurrentCulture)
+        .ToList();
+
+    private string CountText => $"{_rows.Count} von {_all.Count}";
+
+    private void Apply()
+    {
+        IEnumerable<CowTreatment> query = _all;
+
+        var search = _filter.Search.Trim();
+        if (search.Length > 0)
+        {
+            query = query.Where(r =>
+                Contains(Collar(r), search)
+                || Contains(EarTag(r), search)
+                || Contains(Medicine(r), search));
+        }
+
+        if (_filter.Medicine != DateRanges.AllLabel)
+        {
+            query = query.Where(r =>
+                string.Equals(Medicine(r), _filter.Medicine, StringComparison.OrdinalIgnoreCase));
+        }
+
+        query = query.Where(r => DateRanges.Matches(_filter.Range, r.AdministrationDate));
+
+        _rows = query.ToList();
+    }
+
+    private static bool Contains(string haystack, string needle)
+        => haystack.Contains(needle, StringComparison.OrdinalIgnoreCase);
+
+    private void OnSearchChanged(string value)
+    {
+        _filter.Search = value;
+        Apply();
+    }
+
+    private void OnMedicineChanged(string value)
+    {
+        _filter.Medicine = value;
+        Apply();
+    }
+
+    private void OnRangeChanged(string label)
+    {
+        _filter.Range = DateRanges.Parse(label);
+        Apply();
+    }
+
+    private void ToggleFilter() => _filterOpen = !_filterOpen;
+
+    private void CloseFilter() => _filterOpen = false;
+
+    private void ResetFilter()
+    {
+        _filter.Reset();
+        Apply();
+    }
+
+    private void ClearAll()
+    {
+        _filter.Search = "";
+        _filter.Reset();
+        Apply();
+    }
+
+    // ---- Aktionen -----------------------------------------------------
+
+    private async Task AddTreatment()
+    {
+        if (await Launcher.ShowAndAwaitAsync<Add_Cow_Treatment_Dialog>())
+        {
+            await ReloadAsync();
+        }
+    }
+
+    private async Task ReloadAsync()
+    {
+        await cowTreatmentService.GetAllDataAsync();
+        _all = cowTreatmentService.Treatments.Values.ToList();
+        Apply();
     }
 }
