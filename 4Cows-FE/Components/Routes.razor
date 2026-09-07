@@ -1,6 +1,16 @@
 ﻿<Router AppAssembly="typeof(Program).Assembly">
     <Found Context="routeData">
         <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)"/>
+        @* Fokussiert nach jeder Navigation die Seitenueberschrift im Header.
+           Ohne <h1> bliebe der Fokus auf dem angeklickten Nav-Item und
+           Screenreader kuendigten die neue Seite nie an. *@
         <FocusOnNavigate RouteData="routeData" Selector="h1"/>
     </Found>
+    <NotFound>
+        @* Diesen Zweig gab es bisher nicht - eine unbekannte URL rendert
+           dadurch eine komplett leere Seite. *@
+        <LayoutView Layout="typeof(Layout.MainLayout)">
+            <MeadowNotFound/>
+        </LayoutView>
+    </NotFound>
 </Router>

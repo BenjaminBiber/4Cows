@@ -1,165 +1,323 @@
-﻿@page "/geplante_Kuh_Daten"
+@page "/geplante_Kuh_Daten"
+
+@using _4Cows_FE.Components._4CowsComponent.Dialogs
+@using _4Cows_FE.Components.Meadow
+@using _4Cows_FE.Components.Services
+
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
-@using _4Cows_FE.Components._4CowsComponent
-@using _4Cows_FE.Components._4CowsComponent.Dialogs
+@inject MeadowDataLoader Data
+@inject MeadowDialogLauncher Launcher
 @inject PCowTreatmentService pCowTreatmentService
 @inject MedicineService medicineService
 @inject CowService cowService
 @inject WhereHowService WhereHowService
 @inject UdderService UdderService
 
-<MudGrid Justify="Justify.FlexEnd">
-    <MudSwitch @bind-Value="isSimpleView" Label="Simple Ansicht" UncheckedColor="Color.Info" Color="Color.Primary" />
-    <MudIconButton Icon="@Icons.Material.Filled.AddCircle" Color="Color.Secondary" Size="Size.Large" OnClick="OpenPlannedDialog"></MudIconButton>
-</MudGrid>
-
-<MudTable Items="@Planned_Treatments" Hover="true" Striped="@true" Filter="(Func<PlannedCowTreatment, bool>)FilterFunc1Planned" @bind-SelectedItem="selectedPlannedCow">
-    
-    <ToolBarContent>
-        @if (!isSimpleView)
+<MeadowToolbar>
+    <Left>
+        <span class="mw-section-title mw-only-desktop">Geplante Kuh Behandlungen</span>
+        @if (!_simpleView)
         {
-            <MudText Class="table-Header" Typo="Typo.h3">geplante Kuh Behandlungen</MudText>
-            <MudSpacer/>
-            <MudTextField @bind-Value="plannedCowString" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
-        }
-    </ToolBarContent>
-    
-    <HeaderContent>
-        <MudTh><MudTableSortLabel SortBy="new Func<PlannedCowTreatment, object>(x=>cowService.GetCollarNumberByCowId(x.EarTagNumber))">Halsbandnummer</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel SortBy="new Func<PlannedCowTreatment, object>(x=>x.EarTagNumber)">Ohrmarkennummer</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel SortBy="new Func<PlannedCowTreatment, object>(x=>x.MedicineId)">Medikament</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel SortBy="new Func<PlannedCowTreatment, object>(x=> WhereHowService.GetFullWhereHowName(x.WhereHowId, UdderService, x.UdderId))">Wie/Wo</MudTableSortLabel></MudTh>
-
-        @if (!isSimpleView)
-        {
-            <MudTh><MudTableSortLabel SortBy="new Func<PlannedCowTreatment, object>(x=>x.AdministrationDate)">Datum</MudTableSortLabel></MudTh>
-            <MudTh><MudTableSortLabel SortBy="new Func<PlannedCowTreatment, object>(x=>x.MedicineDosage)">Menge</MudTableSortLabel></MudTh>
-        }
-        
-        <MudTh>Behandelt</MudTh>
-        <MudTh></MudTh>
-
-    </HeaderContent>
-    <RowTemplate>
-        <MudTd Style="" DataLabel="Halsbandnummer">@cowService.GetCollarNumberByCowId(context.EarTagNumber)</MudTd>
-        <MudTd DataLabel="Ohrmarkennummer">
-            @{
-                var earTag = cowService.GetEarTagDisplay(context.EarTagNumber);
+            <MeadowSearchBox Value="@_search" ValueChanged="OnSearchChanged"
+                             AriaLabel="Geplante Kuh Behandlungen durchsuchen" />
+            @if (_search.Length > 0)
+            {
+                <span class="mw-result-count mw-only-desktop">@CountText</span>
             }
-            @(isSimpleView && earTag.Length > 5 ? earTag.Substring(earTag.Length - 5) : earTag)
-        </MudTd>
-        <MudTd DataLabel="Medikament">@medicineService.GetMedicineNameById(context.MedicineId)</MudTd>
-        <MudTd DataLabel="Wie/Wo">@WhereHowService.GetFullWhereHowName(context.WhereHowId, UdderService, context.UdderId)</MudTd>
+        }
+    </Left>
+    <Right>
+        @* Stall-Modus: blendet Suche, Zaehler, Pager und zwei Spalten aus und
+           ueberspringt die Speichern-Bestaetigung. Bleibt in der Toolbar, weil
+           es der einzige Weg zurueck ist. *@
+        <MeadowSwitch Value="_simpleView" ValueChanged="OnSimpleViewChanged"
+                      Label="Simple Ansicht" />
 
-        @if (!isSimpleView)
-        {
-            <MudTd DataLabel="Datum">@context.AdministrationDate.ToString("dd.MM.yyyy")</MudTd>
-            <MudTd DataLabel="Menge">@context.MedicineDosage</MudTd>
-        }
-        <MudTd><MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="@(() => AddCowTreatment(context))">Behandlung abschließen</MudButton></MudTd>
-        <MudTd><MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="@(() => RemovePlannedCowDialog(context))">Behandlung entfernen</MudButton></MudTd>
-    </RowTemplate>
-    
-    <PagerContent>
-        @if (!isSimpleView)
-        {
-            <MudTablePager RowsPerPageString="Behandlungen pro Seite" PageSizeOptions="new int[] { 25, 50, 100 }"/>
-        }
-    </PagerContent>
-    
-    </MudTable>
+        <button type="button" class="mw-btn mw-btn--primary" @onclick="Plan">
+            <MeadowIcon Name="MeadowIconName.Plus" Size="20" />
+            <span>Planen</span>
+        </button>
+    </Right>
+</MeadowToolbar>
+
+<MeadowTable TItem="PlannedCowTreatment" Items="_rows" Columns="_columns"
+             RowKey="@(r => r.PlannedCowTreatmentId)"
+             DefaultSortTitle="Geplant für"
+             ShowPager="@(!_simpleView)"
+             PagerLabel="Behandlungen pro Seite"
+             EmptyText="Keine geplanten Behandlungen gefunden.">
+    <MobileCard Context="row">
+        <div class="mw-row-card">
+            <div class="mw-row-card__top">
+                <span class="mw-row-card__title">Nr. @Collar(row)</span>
+                <span class="mw-pill">@Medicine(row)</span>
+            </div>
+            <div class="mw-row-card__meta">
+                <span>@row.AdministrationDate.ToString("dd.MM.yyyy")</span>
+                <span>@WhereHow(row)</span>
+                <span>@Dosage(row)</span>
+            </div>
+            <div class="mw-row-card__actions">
+                <button type="button" class="mw-btn mw-btn--sm mw-btn--primary"
+                        @onclick="() => Complete(row)">Abschließen</button>
+                <button type="button" class="mw-btn mw-btn--sm mw-btn--ghost"
+                        @onclick="() => Remove(row)">Entfernen</button>
+            </div>
+        </div>
+    </MobileCard>
+</MeadowTable>
 
 @code {
-    private string plannedCowString = "";
-    public PlannedCowTreatment selectedPlannedCow = null;
-    private IEnumerable<PlannedCowTreatment> Planned_Treatments = new List<PlannedCowTreatment>();
-    private bool isSimpleView = false;
-    private bool FilterFunc1Planned(PlannedCowTreatment Treatment_Cow) => cowService.FilterFuncCow(Treatment_Cow.EarTagNumber, plannedCowString);
+    private List<PlannedCowTreatment> _all = new();
+    private List<PlannedCowTreatment> _rows = new();
+    private List<MeadowColumn<PlannedCowTreatment>> _columns = new();
+
+    private string _search = "";
+    private bool _simpleView;
 
     protected override async Task OnInitializedAsync()
     {
-        await pCowTreatmentService.GetAllDataAsync();
-        await UdderService.GetAllDataAsync();
-        Planned_Treatments = pCowTreatmentService.Treatments.Values;
+        await Data.EnsurePlannedCowAsync();
+        Reload();
     }
 
-    private async Task OpenPlannedDialog()
+    private void Reload()
     {
-        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
-        var result = DialogService.Show<Add_Planned_Cow_Treatment_Dialog>("", options);
-        var resultData = await result.Result;
+        _all = pCowTreatmentService.Treatments.Values.ToList();
+        _columns = BuildColumns(_simpleView);
+        Apply();
+    }
 
-        if (!resultData.Canceled)
+    /// <summary>
+    /// Beide Spaltenformen an einer Stelle, damit die einfache Ansicht nicht
+    /// an zwei Orten gepflegt werden muss.
+    /// </summary>
+    private List<MeadowColumn<PlannedCowTreatment>> BuildColumns(bool simple)
+    {
+        var columns = new List<MeadowColumn<PlannedCowTreatment>>
+        {
+            new()
+            {
+                Title = "Halsband",
+                Text = Collar,
+                SortBy = r => CollarSortKey(r),
+                Style = MeadowCellStyle.Bold
+            },
+            new()
+            {
+                Title = "Ohrmarke",
+                // Im Stall-Modus nur die letzten fuenf Stellen - so war es
+                // auch bisher.
+                Text = r => simple ? ShortEarTag(r) : EarTag(r),
+                SortBy = EarTag,
+                Style = MeadowCellStyle.Mono
+            }
+        };
+
+        if (!simple)
+        {
+            columns.Add(new MeadowColumn<PlannedCowTreatment>
+            {
+                Title = "Geplant für",
+                Text = r => r.AdministrationDate.ToString("dd.MM.yyyy"),
+                SortBy = r => r.AdministrationDate,
+                NoWrap = true
+            });
+        }
+
+        columns.Add(new MeadowColumn<PlannedCowTreatment>
+        {
+            Title = "Medikament",
+            Text = Medicine,
+            SortBy = Medicine,
+            Template = row => @<span class="mw-pill">@Medicine(row)</span>
+        });
+
+        // Statt der gezeichneten Spalte "Notiz": Planned_Cow_Treatment hat
+        // kein Beschreibungsfeld, also die vorhandenen Angaben.
+        columns.Add(new MeadowColumn<PlannedCowTreatment>
+        {
+            Title = "Wie / Wo",
+            Text = WhereHow,
+            SortBy = WhereHow
+        });
+
+        if (!simple)
+        {
+            columns.Add(new MeadowColumn<PlannedCowTreatment>
+            {
+                Title = "Menge",
+                Text = Dosage,
+                SortBy = r => r.MedicineDosage,
+                NoWrap = true
+            });
+        }
+
+        // Der bisherige Kopf "Behandelt" hatte keine zugehoerige Zelle -
+        // Kopf- und Zellenzahl liefen dadurch auseinander.
+        columns.Add(new MeadowColumn<PlannedCowTreatment>
+        {
+            IsActions = true,
+            Template = row =>
+                @<text>
+                    <button type="button" class="mw-btn mw-btn--sm mw-btn--primary"
+                            @onclick="() => Complete(row)">Behandlung abschließen</button>
+                    <MeadowIconButton Icon="MeadowIconName.Trash" Title="Behandlung entfernen"
+                                      Danger="true" OnClick="() => Remove(row)" />
+                </text>
+        });
+
+        return columns;
+    }
+
+    // ---- Anzeige-Helfer -----------------------------------------------
+
+    private string Collar(PlannedCowTreatment r)
+    {
+        var collar = cowService.GetCollarNumberByCowId(r.EarTagNumber);
+        return collar == int.MinValue ? "–" : collar.ToString();
+    }
+
+    private int CollarSortKey(PlannedCowTreatment r)
+    {
+        var collar = cowService.GetCollarNumberByCowId(r.EarTagNumber);
+        return collar == int.MinValue ? int.MaxValue : collar;
+    }
+
+    private string EarTag(PlannedCowTreatment r) => cowService.GetEarTagDisplay(r.EarTagNumber);
+
+    private string ShortEarTag(PlannedCowTreatment r)
+    {
+        var tag = EarTag(r);
+        return tag.Length > 5 ? tag[^5..] : tag;
+    }
+
+    private string Medicine(PlannedCowTreatment r) => medicineService.GetMedicineNameById(r.MedicineId);
+
+    private string WhereHow(PlannedCowTreatment r)
+        => WhereHowService.GetFullWhereHowName(r.WhereHowId, UdderService, r.UdderId);
+
+    private string Dosage(PlannedCowTreatment r) => r.MedicineDosage.ToString("0.##");
+
+    private string CountText => $"{_rows.Count} von {_all.Count}";
+
+    // ---- Filter -------------------------------------------------------
+
+    private void Apply()
+    {
+        IEnumerable<PlannedCowTreatment> query = _all;
+
+        var search = _search.Trim();
+        if (search.Length > 0 && !_simpleView)
+        {
+            query = query.Where(r =>
+                Collar(r).Contains(search, StringComparison.OrdinalIgnoreCase)
+                || EarTag(r).Contains(search, StringComparison.OrdinalIgnoreCase)
+                || Medicine(r).Contains(search, StringComparison.OrdinalIgnoreCase)
+                || WhereHow(r).Contains(search, StringComparison.OrdinalIgnoreCase));
+        }
+
+        _rows = query.ToList();
+    }
+
+    private void OnSearchChanged(string value)
+    {
+        _search = value;
+        Apply();
+    }
+
+    private void OnSimpleViewChanged(bool value)
+    {
+        _simpleView = value;
+        _columns = BuildColumns(_simpleView);
+        Apply();
+    }
+
+    // ---- Aktionen -----------------------------------------------------
+
+    private async Task Plan()
+    {
+        if (await Launcher.ShowAndAwaitAsync<Add_Planned_Cow_Treatment_Dialog>())
         {
             await pCowTreatmentService.GetAllDataAsync();
-            Planned_Treatments = pCowTreatmentService.Treatments.Values;
+            Reload();
         }
-        
     }
 
-    async Task AddCowTreatment(PlannedCowTreatment Planned_Cow_Treatment)
+    private async Task Complete(PlannedCowTreatment planned)
     {
-        DialogResult result = null;
-        if (!isSimpleView)
+        if (!_simpleView && !await Confirm(
+                "Speichern",
+                "Wollen Sie die Behandlung wirklich speichern?",
+                "Ja", Color.Success))
         {
-            var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, NoHeader = true };
-            var parametersGeneric = new DialogParameters<GenericDialog> { { x => x.HeaderText, "Speichern" }, { x => x.Description, "Wollen Sie die Behandlung wirklich Speichern?" }, { x => x.AcceptButtonText, "Ja" }, { x => x.CancelButtonText, "Nein" }, { x => x.ColorScheme, Color.Success } };
-            var dialog = await DialogService.ShowAsync<GenericDialog>("",parametersGeneric, options);
-            result = await dialog.Result;
-        }
-        
-        if(isSimpleView || result.Data != null)
-        {
-            if (isSimpleView || ((bool)result.Data && result.Data != null))
-            {
-                var Cow_Treatment = new CowTreatment();
-                Cow_Treatment.EarTagNumber = Planned_Cow_Treatment.EarTagNumber;
-                Cow_Treatment.AdministrationDate = Planned_Cow_Treatment.AdministrationDate;
-                Cow_Treatment.MedicineDosage = Planned_Cow_Treatment.MedicineDosage;
-                Cow_Treatment.MedicineId = Planned_Cow_Treatment.MedicineId;
-                Cow_Treatment.WhereHowId = Planned_Cow_Treatment.WhereHowId;
-                Cow_Treatment.UdderId = Planned_Cow_Treatment.UdderId;
-                var options1 = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
-                var parameters = new DialogParameters<Add_Cow_Treatment_Dialog> { { x => x.Cow_Treatment, Cow_Treatment } };
-                await DialogService.ShowAsync<Add_Cow_Treatment_Dialog>("", parameters, options1);
-                await pCowTreatmentService.RemoveByIDAsync(Planned_Cow_Treatment.PlannedCowTreatmentId);
-                Snackbar.Add("Speichern abgeschlossen", Severity.Success);
-                Planned_Treatments = pCowTreatmentService.Treatments.Values;
-            }
-            else
-            {
-                Snackbar.Add("Löschen abgebrochen", Severity.Warning);
-            }
+            return;
         }
 
-        StateHasChanged();
-    }
+        var treatment = new CowTreatment
+        {
+            EarTagNumber = planned.EarTagNumber,
+            AdministrationDate = planned.AdministrationDate,
+            MedicineDosage = planned.MedicineDosage,
+            MedicineId = planned.MedicineId,
+            WhereHowId = planned.WhereHowId,
+            UdderId = planned.UdderId
+        };
 
-    async Task RemovePlannedCowDialog(PlannedCowTreatment Planned_Cow_Treatment)
-    {
-        var options = new DialogOptions {MaxWidth = MaxWidth.Medium, FullWidth = true, NoHeader = true };
-        var paramters = new DialogParameters<GenericDialog> { { x => x.HeaderText, "Löschen" }, { x => x.Description, "Wollen Sie die Behandlung wirklich löschen?" }, { x => x.AcceptButtonText, "Ja" }, { x => x.CancelButtonText, "Nein" }, { x => x.ColorScheme, Color.Error } };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var parameters = new DialogParameters<Add_Cow_Treatment_Dialog>
+        {
+            { x => x.Cow_Treatment, treatment }
+        };
 
-        var dialog = await DialogService.ShowAsync<Confirm_Planned_Treatment_Delete>("", options);
+        var dialog = await DialogService.ShowAsync<Add_Cow_Treatment_Dialog>(
+            string.Empty, parameters, options);
         var result = await dialog.Result;
-        if (result.Data == null)
-        {
 
-        }
-        else
+        // Bisher wurde der geplante Eintrag geloescht, sobald der Dialog
+        // geoeffnet war - auch wenn der Nutzer dort abbrach. Damit war die
+        // Planung weg, ohne dass eine Behandlung entstand.
+        if (result is null || result.Canceled)
         {
-
-            if ((bool)result.Data && result.Data != null)
-            {
-                await pCowTreatmentService.RemoveByIDAsync(Planned_Cow_Treatment.PlannedCowTreatmentId);
-                Snackbar.Add("Löschen abgeschlossen", Severity.Success);
-            }
-            else
-            {
-                Snackbar.Add("Löschen abgebrochen", Severity.Warning);
-            }
-            StateHasChanged();
+            Snackbar.Add("Abgebrochen — die Planung bleibt bestehen.", Severity.Warning);
+            return;
         }
+
+        await pCowTreatmentService.RemoveByIDAsync(planned.PlannedCowTreatmentId);
+        Snackbar.Add("Behandlung abgeschlossen.", Severity.Success);
+        Reload();
+    }
+
+    private async Task Remove(PlannedCowTreatment planned)
+    {
+        if (!await Confirm(
+                "Löschen",
+                "Wollen Sie die geplante Behandlung wirklich löschen?",
+                "Löschen", Color.Error))
+        {
+            return;
+        }
+
+        await pCowTreatmentService.RemoveByIDAsync(planned.PlannedCowTreatmentId);
+        Snackbar.Add("Geplante Behandlung gelöscht.", Severity.Success);
+        Reload();
+    }
+
+    private async Task<bool> Confirm(string header, string description, string accept, Color scheme)
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, NoHeader = true };
+        var parameters = new DialogParameters<GenericDialog>
+        {
+            { x => x.HeaderText, header },
+            { x => x.Description, description },
+            { x => x.AcceptButtonText, accept },
+            { x => x.CancelButtonText, "Abbrechen" },
+            { x => x.ColorScheme, scheme }
+        };
+
+        var dialog = await DialogService.ShowAsync<GenericDialog>(string.Empty, parameters, options);
+        var result = await dialog.Result;
+        return result is not null && !result.Canceled;
     }
 }

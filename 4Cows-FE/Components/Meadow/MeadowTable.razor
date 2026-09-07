@@ -1,0 +1,311 @@
+@typeparam TItem
+
+@*
+    st.tableWrap / st.th / st.td / st.tr / st.emptyRow / st.mCard
+
+    Desktop-Tabelle UND Mobile-Kartenliste stehen beide im Markup, CSS zeigt
+    eine davon. Kein serverseitiges Viewport-Erkennen: Blazor Server
+    prerendert ohne Viewport-Wissen, jede JS-Weiche wuerde beim ersten Frame
+    die falsche Variante rendern und dann umklappen. Der Preis sind ~2x DOM
+    fuer maximal eine Seite Zeilen.
+
+    Items kommen bereits gefiltert an - Filtern ist Sache der Seite, weil
+    jede Tabelle andere Felder durchsucht. Sortieren und Blaettern passiert
+    hier, damit es nicht neunmal geschrieben wird.
+*@
+
+<div class="mw-table-wrap @Class">
+    <div class="mw-table-scroll">
+        <table class="mw-table">
+            <thead>
+                <tr>
+                    @foreach (var column in Columns)
+                    {
+                        <th style="@(column.Width is null ? null : $"width:{column.Width}")"
+                            class="@(column.IsActions || column.Align == MeadowAlign.Right ? "mw-td--right" : null)"
+                            aria-sort="@AriaSort(column)">
+                            @if (column.IsActions || string.IsNullOrEmpty(column.Title))
+                            {
+                                @column.Title
+                            }
+                            else if (Sortable && column.SortBy is not null)
+                            {
+                                <button type="button" class="@SortClass(column)"
+                                        @onclick="() => ToggleSort(column)">
+                                    <span>@column.Title</span>
+                                    <MeadowIcon Name="MeadowIconName.ChevronDown" Size="13"
+                                                Class="mw-th-sort__caret" />
+                                </button>
+                            }
+                            else
+                            {
+                                @column.Title
+                            }
+                        </th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @if (_view.Count == 0)
+                {
+                    <tr>
+                        <td colspan="@Columns.Count" class="mw-empty">
+                            @EmptyText
+                            @EmptyContent
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var item in _view)
+                    {
+                        <tr @key="Key(item)">
+                            @foreach (var column in Columns)
+                            {
+                                <td class="@column.CellClass" style="@column.CellStyle"
+                                    title="@(column.MaxWidth is not null ? column.Text?.Invoke(item) : null)">
+                                    @if (column.Template is not null)
+                                    {
+                                        @column.Template(item)
+                                    }
+                                    else if (column.Text is not null)
+                                    {
+                                        @column.Text(item)
+                                    }
+                                </td>
+                            }
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @if (ShowPagerNow)
+    {
+        <MeadowTablePager Label="@PagerLabel" Page="@_page" PageCount="@PageCount"
+                          PageSize="@_pageSize" Total="@Items.Count"
+                          PageSizeOptions="@PageSizeOptions"
+                          PageChanged="GoToPage" PageSizeChanged="SetPageSize" />
+    }
+</div>
+
+@if (ShowMobileCards)
+{
+    <div class="mw-cards">
+        @if (_view.Count == 0)
+        {
+            <div class="mw-empty">
+                @EmptyText
+                @EmptyContent
+            </div>
+        }
+        else if (MobileCard is not null)
+        {
+            @foreach (var item in _view)
+            {
+                <div @key="Key(item)">@MobileCard(item)</div>
+            }
+        }
+        else
+        {
+            @* Rueckfall fuer Tabellen ohne eigenes Kartenlayout: erste Spalte
+               als Titel, letzte Nicht-Aktions-Spalte rechts, Rest als Meta. *@
+            @foreach (var item in _view)
+            {
+                <div class="mw-row-card" @key="Key(item)">
+                    <div class="mw-row-card__top">
+                        <span class="mw-row-card__title">@FallbackTitle(item)</span>
+                        <span class="mw-row-card__sub">@FallbackTrailing(item)</span>
+                    </div>
+                    <div class="mw-row-card__meta">
+                        @foreach (var text in FallbackMeta(item))
+                        {
+                            <span>@text</span>
+                        }
+                    </div>
+                </div>
+            }
+        }
+
+        @if (ShowPagerNow)
+        {
+            @* NICHT .mw-table-wrap: die Klasse ist unter 1024px auf
+               display:none - der Mobil-Pager waere damit unsichtbar. *@
+            <div class="mw-cards-foot">
+                <MeadowTablePager Label="@PagerLabel" Page="@_page" PageCount="@PageCount"
+                                  PageSize="@_pageSize" Total="@Items.Count"
+                                  PageSizeOptions="@PageSizeOptions"
+                                  PageChanged="GoToPage" PageSizeChanged="SetPageSize" />
+            </div>
+        }
+    </div>
+}
+else
+{
+    @* Desktop-Admin-Tabellen (Basisdaten, KPIs): das Design zeichnet dort
+       keinen Mobile-Screen. Ein Hinweis ist besser als eine leere Flaeche. *@
+    <div class="mw-cards">
+        <div class="mw-empty">@DesktopOnlyText</div>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<TItem> Items { get; set; } = Array.Empty<TItem>();
+    [Parameter, EditorRequired] public IReadOnlyList<MeadowColumn<TItem>> Columns { get; set; } = Array.Empty<MeadowColumn<TItem>>();
+
+    /// <summary>Stabiler Schluessel fuer @key. Ohne das nimmt Blazor das Item selbst.</summary>
+    [Parameter] public Func<TItem, object>? RowKey { get; set; }
+
+    [Parameter] public RenderFragment<TItem>? MobileCard { get; set; }
+    [Parameter] public bool ShowMobileCards { get; set; } = true;
+
+    /// <summary>Was mobil steht, wenn ShowMobileCards false ist.</summary>
+    [Parameter] public string DesktopOnlyText { get; set; }
+        = "Diese Tabelle ist für größere Bildschirme gedacht — bitte am Desktop öffnen.";
+
+    [Parameter] public string EmptyText { get; set; } = "Keine Einträge gefunden.";
+    [Parameter] public RenderFragment? EmptyContent { get; set; }
+
+    [Parameter] public string? DefaultSortTitle { get; set; }
+    [Parameter] public bool DefaultSortDescending { get; set; }
+    [Parameter] public bool Sortable { get; set; } = true;
+
+    [Parameter] public int PageSize { get; set; } = 25;
+    [Parameter] public int[] PageSizeOptions { get; set; } = { 25, 50, 100 };
+    [Parameter] public bool ShowPager { get; set; } = true;
+    [Parameter] public string PagerLabel { get; set; } = "Einträge pro Seite";
+
+    [Parameter] public string? Class { get; set; }
+
+    private string? _sortTitle;
+    private bool _sortDescending;
+    private int _page;
+    private int _pageSize;
+    private int _lastItemCount = -1;
+    private List<TItem> _view = new();
+
+    protected override void OnInitialized()
+    {
+        _sortTitle = DefaultSortTitle;
+        _sortDescending = DefaultSortDescending;
+        _pageSize = PageSize;
+    }
+
+    protected override void OnParametersSet()
+    {
+        // Filtert die Seite die Liste kleiner, darf man nicht auf einer
+        // leeren Seite sieben stehenbleiben.
+        if (Items.Count != _lastItemCount)
+        {
+            _lastItemCount = Items.Count;
+            _page = 0;
+        }
+
+        Rebuild();
+    }
+
+    private void Rebuild()
+    {
+        IEnumerable<TItem> query = Items;
+
+        var column = Columns.FirstOrDefault(c => c.Title == _sortTitle && c.SortBy is not null);
+        if (Sortable && column?.SortBy is not null)
+        {
+            // Nulls immer hinten, in beide Richtungen.
+            query = _sortDescending
+                ? query.OrderBy(i => column.SortBy(i) is null)
+                       .ThenByDescending(column.SortBy)
+                : query.OrderBy(i => column.SortBy(i) is null)
+                       .ThenBy(column.SortBy);
+        }
+
+        var list = query.ToList();
+        PageCount = ShowPager && _pageSize > 0
+            ? Math.Max(1, (int)Math.Ceiling(list.Count / (double)_pageSize))
+            : 1;
+
+        if (_page >= PageCount)
+        {
+            _page = PageCount - 1;
+        }
+
+        _view = ShowPager && _pageSize > 0
+            ? list.Skip(_page * _pageSize).Take(_pageSize).ToList()
+            : list;
+    }
+
+    private int PageCount { get; set; } = 1;
+
+    /// <summary>Der Pager verschwindet, solange alles auf eine Seite passt.</summary>
+    private bool ShowPagerNow => ShowPager && Items.Count > _pageSize;
+
+    private object Key(TItem item) => RowKey?.Invoke(item) ?? item!;
+
+    private void ToggleSort(MeadowColumn<TItem> column)
+    {
+        if (_sortTitle == column.Title)
+        {
+            _sortDescending = !_sortDescending;
+        }
+        else
+        {
+            _sortTitle = column.Title;
+            _sortDescending = false;
+        }
+
+        Rebuild();
+    }
+
+    private string SortClass(MeadowColumn<TItem> column)
+    {
+        if (_sortTitle != column.Title)
+        {
+            return "mw-th-sort";
+        }
+
+        return _sortDescending ? "mw-th-sort is-sorted is-desc" : "mw-th-sort is-sorted";
+    }
+
+    private string? AriaSort(MeadowColumn<TItem> column)
+    {
+        if (!Sortable || column.SortBy is null || _sortTitle != column.Title)
+        {
+            return null;
+        }
+
+        return _sortDescending ? "descending" : "ascending";
+    }
+
+    private void GoToPage(int page)
+    {
+        _page = Math.Clamp(page, 0, PageCount - 1);
+        Rebuild();
+    }
+
+    private void SetPageSize(int size)
+    {
+        _pageSize = size;
+        _page = 0;
+        Rebuild();
+    }
+
+    // ---- Rueckfall-Kartenlayout ----------------------------------------
+
+    private IReadOnlyList<MeadowColumn<TItem>> DataColumns
+        => Columns.Where(c => !c.IsActions && c.Text is not null).ToList();
+
+    private string FallbackTitle(TItem item)
+        => DataColumns.FirstOrDefault()?.Text?.Invoke(item) ?? "";
+
+    private string FallbackTrailing(TItem item)
+    {
+        var columns = DataColumns;
+        return columns.Count > 1 ? columns[^1].Text!.Invoke(item) : "";
+    }
+
+    private IEnumerable<string> FallbackMeta(TItem item)
+        => DataColumns.Skip(1).Take(Math.Max(0, DataColumns.Count - 2))
+            .Select(c => c.Text!.Invoke(item))
+            .Where(t => !string.IsNullOrWhiteSpace(t));
+}

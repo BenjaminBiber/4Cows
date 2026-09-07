@@ -1,0 +1,10 @@
+@* dayChip(d) — ab sieben Tagen rot. Traegt bewusst --mw-danger und nicht
+   --mw-neg-fg; letzteres gehoert allein zum "Verband entfernt"-Badge. *@
+<span class="@(Days >= OverdueFrom ? "mw-pill mw-pill--overdue" : "mw-pill")">
+    @Days Tage
+</span>
+
+@code {
+    [Parameter, EditorRequired] public int Days { get; set; }
+    [Parameter] public int OverdueFrom { get; set; } = 7;
+}

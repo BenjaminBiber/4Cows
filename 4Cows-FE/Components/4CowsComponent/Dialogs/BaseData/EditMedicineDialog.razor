@@ -1,41 +1,72 @@
-@using System.Drawing.Text
+@using _4Cows_FE.Components.Meadow
+
 @inject MedicineService MedicineService
 @inject IDialogService DialogService
 
-<MudDialog>
-    <DialogContent>
+<MeadowDialog Title="Medikament ändern" Size="MeadowDialogSize.Info">
+    <ChildContent>
+        @* MudForm bleibt: die Required-Validierung samt RequiredError haengt
+           daran, und meadow-mud.css toent die Fehlerzeile schon. *@
         <MudForm @ref="_form" @bind-IsValid="@_success">
-            <MudTextField T="string" Label="Medikamentenname" Required="true" @bind-Value="_Medicine.MedicineName" RequiredError="Medikamentenname muss ausgefüllt werden!" />
+            <label class="mw-label" for="mw-medicine-name">Medikamentenname</label>
+            <div class="mw-field">
+                <MudTextField T="string" InputId="mw-medicine-name" Variant="Variant.Text"
+                              Required="true" @bind-Value="_Medicine.MedicineName"
+                              RequiredError="Medikamentenname muss ausgefüllt werden!" />
+            </div>
         </MudForm>
-    </DialogContent>
-    <DialogActions>
-        <MudButton Color="Color.Primary" OnClick="CloseDialog">Speichern</MudButton>
-    </DialogActions>
-</MudDialog>
+    </ChildContent>
+    <Footer>
+        <button type="button" class="mw-btn mw-btn--plain mw-btn--wide" @onclick="Cancel">
+            Abbrechen
+        </button>
+        <button type="button" class="mw-btn mw-btn--primary mw-btn--wide" @onclick="Save">
+            Speichern
+        </button>
+    </Footer>
+</MeadowDialog>
 
 @code {
-    [CascadingParameter] private MudDialogInstance MudDialog { get; set; }
-    [Parameter] public Medicine _Medicine { get; set; } = new Medicine();
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = default!;
 
-    MudForm _form;
-    bool _success;
-    
-    
-    private async Task CloseDialog()
+    [Parameter] public Medicine _Medicine { get; set; } = new();
+
+    private MudForm? _form;
+    private bool _success;
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Save()
     {
-        if (_success)
+        if (_form is not null)
         {
-            var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, NoHeader = true };
-            var parametersGeneric = new DialogParameters<GenericDialog> { { x => x.HeaderText, "Ändern" }, { x => x.Description, "Wollen Sie das Medikament wirklich Ändern?" }, { x => x.AcceptButtonText, "Ja" }, { x => x.CancelButtonText, "Nein" }, { x => x.ColorScheme, Color.Warning } };
-            var dialog = await DialogService.ShowAsync<GenericDialog>("",parametersGeneric, options);
-            var result = await dialog.Result;
-            if (!result.Canceled)
-            {
-                await MedicineService.UpdateDataAsync(_Medicine);
-                MudDialog.Close(DialogResult.Ok(true));
-            }
-           
+            await _form.Validate();
         }
-    }
 
+        if (!_success)
+        {
+            return;
+        }
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var parameters = new DialogParameters<GenericDialog>
+        {
+            { x => x.HeaderText, "Ändern" },
+            { x => x.Description, "Wollen Sie das Medikament wirklich ändern?" },
+            { x => x.AcceptButtonText, "Ja" },
+            { x => x.CancelButtonText, "Abbrechen" },
+            { x => x.ColorScheme, Color.Warning }
+        };
+
+        var dialog = await DialogService.ShowAsync<GenericDialog>(string.Empty, parameters, options);
+        var result = await dialog.Result;
+
+        if (result is null || result.Canceled)
+        {
+            return;
+        }
+
+        await MedicineService.UpdateDataAsync(_Medicine);
+        MudDialog.Close(DialogResult.Ok(true));
+    }
 }

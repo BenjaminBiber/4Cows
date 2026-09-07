@@ -1,30 +1,46 @@
+@using _4Cows_FE.Components.Meadow
+
 @inject ISnackbar Snackbar
 @inject CowService cowService
 
-<MudDialog>
-    <DialogContent>
-        <MudStack>
-            <MudText Class="table-Header" Align="Align.Center" Typo="Typo.h3">Ohrenmarke zuweisen</MudText>
+<MeadowDialog Title="Ohrenmarke zuweisen" Size="MeadowDialogSize.Info">
+    <ChildContent>
+        <div>
+            <span class="mw-label">Halsbandnummer</span>
+            @* Nur-Lese-Wert: kein Eingabefeld, das man anfassen kann. *@
+            <div class="mw-readonly">@Calf.CollarNumber</div>
+        </div>
 
-            <MudTextField Value="@Calf.CollarNumber.ToString()" Label="Halsbandnummer:" ReadOnly="true" Variant="Variant.Text" />
-            <MudTextField @bind-Value="EarTagNumber" Label="Ohrmarkennummer:" Immediate="true" Variant="Variant.Text" />
-
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@Save">Speichern</MudButton>
-        </MudStack>
-    </DialogContent>
-</MudDialog>
+        <div>
+            <label class="mw-label" for="mw-eartag">Ohrmarkennummer</label>
+            <div class="mw-field">
+                <MudTextField T="string" InputId="mw-eartag" Variant="Variant.Text"
+                              Immediate="true" @bind-Value="EarTagNumber"
+                              Placeholder="DE 08 1523 4567" />
+            </div>
+        </div>
+    </ChildContent>
+    <Footer>
+        <button type="button" class="mw-btn mw-btn--plain mw-btn--wide" @onclick="Cancel">
+            Abbrechen
+        </button>
+        <button type="button" class="mw-btn mw-btn--primary mw-btn--wide" @onclick="Save">
+            Speichern
+        </button>
+    </Footer>
+</MeadowDialog>
 
 @code {
-    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = default!;
 
-    [Parameter] public Cow Calf { get; set; }
+    [Parameter] public Cow Calf { get; set; } = new();
 
     private string EarTagNumber = "";
 
+    private void Cancel() => MudDialog.Cancel();
+
     private async Task Save()
     {
-        Snackbar.Configuration.SnackbarVariant = Variant.Outlined;
-
         var earTag = EarTagNumber?.Trim() ?? "";
         if (string.IsNullOrEmpty(earTag))
         {
@@ -32,8 +48,8 @@
             return;
         }
 
-        // The ear tag must not already be in use by another cow (identified or already-promoted).
-        // The DB unique index enforces this too, but a friendly message is nicer than a failed save.
+        // Die DB erzwingt das ueber einen Unique-Index; eine Meldung ist
+        // freundlicher als ein fehlgeschlagenes Speichern.
         var existing = cowService.GetByEarTagNumber(earTag);
         if (existing != null && existing.CowId != Calf.CowId)
         {
@@ -42,14 +58,13 @@
         }
 
         var success = await cowService.PromoteCalfAsync(Calf.CowId, earTag);
-        if (success)
-        {
-            Snackbar.Add($"Ohrenmarke {earTag} zugewiesen.", Severity.Success);
-            MudDialog.Close(DialogResult.Ok(true));
-        }
-        else
+        if (!success)
         {
             Snackbar.Add("Zuweisen fehlgeschlagen.", Severity.Error);
+            return;
         }
+
+        Snackbar.Add($"Ohrenmarke {earTag} zugewiesen.", Severity.Success);
+        MudDialog.Close(DialogResult.Ok(true));
     }
 }

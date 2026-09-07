@@ -1,59 +1,107 @@
 @using _4Cows_FE.Components._4CowsComponent.Dialogs.BaseData
+@using _4Cows_FE.Components.Meadow
+
 @inject MedicineService MedicineService
 @inject IDialogService DialogService
 
-<MudTable Elevation="5" Dense="true" T="Medicine" Items="@Medicines" Hover="true" Striped="@true" Filter="(Func<Medicine, bool>)FilterFunc1">
-    <ToolBarContent>
-        <MudSpacer/>
-        <MudTextField T="string" @bind-value="MedicineSearchString" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
-    </ToolBarContent>
-    <HeaderContent>
-        <MudTh><MudTableSortLabel SortBy="new Func<Medicine, object>(x=>x.MedicineId)">MedikamentenId</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel SortBy="new Func<Medicine, object>(x=>x.MedicineName)">Medikamentenname</MudTableSortLabel></MudTh>
-    </HeaderContent>
-    <RowTemplate>
-        <MudTd DataLabel="Halsbandnummer">@context.MedicineId</MudTd>
-        <MudTd DataLabel="Ohrmarkennummer">@context.MedicineName</MudTd>
-        <MudTd>
-            <MudIconButton Color="Color.Primary" Size="Size.Small" OnClick="(() => OpenMedicineDialog(context))" Icon="@Icons.Material.Filled.Edit"></MudIconButton>
-        </MudTd>
-    </RowTemplate>
-    <PagerContent>
-        <MudTablePager RowsPerPageString="Behandlungen pro Seite" PageSizeOptions="new int[]{25, 50, 100}" />
-    </PagerContent>
-</MudTable>
+<MeadowToolbar>
+    <Left>
+        <MeadowSearchBox Value="@_search" ValueChanged="OnSearchChanged"
+                         AriaLabel="Medikamente durchsuchen" />
+    </Left>
+</MeadowToolbar>
+
+<MeadowTable TItem="Medicine" Items="_rows" Columns="_columns"
+             RowKey="@(m => m.MedicineId)"
+             Class="mw-table-wrap--dense" ShowMobileCards="false"
+             DefaultSortTitle="Medikamentenname"
+             PagerLabel="Medikamente pro Seite"
+             EmptyText="Keine Medikamente gefunden." />
 
 @code {
-    private IEnumerable<Medicine> Medicines = new List<Medicine>();
-    private string MedicineSearchString = "";
-    private bool FilterFunc1(Medicine MedicineTreatment) => FilterFunc(MedicineTreatment, MedicineSearchString);
+    private List<Medicine> _all = new();
+    private List<Medicine> _rows = new();
+    private string _search = "";
 
-    private bool FilterFunc(Medicine MedicineTreatment, string searchString)
-    {
-        if (string.IsNullOrWhiteSpace(searchString))
-            return true;
-        if (MedicineTreatment.MedicineName == searchString)
-            return true;
-        return false;
-    }
+    private IReadOnlyList<MeadowColumn<Medicine>> _columns = Array.Empty<MeadowColumn<Medicine>>();
 
     protected override async Task OnInitializedAsync()
     {
+        BuildColumns();
         await MedicineService.GetAllDataAsync();
-        Medicines = MedicineService.Medicines.Values;
+        Reload();
     }
-    
-    private async Task OpenMedicineDialog(Medicine medicine)
-    {    
-        DialogOptions options = new() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = false, CloseOnEscapeKey = false, BackdropClick = false};
-        var parameters = new DialogParameters();
-        parameters.Add("_Medicine", medicine);
-        var dialog = await DialogService.ShowAsync<EditMedicineDialog>("Medikament ändern", parameters, options);
-        var result = await dialog.Result;
-        if (!result.Canceled)
+
+    private void BuildColumns() => _columns = new List<MeadowColumn<Medicine>>
+    {
+        new()
         {
-            await MedicineService.GetAllDataAsync();
-            Medicines = MedicineService.Medicines.Values;
+            Title = "ID",
+            Text = m => m.MedicineId.ToString(),
+            SortBy = m => m.MedicineId,
+            Style = MeadowCellStyle.Mono,
+            Width = "70px"
+        },
+        new()
+        {
+            Title = "Medikamentenname",
+            Text = m => m.MedicineName,
+            SortBy = m => m.MedicineName,
+            Style = MeadowCellStyle.Bold
+        },
+        new()
+        {
+            IsActions = true,
+            Template = medicine =>
+                @<MeadowIconButton Icon="MeadowIconName.Edit" Title="Medikament ändern"
+                                   OnClick="() => OpenMedicineDialog(medicine)" />
         }
+    };
+
+    private void Reload()
+    {
+        _all = MedicineService.Medicines.Values.ToList();
+        ApplyFilter();
+    }
+
+    private void OnSearchChanged(string value)
+    {
+        _search = value;
+        ApplyFilter();
+    }
+
+    private void ApplyFilter()
+    {
+        var term = _search.Trim();
+        _rows = term.Length == 0
+            ? _all.ToList()
+            : _all.Where(m => m.MedicineName.Contains(term, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+    }
+
+    private async Task OpenMedicineDialog(Medicine medicine)
+    {
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true,
+            BackdropClick = false
+        };
+        var parameters = new DialogParameters<EditMedicineDialog>
+        {
+            { x => x._Medicine, medicine }
+        };
+
+        var dialog = await DialogService.ShowAsync<EditMedicineDialog>(
+            string.Empty, parameters, options);
+        var result = await dialog.Result;
+
+        if (result is null || result.Canceled)
+        {
+            return;
+        }
+
+        await MedicineService.GetAllDataAsync();
+        Reload();
     }
 }

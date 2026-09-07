@@ -1,392 +1,400 @@
-﻿@page "/"
-@inject IDialogService DialogService
-@inject IJSRuntime JSRuntime
-@using _4Cows_FE.Components._4CowsComponent.Dialogs
-@using _4Cows_FE.Components._4CowsComponent
-@using _4Cows_FE.Components.Services
-@using BB_KPI.Services
-@inject ISnackbar Snackbar
-@inject CowTreatmentService cowTreatmentService
-@inject PCowTreatmentService pCowTreatmentService
-@inject PClawTreatmentService pClawTreatmentService
-@inject ClawTreatmentService clawTreatmentService
-@inject MedicineService medicineService
-@inject CowService cowService
-@inject WhereHowService WhereHowService
-@inject KPIService KPIService
-@inject DatabaseConnectionState DatabaseConnectionState
+@page "/"
 @implements IDisposable
 
-<MudOverlay Visible="@ShowDatabaseConnectionIssue" DarkBackground="true" Absolute="true" Class="db-connection-overlay">
-    <MudPaper Elevation="12" Class="db-connection-overlay__card">
-        <MudIcon Class="d-flex align-items-center" Icon="@Icons.Material.Filled.CloudOff" Size="Size.Large" Color="Color.Error" />
-        <MudText Typo="Typo.h5" Align="Align.Center">Keine Datenbank verbunden</MudText>
-        <MudText Typo="Typo.subtitle2" Align="Align.Center">
-            Bitte prüfe die Datenbankverbindung oder kontaktiere den Administrator.
-        </MudText>
-    </MudPaper>
-</MudOverlay>
+@using _4Cows_FE.Components._4CowsComponent.Dialogs
+@using _4Cows_FE.Components.Meadow
+@using _4Cows_FE.Components.Services
+@using BB_KPI.Services
 
-<div class="row g-0 h-50">
-    <div class="col-8 row g-0 gap-0 justify-content-around align-items-center">
-        @{
-            var counter = 0;
-            foreach (var entry in KPIs)
-            {
-                <div class="@($"col-3 h-50 p-2 {(counter > 1 ? "d-lg-flex d-none" : "")}")">
-                    <KPI_Component Link="@entry.Key.Url" Value="@entry.Value" Header="@entry.Key.Title"></KPI_Component>
-                </div>
-                counter++;
-            }
+@inject IDialogService DialogService
+@inject IJSRuntime JS
+@inject MeadowDataLoader Data
+@inject MeadowDialogLauncher Launcher
+@inject ThemeState Theme
+@inject CowTreatmentService cowTreatmentService
+@inject ClawTreatmentService clawTreatmentService
+@inject MedicineService medicineService
+@inject KPIService KPIService
+@inject DatabaseConnectionState DatabaseConnectionState
+
+<MeadowOfflineGate Visible="@(!DatabaseConnectionState.IsConnected)" />
+
+<div class="mw-dash-top">
+    <div class="mw-kpi-grid">
+        @foreach (var entry in _kpis)
+        {
+            <MeadowKpiTile Title="@entry.Key.Title"
+                           Value="@entry.Value"
+                           Href="@entry.Key.Url"
+                           IsAddTile="@(entry.Key.KPIId == int.MinValue)" />
         }
     </div>
-    
-    <div class="col-4 d-flex align-items-center flex-column justify-content-center gap-2 p-2">
-        <MudButton StartIcon="@Icons.Material.Filled.BackupTable" Style="height: 5em;" IconColor="Color.Surface" Align="Align.Center" Variant="Variant.Filled" Color="Color.Tertiary" FullWidth="true" OnClick="OpenCowDialog">Kuh Behandlung hinzufügen</MudButton>
-        <MudButton StartIcon="@Icons.Material.Filled.Construction" Style="height: 5em;" IconColor="Color.Surface" Align="Align.Center" Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true" OnClick="OpenPlannedDialog">geplante Kuh Behandlung hinzufügen</MudButton>
-        <MudButton StartIcon="@Icons.Material.Filled.Pets" Style="height: 5em;" IconColor="Color.Surface" Align="Align.Center" Variant="Variant.Filled" Color="Color.Tertiary" FullWidth="true" OnClick="OpenClawDialog">Klauen Behandlung hinzufügen</MudButton>
-        <MudButton StartIcon="@Icons.Material.Filled.Plumbing" Style="height: 5em;" IconColor="Color.Surface" Align="Align.Center" Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true" OnClick="OpenPlannedClawDialog">geplante Klauen Behandlung hinzufügen</MudButton>
-    </div>
-</div>
-<div id="Chart_Div">
-    
-    <div id="Chart_Div_One">
-        <MudPaper Elevation="5" Style="height: 100%; padding: 1%; display: flex; flex-direction: column; align-items: flex-end" id="Chart_One_Paper">
-            <div style="display: flex; justify-content: flex-end; width: 100%; position: fixed; z-index: 99">
-                <MudIconButton OnClick="OpenChartEditor" Class="Clickable" Icon="@Icons.Material.Filled.Edit" Size="Size.Medium" aria-label="edit"></MudIconButton>
-                <MudIconButton OnClick="OpenYearChangeDialog" Class="Clickable" Icon="@Icons.Material.Filled.DateRange" Size="Size.Medium" aria-label="Date"></MudIconButton>
-            </div>
-            <div style="position: relative; height: 100%; width: 100%;">
-                <canvas id="CowChart"></canvas>
-            </div>
-        </MudPaper>
-    </div>
-    <div id="Chart_Div_Two">
-        <MudPaper Elevation="5" Style="height: 100%; padding: 1%; display: flex; flex-direction: column; align-items: flex-end" id="Chart_two_Paper">
-            <div style="height: 100%; width: 100%;">
-                <canvas id="ClawChart"></canvas>
-            </div>
-        </MudPaper>
+
+    @* Vier Aktionen auf Desktop, zwei mobil: dort deckt der FAB in der
+       Tabbar die geplanten Behandlungen ab. *@
+    <div class="mw-dash-actions">
+        <MeadowActionButton Label="Klauen Behandlung hinzufügen"
+                            Icon="MeadowIconName.Claw"
+                            OnClick="@Launcher.OpenClawTreatmentAsync" />
+
+        <MeadowActionButton Label="Kuh Behandlung hinzufügen"
+                            Icon="MeadowIconName.Cow"
+                            Teal="true"
+                            OnClick="@Launcher.OpenCowTreatmentAsync" />
+
+        <MeadowActionButton Label="Geplante Klauen Behandlung"
+                            Icon="MeadowIconName.PlannedClaw"
+                            Class="mw-only-desktop"
+                            OnClick="@Launcher.OpenPlannedClawTreatmentAsync" />
+
+        <MeadowActionButton Label="Geplante Kuh Behandlung"
+                            Icon="MeadowIconName.PlannedCow"
+                            Teal="true"
+                            Class="mw-only-desktop"
+                            OnClick="@Launcher.OpenPlannedCowTreatmentAsync" />
     </div>
 </div>
 
-@code{
+<div class="mw-dash-charts">
+    <MeadowChartCard Title="@($"Kuh Behandlungen {_selectedYear}")">
+        <Tools>
+            <button type="button" class="mw-icon-btn-sm" title="Medikamente auswählen"
+                    aria-label="Medikamente auswählen" @onclick="OpenChartEditor">
+                <MeadowIcon Name="MeadowIconName.Edit" Size="16" />
+            </button>
+            <button type="button" class="mw-icon-btn-sm" title="Jahr wählen"
+                    aria-label="Jahr wählen" @onclick="OpenYearChangeDialog">
+                <MeadowIcon Name="MeadowIconName.Calendar" Size="16" />
+            </button>
+        </Tools>
+        <ChildContent>
+            <canvas id="CowChart"></canvas>
+        </ChildContent>
+    </MeadowChartCard>
 
-    private Dictionary<KPI, string> KPIs = [];
-    
-    public List<CowTreatment> CowList = [];
-    public List<ClawTreatment> ClawList = [];
-    public List<PlannedCowTreatment> Planned_CowList = [];
-    public List<PlannedClawTreatment> Planned_ClawList = [];
-    public List<int> _selectedMedicines = new List<int>();
+    <MeadowChartCard Title="@($"Klauen Behandlungen {_selectedYear}")" Class="mw-only-desktop">
+        <ChildContent>
+            <canvas id="ClawChart"></canvas>
+        </ChildContent>
+    </MeadowChartCard>
+</div>
+
+@if (_chartError is not null)
+{
+    @* Chart.js kommt vom CDN. Ohne Internet - im Hof-Netz durchaus denkbar -
+       fehlt die Bibliothek, und das soll sichtbar sein statt still leer. *@
+    <div class="mw-chart-error" role="status">
+        Die Diagramme konnten nicht gezeichnet werden. Prüfe, ob die
+        Chart.js-Bibliothek erreichbar ist.
+    </div>
+}
+
+@code {
+    // Die Monatsachse zeigt nur den Anfangsbuchstaben (so das Design), der
+    // Tooltip den vollen Namen - siehe meadowChart.render.
+    private static readonly string[] MonthInitials =
+        { "J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D" };
+
+    private static readonly string[] MonthNames =
+    {
+        "Januar", "Februar", "März", "April", "Mai", "Juni",
+        "Juli", "August", "September", "Oktober", "November", "Dezember"
+    };
+
+    private Dictionary<KPI, string> _kpis = new();
+    private List<int> _selectedMedicines = new();
     private int _selectedYear = DateTime.Now.Year;
-    bool IsBarChart = false;
-    
+    private bool _medicineSubsetActive;
+    private bool _rendered;
+    private string? _chartError;
+
     protected override async Task OnInitializedAsync()
     {
-        DatabaseConnectionState.ConnectionStateChanged += HandleDatabaseConnectionStateChanged;
+        DatabaseConnectionState.ConnectionStateChanged += OnConnectionChanged;
+        Theme.Changed += OnThemeChanged;
+
         await DatabaseConnectionState.EnsureLatestStatusAsync();
-        await GetLists();
-        await GetKPIs();
+
+        // Genau ein Ladevorgang. Bisher rief jeder Chart-Neuaufbau GetLists()
+        // und damit alle sieben Service-Caches neu - ein Jahreswechsel im
+        // Diagramm waren sieben DB-Runden.
+        await Data.EnsureDashboardAsync();
+        _kpis = await KPIService.GetAllKPIs();
     }
 
-    private bool ShowDatabaseConnectionIssue => !DatabaseConnectionState.IsConnected;
-
-    private async Task GetLists()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        await cowTreatmentService.GetAllDataAsync();
-        await clawTreatmentService.GetAllDataAsync();
-        await pCowTreatmentService.GetAllDataAsync();
-        await pClawTreatmentService.GetAllDataAsync();
-        await medicineService.GetAllDataAsync();
-        await WhereHowService.GetAllDataAsync();
-        await cowService.GetAllDataAsync();
-        
-        CowList = cowTreatmentService.Treatments.Values.ToList();
-        ClawList = clawTreatmentService.Treatments.Values.ToList();
-        Planned_CowList = pCowTreatmentService.Treatments.Values.ToList();
-        Planned_ClawList = pClawTreatmentService.Treatments.Values.ToList();
-    }
-
-    private async Task OpenChartEditor()
-    { 
-        var parameters = new DialogParameters<ChartEditorDialog> { { x => x.Medicines, _selectedMedicines } };
-
-        var options = new DialogOptions()
+        if (firstRender)
         {
-            MaxWidth = MaxWidth.Medium,
-            FullWidth = true,
-            BackdropClick = false
-        };
-        var dialog = await DialogService.ShowAsync<ChartEditorDialog>("Diagramm bearbeiten", parameters, options);
-       
-        var result = await dialog.Result;
-
-        if (!result.Canceled)
-        {
-            if(result.Data is HashSet<int> selectedMedicines && result.Data != null)
-            {
-                 _selectedMedicines = selectedMedicines.ToList();
-                 
-                 await JSRuntime.InvokeVoidAsync("destroyExistingChart", "CowChart");
-                 if(_selectedMedicines.Count == medicineService.GetMedicineNames().Distinct().ToList().Count)
-                 {
-                    await InitilizeLineChartAsync("CowChart", "Kuh Behandlungen", cowTreatmentService.GetCowTreatmentChartData());
-                    IsBarChart = false;
-                 }
-                 else
-                 {
-                     await InitilizeBarChartAsync(_selectedMedicines);
-                     IsBarChart = true;
-                 }
-            }
+            _rendered = true;
+            await RenderChartsAsync();
         }
     }
-    
-    private async Task GetKPIs()
-    {
-        KPIs = await KPIService.GetAllKPIs();
-    }
 
-    private void OpenPlannedDialog()
-    {
-        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
-        DialogService.Show<Add_Planned_Cow_Treatment_Dialog>("", options);
-    }
+    // ---- Diagramme ----------------------------------------------------
 
-    private void OpenCowDialog()
+    /// <summary>
+    /// Einziger Einstiegspunkt zum Zeichnen. Chart.js kommt vom CDN und
+    /// ChartHelper.js arbeitet mit einem Canvas-Kontext - schlaegt eines
+    /// davon fehl, soll das Dashboard ohne Diagramme weiterlaufen statt den
+    /// Circuit abzureissen.
+    /// </summary>
+    private async Task RenderChartsAsync(bool destroyFirst = false)
     {
-        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
-        DialogService.Show<Add_Cow_Treatment_Dialog>("", options);
-    }
-
-    private void OpenClawDialog()
-    {
-        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
-        DialogService.Show<Add_Claw_Treatment_Dialog>("", options);
-    }
-
-    private void OpenPlannedClawDialog()
-    {
-        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
-        DialogService.Show<Add_Planned_Claw_Treatment_Dialog>("", options);
-    }
-
-    private void HandleDatabaseConnectionStateChanged()
-    {
-        _ = InvokeAsync(StateHasChanged);
-    }
-
-    private async Task InitilizeLineChartAsync(string ChartName, string _label, int[] _data)
-    {
-        await GetLists();
-
-        var config = new
+        if (!_rendered)
         {
-            type = "line",
-            data = new
+            return;
+        }
+
+        try
+        {
+            if (destroyFirst)
             {
-                labels = new[] 
-                { 
-                    "Januar", "Februar", "März", "April", "Mai", "Juni", 
-                    "Juli", "August", "September", "Oktober", "November", "Dezember" 
-                },
-                datasets = new[] 
+                await JS.InvokeVoidAsync("meadowChart.destroy", "CowChart");
+                await JS.InvokeVoidAsync("meadowChart.destroy", "ClawChart");
+            }
+
+            await RenderCowChartAsync();
+            await RenderClawChartAsync();
+            _chartError = null;
+        }
+        catch (JSException ex)
+        {
+            _chartError = ex.Message;
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task<ChartTheme> ReadThemeAsync()
+    {
+        var tokens = await JS.InvokeAsync<Dictionary<string, string>>(
+            "meadowTheme.tokens",
+            new[] { "primary", "teal", "sage", "blue", "muted", "border" });
+
+        return new ChartTheme(tokens);
+    }
+
+    private async Task RenderCowChartAsync()
+    {
+        var theme = await ReadThemeAsync();
+
+        object[] datasets;
+        bool stacked;
+
+        if (_medicineSubsetActive && _selectedMedicines.Count > 0)
+        {
+            var palette = BuildPalette(theme);
+            var i = 0;
+            datasets = _selectedMedicines
+                .Select(id => new { Id = id, Name = medicineService.GetMedicineNameById(id) })
+                .Where(m => !string.IsNullOrEmpty(m.Name) && m.Name != "--")
+                .Select(m => (object)new
                 {
-                    new
-                    {
-                        label = _label,
-                        data = _data,
-                        backgroundColor = "#619B98", 
-                        borderColor = "#60ADC9",
-                        borderWidth = 2
-                    }
+                    label = m.Name,
+                    data = cowTreatmentService.GetCowTreatmentMedicineChartData(m.Id, _selectedYear),
+                    backgroundColor = palette[i++ % palette.Count],
+                    borderRadius = 5,
+                    borderSkipped = "bottom",
+                    // Kein borderColor: hier stand
+                    // MudBlazor.Color.Primary.ToString(), also der String
+                    // "Primary" als CSS-Farbe.
+                    borderWidth = 0
+                })
+                .ToArray();
+            stacked = true;
+        }
+        else
+        {
+            datasets = new object[]
+            {
+                new
+                {
+                    label = "Kuh Behandlungen",
+                    data = cowTreatmentService.GetCowTreatmentChartData(_selectedYear),
+                    backgroundColor = theme.Primary,
+                    borderRadius = 5,
+                    borderSkipped = "bottom",
+                    borderWidth = 0
                 }
-            },
-            options = new
+            };
+            stacked = false;
+        }
+
+        await RenderBarChartAsync("CowChart", datasets, theme, stacked, showLegend: stacked);
+    }
+
+    private async Task RenderClawChartAsync()
+    {
+        var theme = await ReadThemeAsync();
+
+        var datasets = new object[]
+        {
+            new
             {
-                scales = new
-                {
-                    y = new
-                    {
-                        beginAtZero = true,
-                        stacked = true
-                    },
-                    x = new
-                    {
-                        stacked = true
-                    }
-                },
-                interaction = new
-                {
-                    intersect = false
-                },
-                plugins = new
-                {
-                    legend = new
-                    {
-                        onClick = "function() {}" 
-                    }
-                },
-                responsive = true,
-                maintainAspectRatio = false,
+                label = "Klauen Behandlungen",
+                data = clawTreatmentService.GetClawTreatmentChartData(_selectedYear),
+                backgroundColor = theme.Teal,
+                borderRadius = 5,
+                borderSkipped = "bottom",
+                borderWidth = 0
             }
         };
 
-
-        await JSRuntime.InvokeVoidAsync("renderChart", ChartName, config);
+        await RenderBarChartAsync("ClawChart", datasets, theme, stacked: false, showLegend: false);
     }
-    
-    private async Task InitilizeBarChartAsync(List<int> Medicines, int? year = null)
+
+    private async Task RenderBarChartAsync(
+        string canvasId, object[] datasets, ChartTheme theme, bool stacked, bool showLegend)
     {
-        if (!year.HasValue && _selectedYear != 0)
-        {
-            year = _selectedYear;
-        }
-        else if (!year.HasValue)
-        {
-            year = DateTime.Now.Year;
-        }
-        
-        await GetLists();
-        
-        List<dynamic> test = [];
-        var colors = GenerateColorDictionary();
-        
-        foreach (var medicine in Medicines)
-        {
-            var stringMedicine = medicineService.GetMedicineNameById(medicine);
-            if (!string.IsNullOrEmpty(stringMedicine))
-            {
-                var color = colors.FirstOrDefault(x => !x.Value).Key;
-                colors[color] = true;
-                test.Add(new {
-                    label = medicineService.GetMedicineNameById(medicine),
-                    data = cowTreatmentService.GetCowTreatmentMedicineChartData(medicine, year),
-                    backgroundColor = new[] { color },
-                    borderColor = new[] { MudBlazor.Color.Primary.ToString() },
-                    borderWidth = 2
-                });
-            }
-        }
-        
         var config = new
         {
             type = "bar",
             data = new
             {
-                labels = new[] { "Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember" },
-                datasets = test.ToArray()
+                labels = MonthInitials,
+                datasets
             },
             options = new
             {
+                responsive = true,
+                maintainAspectRatio = false,
+                interaction = new { intersect = false, mode = "index" },
                 scales = new
                 {
-                    y = new
-                    {
-                        beginAtZero = true,
-                        stacked = true
-                    }, 
                     x = new
                     {
-                        stacked = true
+                        stacked,
+                        grid = new { display = false },
+                        border = new { color = theme.Border },
+                        ticks = new { color = theme.Muted, font = new { size = 10 } }
+                    },
+                    y = new
+                    {
+                        stacked,
+                        beginAtZero = true,
+                        grid = new { color = theme.Border },
+                        border = new { display = false },
+                        ticks = new { color = theme.Muted, precision = 0, font = new { size = 10 } }
                     }
-                },
-                interaction = new
-                {
-                    intersect = false
                 },
                 plugins = new
                 {
                     legend = new
                     {
-                        onClick = "function() {}" 
+                        display = showLegend,
+                        labels = new { color = theme.Muted, boxWidth = 12, font = new { size = 11 } }
                     }
-                },
-                responsive = true,
-                maintainAspectRatio = false,
+                }
             }
-            
         };
 
-        await JSRuntime.InvokeVoidAsync("renderChart", "CowChart", config);
-    }
-    
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            await InitilizeLineChartAsync("CowChart", "Kuh Behandlungen", cowTreatmentService.GetCowTreatmentChartData());
-            await InitilizeLineChartAsync("ClawChart", "Klauen Behandlungen", clawTreatmentService.GetClawTreatmentChartData());
-        }
+        await JS.InvokeVoidAsync("meadowChart.render", canvasId, config, MonthNames);
     }
 
-    private Dictionary<string, bool> GenerateColorDictionary()
+    private List<string> BuildPalette(ChartTheme theme)
     {
-        var baseColors = new List<string>
+        // Erst die Markenfarben, dann die bisherigen Pastelltoene als
+        // Auffuellung fuer viele gleichzeitig gewaehlte Medikamente.
+        var palette = new List<string> { theme.Primary, theme.Teal, theme.Sage, theme.Blue };
+        var random = new Random(4711); // fester Seed: gleiche Farben pro Medikament-Reihenfolge
+        while (palette.Count < 33)
         {
-            "#8DC2B0",
-            "#619B98",
-            "#60ADC9"
-        };
-
-        var colorDictionary = new Dictionary<string, bool>();
-
-        foreach (var color in baseColors)
-        {
-            colorDictionary[color] = false; 
-        }
-
-        var random = new Random();
-        while (colorDictionary.Count < 33) 
-        {
-            var newColor = GenerateSimilarHexColor(random);
-            if (!colorDictionary.ContainsKey(newColor))
+            var candidate = $"#{random.Next(90, 150):X2}{random.Next(140, 200):X2}{random.Next(160, 220):X2}";
+            if (!palette.Contains(candidate))
             {
-                colorDictionary[newColor] = false;
+                palette.Add(candidate);
             }
         }
 
-        return colorDictionary;
+        return palette;
     }
 
-    string GenerateSimilarHexColor(Random random)
-    {
-        int r = random.Next(90, 150);  
-        int g = random.Next(140, 200); 
-        int b = random.Next(160, 220); 
+    // ---- Dialoge ------------------------------------------------------
 
-        return $"#{r:X2}{g:X2}{b:X2}";
+    private async Task OpenChartEditor()
+    {
+        var parameters = new DialogParameters<ChartEditorDialog>
+        {
+            { x => x.Medicines, _selectedMedicines }
+        };
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true,
+            BackdropClick = false
+        };
+
+        var dialog = await DialogService.ShowAsync<ChartEditorDialog>(
+            "Diagramm bearbeiten", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is null || result.Canceled || result.Data is not HashSet<int> selected)
+        {
+            return;
+        }
+
+        _selectedMedicines = selected.ToList();
+
+        // Sind alle Medikamente gewaehlt, ist die Aufschluesselung
+        // bedeutungslos - dann zurueck auf die Gesamtsumme.
+        var allMedicines = medicineService.GetMedicineNames().Distinct().Count();
+        _medicineSubsetActive = _selectedMedicines.Count > 0
+                                && _selectedMedicines.Count < allMedicines;
+
+        await RenderChartsAsync(destroyFirst: true);
     }
 
     private async Task OpenYearChangeDialog()
     {
         var parameters = new DialogParameters<ChartDateDialog> { { x => x.Year, _selectedYear } };
 
-        var dialog = await DialogService.ShowAsync<ChartDateDialog>("Diagramm bearbeiten", parameters);
-       
+        var dialog = await DialogService.ShowAsync<ChartDateDialog>("Jahr wählen", parameters);
         var result = await dialog.Result;
 
-        if (!result.Canceled)
+        if (result is null || result.Canceled || result.Data is not int year)
         {
-            if(result.Data is int year && result.Data != null)
-            {
-                _selectedYear = year;
-                 
-                await JSRuntime.InvokeVoidAsync("destroyExistingChart", "CowChart");
-                if(!IsBarChart)
-                {
-                    await InitilizeLineChartAsync("CowChart", "Kuh Behandlungen", cowTreatmentService.GetCowTreatmentChartData(year));
-                }
-                else
-                {
-                    await InitilizeBarChartAsync(_selectedMedicines, year);
-                }
-            }
+            return;
         }
+
+        _selectedYear = year;
+        await RenderChartsAsync(destroyFirst: true);
     }
+
+    // ---- Zustand ------------------------------------------------------
+
+    private void OnConnectionChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private void OnThemeChanged() => _ = InvokeAsync(async () =>
+    {
+        // Achsen-, Gitter- und Balkenfarben stecken in der Chart.js-Config,
+        // nicht im CSS - beim Themenwechsel muss neu gezeichnet werden.
+        StateHasChanged();
+        await RenderChartsAsync(destroyFirst: true);
+    });
+
     public void Dispose()
     {
-        DatabaseConnectionState.ConnectionStateChanged -= HandleDatabaseConnectionStateChanged;
+        DatabaseConnectionState.ConnectionStateChanged -= OnConnectionChanged;
+        Theme.Changed -= OnThemeChanged;
+    }
+
+    private sealed record ChartTheme(
+        string Primary, string Teal, string Sage, string Blue, string Muted, string Border)
+    {
+        public ChartTheme(IReadOnlyDictionary<string, string> tokens) : this(
+            Pick(tokens, "primary", "#2C7DA0"),
+            Pick(tokens, "teal", "#619B98"),
+            Pick(tokens, "sage", "#8DC2B0"),
+            Pick(tokens, "blue", "#60ADC9"),
+            Pick(tokens, "muted", "#6c7b78"),
+            Pick(tokens, "border", "#e6ecea"))
+        {
+        }
+
+        private static string Pick(IReadOnlyDictionary<string, string> tokens, string key, string fallback)
+            => tokens.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value)
+                ? value
+                : fallback;
     }
 }

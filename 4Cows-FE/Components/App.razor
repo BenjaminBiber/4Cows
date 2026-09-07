@@ -1,27 +1,74 @@
 ﻿<!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 
 <head>
-    <meta charset="utf-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <base href="/"/>
-    <link rel="stylesheet" href="app.css"/>
-    <link rel="stylesheet" href="lib/bootstrap/css/bootstrap.min.css"/>
-    <link rel="stylesheet" href="4Cows-FE.styles.css"/>
-    <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" rel="stylesheet" />
-    <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
-    <HeadOutlet @rendermode="InteractiveServer"/>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+
+    @*
+        Theme-Boot. Muss synchron und VOR jedem Stylesheet laufen, damit der
+        erste Paint schon das richtige Theme hat - sonst blitzt bei jedem
+        Reload das helle Design auf, weil Blazor Server prerendert und JS
+        erst nach dem Verbinden des Circuits antwortet.
+
+        document.documentElement gibt es hier bereits, document.body nicht -
+        deshalb sitzt das Attribut auf <html>.
+
+        Ohne gespeicherte Wahl greift die bisherige Uhrzeit-Regel (ab 19:00
+        dunkel) als Erst-Default. localStorage kann im privaten Modus schon
+        beim Lesen werfen, daher try/catch.
+    *@
+    <script>
+        (function () {
+            try {
+                var s = localStorage.getItem('mw-theme');
+                if (s !== 'dark' && s !== 'light') {
+                    s = (new Date().getHours() >= 19) ? 'dark' : 'light';
+                }
+                document.documentElement.setAttribute('data-mw-theme', s);
+            } catch (e) {
+                document.documentElement.setAttribute('data-mw-theme', 'light');
+            }
+        })();
+    </script>
+
+    <link rel="stylesheet" href="css/meadow-tokens.css" />
+    <link rel="stylesheet" href="css/meadow-base.css" />
+
+    <link rel="stylesheet" href="css/meadow-components.css" />
+
+    @* MudBlazor, danach unsere Umleitung seiner Variablen. Diese Reihenfolge
+       ist der Grund, warum meadow-mud.css ohne !important auskommt. *@
+    <link rel="stylesheet" href="_content/MudBlazor/MudBlazor.min.css" />
+    <link rel="stylesheet" href="css/meadow-mud.css" />
+
+    @* Kein 4Cows-FE.styles.css mehr: nach dem Umbau gibt es keine einzige
+       .razor.css im Projekt, das Bundle wird also nicht erzeugt und der
+       Link lief in einen 404. Alles Meadow-CSS liegt bewusst global -
+       Zell-Markup, das eine Seite als RenderFragment an MeadowTable gibt,
+       traegt den Scope der SEITE, nicht der Tabelle. *@
+
+    <HeadOutlet @rendermode="InteractiveServer" />
 </head>
 
 <body>
-<Routes @rendermode="InteractiveServer"/>
-<script src="lib/bootstrap/js/bootstrap.bundle.min.js"></script>
+<Routes @rendermode="InteractiveServer" />
+
+@* Framework-Vertrag: blazor.web.js schaltet dieses Element per id
+   sichtbar, wenn der Circuit abbricht. Gestylt wird es in meadow-base.css. *@
+<div id="blazor-error-ui">
+    Ein unerwarteter Fehler ist aufgetreten. Bitte die Seite neu laden.
+    <a href="" class="reload">Neu laden</a>
+    <a class="dismiss">🗙</a>
+</div>
+
 <script src="_framework/blazor.web.js"></script>
 <script src="_content/MudBlazor/MudBlazor.min.js"></script>
-<script src="/js/viewportInterop.js"></script>
-<script src="/js/download.js"></script>
-<script src="/js/ChartHelper.js"></script>
+<script src="js/meadow.js"></script>
+<script src="js/download.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="js/ChartHelper.js"></script>
 <script src="_content/Blazor.AceEditorJs/BlazorAceEditor.min.js"></script>
 </body>
 

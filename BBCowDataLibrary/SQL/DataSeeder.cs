@@ -10,6 +10,37 @@ public static class DataSeeder
     public static async Task SeedAsync(DatabaseContext context)
     {
         await SeedKpisAsync(context);
+        await SeedSettingsAsync(context);
+    }
+
+    /// <summary>
+    /// Legt fehlende Standardwerte an - je Schluessel einzeln, damit ein
+    /// spaeter ergaenzter Wert auch in bestehenden Datenbanken auftaucht.
+    /// Vorhandene Werte werden nie ueberschrieben.
+    /// </summary>
+    private static async Task SeedSettingsAsync(DatabaseContext context)
+    {
+        var defaults = new Dictionary<string, string>
+        {
+            [AppSetting.ClawFindingFallbackKey] = "Pflege"
+        };
+
+        var existing = await context.AppSettings
+            .Select(s => s.SettingKey)
+            .ToListAsync();
+
+        var missing = defaults
+            .Where(d => !existing.Contains(d.Key))
+            .Select(d => new AppSetting(d.Key, d.Value))
+            .ToList();
+
+        if (missing.Count == 0)
+        {
+            return;
+        }
+
+        await context.AppSettings.AddRangeAsync(missing);
+        await context.SaveChangesAsync();
     }
 
     private static async Task SeedKpisAsync(DatabaseContext context)

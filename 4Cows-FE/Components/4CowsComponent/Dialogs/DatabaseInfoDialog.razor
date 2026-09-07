@@ -1,24 +1,80 @@
-@using System.Drawing.Text
-@inject ISnackbar Snackbar
-@inject CowTreatmentService CowTreatmentService
+@using _4Cows_FE.Components.Meadow
+@using _4Cows_FE.Components.Services
+@using BB_Cow.Services
+@implements IDisposable
 
-<MudDialog>
-    <DialogContent>
-        <MudField Label="Datenbank - Server" Variant="Variant.Outlined">@Environment.GetEnvironmentVariable("DB_SERVER")</MudField>
-        <MudField Label="Datenbank" Variant="Variant.Outlined">@Environment.GetEnvironmentVariable("DB_DB")</MudField>
+@inject IConfiguration Configuration
+@inject DatabaseConnectionState ConnectionState
+@inject XLinkService XLinkService
 
-    </DialogContent>
-    <DialogActions>
-        <MudButton Color="Color.Primary" OnClick="CloseDialog">Schließen</MudButton>
-    </DialogActions>
-</MudDialog>
+<MeadowDialog Title="Datenbank Informationen" Size="MeadowDialogSize.Info">
+    <ChildContent>
+        <div class="@StatusClass">
+            <span class="mw-status__dot"></span>
+            <span class="mw-status__text">
+                @(ConnectionState.IsConnected ? "Datenbank verbunden" : "Keine Verbindung")
+            </span>
+        </div>
+
+        <div class="mw-kv"><span>Server</span><span class="mw-kv__mono">@Server</span></div>
+        <div class="mw-kv"><span>Datenbank</span><span class="mw-kv__mono">@Database</span></div>
+
+        <div class="mw-kv">
+            <span>XLink Scraper</span>
+            <span class="@XLinkClass">@XLinkStatus</span>
+        </div>
+        <div class="mw-kv__sub">@XLinkUrl</div>
+    </ChildContent>
+</MeadowDialog>
 
 @code {
-    [CascadingParameter] private MudDialogInstance MudDialog { get; set; }
-    
-    private async Task CloseDialog()
+    // Program.cs liest diese Werte ueber builder.Configuration MIT Fallback.
+    // Der Dialog nutzte Environment.GetEnvironmentVariable und zeigte damit
+    // leer an, waehrend die App laengst verbunden war.
+    private string Server => Configuration["DB_SERVER"] ?? "127.0.0.1";
+    private string Database => Configuration["DB_DB"] ?? "4cows_v2";
+
+    private string XLinkUrl =>
+        Environment.GetEnvironmentVariable("XLinkUrl") ?? "http://192.168.50.9/Xlink/";
+
+    private double IntervalHours =>
+        double.TryParse(Environment.GetEnvironmentVariable("XLinkSyncIntervalHours"), out var h) && h > 0
+            ? h
+            : 24;
+
+    private string StatusClass =>
+        ConnectionState.IsConnected ? "mw-status mw-status--ok" : "mw-status mw-status--bad";
+
+    private string XLinkClass =>
+        XLinkService.LastSyncUtc is not null && !XLinkService.LastSyncSucceeded
+            ? "mw-kv__bad"
+            : "mw-kv__ok";
+
+    private string XLinkStatus
     {
-            MudDialog.Close(DialogResult.Ok(true));
+        get
+        {
+            var interval = $"alle {IntervalHours:0.##} h";
+
+            if (XLinkService.LastSyncUtc is null)
+            {
+                return $"aktiv · {interval} · noch kein Abgleich";
+            }
+
+            var when = XLinkService.LastSyncUtc.Value.ToLocalTime().ToString("dd.MM. HH:mm");
+            return XLinkService.LastSyncSucceeded
+                ? $"aktiv · zuletzt {when}"
+                : $"Fehler · zuletzt {when}";
+        }
     }
 
+    protected override async Task OnInitializedAsync()
+    {
+        ConnectionState.ConnectionStateChanged += OnConnectionChanged;
+        await ConnectionState.EnsureLatestStatusAsync();
+    }
+
+    private void OnConnectionChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => ConnectionState.ConnectionStateChanged -= OnConnectionChanged;
 }

@@ -97,6 +97,44 @@ namespace BB_Cow.Services
             }
         }
 
+        /// <summary>
+        /// Aendert eine bestehende Klauenbehandlung.
+        ///
+        /// Gab es bisher nicht - Klauenbehandlungen konnten nur angelegt und
+        /// geloescht werden. Ohne diese Methode haette der "Bearbeiten"-Button
+        /// im Anzeige-Dialog bei jedem Speichern eine zweite Behandlung
+        /// erzeugt statt die bestehende zu korrigieren.
+        /// </summary>
+        public async Task<bool> UpdateDataAsync(ClawTreatment clawTreatment)
+        {
+            try
+            {
+                await using var context = await _contextFactory.CreateDbContextAsync();
+                context.ClawTreatments.Update(clawTreatment);
+                var isSuccess = await context.SaveChangesAsync() > 0;
+                _databaseStatusService.ReportSuccess();
+
+                if (isSuccess)
+                {
+                    // Neu laden statt den Cache punktuell zu setzen: die
+                    // Befundliste wird aus allen vier Spalten aller
+                    // Behandlungen aufgebaut.
+                    await GetAllDataAsync();
+                    LoggerService.LogInformation(typeof(ClawTreatmentService),
+                        "Updated claw treatment {Id}.", clawTreatment.ClawTreatmentId);
+                }
+
+                return isSuccess;
+            }
+            catch (Exception ex)
+            {
+                _databaseStatusService.ReportFailure();
+                LoggerService.LogError(typeof(ClawTreatmentService),
+                    "Failed to update claw treatment, with {@Message}", ex, ex.Message);
+                return false;
+            }
+        }
+
         public async Task<bool> RemoveBandageAsync(int id)
         {
             try

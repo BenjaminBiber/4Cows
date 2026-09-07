@@ -1,0 +1,188 @@
+/* ============================================================
+   Meadow — Tokens
+   1:1 aus Meadow.dc.html, renderVals() (c / a / Radien / Motion).
+   Dark Mode:  <html data-mw-theme="dark">   (gesetzt vom Boot-Skript in App.razor)
+
+   Diese Datei enthaelt ausschliesslich :root-Bloecke, @font-face und Keyframes.
+   Keine Komponenten-Selektoren.
+   ============================================================ */
+
+/* ── Schriften ──────────────────────────────────────────────── */
+@font-face {
+  font-family: 'Barlow';
+  src: url('../fonts/barlow-400.woff2') format('woff2');
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Barlow';
+  src: url('../fonts/barlow-500.woff2') format('woff2');
+  font-weight: 500; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Barlow';
+  src: url('../fonts/barlow-600.woff2') format('woff2');
+  font-weight: 600; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Barlow';
+  src: url('../fonts/barlow-700.woff2') format('woff2');
+  font-weight: 700; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Barlow Condensed';
+  src: url('../fonts/barlow-condensed-700.woff2') format('woff2');
+  font-weight: 700; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Barlow Condensed';
+  src: url('../fonts/barlow-condensed-800.woff2') format('woff2');
+  font-weight: 800; font-style: normal; font-display: swap;
+}
+
+:root {
+  /* ── Typografie ───────────────────────────────────────────── */
+  --mw-font-sans:    'Barlow', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --mw-font-display: 'Barlow Condensed', 'Barlow', 'Segoe UI', sans-serif;
+  --mw-font-mono:    ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* ── Akzente (themenunabhaengig, `a`-Objekt) ──────────────── */
+  --mw-primary:      #2C7DA0;
+  --mw-primary-dark: #1f5f7d;
+  --mw-teal:         #619B98;
+  --mw-teal-dark:    #4d817e;
+  --mw-sage:         #8DC2B0;
+  --mw-blue:         #60ADC9;
+  --mw-navy:         #002f52;
+  --mw-navy-active:  #0f4f7b;
+  --mw-success:      #1a8f4a;
+  --mw-warning:      #b5730a;
+  --mw-danger:       #d02418;
+
+  /* rgb-Tripel — nur fuer rgba()-Ableitungen und MudBlazors --*-rgb */
+  --mw-primary-rgb: 44, 125, 160;
+  --mw-teal-rgb:    97, 155, 152;
+  --mw-sage-rgb:    141, 194, 176;
+  --mw-blue-rgb:    96, 173, 201;
+  --mw-success-rgb: 26, 143, 74;
+  --mw-warning-rgb: 181, 115, 10;
+  --mw-danger-rgb:  208, 36, 24;
+
+  /* ── Flaechen: HELL (`c`-Objekt) ──────────────────────────── */
+  --mw-canvas: #e7ecea;
+  --mw-bg:     #f2f5f4;
+  --mw-panel:  #ffffff;
+  --mw-text:   #39423f;
+  --mw-muted:  #6c7b78;
+  --mw-border: #e6ecea;
+  --mw-tint:   #eef5f3;
+  --mw-header: #ffffff;
+  --mw-shadow-card: 0 1px 4px rgba(20, 40, 38, .10);
+
+  /* ── Themenabhaengige Akzent-Ableitungen ──────────────────── */
+  /* soft-fg trifft st.pill / fchip(on) / fbtn(active) / legBandage.
+     NICHT verwechseln mit --mw-danger, das tinyBtnDanger + dayChip immer nutzen. */
+  --mw-soft:        #e3f0f5;
+  --mw-soft-fg:     #1f5f7d;
+  --mw-block-bg:    #e3f2e9;
+  --mw-block-fg:    #2c6b47;
+  --mw-neg-bg:      #fdeceb;
+  --mw-neg-fg:      #d02418;
+  --mw-hoof-idle:   #c6d4d0;
+
+  /* ── Backdrops ────────────────────────────────────────────── */
+  --mw-backdrop-drawer: rgba(8, 20, 24, .42);
+  --mw-backdrop-dialog: rgba(6, 18, 22, .5);
+
+  /* ── Elevation ────────────────────────────────────────────── */
+  --mw-shadow-drawer:  6px 0 30px rgba(0, 0, 0, .3);
+  --mw-shadow-pop:     0 20px 48px rgba(0, 0, 0, .22);
+  --mw-shadow-menu:    0 20px 48px rgba(0, 0, 0, .26);
+  --mw-shadow-addmenu: 0 22px 50px rgba(0, 0, 0, .3);
+  --mw-shadow-dialog:  0 32px 96px rgba(0, 0, 0, .34), 0 4px 20px rgba(0, 0, 0, .14);
+  --mw-shadow-sheet:   0 -14px 44px rgba(0, 0, 0, .34);
+  --mw-glow-primary:   0 4px 14px rgba(var(--mw-primary-rgb), .27);
+  --mw-glow-teal:      0 4px 14px rgba(var(--mw-teal-rgb), .27);
+  --mw-glow-btn:       0 3px 10px rgba(var(--mw-primary-rgb), .27);
+  --mw-glow-fab:       0 8px 20px rgba(var(--mw-primary-rgb), .4);
+
+  /* ── Radien (die im Prototyp tatsaechlich vorkommenden) ───── */
+  --mw-r-xs:  5px;
+  --mw-r-sm:  6px;
+  --mw-r-md:  7px;
+  --mw-r-lg:  8px;
+  --mw-r-xl:  9px;
+  --mw-r-2xl: 11px;
+  --mw-r-3xl: 12px;
+  --mw-r-4xl: 13px;
+  --mw-r-5xl: 16px;
+  --mw-r-6xl: 22px;
+  --mw-r-pill: 999px;
+
+  /* ── Motion ───────────────────────────────────────────────── */
+  --mw-ease:      cubic-bezier(.16, 1, .3, 1);
+  --mw-t-fast:    .12s;
+  --mw-t:         .15s;
+  --mw-t-pop:     .18s;
+  --mw-t-slide:   .22s;
+  --mw-t-dialog:  .22s;
+  --mw-t-sheet:   .3s;
+
+  /* ── Layout ───────────────────────────────────────────────── */
+  --mw-shell-max:     1260px;
+  --mw-header-h:      60px;
+  --mw-header-h-m:    52px;
+  --mw-drawer-w:      284px;
+  --mw-drawer-w-m:    252px;
+  --mw-content-pad:   26px;
+  --mw-content-pad-m: 16px;
+  --mw-tabbar-h:      66px;
+  --mw-fab:           54px;
+  --mw-bars-h:        150px;
+  --mw-sheet-max:     560px;
+
+  /* ── z-Ebenen (Meadow-eigene; Dialoge nutzen Muds Stapel) ─── */
+  --mw-z-header:          20;
+  --mw-z-tabbar:          1090;
+  --mw-z-fab:             1091;
+  --mw-z-menu-backdrop:   1097;
+  --mw-z-menu:            1098;
+  --mw-z-drawer-backdrop: 1099;
+  --mw-z-drawer:          1100;
+  --mw-z-filter-backdrop: 90;
+  --mw-z-filter:          91;
+}
+
+/* ── Flaechen: DUNKEL ───────────────────────────────────────── */
+:root[data-mw-theme="dark"] {
+  --mw-canvas: #14171b;
+  --mw-bg:     #1b1e23;
+  --mw-panel:  #262930;
+  --mw-text:   #eef2f1;
+  --mw-muted:  #98a3a0;
+  --mw-border: #343841;
+  --mw-tint:   #2f333b;
+  --mw-header: #22252b;
+  --mw-shadow-card: 0 2px 12px rgba(0, 0, 0, .5);
+
+  --mw-soft:      #16303a;
+  --mw-soft-fg:   #60ADC9;
+  --mw-block-bg:  #2c3a2f;
+  --mw-block-fg:  #8DC2B0;
+  --mw-neg-bg:    #3a2726;
+  --mw-neg-fg:    #f0a29c;
+  --mw-hoof-idle: #41504d;
+}
+
+/* ── Keyframes (Prototyp Zeilen 23-27) ──────────────────────── */
+@keyframes mwFade    { from { opacity: 0; }                                          to { opacity: 1; } }
+@keyframes mwPop     { from { opacity: 0; transform: translateY(12px) scale(.985); }  to { opacity: 1; transform: none; } }
+@keyframes mwSlide   { from { transform: translateX(-100%); }                         to { transform: translateX(0); } }
+@keyframes mwSheetUp { from { transform: translateY(100%); }                          to { transform: translateY(0); } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001s !important;
+  }
+}

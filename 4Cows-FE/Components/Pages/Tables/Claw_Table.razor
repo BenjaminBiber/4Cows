@@ -1,141 +1,404 @@
-﻿@page "/Klauen_Daten"
-@inject IDialogService DialogService
-@using _4Cows_FE.Components._4CowsComponent
-@using _4Cows_FE.Components._4CowsComponent
+@page "/Klauen_Daten"
+
 @using _4Cows_FE.Components._4CowsComponent.Dialogs
-@using BB_Cow.Class
-@using BB_Cow.Services
+@using _4Cows_FE.Components.Meadow
+@using _4Cows_FE.Components.Services
 @using OfficeOpenXml
 @using OfficeOpenXml.Style
+
+@inject IDialogService DialogService
+@inject IJSRuntime JS
+@inject MeadowDataLoader Data
+@inject MeadowDialogLauncher Launcher
+@inject ISnackbar Snackbar
 @inject ClawTreatmentService clawTreatmentService
 @inject CowService cowService
-@inject IJSRuntime JS
+@inject SettingsService Settings
 
+<MeadowToolbar>
+    <Left>
+        <MeadowSearchBox Value="@_filter.Search" ValueChanged="OnSearchChanged"
+                         AriaLabel="Klauen Behandlungen durchsuchen" />
+        @if (_filter.HasAny)
+        {
+            <span class="mw-result-count mw-only-desktop">@CountText</span>
+        }
+    </Left>
+    <Right>
+        <MeadowFilterPopover Open="_filterOpen" ShowReset="@(_filter.ActiveCount > 0)"
+                             CountText="@($"{CountText} Behandlungen")"
+                             OnClose="CloseFilter" OnReset="ResetFilter">
+            <Trigger>
+                <MeadowFilterButton ActiveCount="_filter.ActiveCount" Open="_filterOpen"
+                                    OnClick="ToggleFilter" />
+            </Trigger>
+            <ChildContent>
+                <MeadowChipSelect Label="Befund" Options="FindingOptions"
+                                  Selected="@_filter.Finding"
+                                  SelectedChanged="OnFindingChanged" />
+            </ChildContent>
+        </MeadowFilterPopover>
 
-<MudGrid Justify="Justify.FlexEnd">
-    <MudTooltip Text="Behandlungen als Excel exportieren">
-        <MudIconButton Icon="@Icons.Material.Filled.Download" Color="Color.Secondary" Size="Size.Large" OnClick="DownloadFile"></MudIconButton>
-    </MudTooltip>
-    <MudTooltip Text="Neue Behandlung hinzufügen">
-    <MudIconButton Icon="@Icons.Material.Filled.AddCircle" Color="Color.Secondary" Size="Size.Large" OnClick="OpenClawDialog"></MudIconButton>
-    </MudTooltip>
-</MudGrid>
+        <button type="button" class="mw-btn mw-btn--ghost" @onclick="DownloadFile"
+                title="Behandlungen als Excel exportieren">
+            <MeadowIcon Name="MeadowIconName.Download" Size="20" />
+            <span>Export</span>
+        </button>
 
-<MudTable Elevation="5" Items="@Treatment_Claws" Hover="true" Striped="@true" Filter="new Func<ClawTreatment,bool>(ClawFilterFunc1)" @bind-SelectedItem="selectedClaw">
-    <ToolBarContent>
-        <MudText Class="table-Header" Typo="Typo.h3">Klauen Behandlungen</MudText>
-        <MudSpacer/>
-        <MudTextField @bind-Value="searchClaw" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
-    </ToolBarContent>
-    <HeaderContent>
-        <MudTh><MudTableSortLabel SortBy="new Func<CowTreatment, object>(x=>cowService.GetCollarNumberByCowId(x.EarTagNumber))">Halsbandnummer</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel SortBy="new Func<ClawTreatment, object>(x=>x.TreatmentDate)">Datum</MudTableSortLabel></MudTh>
-        <MudTh></MudTh>
+        <button type="button" class="mw-btn mw-btn--primary" @onclick="AddTreatment">
+            <MeadowIcon Name="MeadowIconName.Plus" Size="20" />
+            <span>Neue Behandlung</span>
+        </button>
+    </Right>
+</MeadowToolbar>
 
-    </HeaderContent>
-    <RowTemplate>
-        <MudTd DataLabel="Halsbandnummer">@cowService.GetCollarNumberByCowId(context.EarTagNumber)</MudTd>
-            <MudTd DataLabel="Datum">@context.TreatmentDate.ToString("dd.MM.yyyy")</MudTd>
-            <MudTd><MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="@(() => OpenClawInformation(context))">Behandlung öffnen</MudButton></MudTd>
-        </RowTemplate>
-        <PagerContent>
-            <MudTablePager RowsPerPageString="Behandlungen pro Seite" PageSizeOptions="new int[]{25, 50, 100}" />
-        </PagerContent>
-    </MudTable>
+<MeadowTable TItem="ClawTreatment" Items="_rows" Columns="_columns"
+             RowKey="@(r => r.ClawTreatmentId)"
+             DefaultSortTitle="Datum" DefaultSortDescending="true"
+             PagerLabel="Behandlungen pro Seite"
+             EmptyText="Keine Behandlungen gefunden.">
+    <EmptyContent>
+        @if (_filter.HasAny)
+        {
+            <button type="button" class="mw-empty__reset" @onclick="ClearAll">
+                Suche und Filter zurücksetzen
+            </button>
+        }
+    </EmptyContent>
+    <MobileCard Context="row">
+        <button type="button" class="mw-row-card mw-row-card--clickable"
+                @onclick="() => OpenTreatment(row)">
+            <div class="mw-row-card__top">
+                <span class="mw-row-card__title">Nr. @Collar(row)</span>
+                <span class="mw-row-card__sub">@row.TreatmentDate.ToString("dd.MM.yyyy")</span>
+            </div>
+            <div class="mw-row-card__meta"><span>@Summary(row)</span></div>
+        </button>
+    </MobileCard>
+</MeadowTable>
+
 @code {
-    private ClawTreatment selectedClaw = null;
-    private string searchClaw = "";
-    private List<ClawTreatment> Treatment_Claws = new List<ClawTreatment>();
+    private readonly ClawTableFilter _filter = new();
+    private bool _filterOpen;
+
+    private List<ClawTreatment> _all = new();
+    private List<ClawTreatment> _rows = new();
+    private List<MeadowColumn<ClawTreatment>> _columns = new();
+
+    // Die Befunde-Zusammenfassung ist auch das Suchfeld dieser Tabelle -
+    // deshalb einmal pro Datenladen vorberechnet, nicht pro Tastendruck.
+    private Dictionary<int, string> _summaries = new();
 
     protected override async Task OnInitializedAsync()
     {
-        await clawTreatmentService.GetAllDataAsync();
-        Treatment_Claws = clawTreatmentService.GetClawTreatments();
+        await Data.EnsureClawTreatmentsAsync();
+        Reload();
+        BuildColumns();
     }
-    private bool ClawFilterFunc1(ClawTreatment Treatment_Cow) => cowService.FilterFuncCow(Treatment_Cow.EarTagNumber, searchClaw);
 
-    private async Task OpenClawInformation(ClawTreatment Claw_Treatment)
+    private void Reload()
     {
-        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
-        await clawTreatmentService.GetAllDataAsync();
-        var parameters = new DialogParameters<Show_Claw_Treatment_Dialog> { { x => x.Claw_Treatment, Claw_Treatment } };
-        DialogService.Show<Show_Claw_Treatment_Dialog>("", parameters, options);
+        _all = clawTreatmentService.GetClawTreatments();
+        _summaries = _all.ToDictionary(
+            t => t.ClawTreatmentId,
+            t => ClawFindingSummary.Build(t, Settings.ClawFindingFallback));
+        Apply();
     }
 
-    private void OpenClawDialog()
+    private void BuildColumns() => _columns = new()
     {
-        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
-        DialogService.Show<Add_Claw_Treatment_Dialog>("", options);
+        new MeadowColumn<ClawTreatment>
+        {
+            Title = "Halsband",
+            Text = Collar,
+            SortBy = r => CollarSortKey(r),
+            Style = MeadowCellStyle.Bold
+        },
+        new MeadowColumn<ClawTreatment>
+        {
+            Title = "Datum",
+            Text = r => r.TreatmentDate.ToString("dd.MM.yyyy"),
+            SortBy = r => r.TreatmentDate,
+            NoWrap = true
+        },
+        new MeadowColumn<ClawTreatment>
+        {
+            // Neu: bisher musste man jede Behandlung oeffnen, um irgendeinen
+            // klinischen Befund zu sehen.
+            Title = "Befunde",
+            Text = Summary,
+            SortBy = Summary
+        },
+        new MeadowColumn<ClawTreatment>
+        {
+            IsActions = true,
+            Template = row => @<button type="button" class="mw-btn mw-btn--sm mw-btn--primary"
+                                       @onclick="() => OpenTreatment(row)">Behandlung öffnen</button>
+        }
+    };
+
+    // ---- Anzeige-Helfer -----------------------------------------------
+
+    private string Collar(ClawTreatment r)
+    {
+        var collar = cowService.GetCollarNumberByCowId(r.EarTagNumber);
+        return collar == int.MinValue ? "–" : collar.ToString();
     }
 
+    private int CollarSortKey(ClawTreatment r)
+    {
+        var collar = cowService.GetCollarNumberByCowId(r.EarTagNumber);
+        return collar == int.MinValue ? int.MaxValue : collar;
+    }
+
+    private string Summary(ClawTreatment r)
+        => _summaries.TryGetValue(r.ClawTreatmentId, out var s) ? s : "";
+
+    // ---- Filter -------------------------------------------------------
+
+    /// <summary>
+    /// Die tatsaechlich vorkommenden Befunde - ClawFindingList macht nur
+    /// Distinct() ohne Leer-Filter, sonst gaebe es leere Chips. Dazu die zwei
+    /// synthetischen Chips aus dem Design, die keine Befunde sind.
+    /// </summary>
+    private IReadOnlyList<string> FindingOptions
+    {
+        get
+        {
+            var findings = clawTreatmentService.ClawFindingList
+                .Select(f => f?.Trim() ?? "")
+                .Where(f => f.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(f => f, StringComparer.CurrentCulture)
+                .ToList();
+
+            findings.Add(ClawTableFilter.BandageOption);
+            findings.Add(ClawTableFilter.BlockOption);
+            return findings;
+        }
+    }
+
+    private string CountText => $"{_rows.Count} von {_all.Count}";
+
+    private void Apply()
+    {
+        IEnumerable<ClawTreatment> query = _all;
+
+        var search = _filter.Search.Trim();
+        if (search.Length > 0)
+        {
+            query = query.Where(r =>
+                Collar(r).Contains(search, StringComparison.OrdinalIgnoreCase)
+                || cowService.GetEarTagDisplay(r.EarTagNumber)
+                    .Contains(search, StringComparison.OrdinalIgnoreCase)
+                || Summary(r).Contains(search, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (_filter.Finding != DateRanges.AllLabel)
+        {
+            query = query.Where(MatchesFinding);
+        }
+
+        _rows = query.ToList();
+    }
+
+    private bool MatchesFinding(ClawTreatment r)
+    {
+        if (_filter.Finding == ClawTableFilter.BandageOption)
+        {
+            return !r.IsBandageRemoved && HoofPositions.All.Any(r.GetBandage);
+        }
+
+        if (_filter.Finding == ClawTableFilter.BlockOption)
+        {
+            return HoofPositions.All.Any(r.GetBlock);
+        }
+
+        // Gleichheit auf dem Befund, nicht Teilstring auf der
+        // Zusammenfassung - sonst wuerde "Mortellaro" auch "Mortellaro (M2)"
+        // und die Woerter Verband/Klotz mitfangen.
+        return HoofPositions.All.Any(p =>
+            string.Equals(r.GetFinding(p)?.Trim(), _filter.Finding, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private void OnSearchChanged(string value)
+    {
+        _filter.Search = value;
+        Apply();
+    }
+
+    private void OnFindingChanged(string value)
+    {
+        _filter.Finding = value;
+        Apply();
+    }
+
+    private void ToggleFilter() => _filterOpen = !_filterOpen;
+
+    private void CloseFilter() => _filterOpen = false;
+
+    private void ResetFilter()
+    {
+        _filter.Reset();
+        Apply();
+    }
+
+    private void ClearAll()
+    {
+        _filter.Search = "";
+        _filter.Reset();
+        Apply();
+    }
+
+    // ---- Aktionen -----------------------------------------------------
+
+    private async Task OpenTreatment(ClawTreatment treatment)
+    {
+        var options = new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            CloseButton = true,
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true
+        };
+        var parameters = new DialogParameters<Show_Claw_Treatment_Dialog>
+        {
+            { x => x.Claw_Treatment, treatment }
+        };
+
+        var dialog = await DialogService.ShowAsync<Show_Claw_Treatment_Dialog>(
+            string.Empty, parameters, options);
+        var result = await dialog.Result;
+
+        // "Bearbeiten" gibt die Behandlung zurueck und oeffnet damit den
+        // Add-Dialog im Aenderungsmodus (ClawTreatmentId != 0). Moeglich,
+        // seit der Service ein UpdateDataAsync hat.
+        if (result is null || result.Canceled || result.Data is not ClawTreatment edit)
+        {
+            return;
+        }
+
+        await EditTreatment(edit);
+    }
+
+    private async Task EditTreatment(ClawTreatment treatment)
+    {
+        var options = new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true
+        };
+        var parameters = new DialogParameters<Add_Claw_Treatment_Dialog>
+        {
+            { x => x.Claw_Treatment, treatment }
+        };
+
+        var dialog = await DialogService.ShowAsync<Add_Claw_Treatment_Dialog>(
+            string.Empty, parameters, options);
+        var result = await dialog.Result;
+
+        if (result is null || result.Canceled)
+        {
+            return;
+        }
+
+        await clawTreatmentService.GetAllDataAsync();
+        Reload();
+    }
+
+    private async Task AddTreatment()
+    {
+        if (await Launcher.ShowAndAwaitAsync<Add_Claw_Treatment_Dialog>())
+        {
+            await clawTreatmentService.GetAllDataAsync();
+            Reload();
+        }
+    }
+
+    // ---- Excel-Export -------------------------------------------------
 
     private async Task DownloadFile()
     {
-        var excelData = ExportDataToExcel();
-
-        var base64 = Convert.ToBase64String(excelData);
-
-        await JS.InvokeVoidAsync("downloadFile", $"Klauenbehandlungen Export {DateTime.Now.ToString("dd-MM-yyyy")}.xlsx", base64);
+        try
+        {
+            var bytes = ExportDataToExcel();
+            await JS.InvokeVoidAsync(
+                "downloadFile",
+                $"Klauenbehandlungen Export {DateTime.Now:dd-MM-yyyy}.xlsx",
+                Convert.ToBase64String(bytes));
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Export fehlgeschlagen: {ex.Message}", Severity.Error);
+        }
     }
 
     private byte[] ExportDataToExcel()
     {
-        using (var package = new ExcelPackage())
+        using var package = new ExcelPackage();
+        var sheet = package.Workbook.Worksheets.Add("Klauenbehandlungen");
+
+        // Reihenfolge korrigiert: die Kopfzeile begann mit "Halsbandnummer",
+        // geschrieben wurde in Spalte 1 aber die Ohrmarke.
+        string[] headers =
         {
-            var worksheet = package.Workbook.Worksheets.Add("Sheet1");
+            "Ohrmarkennummer", "Halsbandnummer", "Datum",
+            "Behandlung LV", "Verband LV", "Klotz LV",
+            "Behandlung RV", "Verband RV", "Klotz RV",
+            "Behandlung LH", "Verband LH", "Klotz LH",
+            "Behandlung RH", "Verband RH", "Klotz RH",
+            "Wurde Verband entfernt?"
+        };
 
-            string[] headers = { "Halsbandnummer","Ohrenmarkennummer", "Datum", "Behandlung LV", "Verband LV", "Klotz LV",
-                         "Behandlung RV", "Verband RV", "Klotz RV", "Behandlung LH",
-                         "Verband LH", "Klotz LH", "Behandlung RH", "Verband RH",
-                         "Klotz RH", "Wurde Verband entfernt?" };
-
-            for (int i = 0; i < headers.Length; i++)
-            {
-                worksheet.Cells[1, i + 1].Value = headers[i];
-                worksheet.Cells[1, i + 1].Style.Fill.PatternType = ExcelFillStyle.Solid;
-                worksheet.Cells[1, i + 1].Style.Fill.BackgroundColor.SetColor(System.Drawing.ColorTranslator.FromHtml(MudBlazor.Color.Primary.ToString()));
-                worksheet.Cells[1, i + 1].Style.Font.Bold = true;
-                worksheet.Cells[1, i + 1].Style.Font.Size = 12;
-            }
-
-            for (int i = 0; i < Treatment_Claws.Count; i++)
-            {
-                worksheet.Cells[i + 3, 1].Value = cowService.GetEarTagDisplay(Treatment_Claws[i].EarTagNumber);
-                worksheet.Cells[i + 3, 2].Value = cowService.GetCollarNumberByCowId(Treatment_Claws[i].EarTagNumber); 
-                worksheet.Cells[i + 3, 3].Value = Treatment_Claws[i].TreatmentDate;
-                worksheet.Cells[i + 3, 4].Value = Treatment_Claws[i].ClawFindingLV;
-                worksheet.Cells[i + 3, 5].Value = Treatment_Claws[i].BandageLV ? "Verband" : "Kein Verband";
-                worksheet.Cells[i + 3, 6].Value = Treatment_Claws[i].BlockLV ? "Klotz" : "Kein Klotz";
-                worksheet.Cells[i + 3, 7].Value = Treatment_Claws[i].ClawFindingRV;
-                worksheet.Cells[i + 3, 8].Value = Treatment_Claws[i].BandageRV ? "Verband" : "Kein Verband";
-                worksheet.Cells[i + 3, 9].Value = Treatment_Claws[i].BlockRV ? "Klotz" : "Kein Klotz";
-                worksheet.Cells[i + 3, 10].Value = Treatment_Claws[i].ClawFindingLH;
-                worksheet.Cells[i + 3, 11].Value = Treatment_Claws[i].BandageLH ? "Verband" : "Kein Verband";
-                worksheet.Cells[i + 3, 12].Value = Treatment_Claws[i].BlockLH ? "Klotz" : "Kein Klotz";
-                worksheet.Cells[i + 3, 13].Value = Treatment_Claws[i].ClawFindingRH;
-                worksheet.Cells[i + 3, 14].Value = Treatment_Claws[i].BandageRH ? "Verband" : "Kein Verband";
-                worksheet.Cells[i + 3, 15].Value = Treatment_Claws[i].BlockRH ? "Klotz" : "Kein Klotz";
-                worksheet.Cells[i + 3, 16].Value = Treatment_Claws[i].IsBandageRemoved ? "Ja" : "Nein";
-
-                if (Treatment_Claws[i].IsBandageRemoved)
-                {
-                    worksheet.Cells[i + 3, 15].Style.Fill.PatternType = ExcelFillStyle.Solid;
-                    worksheet.Cells[i + 3, 15].Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.LightGreen);
-                }
-                else
-                {
-                    worksheet.Cells[i + 3, 15].Style.Fill.PatternType = ExcelFillStyle.Solid;
-                    worksheet.Cells[i + 3, 15].Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.LightPink);
-                }
-            }
-
-            for (int i = 1; i <= headers.Length; i++)
-            {
-                worksheet.Column(i).Width = 20;
-            }
-            worksheet.Column(15).Width = 30;
-
-            return package.GetAsByteArray();
+        for (var i = 0; i < headers.Length; i++)
+        {
+            var cell = sheet.Cells[1, i + 1];
+            cell.Value = headers[i];
+            cell.Style.Fill.PatternType = ExcelFillStyle.Solid;
+            // Hier stand System.Drawing.ColorTranslator.FromHtml(MudBlazor.Color.Primary.ToString()),
+            // also der String "Primary" - das wirft, und zwar beim ersten
+            // Kopffeld. Der Export war damit komplett unbenutzbar.
+            cell.Style.Fill.BackgroundColor.SetColor(System.Drawing.ColorTranslator.FromHtml("#2C7DA0"));
+            cell.Style.Font.Color.SetColor(System.Drawing.Color.White);
+            cell.Style.Font.Bold = true;
+            cell.Style.Font.Size = 12;
         }
+
+        var rows = _rows.OrderByDescending(r => r.TreatmentDate).ToList();
+        for (var i = 0; i < rows.Count; i++)
+        {
+            var t = rows[i];
+            // Datenzeilen beginnen direkt unter dem Kopf; vorher ab Zeile 3,
+            // wodurch Zeile 2 immer leer blieb.
+            var row = i + 2;
+
+            sheet.Cells[row, 1].Value = cowService.GetEarTagDisplay(t.EarTagNumber);
+            sheet.Cells[row, 2].Value = Collar(t);
+            sheet.Cells[row, 3].Value = t.TreatmentDate.ToString("dd.MM.yyyy");
+
+            var column = 4;
+            foreach (var position in new[] { HoofPosition.LV, HoofPosition.RV, HoofPosition.LH, HoofPosition.RH })
+            {
+                sheet.Cells[row, column++].Value = t.GetFinding(position);
+                sheet.Cells[row, column++].Value = t.GetBandage(position) ? "Verband" : "Kein Verband";
+                sheet.Cells[row, column++].Value = t.GetBlock(position) ? "Klotz" : "Kein Klotz";
+            }
+
+            // Spalte 16 ist "Wurde Verband entfernt?" - markiert wurde vorher
+            // Spalte 15 ("Klotz RH").
+            var removed = sheet.Cells[row, 16];
+            removed.Value = t.IsBandageRemoved ? "Ja" : "Nein";
+            removed.Style.Fill.PatternType = ExcelFillStyle.Solid;
+            removed.Style.Fill.BackgroundColor.SetColor(
+                t.IsBandageRemoved ? System.Drawing.Color.LightGreen : System.Drawing.Color.LightPink);
+        }
+
+        for (var i = 1; i <= headers.Length; i++)
+        {
+            sheet.Column(i).Width = 20;
+        }
+
+        return package.GetAsByteArray();
     }
 }

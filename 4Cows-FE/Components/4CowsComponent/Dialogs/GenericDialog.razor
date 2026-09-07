@@ -1,35 +1,43 @@
-﻿<MudDialog>
-    <DialogContent>
-        <MudText Typo="Typo.h3">@HeaderText</MudText>
-        @Description
-    </DialogContent>
-    <DialogActions>
-        @if(!string.IsNullOrEmpty(CancelButtonText))
+@using _4Cows_FE.Components.Meadow
+
+@*
+    Die gemeinsame Bestaetigung. ColorScheme bleibt als MudBlazor.Color
+    erhalten, damit alle acht Aufrufstellen unveraendert kompilieren - der
+    Wert wird nur auf eine Meadow-Buttonklasse abgebildet.
+*@
+<MeadowDialog Title="@HeaderText" Size="MeadowDialogSize.Info" OnClose="Cancel">
+    <ChildContent>
+        <div class="mw-hint">@Description</div>
+    </ChildContent>
+    <Footer>
+        @if (!string.IsNullOrEmpty(CancelButtonText))
         {
-            <MudButton OnClick="Cancel">@CancelButtonText</MudButton>
+            <button type="button" class="mw-btn mw-btn--plain mw-btn--wide" @onclick="Cancel">
+                @CancelButtonText
+            </button>
         }
-        <MudButton Color="ColorScheme" OnClick="Submit">@AcceptButtonText</MudButton>
-    </DialogActions>
-</MudDialog>
+        <button type="button" class="@AcceptClass" @onclick="Submit">@AcceptButtonText</button>
+    </Footer>
+</MeadowDialog>
 
-@code{
-    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+@code {
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = default!;
 
-    void Submit() => MudDialog.Close(DialogResult.Ok(true));
-    void Cancel() => MudDialog.Cancel();
+    [Parameter] public string Description { get; set; } = "";
+    [Parameter] public string HeaderText { get; set; } = "";
+    [Parameter] public string AcceptButtonText { get; set; } = "";
+    [Parameter] public string CancelButtonText { get; set; } = "";
+    [Parameter] public Color ColorScheme { get; set; }
 
-    [Parameter]
-    public string Description { get; set; } = "";
+    private string AcceptClass => ColorScheme switch
+    {
+        Color.Error => "mw-btn mw-btn--danger mw-btn--wide",
+        Color.Warning => "mw-btn mw-btn--warning mw-btn--wide",
+        Color.Success => "mw-btn mw-btn--success mw-btn--wide",
+        _ => "mw-btn mw-btn--primary mw-btn--wide"
+    };
 
-    [Parameter]
-    public string HeaderText { get; set; } = "";
+    private void Submit() => MudDialog.Close(DialogResult.Ok(true));
 
-    [Parameter]
-    public string AcceptButtonText { get; set; } = "";
-
-    [Parameter]
-    public string CancelButtonText { get; set; } = "";
-
-    [Parameter]
-    public Color ColorScheme { get; set; }
+    private void Cancel() => MudDialog.Cancel();
 }

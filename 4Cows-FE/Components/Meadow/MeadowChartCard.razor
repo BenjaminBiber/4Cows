@@ -1,0 +1,20 @@
+@* st.chartCard / st.chartTitle — Rahmen um einen Chart.js-Canvas. *@
+<div class="mw-card mw-card--chart @Class">
+    <div class="mw-card__head">
+        <span class="mw-card-title">@Title</span>
+        @if (Tools is not null)
+        {
+            <div class="mw-card__tools">@Tools</div>
+        }
+    </div>
+    <div class="mw-chart-canvas">
+        @ChildContent
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public RenderFragment? Tools { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public string? Class { get; set; }
+}

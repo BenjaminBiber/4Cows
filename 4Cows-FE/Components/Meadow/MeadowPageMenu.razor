@@ -1,0 +1,37 @@
+@*
+    st.mMenu / pmi — das Dropdown unter dem Seitentitel. Zeigt nur die
+    Geschwister der aktuellen Gruppe, also nie bei Dashboard, Verbände
+    oder Einstellungen.
+*@
+@inject NavigationManager Nav
+
+@if (Open && Siblings.Count > 0)
+{
+    <button type="button" class="mw-menu-backdrop" tabindex="-1"
+            aria-label="Menü schließen" @onclick="OnClose"></button>
+
+    <div class="mw-menu mw-menu--page" role="menu" aria-label="Ansicht wechseln">
+        @foreach (var route in Siblings)
+        {
+            <button type="button" role="menuitem"
+                    class="@(route == Route ? "mw-menu__item is-active" : "mw-menu__item")"
+                    @onclick="() => Go(route)">
+                @MeadowRoutes.TitleFor(route)
+            </button>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public bool Open { get; set; }
+    [Parameter] public string Route { get; set; } = "";
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private IReadOnlyList<string> Siblings => MeadowRoutes.SiblingsFor(Route);
+
+    private async Task Go(string route)
+    {
+        await OnClose.InvokeAsync();
+        Nav.NavigateTo(route);
+    }
+}

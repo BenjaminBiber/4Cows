@@ -1,0 +1,143 @@
+@*
+    Der gemeinsame Dialog-Rahmen (st.dialog / dlgHead / dlgBody / dlgFooter).
+
+    Warum <MudDialog> bleibt
+    ------------------------
+    In MudBlazor 7.15 rendert MudDialogInstance die .mud-dialog-Huelle samt
+    .mud-dialog-title selbst und nimmt von MudDialog nur die Inhalts-Slots.
+    Ohne MudDialog entstehen deshalb ZWEI Panels mit doppeltem Titel
+    (nachgeprueft im DOM).
+
+    Also: MudDialog bleibt der Wurzelknoten und traegt per Class die
+    Meadow-Panel-Klasse. Damit gibt es genau ein Panel - und es behaelt die
+    Klasse mud-dialog, an der Muds Regel
+    .mud-dialog .mud-popover-cascading-value haengt, die Picker- und
+    Autocomplete-Popover ueber den Dialog hebt.
+
+    Kein NoHeader: MudDialog kennt den Parameter in 7.15 nicht (der
+    MudBlazor-Analyzer meldet MUD0002), er landete in UserAttributes und
+    damit als ungueltiges noheader-Attribut im DOM. Muds Titelzeile
+    verschwindet ohnehin per CSS - nachgeprueft im DOM: genau ein Panel,
+    .mud-dialog-title mit display:none.
+*@
+<MudDialog Class="@CssClass" ContentClass="mw-dlg-content">
+    <DialogContent>
+        <div class="mw-dlg-shell" role="dialog" aria-modal="true" aria-labelledby="@_titleId"
+             tabindex="-1" @ref="_root" @onkeydown="OnKeyDown">
+
+            @* Nur mobil sichtbar (Bottom-Sheet-Griff) *@
+            <div class="mw-sheet-grab" aria-hidden="true"></div>
+
+            <div class="mw-dlg-head">
+                <span class="mw-dlg-title" id="@_titleId">@(TitleContent ?? DefaultTitle)</span>
+                @if (ShowClose)
+                {
+                    <button type="button" class="mw-dlg-close" title="Schließen"
+                            aria-label="Schließen" @onclick="CloseAsync">
+                        <MeadowIcon Name="MeadowIconName.Close" Size="18" />
+                    </button>
+                }
+            </div>
+
+            @if (Meta is not null)
+            {
+                <div class="mw-dlg-meta">@Meta</div>
+            }
+
+            <div class="@BodyCssClass">
+                @ChildContent
+            </div>
+
+            @if (Footer is not null)
+            {
+                <div class="mw-dlg-footer">@Footer</div>
+            }
+        </div>
+    </DialogContent>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private MudDialogInstance? Instance { get; set; }
+
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public RenderFragment? TitleContent { get; set; }
+    [Parameter] public RenderFragment? Meta { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Null bedeutet: gar kein Footer-Element (der Info-Dialog hat keins).</summary>
+    [Parameter] public RenderFragment? Footer { get; set; }
+
+    [Parameter] public MeadowDialogSize Size { get; set; } = MeadowDialogSize.Cow;
+    [Parameter] public bool ShowClose { get; set; } = true;
+    [Parameter] public bool Scrollable { get; set; } = true;
+    [Parameter] public bool FlushBody { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    /// <summary>Ohne Angabe wird der Dialog abgebrochen, nicht bestaetigt.</summary>
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private readonly string _titleId = $"mw-dlg-{Guid.NewGuid():N}";
+    private ElementReference _root;
+
+    private RenderFragment DefaultTitle => builder => builder.AddContent(0, Title);
+
+    private string CssClass => $"mw-dlg mw-dlg--{SizeClass} {Class}".TrimEnd();
+
+    private string BodyCssClass
+    {
+        get
+        {
+            var classes = "mw-dlg-body";
+            if (Scrollable) classes += " mw-scroll";
+            if (FlushBody) classes += " mw-dlg-body--flush";
+            return classes;
+        }
+    }
+
+    private string SizeClass => Size switch
+    {
+        MeadowDialogSize.Info => "info",
+        MeadowDialogSize.ShowClaw => "showclaw",
+        MeadowDialogSize.Claw => "claw",
+        MeadowDialogSize.Wide => "wide",
+        _ => "cow"
+    };
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // MudDialog brachte DefaultFocus mit; das ersetzt der
+            // tabindex="-1"-Wurzelknoten.
+            try
+            {
+                await _root.FocusAsync();
+            }
+            catch (Exception)
+            {
+                // Element schon weg (Dialog sofort geschlossen) - unkritisch.
+            }
+        }
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape" && Instance?.Options?.CloseOnEscapeKey != false)
+        {
+            await CloseAsync();
+        }
+    }
+
+    private async Task CloseAsync()
+    {
+        if (OnClose.HasDelegate)
+        {
+            await OnClose.InvokeAsync();
+            return;
+        }
+
+        // MUSS Cancel sein, nicht Close(Ok(...)): sonst wuerde ein
+        // abgebrochener Euter-Dialog still "keine Viertel" speichern.
+        Instance?.Cancel();
+    }
+}

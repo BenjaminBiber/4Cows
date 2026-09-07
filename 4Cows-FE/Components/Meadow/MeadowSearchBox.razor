@@ -1,0 +1,52 @@
+@implements IDisposable
+
+@*
+    st.searchWrap / st.searchInput
+
+    Entprellt, und das ist auf einem Blazor-Server-Circuit nicht optional:
+    ohne Entprellung ist jeder Tastendruck eine Render-Runde ueber die
+    komplette gefilterte Tabelle - und zwar zweimal, weil Desktop-Tabelle
+    und Mobile-Karten beide im Markup stehen.
+*@
+<div class="mw-search @Class">
+    <MeadowIcon Name="MeadowIconName.Search" Size="18" />
+    <input class="mw-search__input" type="search" value="@Value"
+           placeholder="@Placeholder" aria-label="@AriaLabel"
+           @oninput="OnInput" />
+</div>
+
+@code {
+    [Parameter] public string Value { get; set; } = "";
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public string Placeholder { get; set; } = "Suchen…";
+    [Parameter] public string AriaLabel { get; set; } = "Suchen";
+    [Parameter] public int DebounceMs { get; set; } = 250;
+    [Parameter] public string? Class { get; set; }
+
+    private CancellationTokenSource? _debounce;
+
+    private async Task OnInput(ChangeEventArgs e)
+    {
+        var text = e.Value?.ToString() ?? "";
+
+        _debounce?.Cancel();
+        _debounce?.Dispose();
+        _debounce = new CancellationTokenSource();
+
+        try
+        {
+            await Task.Delay(DebounceMs, _debounce.Token);
+            await ValueChanged.InvokeAsync(text);
+        }
+        catch (OperationCanceledException)
+        {
+            // Weitergetippt - der naechste Aufruf uebernimmt.
+        }
+    }
+
+    public void Dispose()
+    {
+        _debounce?.Cancel();
+        _debounce?.Dispose();
+    }
+}

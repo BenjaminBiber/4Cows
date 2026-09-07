@@ -1,0 +1,43 @@
+@* st.filterPopWrap / st.filterPopBackdrop / st.filterPop — 300px Desktop,
+   250px mobil (per CSS). Escape und Klick daneben schliessen. *@
+<div class="mw-pop-anchor" @onkeydown="OnKeyDown">
+    @Trigger
+
+    @if (Open)
+    {
+        <button type="button" class="mw-pop-backdrop" tabindex="-1"
+                aria-label="Filter schließen" @onclick="OnClose"></button>
+
+        <div class="mw-pop" role="dialog" aria-label="Filter">
+            <div class="mw-pop__head">
+                <span class="mw-pop__title">Filter</span>
+                @if (ShowReset)
+                {
+                    <button type="button" class="mw-pop__reset" @onclick="OnReset">
+                        Zurücksetzen
+                    </button>
+                }
+            </div>
+
+            @ChildContent
+
+            @if (!string.IsNullOrEmpty(CountText))
+            {
+                <div class="mw-pop__count">@CountText</div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public bool Open { get; set; }
+    [Parameter] public RenderFragment? Trigger { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public bool ShowReset { get; set; }
+    [Parameter] public string? CountText { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback OnReset { get; set; }
+
+    private Task OnKeyDown(KeyboardEventArgs e)
+        => Open && e.Key == "Escape" ? OnClose.InvokeAsync() : Task.CompletedTask;
+}

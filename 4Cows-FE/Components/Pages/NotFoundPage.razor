@@ -1,0 +1,21 @@
+@page "/nicht-gefunden"
+
+@using _4Cows_FE.Components.Meadow
+
+@*
+    Die 404-Seite als echte Route.
+
+    Der <NotFound>-Zweig in Routes.razor allein genuegt NICHT: er greift nur
+    bei App-interner Navigation. Eine getippte oder verlinkte Adresse laeuft
+    gegen die Server-Endpunkte von MapRazorComponents, findet keinen Treffer
+    und lieferte einen nackten 404 mit leerem Body (nachgeprueft: bodyLen 0).
+    Program.cs leitet solche Antworten per UseStatusCodePagesWithReExecute
+    hierher.
+
+    KEINE Catch-all-Route ("/{*pfad}") - das war der erste Versuch und hat
+    jede statische Datei mitgerissen: /css/*.css kam mit
+    Content-Type text/html und dem 404-HTML zurueck, weil der
+    Blazor-Endpunkt in dieser Pipeline vor UseStaticFiles gewinnt. Die App
+    war komplett unformatiert.
+*@
+<MeadowNotFound />

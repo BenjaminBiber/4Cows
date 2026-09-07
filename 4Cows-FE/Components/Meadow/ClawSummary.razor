@@ -1,0 +1,106 @@
+@*
+    Die Nur-Lese-Ansicht der vier Klauen (st.showCell / legBandage / legBlock
+    / legRemoved).
+
+    Ersetzt in Show_Claw_Treatment_Dialog eine 6-fach-Verzweigung x 4
+    Positionen (24 Zweige) und in Show_Planned_Treatment_Claw_Dialog acht.
+
+    Und behebt dabei einen echten Anzeigefehler: die alte Kette vermischte
+    die Flags, sodass IsBandageRemoved - das behandlungsweit gesetzt wird -
+    optisch auch den KLOTZ verschwinden liess. Genau deshalb brauchte es
+    ueberhaupt separate *_Removed_Block.svg-Dateien.
+
+    Die Legende des Prototyps ist NICHT uebernommen. Sie zeigte alle drei
+    Badges unabhaengig vom Inhalt, direkt unter der Meta-Zeile - eine
+    Behandlung ohne Verband und ohne Klotz sah damit aus, als haette sie
+    beides und waere zugleich entfernt (im Browser nachgeprueft). Und die
+    Badges tragen ihren Text selbst, eine Legende erklaert also nichts.
+*@
+<div class="mw-show-grid">
+    @foreach (var position in HoofPositions.All)
+    {
+        <div class="mw-show-cell">
+            <div class="mw-show-cell__row">
+                <span class="@ThumbClass(position)"><Hoof /></span>
+
+                <div class="mw-show-cell__body">
+                    <div class="mw-show-cell__title">@HoofPositions.Label(position)</div>
+                    <div class="mw-show-cell__finding">@Finding(position)</div>
+
+                    <div class="mw-show-cell__tags">
+                        @if (Treatment is not null)
+                        {
+                            @if (Treatment.GetBandage(position) && !Treatment.IsBandageRemoved)
+                            {
+                                <span class="mw-tag mw-tag--bandage">Verband</span>
+                            }
+                            @if (Treatment.GetBandage(position) && Treatment.IsBandageRemoved)
+                            {
+                                <span class="mw-tag mw-tag--removed">Verband entfernt</span>
+                            }
+                            @* Der Klotz haengt NICHT an IsBandageRemoved. *@
+                            @if (Treatment.GetBlock(position))
+                            {
+                                <span class="mw-tag mw-tag--block">Klotz</span>
+                            }
+                        }
+                        else if (Planned?.GetFlag(position) == true)
+                        {
+                            <span class="mw-tag mw-tag--bandage">Auffällig</span>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public ClawTreatment? Treatment { get; set; }
+    [Parameter] public PlannedClawTreatment? Planned { get; set; }
+
+    /// <summary>
+    /// Anzeigetext, wenn an dieser Klaue nichts erfasst wurde. Pflegbar unter
+    /// Einstellungen -> Standardwerte; gespeichert wird er nicht.
+    /// </summary>
+    [Parameter] public string FallbackFinding { get; set; } = "";
+
+    private string Finding(HoofPosition position)
+    {
+        if (Treatment is not null)
+        {
+            var finding = Treatment.GetFinding(position)?.Trim();
+            if (!string.IsNullOrEmpty(finding))
+            {
+                return finding;
+            }
+
+            // Nur anzeigen, nicht speichern. Bisher schrieb der
+            // Hinzufuegen-Dialog "Pflege" in jede unberuehrte Klaue.
+            return string.IsNullOrEmpty(FallbackFinding) ? "–" : FallbackFinding;
+        }
+
+        return Planned?.GetFlag(position) == true ? "Zur Behandlung vorgesehen" : "–";
+    }
+
+    /// <summary>
+    /// hoofColor(): Verband oder Klotz -> primary, sonstige Daten (Befund)
+    /// -> teal, gar nichts -> hoof-idle. Der letzte Fall fehlte: eine
+    /// unberuehrte Klaue war teal und damit von einer mit Befund nicht zu
+    /// unterscheiden.
+    /// </summary>
+    private string ThumbClass(HoofPosition position)
+    {
+        if (Treatment is not null)
+        {
+            if (Treatment.GetBandage(position) || Treatment.GetBlock(position))
+            {
+                return "mw-hoof-thumb is-treated";
+            }
+
+            return Treatment.HasData(position) ? "mw-hoof-thumb" : "mw-hoof-thumb is-idle";
+        }
+
+        return Planned?.GetFlag(position) == true ? "mw-hoof-thumb is-treated" : "mw-hoof-thumb is-idle";
+    }
+}

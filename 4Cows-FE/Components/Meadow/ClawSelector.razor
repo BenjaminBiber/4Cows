@@ -1,0 +1,216 @@
+@*
+    Der interaktive Klauen-Selektor (st.clawRow / hoofWrap / st.subPanel).
+
+    Ein Bauteil fuer zwei Faelle: Findings (Befund + Verband + Klotz je Klaue)
+    und Flags (nur die vier Booleans der geplanten Behandlung). Gleiches
+    Gitter, gleicher Huf, gleiche Labels, gleiches CSS - deshalb ein Mode
+    statt zweier Komponenten.
+
+    Gebunden wird durch In-Place-Mutation der Entitaet ueber die
+    Positions-Extensions plus OnChanged. Ein EventCallback<ClawTreatment>
+    wuerde die Klasse "Parameter-Set ueberschreibt lokale Eingabe"
+    zurueckbringen, und die Entitaet gehoert ohnehin dem Aufrufer.
+*@
+<div class="mw-claw-row">
+    <div class="mw-claw-hoofs">
+        <div class="mw-claw-sides"><span>LINKS</span><span>RECHTS</span></div>
+
+        <div class="mw-hoof-grid" role="@GridRole" aria-label="Klaue auswählen"
+             @onkeydown="OnGridKeyDown">
+            @foreach (var position in HoofPositions.All)
+            {
+                <div class="mw-hoof-cell">
+                    <button type="button" class="@HoofClass(position)"
+                            role="@ItemRole" aria-checked="@(IsChecked(position) ? "true" : "false")"
+                            aria-label="@HoofPositions.Label(position)"
+                            @onclick="() => ActivateAsync(position)">
+                        <Hoof />
+                    </button>
+                    <span class="mw-hoof-lbl">@HoofPositions.CellLabel(position)</span>
+                </div>
+            }
+        </div>
+    </div>
+
+    @if (Mode == ClawSelectorMode.Findings && Treatment is not null)
+    {
+        <div class="mw-subpanel">
+            @if (Selected is null)
+            {
+                <div class="mw-subpanel-empty">
+                    Wähle <span class="mw-only-desktop">links</span><span class="mw-only-mobile">oben</span>
+                    eine Klaue,<br />um den Befund zu erfassen.
+                </div>
+            }
+            else
+            {
+                var position = Selected.Value;
+                <div class="mw-subpanel-title">@HoofPositions.Label(position)</div>
+
+                <label class="mw-label mw-label--spaced" for="mw-finding">Befund</label>
+                <div class="mw-field">
+                    <MudAutocomplete T="string" InputId="mw-finding" Variant="Variant.Text"
+                                     Value="@Treatment.GetFinding(position)"
+                                     ValueChanged="@(v => SetFindingAsync(position, v))"
+                                     SearchFunc="SearchFindings" CoerceValue="true"
+                                     Placeholder="z.B. Mortellaro, Pflege…" />
+                </div>
+
+                <div class="mw-toggle-row">
+                    <button type="button" class="@ToggleClass(Treatment.GetBandage(position))"
+                            aria-pressed="@(Treatment.GetBandage(position) ? "true" : "false")"
+                            @onclick="() => ToggleBandageAsync(position)">Verband</button>
+                    <button type="button" class="@ToggleClass(Treatment.GetBlock(position))"
+                            aria-pressed="@(Treatment.GetBlock(position) ? "true" : "false")"
+                            @onclick="() => ToggleBlockAsync(position)">Klotz</button>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public ClawTreatment? Treatment { get; set; }
+    [Parameter] public PlannedClawTreatment? Planned { get; set; }
+    [Parameter] public ClawSelectorMode Mode { get; set; } = ClawSelectorMode.Findings;
+
+    /// <summary>
+    /// Vorschlaege fuer das Befund-Feld. Wird vom Aufrufer gesetzt, damit die
+    /// Komponente keine Service-Abhaengigkeit hat.
+    /// </summary>
+    [Parameter] public IEnumerable<string> Findings { get; set; } = Array.Empty<string>();
+
+    [Parameter] public HoofPosition? Selected { get; set; }
+    [Parameter] public EventCallback<HoofPosition?> SelectedChanged { get; set; }
+
+    /// <summary>Nach jeder Aenderung an der Entitaet.</summary>
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    private string GridRole => Mode == ClawSelectorMode.Findings ? "radiogroup" : "group";
+    private string ItemRole => Mode == ClawSelectorMode.Findings ? "radio" : "checkbox";
+
+    private bool IsChecked(HoofPosition position)
+        => Mode == ClawSelectorMode.Findings
+            ? Selected == position
+            : Planned?.GetFlag(position) == true;
+
+    /// <summary>
+    /// hoofColor(): ausgewaehlt -> primary, hat Daten -> teal, sonst neutral.
+    /// Die Farben stehen im CSS, hier nur der Zustand.
+    /// </summary>
+    private string HoofClass(HoofPosition position)
+    {
+        var classes = "mw-hoof-btn";
+
+        if (Mode == ClawSelectorMode.Findings)
+        {
+            if (Treatment?.HasData(position) == true)
+            {
+                classes += " has-data";
+            }
+
+            if (Selected == position)
+            {
+                classes += " is-selected";
+            }
+        }
+        else if (Planned?.GetFlag(position) == true)
+        {
+            classes += " is-selected";
+        }
+
+        return classes;
+    }
+
+    private static string ToggleClass(bool on) => on ? "mw-toggle is-on" : "mw-toggle";
+
+    private async Task ActivateAsync(HoofPosition position)
+    {
+        if (Mode == ClawSelectorMode.Flags)
+        {
+            if (Planned is null)
+            {
+                return;
+            }
+
+            Planned.SetFlag(position, !Planned.GetFlag(position));
+            await OnChanged.InvokeAsync();
+            return;
+        }
+
+        // Nochmal auf dieselbe Klaue tippen schliesst das Sub-Panel wieder.
+        var next = Selected == position ? (HoofPosition?)null : position;
+        Selected = next;
+        await SelectedChanged.InvokeAsync(next);
+    }
+
+    private async Task SetFindingAsync(HoofPosition position, string? value)
+    {
+        Treatment?.SetFinding(position, value ?? string.Empty);
+        await OnChanged.InvokeAsync();
+    }
+
+    private async Task ToggleBandageAsync(HoofPosition position)
+    {
+        if (Treatment is null)
+        {
+            return;
+        }
+
+        Treatment.SetBandage(position, !Treatment.GetBandage(position));
+        await OnChanged.InvokeAsync();
+    }
+
+    private async Task ToggleBlockAsync(HoofPosition position)
+    {
+        if (Treatment is null)
+        {
+            return;
+        }
+
+        Treatment.SetBlock(position, !Treatment.GetBlock(position));
+        await OnChanged.InvokeAsync();
+    }
+
+    private Task<IEnumerable<string>> SearchFindings(string value, CancellationToken token)
+    {
+        var all = Findings
+            .Select(f => f?.Trim() ?? "")
+            .Where(f => f.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+
+        return Task.FromResult(string.IsNullOrEmpty(value)
+            ? all
+            : all.Where(f => f.Contains(value, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    /// <summary>Pfeiltasten ueber das 2x2-Gitter: links/rechts Spalte, oben/unten Reihe.</summary>
+    private async Task OnGridKeyDown(KeyboardEventArgs e)
+    {
+        if (Selected is null)
+        {
+            return;
+        }
+
+        var next = (Selected.Value, e.Key) switch
+        {
+            (HoofPosition.LV, "ArrowRight") => HoofPosition.RV,
+            (HoofPosition.RV, "ArrowLeft") => HoofPosition.LV,
+            (HoofPosition.LH, "ArrowRight") => HoofPosition.RH,
+            (HoofPosition.RH, "ArrowLeft") => HoofPosition.LH,
+            (HoofPosition.LV, "ArrowDown") => HoofPosition.LH,
+            (HoofPosition.LH, "ArrowUp") => HoofPosition.LV,
+            (HoofPosition.RV, "ArrowDown") => HoofPosition.RH,
+            (HoofPosition.RH, "ArrowUp") => HoofPosition.RV,
+            _ => (HoofPosition?)null
+        };
+
+        if (next is null)
+        {
+            return;
+        }
+
+        Selected = next;
+        await SelectedChanged.InvokeAsync(next);
+    }
+}

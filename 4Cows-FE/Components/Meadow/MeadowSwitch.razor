@@ -1,0 +1,16 @@
+@* Ersetzt MudSwitch — genutzt fuer "Simple Ansicht" (Stall-Modus). *@
+<label class="mw-switch @Class">
+    <input type="checkbox" checked="@Value" @onchange="OnChange" />
+    <span class="mw-switch__track"></span>
+    <span>@Label</span>
+</label>
+
+@code {
+    [Parameter] public bool Value { get; set; }
+    [Parameter] public EventCallback<bool> ValueChanged { get; set; }
+    [Parameter] public string Label { get; set; } = "";
+    [Parameter] public string? Class { get; set; }
+
+    private Task OnChange(ChangeEventArgs e)
+        => ValueChanged.InvokeAsync(e.Value is bool b && b);
+}

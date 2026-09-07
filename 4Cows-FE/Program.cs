@@ -6,7 +6,9 @@ using BB_KPI.Services;
 using BBCowDataLibrary.SQL;
 using Microsoft.AspNetCore.Hosting.StaticWebAssets;
 using Microsoft.EntityFrameworkCore;
+using MudBlazor;
 using MudBlazor.Services;
+using _4Cows_FE.Components.Meadow;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddEnvironmentVariables();
@@ -27,7 +29,18 @@ StaticWebAssetsLoader.UseStaticWebAssets(builder.Environment, builder.Configurat
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
-builder.Services.AddMudServices();
+// Snackbar-Konfiguration gehoert hierher, nicht in die Speicher-Methoden der
+// Dialoge: dort wurde bisher an acht Stellen ein Singleton aus dem Render-Pfad
+// mutiert (u.a. MaxDisplayedSnackbars = 10, weshalb sich Toasts stapelten).
+builder.Services.AddMudServices(cfg =>
+{
+    cfg.SnackbarConfiguration.PositionClass = Defaults.Classes.Position.BottomRight;
+    cfg.SnackbarConfiguration.SnackbarVariant = Variant.Outlined;
+    cfg.SnackbarConfiguration.MaxDisplayedSnackbars = 4;
+    cfg.SnackbarConfiguration.VisibleStateDuration = 4000;
+    cfg.SnackbarConfiguration.ShowTransitionDuration = 180;
+    cfg.SnackbarConfiguration.PreventDuplicates = false;
+});
 builder.Services.AddSingleton<DatabaseStatusService>();
 builder.Services.AddDbContextFactory<DatabaseContext>(options =>
     options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
@@ -40,8 +53,18 @@ builder.Services.AddSingleton<CowService>();
 builder.Services.AddSingleton<WhereHowService>();
 builder.Services.AddSingleton<UdderService>();
 builder.Services.AddSingleton<KPIService>();
+builder.Services.AddSingleton<SettingsService>();
 builder.Services.AddSingleton<DatabaseConnectionState>();
 builder.Services.AddSingleton<XLinkService>();
+
+// Shell-Zustand ist Scoped, also einer pro Circuit. Als Singleton wuerde der
+// Drawer oder das Theme eines Nutzers bei allen anderen mitschalten - die
+// Datenservices oben sind absichtlich prozessweit, dieser Zustand nicht.
+builder.Services.AddScoped<LayoutState>();
+builder.Services.AddScoped<ThemeState>();
+builder.Services.AddScoped<MeadowDataLoader>();
+builder.Services.AddScoped<MeadowDialogLauncher>();
+
 builder.Services.AddHostedService<CowSyncBackgroundService>();
 builder.WebHost.UseStaticWebAssets();
 var app = builder.Build();
@@ -61,6 +84,13 @@ if (!app.Environment.IsDevelopment())
 }
 app.UseHttpsRedirection();
 app.UseStaticFiles();
+
+// Nach UseStaticFiles, damit vorhandene Dateien normal ausgeliefert werden:
+// erst eine 404-Antwort wird hierher umgeleitet. Ohne das liefert eine
+// getippte Falschadresse einen leeren Body - der <NotFound>-Zweig in
+// Routes.razor greift nur bei App-interner Navigation.
+app.UseStatusCodePagesWithReExecute("/nicht-gefunden");
+
 app.UseAntiforgery();
 
 app.MapRazorComponents<App>()

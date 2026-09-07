@@ -1,0 +1,62 @@
+@* st.header / st.mHeader — rein praesentational, aller Zustand kommt vom Layout. *@
+<header class="mw-header">
+    <button type="button" class="mw-icon-btn mw-icon-btn--text"
+            title="Navigation" aria-label="Navigation öffnen" @onclick="OnMenu">
+        <MeadowIcon Name="MeadowIconName.Menu" Size="22" />
+    </button>
+
+    @*
+        Der Titel ist zweimal im Markup, CSS zeigt eine Variante.
+
+        Auf Desktop ein reiner Text - das Design hat dort kein Dropdown, und
+        ein per pointer-events:none stillgelegter Button waere trotzdem noch
+        fokussierbar, also ein Bedienelement, das auf Enter nichts tut.
+        Mobil der antippbare Button mit Chevron.
+
+        Zwei winzige Elemente statt einer Viewport-Abfrage in C#: Blazor Server
+        prerendert ohne Viewport-Wissen, jede JS-gestuetzte Weiche wuerde beim
+        ersten Frame die falsche Variante rendern und dann umklappen.
+    *@
+    @* aria-label, weil beide Titel-Varianten im DOM stehen: ohne das liest
+       ein Screenreader die Ueberschrift doppelt vor. *@
+    <h1 class="mw-header__title" tabindex="-1" aria-label="@PageTitle">
+        <span class="mw-title-btn__label mw-only-desktop">@PageTitle</span>
+
+        <button type="button" class="mw-title-btn mw-only-mobile" @onclick="OnTitle"
+                aria-haspopup="@(HasSiblings ? "true" : null)"
+                aria-label="@(HasSiblings ? $"{PageTitle} – Ansicht wechseln" : null)">
+            <span class="mw-title-btn__label">@PageTitle</span>
+            @if (HasSiblings)
+            {
+                <MeadowIcon Name="MeadowIconName.ChevronDown" Size="17"
+                            Class="mw-title-btn__chevron" />
+            }
+        </button>
+    </h1>
+
+    <div class="mw-header__actions">
+        <button type="button" class="mw-icon-btn mw-only-desktop"
+                title="Datenbank Informationen" aria-label="Datenbank Informationen"
+                @onclick="OnInfo">
+            <MeadowIcon Name="MeadowIconName.Info" Size="20" />
+        </button>
+
+        <button type="button" class="mw-icon-btn"
+                title="@(IsDark ? "Zu hell wechseln" : "Zu dunkel wechseln")"
+                aria-label="@(IsDark ? "Helles Design aktivieren" : "Dunkles Design aktivieren")"
+                aria-pressed="@(IsDark ? "true" : "false")"
+                @onclick="OnToggleTheme">
+            <MeadowIcon Name="@(IsDark ? MeadowIconName.Moon : MeadowIconName.Sun)" Size="20" />
+        </button>
+    </div>
+</header>
+
+@code {
+    [Parameter] public string PageTitle { get; set; } = "";
+    [Parameter] public bool HasSiblings { get; set; }
+    [Parameter] public bool IsDark { get; set; }
+    [Parameter] public EventCallback OnMenu { get; set; }
+    [Parameter] public EventCallback OnTitle { get; set; }
+    [Parameter] public EventCallback OnInfo { get; set; }
+    [Parameter] public EventCallback OnToggleTheme { get; set; }
+}

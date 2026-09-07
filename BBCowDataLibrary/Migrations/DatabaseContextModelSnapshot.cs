@@ -22,6 +22,24 @@ namespace BBCowDataLibrary.Migrations
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
 
+            modelBuilder.Entity("BB_Cow.Class.AppSetting", b =>
+                {
+                    b.Property<string>("SettingKey")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("SettingKey");
+
+                    b.Property<string>("SettingValue")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("varchar(256)")
+                        .HasColumnName("SettingValue");
+
+                    b.HasKey("SettingKey");
+
+                    b.ToTable("AppSetting");
+                });
+
             modelBuilder.Entity("BB_Cow.Class.ClawTreatment", b =>
                 {
                     b.Property<int>("ClawTreatmentId")
@@ -130,9 +148,8 @@ namespace BBCowDataLibrary.Migrations
 
                     b.HasKey("CowId");
 
-                    b.HasIndex("EarTagNumber")
-                        .IsUnique()
-                        .HasDatabaseName("IX_Cow_Ear_Tag_Number");
+                    b.HasIndex(new[] { "EarTagNumber" }, "IX_Cow_Ear_Tag_Number")
+                        .IsUnique();
 
                     b.ToTable("Cow");
                 });

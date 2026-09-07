@@ -1,0 +1,54 @@
+@*
+    st.mTabbar / st.mFab / mtabS — nur mobil, per CSS eingeblendet.
+
+    Flex-Geschwister des Inhalts statt position:absolute. Der FAB haengt
+    26px ueber die Leiste, dafuer genuegt overflow:visible.
+
+    Kein NavLink: der FAB ist kein Link, und "Klaue" muss fuer drei Routen
+    leuchten (Klauen, geplante Klauen, Verbände).
+*@
+@inject NavigationManager Nav
+
+<div class="mw-tabbar">
+    <button type="button" class="@TabClass(NavGroup.Dashboard)"
+            @onclick="() => Go(MeadowRoutes.Dashboard)">
+        <MeadowIcon Name="MeadowIconName.Dashboard" Size="22" />
+        <span>Start</span>
+    </button>
+
+    <button type="button" class="@TabClass(NavGroup.Cow)"
+            @onclick="() => Go(MeadowRoutes.CowTreatments)">
+        <MeadowIcon Name="MeadowIconName.Cow" Size="22" />
+        <span>Kuh</span>
+    </button>
+
+    <button type="button" class="mw-fab" title="@FabTitle" aria-label="@FabTitle"
+            @onclick="OnFab">
+        <MeadowIcon Name="MeadowIconName.PlusBold" Size="26" />
+    </button>
+
+    <button type="button" class="@TabClass(NavGroup.Claw)"
+            @onclick="() => Go(MeadowRoutes.ClawTreatments)">
+        <MeadowIcon Name="MeadowIconName.Claw" Size="22" />
+        <span>Klaue</span>
+    </button>
+
+    <button type="button" class="@TabClass(NavGroup.System)"
+            @onclick="() => Go(MeadowRoutes.Settings)">
+        <MeadowIcon Name="MeadowIconName.Settings" Size="22" />
+        <span>System</span>
+    </button>
+</div>
+
+@code {
+    [Parameter] public string Route { get; set; } = "";
+    [Parameter] public string FabTitle { get; set; } = "Hinzufügen";
+    [Parameter] public EventCallback OnFab { get; set; }
+
+    private string TabClass(NavGroup group)
+        => MeadowRoutes.GroupFor(Route) == group
+            ? "mw-tabbar__item is-active"
+            : "mw-tabbar__item";
+
+    private void Go(string route) => Nav.NavigateTo(route);
+}

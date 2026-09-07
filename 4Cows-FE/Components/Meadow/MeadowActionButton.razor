@@ -1,0 +1,17 @@
+@* act(bg) — die Aktionsspalte des Dashboards. *@
+<button type="button" class="@CssClass" @onclick="OnClick">
+    <MeadowIcon Name="Icon" Size="@IconSize" />
+    <span>@Label</span>
+</button>
+
+@code {
+    [Parameter, EditorRequired] public string Label { get; set; } = "";
+    [Parameter, EditorRequired] public MeadowIconName Icon { get; set; }
+    [Parameter] public bool Teal { get; set; }
+    [Parameter] public int IconSize { get; set; } = 22;
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public EventCallback OnClick { get; set; }
+
+    private string CssClass =>
+        $"mw-act {(Teal ? "mw-act--teal" : "mw-act--primary")} {Class}".TrimEnd();
+}

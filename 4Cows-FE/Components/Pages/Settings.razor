@@ -1,108 +1,281 @@
-@inject KPIService KPIService
-@inject IDialogService DialogService
 @page "/Settings"
+
 @using _4Cows_FE.Components._4CowsComponent.Dialogs
-@using BB_KPI.Services
 @using _4Cows_FE.Components._4CowsComponent.BaseData
+@using _4Cows_FE.Components.Meadow
+@using _4Cows_FE.Components.Services
+@using BB_KPI.Services
 
-@if (isAuthenticated)
+@inject KPIService KPIService
+@inject SettingsService Defaults
+@inject MeadowDataLoader Data
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+@if (!_isAuthenticated)
 {
-    
-<MudTabs Rounded="true" Class="mt-5" Position="Position.Left" Color="Color.Primary">
-    <MudTabPanel Text="KPIs">
-        <div class="SettingsTab">
-            <MudTable T="KPI" Items="KPIs">
-                <HeaderContent>
-                    <MudTh><MudTableSortLabel SortBy="new Func<KPI, object>(x => x.KPIId)">ID</MudTableSortLabel></MudTh>
-                    <MudTh><MudTableSortLabel SortBy="new Func<KPI, object>(x => x.KPIId)">Titel</MudTableSortLabel></MudTh>
-                    <MudTh><MudTableSortLabel SortBy="new Func<KPI, object>(x => x.KPIId)">Skript</MudTableSortLabel></MudTh>
-                    <MudTh><MudTableSortLabel SortBy="new Func<KPI, object>(x => x.KPIId)">Sortierreihenfolge</MudTableSortLabel></MudTh>
-                    <MudTh><MudTableSortLabel SortBy="new Func<KPI, object>(x => x.KPIId)">Link</MudTableSortLabel></MudTh>
-                    <MudTh><MudButton Color="Color.Success" Variant="Variant.Filled" OnClick="() => OpenKPIDialog(new KPI(), true)">KPI Hinzufügen</MudButton></MudTh>
-                </HeaderContent>
-                <RowTemplate>
-                    <MudTd DataLabel="ID">@context.KPIId</MudTd>
-                    <MudTd DataLabel="Title">@context.Title</MudTd>
-                    <MudTd DataLabel="Script">@context.Script</MudTd>
-                    <MudTd DataLabel="Script">@context.SortOrder</MudTd>
-                    <MudTd DataLabel="Link">@context.Url</MudTd>
-                    <MudTd DataLabel="Edit"><MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="() => OpenKPIDialog(context)">KPI editieren</MudButton></MudTd>
-                    <MudTooltip Text="KPI Löschen">
-                        <MudTd DataLabel="Edit"><MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="() => DeleteKPI(context)"></MudIconButton></MudTd>
-                    </MudTooltip>
-                </RowTemplate>
-                <PagerContent>
-                    <MudTablePager RowsPerPageString="KPIs pro Seite" PageSizeOptions="new int[] { 25, 50, 100 }"/>
-                </PagerContent>
-            </MudTable>
-        </div>
-    </MudTabPanel>
-    <div class="SettingsTab">
-        <MudTabPanel Text="BasisDaten">
-
-            <MudTabs Centered="true" Color="Color.Primary">
-                <MudTabPanel Text="Kuh Behandlung">
-                    <BaseDataCowTreatment></BaseDataCowTreatment>
-                </MudTabPanel>
-
-                <MudTabPanel Text="Klauen Behandlung">
-                    <BaseDataClawTreatment></BaseDataClawTreatment>
-                </MudTabPanel>
-
-                <MudTabPanel Text="Kühe">
-                    <BaseDataCow></BaseDataCow>
-                </MudTabPanel>
-
-                <MudTabPanel Text="Medikamente">
-                    <BaseDataMedicine></BaseDataMedicine>
-                </MudTabPanel>
-                
-            </MudTabs>
-        </MudTabPanel>
-    </div>
-    
-</MudTabs>
+    <SettingsAuth IsAuthenticated="OnAuthenticated" />
 }
 else
 {
-    <div class="AuthDiv">
-       <SettingsAuth IsAuthenticated="(bool b) => isAuthenticated = b"></SettingsAuth>
+    <div class="mw-tabs">
+        @foreach (var tab in Tabs)
+        {
+            <button type="button" class="mw-tab @(_tab == tab ? "is-active" : "")"
+                    @onclick="() => _tab = tab">
+                @tab
+            </button>
+        }
     </div>
+
+    @if (_tab == TabKpi)
+    {
+        <MeadowTable TItem="KPI" Items="_kpis" Columns="_kpiColumns"
+                     RowKey="@(k => k.KPIId)"
+                     DefaultSortTitle="Sortierung"
+                     ShowMobileCards="false"
+                     PagerLabel="KPIs pro Seite"
+                     EmptyText="Noch keine KPIs angelegt." />
+
+        <div class="mw-table-foot">
+            <button type="button" class="mw-btn mw-btn--primary"
+                    @onclick="() => OpenKpiDialog(new KPI(), true)">
+                <MeadowIcon Name="MeadowIconName.Plus" Size="20" />
+                <span>KPI hinzufügen</span>
+            </button>
+        </div>
+    }
+    else if (_tab == TabBaseData)
+    {
+        <div class="mw-chip-tabs">
+            @foreach (var sub in BaseDataTabs)
+            {
+                <button type="button" class="mw-mini-chip @(_baseTab == sub ? "is-active" : "")"
+                        @onclick="() => _baseTab = sub">
+                    @sub
+                </button>
+            }
+        </div>
+
+        @* Nur der aktive Zweig wird gerendert - MudTabs hielt alle vier
+           Tabellen gleichzeitig im DOM. *@
+        @switch (_baseTab)
+        {
+            case "Kuh Behandlung":
+                <BaseDataCowTreatment />
+                break;
+            case "Klauen Behandlung":
+                <BaseDataClawTreatment />
+                break;
+            case "Kühe":
+                <BaseDataCow />
+                break;
+            default:
+                <BaseDataMedicine />
+                break;
+        }
+    }
+    else
+    {
+        <div class="mw-card mw-settings-card">
+            <h2 class="mw-section-title">Standardwerte</h2>
+
+            <label class="mw-label" for="mw-claw-fallback">
+                Anzeigetext für Klauen ohne erfassten Befund
+            </label>
+            <input id="mw-claw-fallback" class="mw-input" type="text"
+                   value="@_fallbackDraft"
+                   @oninput="e => _fallbackDraft = e.Value?.ToString() ?? string.Empty" />
+            <p class="mw-hint">
+                Wird nur angezeigt, nicht gespeichert: unberührte Klauen bleiben in der
+                Datenbank leer. Ältere Behandlungen, in denen „Pflege" wirklich
+                gespeichert wurde, zeigen weiter ihren eigenen Wert.
+            </p>
+
+            <div class="mw-table-foot">
+                <button type="button" class="mw-btn mw-btn--primary" @onclick="SaveFallback">
+                    Speichern
+                </button>
+            </div>
+        </div>
+    }
 }
 
 @code {
-    private List<KPI> KPIs = [];
-    private bool isAuthenticated = false;
-    
-    protected override async Task OnInitializedAsync()
-    {
-        await GetKPIs();
-    }
+    private const string TabKpi = "KPIs";
+    private const string TabBaseData = "Basisdaten";
+    private const string TabDefaults = "Standardwerte";
 
-    private async Task GetKPIs()
-    {
-        KPIs = (await KPIService.GetAllKPIs(false)).Keys.ToList();
-    }
+    private static readonly string[] Tabs = { TabKpi, TabBaseData, TabDefaults };
 
-    private async Task OpenKPIDialog(KPI kpi, bool newKPI = false)
-    {        
-        var options = new DialogOptions() { BackdropClick = false, CloseOnEscapeKey = false, CloseButton = newKPI, MaxWidth = MaxWidth.Medium, FullWidth = true};
-        var parameters = new DialogParameters<KPIDialog>() { { x => x.KPI, kpi }, { x => x.IsSave, newKPI }, };
-        await DialogService.ShowAsync<KPIDialog>((newKPI ? "KPI Hinzufügen" : "KPI Editieren"),parameters, options);
-        await GetKPIs();
-    }
-
-    private async Task DeleteKPI(KPI kpi)
+    private static readonly string[] BaseDataTabs =
     {
-        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, NoHeader = true };
-        var parametersGeneric = new DialogParameters<GenericDialog> { { x => x.HeaderText, "Löschen" }, { x => x.Description, "Wollen Sie das KPI wirklich Löschen?" }, { x => x.AcceptButtonText, "Ja" }, { x => x.CancelButtonText, "Nein" }, { x => x.ColorScheme, Color.Error } };
-        var dialog = await DialogService.ShowAsync<GenericDialog>("",parametersGeneric, options);
-        var result = await dialog.Result;
-        if (!result.Canceled)
+        "Kuh Behandlung", "Klauen Behandlung", "Kühe", "Medikamente"
+    };
+
+    private bool _isAuthenticated;
+    private string _tab = TabKpi;
+    private string _baseTab = BaseDataTabs[0];
+
+    private List<KPI> _kpis = new();
+    private string _fallbackDraft = "";
+
+    private IReadOnlyList<MeadowColumn<KPI>> _kpiColumns = Array.Empty<MeadowColumn<KPI>>();
+
+    protected override void OnInitialized() => BuildColumns();
+
+    // Erst nach der Anmeldung laden. Bisher las die Seite KPIs und alle
+    // Caches schon, waehrend noch die Auth-Karte stand - sieben
+    // DB-Runden fuer einen Bildschirm, den niemand sehen darf.
+    private async Task OnAuthenticated(bool value)
+    {
+        _isAuthenticated = value;
+        if (!value)
         {
-            await KPIService.DeleteDataAsync(kpi.KPIId);
-            await GetKPIs();
+            return;
         }
 
+        await Data.EnsureDashboardAsync();
+        _fallbackDraft = Defaults.ClawFindingFallback;
+        await LoadKpis();
+    }
+
+    // Fuenf Spalten, fuenf verschiedene Sortierschluessel - bisher sortierten
+    // alle fuenf nach KPIId.
+    private void BuildColumns() => _kpiColumns = new List<MeadowColumn<KPI>>
+    {
+        new()
+        {
+            Title = "ID",
+            Text = k => k.KPIId.ToString(),
+            SortBy = k => k.KPIId,
+            Style = MeadowCellStyle.Mono,
+            Width = "70px"
+        },
+        new()
+        {
+            Title = "Titel",
+            Text = k => k.Title,
+            SortBy = k => k.Title,
+            Style = MeadowCellStyle.Bold
+        },
+        new()
+        {
+            Title = "Skript",
+            Text = k => Shorten(k.Script),
+            SortBy = k => k.Script,
+            Style = MeadowCellStyle.Mono,
+            MaxWidth = "320px",
+            NoWrap = true
+        },
+        new()
+        {
+            Title = "Sortierung",
+            Text = k => k.SortOrder.ToString(),
+            SortBy = k => k.SortOrder,
+            Align = MeadowAlign.Right,
+            Width = "110px"
+        },
+        new()
+        {
+            Title = "Link",
+            Text = k => k.Url,
+            SortBy = k => k.Url,
+            Style = MeadowCellStyle.Mono
+        },
+        new()
+        {
+            IsActions = true,
+            Width = "104px",
+            Template = kpi =>
+                @<text>
+                    <MeadowIconButton Icon="MeadowIconName.Edit" Title="KPI bearbeiten"
+                                      OnClick="() => OpenKpiDialog(kpi)" />
+                    <MeadowIconButton Icon="MeadowIconName.Trash" Title="KPI löschen"
+                                      Danger="true" OnClick="() => DeleteKpi(kpi)" />
+                </text>
+        }
+    };
+
+    private static string Shorten(string? script)
+    {
+        var text = (script ?? "").Replace('\r', ' ').Replace('\n', ' ').Trim();
+        return text.Length <= 90 ? text : text[..90] + "…";
+    }
+
+    private async Task LoadKpis()
+    {
+        _kpis = (await KPIService.GetAllKPIs(false)).Keys.ToList();
+    }
+
+    private async Task OpenKpiDialog(KPI kpi, bool isNew = false)
+    {
+        var options = new DialogOptions
+        {
+            BackdropClick = false,
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true
+        };
+        var parameters = new DialogParameters<KPIDialog>
+        {
+            { x => x.KPI, kpi },
+            { x => x.IsSave, isNew }
+        };
+
+        var dialog = await DialogService.ShowAsync<KPIDialog>(string.Empty, parameters, options);
+        var result = await dialog.Result;
+
+        if (result is null || result.Canceled)
+        {
+            return;
+        }
+
+        Snackbar.Add(isNew ? "KPI angelegt." : "KPI gespeichert.", Severity.Success);
+        await LoadKpis();
+    }
+
+    private async Task DeleteKpi(KPI kpi)
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var parameters = new DialogParameters<GenericDialog>
+        {
+            { x => x.HeaderText, "Löschen" },
+            { x => x.Description, $"Soll das KPI „{kpi.Title}\" wirklich gelöscht werden?" },
+            { x => x.AcceptButtonText, "Löschen" },
+            { x => x.CancelButtonText, "Abbrechen" },
+            { x => x.ColorScheme, Color.Error }
+        };
+
+        var dialog = await DialogService.ShowAsync<GenericDialog>(string.Empty, parameters, options);
+        var result = await dialog.Result;
+
+        if (result is null || result.Canceled)
+        {
+            return;
+        }
+
+        await KPIService.DeleteDataAsync(kpi.KPIId);
+        Snackbar.Add("KPI gelöscht.", Severity.Success);
+        await LoadKpis();
+    }
+
+    private async Task SaveFallback()
+    {
+        var value = _fallbackDraft.Trim();
+        if (value.Length == 0)
+        {
+            Snackbar.Add("Der Anzeigetext darf nicht leer sein.", Severity.Error);
+            return;
+        }
+
+        if (!await Defaults.SetAsync(AppSetting.ClawFindingFallbackKey, value))
+        {
+            Snackbar.Add("Speichern fehlgeschlagen.", Severity.Error);
+            return;
+        }
+
+        _fallbackDraft = value;
+        Snackbar.Add("Standardwert gespeichert.", Severity.Success);
     }
 }

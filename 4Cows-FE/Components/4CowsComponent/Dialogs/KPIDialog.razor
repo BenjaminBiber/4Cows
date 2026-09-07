@@ -1,72 +1,138 @@
+@using _4Cows_FE.Components.Meadow
 @using BB_KPI.Services
 @using Blazor.AceEditorJs
+@using _4Cows_FE.Components.Services
+
 @inject KPIService KPIService
+@inject ThemeState Theme
 
-<MudDialog>
-    <DialogContent>
-        <MudTextField T="string" @bind-Value="KPI.Title" Placeholder="Titel" Label="Titel" Variant="Variant.Outlined" Class="mb-5"></MudTextField>
-        <MudTextField T="string" @bind-Value="KPI.Url" Placeholder="URL" Label="URL" Variant="Variant.Outlined" Class="mb-5"></MudTextField>
-        <MudNumericField T="int" @bind-Value="KPI.SortOrder" Label="Sortier Index"></MudNumericField>
-        <MudButton Variant="Variant.Outlined" Color="Color.Error" OnClick="TestSQL">SQL Testen</MudButton>
-        <AceJsEditor Style="height:300px" @bind-Value="@KPI.Script" Options="opt"></AceJsEditor>
-        @if (sqlError != string.Empty)
+<MeadowDialog Title="@(IsSave ? "KPI hinzufügen" : "KPI bearbeiten")" Size="MeadowDialogSize.Wide">
+    <ChildContent>
+        <div class="mw-field-row">
+            <div class="mw-col mw-col--double">
+                <label class="mw-label" for="mw-kpi-title">Titel</label>
+                <div class="mw-field">
+                    <MudTextField T="string" InputId="mw-kpi-title" Variant="Variant.Text"
+                                  @bind-Value="KPI.Title" Placeholder="z.B. Offene Verbände" />
+                </div>
+            </div>
+            <div class="mw-col">
+                <label class="mw-label" for="mw-kpi-sort">Sortier-Index</label>
+                <div class="mw-field">
+                    <MudNumericField T="int" InputId="mw-kpi-sort" Variant="Variant.Text"
+                                     HideSpinButtons="true" @bind-Value="KPI.SortOrder" />
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <label class="mw-label" for="mw-kpi-url">URL</label>
+            <div class="mw-field">
+                <MudTextField T="string" InputId="mw-kpi-url" Variant="Variant.Text"
+                              @bind-Value="KPI.Url" Placeholder="/Klauen_Daten" />
+            </div>
+        </div>
+
+        <div class="mw-check-bar">
+            <span class="mw-label">SQL</span>
+            <div>
+                <button type="button" class="mw-btn mw-btn--ghost mw-btn--sm" @onclick="TestSQL">
+                    SQL testen
+                </button>
+            </div>
+        </div>
+
+        @* Feste Hoehe per .mw-ace: der Editor misst beim Initialisieren und
+           wuerde in einem flexiblen Container mit Hoehe 0 unbrauchbar.
+
+           Der @key erzwingt einen Neuaufbau bei Theme-Wechsel: Ace liest
+           sein Theme nur beim Initialisieren. *@
+        <div class="mw-ace">
+            <AceJsEditor @key="Theme.IsDark" @bind-Value="@KPI.Script" Options="AceOptions" />
+        </div>
+
+        @if (_sqlError.Length > 0)
         {
-            <MudStack Spacing="2">
-                <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="OnExpandCollapseClick">@(_expanded ? "Fehler verbergen" : "Fehler anzeigen")</MudButton>
-                <MudDivider />
-                <MudCollapse Expanded="_expanded">
-                    @sqlError
-                </MudCollapse>
-            </MudStack>
+            <div class="mw-check-bar">
+                <span class="mw-label">Fehler</span>
+                <div>
+                    <button type="button" class="mw-btn mw-btn--ghost mw-btn--sm"
+                            @onclick="() => _expanded = !_expanded">
+                        @(_expanded ? "Verbergen" : "Anzeigen")
+                    </button>
+                </div>
+            </div>
+            @if (_expanded)
+            {
+                <div class="mw-errbox">@_sqlError</div>
+            }
         }
-    </DialogContent>
-    <DialogActions>
-        <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="SaveKPI">Speichern!</MudButton>
-    </DialogActions>
-</MudDialog>
+        else if (_testedOk)
+        {
+            <p class="mw-hint">SQL erfolgreich ausgeführt.</p>
+        }
+    </ChildContent>
+    <Footer>
+        <button type="button" class="mw-btn mw-btn--plain mw-btn--wide" @onclick="Cancel">
+            Abbrechen
+        </button>
+        <button type="button" class="mw-btn mw-btn--primary mw-btn--wide" @onclick="SaveKPI">
+            Speichern
+        </button>
+    </Footer>
+</MeadowDialog>
 
-@code{
-    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+@code {
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = default!;
 
-    [Parameter] public KPI KPI { get; set; } = new KPI();
+    [Parameter] public KPI KPI { get; set; } = new();
     [Parameter] public bool IsSave { get; set; } = true;
 
-    AceEditorOptions opt = new() { IsReadOnly = false, Language = AceLanguage.sqlserver, Theme = AceTheme.sqlserver };
-    
-    void Submit() => MudDialog.Close(DialogResult.Ok(true));
-    void Cancel() => MudDialog.Cancel();
-    string sqlError = string.Empty;
-    bool _expanded = true;
+    /// <summary>
+    /// AceTheme.sqlserver ist hell. Im Dark Mode war der Editor damit die
+    /// einzige weisse Flaeche der App - also mitschalten. Die Sprache
+    /// bleibt sqlserver.
+    /// </summary>
+    private AceEditorOptions AceOptions => new()
+    {
+        IsReadOnly = false,
+        Language = AceLanguage.sqlserver,
+        Theme = Theme.IsDark ? AceTheme.nord_dark : AceTheme.sqlserver
+    };
 
-    private void OnExpandCollapseClick() {
-        _expanded = !_expanded;
-    }
+    private string _sqlError = string.Empty;
+    private bool _testedOk;
+    private bool _expanded = true;
+
+    private void Cancel() => MudDialog.Cancel();
 
     private async Task TestSQL()
     {
-        sqlError = string.Empty;
+        _sqlError = string.Empty;
+        _testedOk = false;
         try
         {
             await KPIService.GetKPIValue(KPI, true);
+            _testedOk = true;
         }
         catch (Exception e)
         {
-            sqlError = e.Message;
-        }
-    }
-    
-    private async Task SaveKPI()
-    {
-        if (!IsSave)
-        {
-            await KPIService.UpdateDataAsync(KPI);
-            Submit();
-        }
-        else
-        {
-            await KPIService.InsertDataAsync(KPI);
-            Submit();
+            _sqlError = e.Message;
+            _expanded = true;
         }
     }
 
+    private async Task SaveKPI()
+    {
+        if (IsSave)
+        {
+            await KPIService.InsertDataAsync(KPI);
+        }
+        else
+        {
+            await KPIService.UpdateDataAsync(KPI);
+        }
+
+        MudDialog.Close(DialogResult.Ok(true));
+    }
 }

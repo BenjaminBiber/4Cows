@@ -1,0 +1,90 @@
+/* ============================================================
+   Meadow — Base
+   Reset, Dokument-Grundlagen, Fokusring, Scrollbar, Blazor-Fehler-UI.
+   ============================================================ */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  -webkit-text-size-adjust: 100%;
+  color-scheme: light;
+}
+:root[data-mw-theme="dark"] { color-scheme: dark; }
+
+body {
+  margin: 0;
+  font-family: var(--mw-font-sans);
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--mw-text);
+  background: var(--mw-canvas);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 { margin: 0; font: inherit; }
+p { margin: 0; }
+button { font: inherit; color: inherit; }
+a { color: inherit; text-decoration: none; }
+img, svg { max-width: 100%; }
+[hidden] { display: none !important; }
+
+/* Sichtbarer Fokus fuer Tastaturnutzer — das Design setzt outline:none an
+   Eingaben, deshalb hier eine einheitliche, tastatur-only Alternative. */
+:focus-visible {
+  outline: 2px solid var(--mw-primary);
+  outline-offset: 2px;
+}
+:focus:not(:focus-visible) { outline: none; }
+
+.mw-sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
+/* ── Scrollbar (st.mw-scroll) ───────────────────────────────── */
+.mw-scroll { scrollbar-width: thin; scrollbar-color: rgba(120, 140, 138, .35) transparent; }
+.mw-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
+.mw-scroll::-webkit-scrollbar-thumb { background: rgba(120, 140, 138, .35); border-radius: 8px; }
+.mw-scroll::-webkit-scrollbar-track { background: transparent; }
+
+/* ── Blazor-Fehler-UI ───────────────────────────────────────────
+   #blazor-error-ui ist ein Framework-Vertrag: blazor.web.js schaltet
+   das Element per id sichtbar. Id und display:none-Default muessen bleiben. */
+#blazor-error-ui {
+  display: none;
+  position: fixed;
+  bottom: 0; left: 0;
+  width: 100%;
+  z-index: 2000;
+  padding: 12px 20px;
+  background: var(--mw-neg-bg);
+  color: var(--mw-danger);
+  font-weight: 600;
+  box-shadow: 0 -1px 4px rgba(0, 0, 0, .18);
+}
+#blazor-error-ui .reload {
+  margin-left: 8px;
+  color: inherit;
+  text-decoration: underline;
+}
+#blazor-error-ui .dismiss {
+  position: absolute;
+  top: 10px; right: 20px;
+  cursor: pointer;
+}
+
+.blazor-error-boundary {
+  padding: 14px 18px;
+  border-radius: var(--mw-r-2xl);
+  background: var(--mw-neg-bg);
+  color: var(--mw-danger);
+  font-weight: 600;
+}
+.blazor-error-boundary::after { content: "Es ist ein Fehler aufgetreten."; }
+
+/* Der Seitentitel ist nur programmatisches Fokusziel (FocusOnNavigate),
+   kein Bedienelement - ein Fokusring nach jeder Navigation waere irritierend.
+   Screenreader kuendigen die Ueberschrift trotzdem an. */
+.mw-header__title:focus,
+.mw-header__title:focus-visible { outline: none; }

@@ -1,47 +1,99 @@
-@using System.Drawing.Text
-@inject CowTreatmentService CowTreatmentService
+@using _4Cows_FE.Components.Meadow
+
 @inject MedicineService MedicineService
 
-<MudDialog>
-    <DialogContent>
-        <div style="height: 100%; overflow-y: scroll;">
-            <MudTable T="int" Items="_medicines" @bind-SelectedItems="_selectedMedicines" MultiSelection="true" SelectionChangeable="true" Striped="true" SelectOnRowClick="true" >
-                <HeaderContent>
-                    <MudTh><MudTableSortLabel SortBy="new Func<int, object>(x=>MedicineService.GetMedicineNameById(x))">Name</MudTableSortLabel></MudTh>
-                </HeaderContent>
-                <RowTemplate>
-                    <MudTd DataLabel="Name">@MedicineService.GetMedicineNameById(context)</MudTd>
-                </RowTemplate>
-            </MudTable>
+@*
+    Bisher eine MudTable mit MultiSelection als Mehrfachauswahl. Jetzt eine
+    Checkbox-Liste - damit ist nach dem Umbau keine MudTable mehr im Projekt.
+*@
+<MeadowDialog Title="Diagramm bearbeiten" Size="MeadowDialogSize.Info">
+    <Meta>
+        <span>Welche Medikamente sollen aufgeschlüsselt werden?</span>
+    </Meta>
+    <ChildContent>
+        <div class="mw-check-bar">
+            <span>@_selected.Count von @_medicines.Count gewählt</span>
+            <div>
+                <button type="button" class="mw-btn mw-btn--ghost mw-btn--sm" @onclick="SelectAll">
+                    Alle
+                </button>
+                <button type="button" class="mw-btn mw-btn--ghost mw-btn--sm" @onclick="SelectNone">
+                    Keine
+                </button>
+            </div>
         </div>
-    </DialogContent>
-    <DialogActions>
-        <MudButton Color="Color.Primary" OnClick="CloseDialog">Schließen</MudButton>
-    </DialogActions>
-</MudDialog>
+
+        @if (_medicines.Count == 0)
+        {
+            <p class="mw-hint">Keine Medikamente vorhanden.</p>
+        }
+        else
+        {
+            <div class="mw-check-list">
+                @foreach (var id in _medicines)
+                {
+                    var isOn = _selected.Contains(id);
+                    <label class="mw-check @(isOn ? "is-on" : "")">
+                        <input type="checkbox" checked="@isOn"
+                               @onchange="@(() => Toggle(id))" />
+                        <span>@MedicineService.GetMedicineNameById(id)</span>
+                    </label>
+                }
+            </div>
+        }
+    </ChildContent>
+    <Footer>
+        <button type="button" class="mw-btn mw-btn--plain mw-btn--wide" @onclick="Cancel">
+            Abbrechen
+        </button>
+        <button type="button" class="mw-btn mw-btn--primary mw-btn--wide" @onclick="Accept">
+            Übernehmen
+        </button>
+    </Footer>
+</MeadowDialog>
 
 @code {
-    [CascadingParameter]
-    private MudDialogInstance MudDialog { get; set; }
-    
-    [Parameter]
-    public List<int> Medicines { get; set; } = [];
-    
-    private List<int> _medicines = [];
-    private HashSet<int> _selectedMedicines = [];
-    
-    protected override async Task OnInitializedAsync()
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public List<int> Medicines { get; set; } = new();
+
+    private List<int> _medicines = new();
+    private readonly HashSet<int> _selected = new();
+
+    protected override void OnInitialized()
     {
-        _medicines = MedicineService.Medicines.Keys.ToList();
-        Medicines = !Medicines.Any() ? _medicines : Medicines;
-        foreach (var entry in Medicines)
+        // Nach Namen sortiert - angezeigt wird der Name, nicht die ID.
+        _medicines = MedicineService.Medicines.Keys
+            .OrderBy(MedicineService.GetMedicineNameById, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        // Leere Vorauswahl heisst "alle" (so verhaelt sich der Aufrufer).
+        foreach (var id in Medicines.Count == 0 ? _medicines : Medicines)
         {
-            _selectedMedicines.Add(entry);
+            _selected.Add(id);
         }
     }
 
-    private void CloseDialog()
+    private void Toggle(int id)
     {
-        MudDialog.Close(DialogResult.Ok(_selectedMedicines));
+        if (!_selected.Remove(id))
+        {
+            _selected.Add(id);
+        }
     }
+
+    private void SelectAll()
+    {
+        foreach (var id in _medicines)
+        {
+            _selected.Add(id);
+        }
+    }
+
+    private void SelectNone() => _selected.Clear();
+
+    private void Cancel() => MudDialog.Cancel();
+
+    // Der Aufrufer erwartet ein HashSet<int> - Vertrag unveraendert.
+    private void Accept() => MudDialog.Close(DialogResult.Ok(_selected));
 }

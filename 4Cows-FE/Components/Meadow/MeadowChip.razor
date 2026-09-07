@@ -1,0 +1,11 @@
+@* fchip(on) *@
+<button type="button" class="@(Selected ? "mw-chip is-on" : "mw-chip")"
+        aria-pressed="@(Selected ? "true" : "false")" @onclick="OnClick">
+    @Label
+</button>
+
+@code {
+    [Parameter, EditorRequired] public string Label { get; set; } = "";
+    [Parameter] public bool Selected { get; set; }
+    [Parameter] public EventCallback OnClick { get; set; }
+}
