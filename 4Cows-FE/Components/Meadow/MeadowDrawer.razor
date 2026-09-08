@@ -1,3 +1,5 @@
+@inject DemoSettings Demo
+
 @* st.drawer / st.drawerBackdrop / st.navGroupLabel — Overlay-Drawer, standardmaessig zu. *@
 @if (Open)
 {
@@ -11,7 +13,10 @@
         </div>
 
         <div class="mw-nav-group">Übersicht</div>
-        <MeadowNavItem Href="@MeadowRoutes.Dashboard" Match="NavLinkMatch.All"
+        @* DashboardHref, nicht MeadowRoutes.Dashboard: im Betriebsmodus
+           rufen die Nutzer das Dashboard unter "/" auf, und nur ein Link
+           dorthin wird von NavLinkMatch.All dort auch aktiv gesetzt. *@
+        <MeadowNavItem Href="@Demo.DashboardHref" Match="NavLinkMatch.All"
                        Accent="NavGroup.Dashboard" Icon="MeadowIconName.Dashboard">
             Dashboard
         </MeadowNavItem>

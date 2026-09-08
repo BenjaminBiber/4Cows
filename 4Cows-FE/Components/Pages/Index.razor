@@ -1,15 +1,17 @@
-@page "/"
+@page "/app"
 @implements IDisposable
 
 @using _4Cows_FE.Components._4CowsComponent.Dialogs
 @using _4Cows_FE.Components.Meadow
 @using _4Cows_FE.Components.Services
 @using BB_KPI.Services
+@using BB_Cow.Kpi
 
 @inject IDialogService DialogService
 @inject IJSRuntime JS
 @inject MeadowDataLoader Data
 @inject MeadowDialogLauncher Launcher
+@inject MeadowDataChanges Changes
 @inject ThemeState Theme
 @inject CowTreatmentService cowTreatmentService
 @inject ClawTreatmentService clawTreatmentService
@@ -21,12 +23,16 @@
 
 <div class="mw-dash-top">
     <div class="mw-kpi-grid">
-        @foreach (var entry in _kpis)
+        @foreach (var tile in _kpis)
         {
-            <MeadowKpiTile Title="@entry.Key.Title"
-                           Value="@entry.Value"
-                           Href="@entry.Key.Url"
-                           IsAddTile="@(entry.Key.KPIId == int.MinValue)" />
+            <MeadowKpiTile Title="@tile.Kpi.Title"
+                           Value="@tile.Result.Display"
+                           Href="@KpiDrillDown.Href(tile)"
+                           IsAddTile="@tile.IsAddTile"
+                           Delta="@tile.Result.DeltaDisplay"
+                           Trend="@tile.Result.Trend"
+                           HasError="@(tile.Result.State == KpiResultState.Error)"
+                           Hint="@tile.Result.Message" />
         }
     </div>
 
@@ -101,7 +107,7 @@
         "Juli", "August", "September", "Oktober", "November", "Dezember"
     };
 
-    private Dictionary<KPI, string> _kpis = new();
+    private IReadOnlyList<KpiTileModel> _kpis = Array.Empty<KpiTileModel>();
     private List<int> _selectedMedicines = new();
     private int _selectedYear = DateTime.Now.Year;
     private bool _medicineSubsetActive;
@@ -112,6 +118,7 @@
     {
         DatabaseConnectionState.ConnectionStateChanged += OnConnectionChanged;
         Theme.Changed += OnThemeChanged;
+        Changes.Changed += OnDataChanged;
 
         await DatabaseConnectionState.EnsureLatestStatusAsync();
 
@@ -119,7 +126,7 @@
         // und damit alle sieben Service-Caches neu - ein Jahreswechsel im
         // Diagramm waren sieben DB-Runden.
         await Data.EnsureDashboardAsync();
-        _kpis = await KPIService.GetAllKPIs();
+        _kpis = await KPIService.GetDashboardAsync();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -365,6 +372,22 @@
 
     private void OnConnectionChanged() => _ = InvokeAsync(StateHasChanged);
 
+    /// <summary>
+    /// Die vier Aktionsknoepfe dieser Seite legen Behandlungen an - Kacheln
+    /// und Diagramme zaehlen genau die. Ohne dieses Nachladen stand der
+    /// eigene Neuzugang bis zum Seitenwechsel nicht in den Zahlen.
+    ///
+    /// Ohne Unterscheidung nach Art: jede der vier Arten geht in mindestens
+    /// eine Kachel ein, und EnsureDashboardAsync laedt sowieso alles.
+    /// </summary>
+    private void OnDataChanged(MeadowDataKind kind) => _ = InvokeAsync(async () =>
+    {
+        await Data.EnsureDashboardAsync();
+        _kpis = await KPIService.GetDashboardAsync();
+        StateHasChanged();
+        await RenderChartsAsync(destroyFirst: true);
+    });
+
     private void OnThemeChanged() => _ = InvokeAsync(async () =>
     {
         // Achsen-, Gitter- und Balkenfarben stecken in der Chart.js-Config,
@@ -377,6 +400,7 @@
     {
         DatabaseConnectionState.ConnectionStateChanged -= OnConnectionChanged;
         Theme.Changed -= OnThemeChanged;
+        Changes.Changed -= OnDataChanged;
     }
 
     private sealed record ChartTheme(

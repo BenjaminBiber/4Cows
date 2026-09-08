@@ -98,7 +98,11 @@
                     }
                     else if (_showUdderButton)
                     {
-                        <MeadowIconButton Icon="MeadowIconName.Cow" Title="Euterviertel wählen"
+                        @* Danger, solange kein Viertel gewaehlt ist: sonst
+                           waere die neue Pflicht erst nach dem Klick auf
+                           Speichern zu sehen. *@
+                        <MeadowIconButton Icon="MeadowIconName.Cow" Title="@UdderButtonTitle"
+                                          Danger="@(!UdderService.HasAnyQuarter(Cow_Treatment.UdderId))"
                                           Size="16" OnClick="OpenUdderDialog" />
                     }
                 </div>
@@ -196,15 +200,16 @@
         var known = WhereHowService.WhereHows.Values
             .FirstOrDefault(w => string.Equals(w.WhereHowName.Trim(), text, StringComparison.OrdinalIgnoreCase));
 
-        if (known is not null)
-        {
-            _showUdderButton = known.ShowDialog;
-            _showEditWhereHowOptions = false;
-            return;
-        }
+        _showUdderButton = known?.ShowDialog ?? false;
+        _showEditWhereHowOptions = known is null && text.Length > 0;
 
-        _showUdderButton = false;
-        _showEditWhereHowOptions = text.Length > 0;
+        // Ohne Viertel-Auswahl darf keine haengenbleiben: wer erst "Euter"
+        // mit LV waehlt und dann auf "i.m." wechselt, speicherte sonst die
+        // Viertel der verworfenen Auswahl mit.
+        if (!_showUdderButton)
+        {
+            Cow_Treatment.UdderId = int.MinValue;
+        }
     }
 
     private async Task SaveNewWhereHow()
@@ -220,13 +225,28 @@
             return;
         }
 
-        await WhereHowService.InsertDataAsync(new WhereHow
+        // Rueckgabewert auswerten: schlaegt der Insert fehl - etwa an der
+        // UNIQUE-Spalte auf Alt-Bestaenden, wenn jemand parallel denselben
+        // Namen anlegt - lief der Dialog vorher weiter und meldete Erfolg.
+        var inserted = await WhereHowService.InsertDataAsync(new WhereHow
         {
-            WhereHowName = _selectedWhereHow,
+            WhereHowName = _selectedWhereHow.Trim(),
             ShowDialog = _showDialogForNewWhereHow
         });
 
+        if (!inserted)
+        {
+            Snackbar.Add("Wie / Wo konnte nicht gespeichert werden.", Severity.Error);
+            return;
+        }
+
         _showEditWhereHowOptions = false;
+
+        // Der neue Eintrag steht jetzt im Cache. Traegt er die Viertel-
+        // Auswahl, muss der Euter-Knopf erreichbar bleiben: bricht der Nutzer
+        // den Viertel-Dialog gleich darunter ab, waere er sonst mit einem
+        // Wie/Wo ohne Viertel eingesperrt, das Save nicht mehr durchlaesst.
+        _showUdderButton = _showDialogForNewWhereHow;
 
         if (_showDialogForNewWhereHow)
         {
@@ -252,7 +272,26 @@
         }
 
         Cow_Treatment.UdderId = id;
-        _showUdderButton = false;
+
+        // Der Knopf bleibt stehen (vorher: _showUdderButton = false). Er ist
+        // jetzt der einzige Weg, eine getroffene Auswahl noch zu aendern -
+        // und sein Titel ist die einzige Stelle, an der sie ueberhaupt zu
+        // sehen ist.
+    }
+
+    private string UdderButtonTitle
+    {
+        get
+        {
+            if (!UdderService.HasAnyQuarter(Cow_Treatment.UdderId))
+            {
+                return "Euterviertel wählen — erforderlich";
+            }
+
+            var quarters = WhereHowService.GetUdderString(
+                UdderService.GetById(Cow_Treatment.UdderId));
+            return $"Euterviertel {quarters} — ändern";
+        }
     }
 
     private void Cancel() => MudDialog.Cancel();
@@ -293,10 +332,28 @@
             return;
         }
 
-        var whereHowId = await WhereHowService.GetWhereHowIDByName(_selectedWhereHow);
+        var whereHowId = await WhereHowService.GetWhereHowIDByName(_selectedWhereHow, _showDialogForNewWhereHow);
         if (whereHowId == int.MinValue)
         {
             Snackbar.Add("Wie/Wo nicht gefunden!", Severity.Error);
+            return;
+        }
+
+        // Traegt das Wie/Wo die Viertel-Auswahl, ist "kein Viertel" keine
+        // gueltige Angabe. Vorher fiel Save hier still auf
+        // GetIdForNoQuarters() zurueck: wer den Euter-Knopf nie antippte oder
+        // den Viertel-Dialog abbrach, speicherte eine Euterbehandlung ohne
+        // Viertel - in der Tabelle nur an einem fehlenden "(LV)" zu erkennen.
+        //
+        // ShowDialog wird am aufgeloesten Eintrag gelesen, nicht an
+        // _showDialogForNewWhereHow: der Toggle gilt nur fuer neu angelegte
+        // Wie/Wos, und new WhereHow() hat ShowDialog = true.
+        var whereHow = WhereHowService.GetById(whereHowId);
+        if (whereHow.ShowDialog && !UdderService.HasAnyQuarter(Cow_Treatment.UdderId))
+        {
+            Snackbar.Add(
+                $"„{whereHow.WhereHowName}\" braucht mindestens ein Euterviertel.",
+                Severity.Error);
             return;
         }
 

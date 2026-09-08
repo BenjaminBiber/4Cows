@@ -15,13 +15,20 @@
                         @onclick="() => quarter.Toggle()">@quarter.Label</button>
             }
         </div>
-        <div class="mw-hint">Nicht ausgewählt bedeutet: kein bestimmtes Viertel.</div>
+        @* Hier stand "Nicht ausgewählt bedeutet: kein bestimmtes Viertel."
+           Das war die Einladung zu genau dem, was jetzt nicht mehr geht: eine
+           Euterbehandlung ohne Viertel. *@
+        <div class="mw-hint">Mindestens ein Viertel ist erforderlich.</div>
     </ChildContent>
     <Footer>
         <button type="button" class="mw-btn mw-btn--plain mw-btn--wide" @onclick="Cancel">
             Abbrechen
         </button>
-        <button type="button" class="mw-btn mw-btn--primary mw-btn--wide" @onclick="Save">
+        @* Gesperrt statt Fehlermeldung nach dem Klick - der Hinweis darueber
+           sagt, warum. Save prueft trotzdem noch: disabled ist Anzeige,
+           keine Zusicherung. *@
+        <button type="button" class="mw-btn mw-btn--primary mw-btn--wide"
+                disabled="@(!HasAnyQuarter)" @onclick="Save">
             Speichern
         </button>
     </Footer>
@@ -44,12 +51,21 @@
 
     private static string ToggleClass(bool on) => on ? "mw-quarter is-on" : "mw-quarter";
 
+    private bool HasAnyQuarter
+        => _udder.QuarterLV || _udder.QuarterRV || _udder.QuarterLH || _udder.QuarterRH;
+
     // Abbrechen MUSS Cancel liefern: der Aufrufer setzt bei einem
     // Ok-Ergebnis die Viertel-ID, bei Abbruch dagegen "keine Viertel".
     private void Cancel() => MudDialog.Cancel();
 
     private async Task Save()
     {
+        if (!HasAnyQuarter)
+        {
+            Snackbar.Add("Bitte mindestens ein Euterviertel auswählen.", Severity.Error);
+            return;
+        }
+
         var id = await UdderService.GetIDByBools(_udder);
         if (id == int.MinValue)
         {

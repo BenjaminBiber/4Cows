@@ -1,3 +1,5 @@
+using BB_Cow.Kpi;
+
 namespace _4Cows_FE.Components.Meadow;
 
 /// <summary>
@@ -64,6 +66,14 @@ public sealed class CowTableFilter
     public HashSet<string> Medicines { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
+    /// Halsbandnummern. Gebraucht fuer den Drill-down der Kachel "Kuh mit den
+    /// meisten Behandlungen": ueber den Suchtext war das zu unscharf, weil er
+    /// als Teilstring auch in Ohrmarken trifft ("104" steckt in "...1042") und
+    /// die Tabelle dann fremde Tiere mitzeigte.
+    /// </summary>
+    public HashSet<string> Cows { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
     /// Einfachauswahl: die Zeitraeume schliessen sich gegenseitig aus, "7 Tage"
     /// UND "30 Tage" waere dasselbe wie "30 Tage".
     /// </summary>
@@ -75,7 +85,9 @@ public sealed class CowTableFilter
     /// Filter engen die Liste ein", nicht "wie viele Haken sind gesetzt".
     /// </summary>
     public int ActiveCount
-        => (Medicines.Count > 0 ? 1 : 0) + (Range != DateRange.All ? 1 : 0);
+        => (Medicines.Count > 0 ? 1 : 0)
+           + (Cows.Count > 0 ? 1 : 0)
+           + (Range != DateRange.All ? 1 : 0);
 
     public bool HasAny => ActiveCount > 0 || !string.IsNullOrWhiteSpace(Search);
 
@@ -83,6 +95,7 @@ public sealed class CowTableFilter
     public void Reset()
     {
         Medicines.Clear();
+        Cows.Clear();
         Range = DateRange.All;
     }
 }
@@ -90,8 +103,11 @@ public sealed class CowTableFilter
 /// <summary>Suchtext und Befund-Filter der Klauen-Tabelle.</summary>
 public sealed class ClawTableFilter
 {
-    public const string BandageOption = "Verband";
-    public const string BlockOption = "Klotz";
+    // Aus KpiFlags, nicht als eigene Literale: eine KPI-Kachel verlinkt mit
+    // genau diesen Werten hierher. Zwei getrennte Konstanten wuerden
+    // auseinanderdriften, sobald eine davon umbenannt wird.
+    public const string BandageOption = KpiFlags.Bandage;
+    public const string BlockOption = KpiFlags.Block;
 
     public string Search { get; set; } = "";
 
@@ -103,9 +119,157 @@ public sealed class ClawTableFilter
     /// </summary>
     public HashSet<string> Findings { get; } = new(StringComparer.OrdinalIgnoreCase);
 
-    public int ActiveCount => Findings.Count > 0 ? 1 : 0;
+    /// <summary>Halsbandnummern - siehe <see cref="CowTableFilter.Cows"/>.</summary>
+    public HashSet<string> Cows { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    public int ActiveCount => (Findings.Count > 0 ? 1 : 0) + (Cows.Count > 0 ? 1 : 0);
 
     public bool HasAny => ActiveCount > 0 || !string.IsNullOrWhiteSpace(Search);
 
-    public void Reset() => Findings.Clear();
+    public void Reset()
+    {
+        Findings.Clear();
+        Cows.Clear();
+    }
+}
+
+/// <summary>
+/// Zeitraum-Auswahl der GEPLANTEN Tabellen - bewusst in die andere Richtung
+/// als <see cref="DateRange"/>.
+///
+/// DateRanges.Matches schliesst Zukunftsdaten aus, weil die Dialoge
+/// vordatieren koennen und eine vordatierte Behandlung nichts in "letzte 7
+/// Tage" zu suchen hat. Geplante Behandlungen sind aber ABSICHTLICH
+/// zukunftsdatiert: derselbe Filter wuerde dort schlicht alles wegfiltern.
+/// Fuer sie heisst "7 Tage" also "die naechsten 7 Tage".
+///
+/// Der Evaluator wendet fuer die geplanten Quellen dieselbe Regel an
+/// (KpiSourceInfo.IsPlanned) - sonst zeigte die Tabelle eine andere Menge
+/// als die Kachel, aus der man sie geoeffnet hat.
+/// </summary>
+public enum PlannedDateRange
+{
+    All,
+    Next7,
+    Next30
+}
+
+public static class PlannedDateRanges
+{
+    public const string AllLabel = "Alle";
+    public const string Next7Label = "Nächste 7 Tage";
+    public const string Next30Label = "Nächste 30 Tage";
+
+    public static readonly string[] Labels = { AllLabel, Next7Label, Next30Label };
+
+    public static PlannedDateRange Parse(string label) => label switch
+    {
+        Next7Label => PlannedDateRange.Next7,
+        Next30Label => PlannedDateRange.Next30,
+        _ => PlannedDateRange.All
+    };
+
+    public static string ToLabel(PlannedDateRange range) => range switch
+    {
+        PlannedDateRange.Next7 => Next7Label,
+        PlannedDateRange.Next30 => Next30Label,
+        _ => AllLabel
+    };
+
+    public static bool Matches(PlannedDateRange range, DateTime date)
+    {
+        if (range == PlannedDateRange.All)
+        {
+            return true;
+        }
+
+        var today = DateTime.Today;
+        var days = range == PlannedDateRange.Next7 ? 7 : 30;
+        return date.Date >= today && date.Date <= today.AddDays(days);
+    }
+}
+
+/// <summary>
+/// Dreiwertige Ja/Nein-Auswahl fuer die Booleans der geplanten Tabellen.
+///
+/// Bewusst eine Einfachauswahl und keine Mehrfachauswahl mit zwei Haken:
+/// bei zwei Optionen ist ein Dropdown mit "Alle / Gefunden / Nicht gefunden"
+/// verstaendlicher als zwei Checkboxen, deren gleichzeitige Auswahl dasselbe
+/// wie "Alle" bedeutet. Die Werte sind die aus <see cref="KpiFlags"/>, damit
+/// eine KPI-Kachel direkt hierher verlinken kann.
+/// </summary>
+public static class FlagStates
+{
+    public const string Any = "Alle";
+
+    public static readonly string[] FoundLabels = { Any, KpiFlags.Found, KpiFlags.NotFound };
+    public static readonly string[] TreatedLabels = { Any, KpiFlags.Treated, KpiFlags.NotTreated };
+
+    /// <summary>Der einzige gewaehlte Wert einer KPI-Filtergruppe, sonst "Alle".</summary>
+    public static string FromSelection(IReadOnlyList<string>? values, string[] allowed)
+        => values is { Count: 1 } && allowed.Contains(values[0], StringComparer.OrdinalIgnoreCase)
+            ? allowed.First(a => string.Equals(a, values[0], StringComparison.OrdinalIgnoreCase))
+            : Any;
+
+    public static bool Matches(string state, bool actual, string yes)
+        => state == Any || (string.Equals(state, yes, StringComparison.OrdinalIgnoreCase) == actual);
+}
+
+/// <summary>Suchtext und Filter der Tabelle geplanter Kuh-Behandlungen.</summary>
+public sealed class PlannedCowTableFilter
+{
+    public string Search { get; set; } = "";
+
+    /// <summary>Leer heisst "Alle", ODER innerhalb der Gruppe - wie CowTableFilter.</summary>
+    public HashSet<string> Medicines { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Getrennte Gruppen, damit sie sich UND-verknuepfen: "gefunden, aber
+    /// noch nicht behandelt" ist der Hauptzweck dieser Tabelle.</summary>
+    public string Found { get; set; } = FlagStates.Any;
+
+    public string Treated { get; set; } = FlagStates.Any;
+
+    public PlannedDateRange Range { get; set; } = PlannedDateRange.All;
+
+    public int ActiveCount
+        => (Medicines.Count > 0 ? 1 : 0)
+           + (Found != FlagStates.Any ? 1 : 0)
+           + (Treated != FlagStates.Any ? 1 : 0)
+           + (Range != PlannedDateRange.All ? 1 : 0);
+
+    public bool HasAny => ActiveCount > 0 || !string.IsNullOrWhiteSpace(Search);
+
+    public void Reset()
+    {
+        Medicines.Clear();
+        Found = FlagStates.Any;
+        Treated = FlagStates.Any;
+        Range = PlannedDateRange.All;
+    }
+}
+
+/// <summary>Suchtext und Filter der Tabelle geplanter Klauen-Behandlungen.</summary>
+public sealed class PlannedClawTableFilter
+{
+    public string Search { get; set; } = "";
+
+    /// <summary>
+    /// Klauenpositionen (LV/RV/LH/RH). Planned_Claw_Treatment speichert die
+    /// Befunde als vier Booleans, nicht als Namen - die Position ist also
+    /// alles, was diese Tabelle ueber einen Befund weiss.
+    /// </summary>
+    public HashSet<string> Positions { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    public PlannedDateRange Range { get; set; } = PlannedDateRange.All;
+
+    public int ActiveCount
+        => (Positions.Count > 0 ? 1 : 0) + (Range != PlannedDateRange.All ? 1 : 0);
+
+    public bool HasAny => ActiveCount > 0 || !string.IsNullOrWhiteSpace(Search);
+
+    public void Reset()
+    {
+        Positions.Clear();
+        Range = PlannedDateRange.All;
+    }
 }

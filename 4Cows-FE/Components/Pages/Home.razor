@@ -1,0 +1,34 @@
+@page "/"
+@inject DemoSettings Demo
+
+@*
+    Dispatcher fuer die Wurzel.
+
+    Blazor wirft bei doppelten Route-Templates, "/" kann also nicht
+    gleichzeitig Index.razor und der Landing-Page gehoeren. Ein Rewrite in
+    der Middleware scheidet ebenfalls aus: MapRazorComponents prerendert dann
+    zwar die umgeschriebene Seite, der interaktive Router in Routes.razor
+    liest die Route danach aber erneut aus NavigationManager.Uri - also der
+    unveraenderten Browser-Adresse - und tauscht sie sichtbar zurueck,
+    sobald der Circuit steht.
+
+    Bewusst eine eigene Seite statt zweier @page-Direktiven auf Index.razor:
+    bei gleichem PageType behaelt RouteView ueber die Navigation "/" -> "/app"
+    hinweg dieselbe Komponenteninstanz und setzt nur Parameter neu.
+    OnInitialized laeuft dann nicht erneut, ein hier gemerkter Modus waere
+    still veraltet. Zwei PageTypes tauschen die Komponente sauber aus - und
+    im Demo-Modus wird Index.razor (400 Zeilen, DB-Zugriff in
+    OnInitializedAsync) gar nicht erst instanziiert.
+
+    Welches Layout dabei greift, entscheidet Routes.razor anhand des
+    PageType; ein @layout hier waere zur Uebersetzungszeit fest.
+*@
+
+@if (Demo.Enabled)
+{
+    <MeadowLanding />
+}
+else
+{
+    <Index />
+}

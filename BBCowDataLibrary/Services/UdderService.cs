@@ -39,6 +39,26 @@ public class UdderService
     {
         try
         {
+            // UDDER_ID ist eine Identity-Spalte, new Udder() setzt sie aber
+            // auf int.MinValue - den Sentinel fuer "unbekannt". EF sieht darin
+            // einen ausdruecklich gesetzten Schluessel und schreibt ihn mit;
+            // MariaDB nimmt negative Werte in AUTO_INCREMENT-Spalten an.
+            //
+            // Folgen, solange das nicht auf 0 stand:
+            // - Die erste neu gewaehlte Viertel-Kombination landete als Zeile
+            //   UDDER_ID = -2147483648. Danach lieferte GetById(int.MinValue)
+            //   deren Viertel, statt "keine" - eine Behandlung ohne Auswahl
+            //   sah damit aus wie eine mit.
+            // - Jede WEITERE neue Kombination scheiterte am doppelten
+            //   Primaerschluessel. GetIDByBools gab dann int.MinValue zurueck,
+            //   also wieder die Viertel der ersten Zeile: der Nutzer waehlte
+            //   LH und bekam gespeichert, was jemand anders zuerst gewaehlt
+            //   hatte.
+            if (udder.UdderId == int.MinValue)
+            {
+                udder.UdderId = 0;
+            }
+
             await using var context = await _contextFactory.CreateDbContextAsync();
             await context.Udders.AddAsync(udder);
             var isSuccess = await context.SaveChangesAsync() > 0;
@@ -97,6 +117,20 @@ public class UdderService
         }
         return (_cachedUdder.Values
             .FirstOrDefault(x => !x.QuarterLV && !x.QuarterLH && !x.QuarterRH && !x.QuarterRV) ?? new Udder()).UdderId;
+    }
+
+    /// <summary>
+    /// Ob die ID fuer mindestens ein Viertel steht.
+    ///
+    /// Unbekannte IDs zaehlen als keines - und dazu gehoert int.MinValue,
+    /// also "im Dialog noch nichts gewaehlt". Genau das unterscheidet
+    /// "noch nichts gewaehlt" von der Zeile fuer "kein bestimmtes Viertel"
+    /// nicht, und muss es auch nicht: beides ist keine Viertel-Angabe.
+    /// </summary>
+    public bool HasAnyQuarter(int id)
+    {
+        var udder = GetById(id);
+        return udder.QuarterLV || udder.QuarterRV || udder.QuarterLH || udder.QuarterRH;
     }
 
     public Udder GetById(int id)

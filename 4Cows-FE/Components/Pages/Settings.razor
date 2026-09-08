@@ -5,6 +5,7 @@
 @using _4Cows_FE.Components.Meadow
 @using _4Cows_FE.Components.Services
 @using BB_KPI.Services
+@using BB_Cow.Kpi
 
 @inject KPIService KPIService
 @inject SettingsService Defaults
@@ -51,7 +52,7 @@ else if (_tab == TabBaseData)
         }
     </div>
 
-    @* Nur der aktive Zweig wird gerendert - MudTabs hielt alle vier
+    @* Nur der aktive Zweig wird gerendert - MudTabs hielt alle
        Tabellen gleichzeitig im DOM. *@
     @switch (_baseTab)
     {
@@ -63,6 +64,9 @@ else if (_tab == TabBaseData)
             break;
         case "Kühe":
             <BaseDataCow />
+            break;
+        case "Wie / Wo":
+            <BaseDataWhereHow />
             break;
         default:
             <BaseDataMedicine />
@@ -103,7 +107,7 @@ else
 
     private static readonly string[] BaseDataTabs =
     {
-        "Kuh Behandlung", "Klauen Behandlung", "Kühe", "Medikamente"
+        "Kuh Behandlung", "Klauen Behandlung", "Kühe", "Medikamente", "Wie / Wo"
     };
 
     private string _tab = TabKpi;
@@ -124,8 +128,8 @@ else
         await LoadKpis();
     }
 
-    // Fuenf Spalten, fuenf verschiedene Sortierschluessel - bisher sortierten
-    // alle fuenf nach KPIId.
+    // Sechs Spalten, sechs verschiedene Sortierschluessel - bisher sortierten
+    // alle nach KPIId.
     private void BuildColumns() => _kpiColumns = new List<MeadowColumn<KPI>>
     {
         new()
@@ -145,10 +149,19 @@ else
         },
         new()
         {
-            Title = "Skript",
-            Text = k => Shorten(k.Script),
-            SortBy = k => k.Script,
-            Style = MeadowCellStyle.Mono,
+            Title = "Typ",
+            Text = k => k.IsBuilder ? "Builder" : "SQL",
+            SortBy = k => k.IsBuilder ? 0 : 1,
+            Width = "90px"
+        },
+        new()
+        {
+            // Hier stand Shorten(k.Script). Bei einer Builder-KPI ist Script leer,
+            // die Zeile haette also ausgerechnet fuer die neuen KPIs leer gewirkt.
+            // KpiDefinitionSummary beschreibt beide Arten in einer Zeile.
+            Title = "Definition",
+            Text = KpiDefinitionSummary.Describe,
+            SortBy = k => KpiDefinitionSummary.Describe(k),
             MaxWidth = "320px",
             NoWrap = true
         },
@@ -181,15 +194,15 @@ else
         }
     };
 
-    private static string Shorten(string? script)
-    {
-        var text = (script ?? "").Replace('\r', ' ').Replace('\n', ' ').Trim();
-        return text.Length <= 90 ? text : text[..90] + "…";
-    }
 
+    // Diese Liste zeigt Titel, Skript und Sortierung - nie einen berechneten Wert. GetAllKPIs
+    // fuehrte aber jedes KPI-Skript aus und ".Keys" warf die Ergebnisse anschliessend weg: sieben
+    // SQL-Abfragen fuer eine Namensliste, bei jedem Aufruf der Einstellungen und nach jedem
+    // Speichern und Loeschen. GetAllDataAsync laedt genau das, was die Tabelle darstellt.
     private async Task LoadKpis()
     {
-        _kpis = (await KPIService.GetAllKPIs(false)).Keys.ToList();
+        await KPIService.GetAllDataAsync();
+        _kpis = KPIService.KPIs.Values.OrderBy(k => k.SortOrder).ToList();
     }
 
     private async Task OpenKpiDialog(KPI kpi, bool isNew = false)

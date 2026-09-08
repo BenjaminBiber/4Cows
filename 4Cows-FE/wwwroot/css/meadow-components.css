@@ -612,6 +612,105 @@
   color: var(--mw-primary);
 }
 
+/* Dritte Zeile: Vergleich zum Vorzeitraum - die Zeile, die der Prototyp
+   als st.kpiSub hatte. Sie braucht kein Untertitel-Feld in der Tabelle,
+   weil das Delta berechnet und nicht gespeichert wird.
+
+   Bewusst NICHT gruen/rot: mehr Behandlungen sind eine schlechte
+   Nachricht, mehr abgenommene Verbaende eine gute. Die Richtung ist in
+   dieser Domaene nicht bedeutungstragend - eine Ampel wuerde die Haelfte
+   der Kacheln falsch einfaerben. Pfeil und Zahl reichen. */
+.mw-kpi__delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--mw-muted);
+}
+.mw-kpi__delta-arrow {
+  font-size: 10px;
+  line-height: 1;
+}
+
+/* Das erzeugte SQL im KPI-Dialog. Kein Ace-Editor: der Text ist nur zum
+   Lesen, und eine zweite Editor-Instanz im selben Dialog waere sowohl
+   verwirrend als auch teuer (Ace misst beim Initialisieren, siehe .mw-ace). */
+.mw-sqlbox {
+  margin: 0;
+  max-height: 220px;
+  overflow: auto;
+  padding: 10px 12px;
+  background: var(--mw-canvas);
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-2xl);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre;
+  color: var(--mw-text);
+}
+
+/* Kachel ohne Klick-Ziel: die Quelle hat keine Seite, die ihre Zeilen
+   auflisten wuerde (siehe KpiSourceInfo.Route). Der Zeigefinger und das
+   Anheben wuerden eine Navigation versprechen, die es nicht gibt. */
+.mw-kpi--static {
+  cursor: default;
+}
+@media (hover: hover) {
+  .mw-kpi--static:hover { transform: none; box-shadow: var(--mw-shadow-card); }
+}
+
+/* Eine kaputte KPI muss von einer leeren unterscheidbar sein - vorher
+   zeigten beide "--" und ein Tippfehler konnte monatelang wie
+   "keine Daten" aussehen. */
+.mw-kpi--error {
+  border-color: var(--mw-danger);
+}
+.mw-kpi--error .mw-kpi__value {
+  color: var(--mw-danger);
+  font-size: 32px;
+}
+
+/* ── Live-Vorschau im KPI-Dialog ──────────────────────────────── */
+.mw-kpi-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 12px 14px;
+  background: var(--mw-panel);
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-2xl);
+}
+.mw-kpi-preview__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.mw-kpi-preview__row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.mw-kpi-preview__value {
+  font-family: var(--mw-font-display);
+  font-weight: 800;
+  font-size: 32px;
+  line-height: 1;
+  color: var(--mw-primary);
+}
+.mw-kpi-preview__delta {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--mw-muted);
+}
+.mw-kpi-preview__row.is-error .mw-kpi-preview__value {
+  font-size: 24px;
+  color: var(--mw-danger);
+}
+
 /* Die synthetische "KPI hinzufuegen"-Kachel (st.addRow-Optik) */
 .mw-kpi--add {
   align-items: center;

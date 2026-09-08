@@ -1,0 +1,64 @@
+@inherits LayoutComponentBase
+
+@*
+    Layout fuer die Landing-Page. Bewusst NICHT MainLayout:
+
+    - Kein .mw-shell (height:100dvh; overflow:hidden), sondern normaler
+      Dokument-Scroll. Eine Marketing-Seite soll sich wie eine Website
+      verhalten: Sprungmarken, Scroll-Restore, einklappende URL-Leiste
+      auf Mobil.
+    - Keine MudBlazor-Provider: hier laeuft kein Dialog, kein Snackbar und
+      kein Popover. Jeder Provider weniger ist ein Stueck Prerender-HTML
+      und ein Stueck Circuit-Zustand weniger. Deshalb auch MeadowIcon statt
+      MudIcon - Muds gefuellte Glyphen stehen neben den Meadow-Strichen
+      ohnehin falsch.
+    - Kein ThemeState: das Boot-Skript im <head> von App.razor setzt
+      data-mw-theme schon vor dem ersten Paint aus dem localStorage. Die
+      Seite faerbt sich allein ueber die var(--mw-*)-Tokens richtig, ohne
+      eine Zeile C#. Wer hier einen Umschalter will, kopiert den Knopf aus
+      MeadowHeader.razor und muss dann ThemeState injizieren, Theme.Changed
+      abonnieren und in OnAfterRenderAsync(firstRender)
+      Theme.InitializeAsync() aufrufen.
+
+    Zugewiesen wird dieses Layout nicht per @layout, sondern in
+    Routes.razor: Pages/Home.razor rendert je nach Demo-Flag die
+    Landing-Page oder das Dashboard und braucht das Layout deshalb erst
+    zur Laufzeit.
+*@
+
+<div class="mw-lp">
+    <header class="mw-lp__bar">
+        <a class="mw-lp__brand" href="@MeadowRoutes.Root">
+            <img class="mw-lp__logo" src="LOGO.png" alt="" width="30" height="30" />
+            <span>MEADOW</span>
+        </a>
+
+        @* Die Anker verschwinden unter 1024px per .mw-only-desktop aus
+           meadow-components.css - dieselbe Utility, mit der die App
+           Kopfzeile und Tabbar auseinanderhaelt. Ein Burger-Menue waere
+           hier ein Popover, und genau das soll dieses Layout nicht
+           brauchen; die Sektionen sind ohne Sprungmarke einen Wisch
+           entfernt. *@
+        <nav class="mw-lp__links mw-only-desktop" aria-label="Abschnitte">
+            <a class="mw-lp__link" href="#funktionen">Funktionen</a>
+            <a class="mw-lp__link" href="#mobil">Mobil</a>
+            <a class="mw-lp__link" href="#faq">FAQ</a>
+        </nav>
+
+        <a class="mw-btn mw-btn--primary mw-btn--sm mw-lp__bar-cta"
+           href="@MeadowRoutes.Dashboard">
+            Demo öffnen
+        </a>
+    </header>
+
+    <main class="mw-lp__main">
+        @Body
+    </main>
+
+    <footer class="mw-lp__foot">
+        <div class="mw-lp__foot-inner">
+            <a class="mw-lp__foot-brand" href="@MeadowRoutes.Root">MEADOW</a>
+            <span>Dokumentation und Planung von Klauen- und Tierbehandlungen</span>
+        </div>
+    </footer>
+</div>

@@ -1,5 +1,6 @@
 @page
 @model BB_Cow.Pages.ErrorModel
+@using _4Cows_FE.Components.Meadow
 
 <!DOCTYPE html>
 <html lang="de">
@@ -37,7 +38,9 @@
             <p>Anfrage-ID: <code>@Model.RequestId</code></p>
         }
 
-        <a href="/">Zum Dashboard</a>
+        @* Absoluter Pfad: dieses Dokument hat kein <base href="/">, ein
+           basisrelatives "app" wuerde also gegen /Error aufgeloest. *@
+        <a href="@MeadowRoutes.DashboardPath">Zum Dashboard</a>
     </div>
 </body>
 

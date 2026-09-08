@@ -1,6 +1,7 @@
 using _4Cows_FE.Components;
 using _4Cows_FE.Components.Services;
 using BB_Cow;
+using BB_Cow.Kpi;
 using BB_Cow.Services;
 using BB_KPI.Services;
 using BBCowDataLibrary.SQL;
@@ -20,6 +21,17 @@ var databaseSettings = new DatabaseConnectionSettings
     Password = builder.Configuration["DB_Password"] ?? "admin",
     Database = builder.Configuration["DB_DB"] ?? "4cows_v2",
     Port = uint.TryParse(builder.Configuration["DB_PORT"], out var port) ? port : 3306
+};
+// TryParse statt GetValue<bool>: ein Tippfehler in Demo__Enabled ("1", "yes",
+// "True " mit Leerzeichen) soll den Start nicht abreissen, sondern still auf
+// den sicheren Wert false fallen - gleiche Haltung wie beim DB_PORT darueber.
+var demoSettings = new DemoSettings
+{
+    Enabled = bool.TryParse(builder.Configuration["Demo:Enabled"], out var demoOn) && demoOn,
+    ResetHour = int.TryParse(builder.Configuration["Demo:ResetHour"], out var resetHour)
+                && resetHour is >= 0 and <= 23
+        ? resetHour
+        : 3
 };
 var connectionString = ConnectionStringFactory.Create(databaseSettings);
 await DatabaseInitializer.EnsureDatabaseAsync(connectionString);
@@ -52,10 +64,14 @@ builder.Services.AddSingleton<MedicineService>();
 builder.Services.AddSingleton<CowService>();
 builder.Services.AddSingleton<WhereHowService>();
 builder.Services.AddSingleton<UdderService>();
+// Projects KPI rows out of the caches of the eight services above; KPIService depends on it.
+// Deliberately holds no cache of its own - see the comment on the class.
+builder.Services.AddSingleton<KpiRowProvider>();
 builder.Services.AddSingleton<KPIService>();
 builder.Services.AddSingleton<SettingsService>();
 builder.Services.AddSingleton<DatabaseConnectionState>();
 builder.Services.AddSingleton<XLinkService>();
+builder.Services.AddSingleton(demoSettings);
 
 // Shell-Zustand ist Scoped, also einer pro Circuit. Als Singleton wuerde der
 // Drawer oder das Theme eines Nutzers bei allen anderen mitschalten - die
@@ -64,8 +80,24 @@ builder.Services.AddScoped<LayoutState>();
 builder.Services.AddScoped<ThemeState>();
 builder.Services.AddScoped<MeadowDataLoader>();
 builder.Services.AddScoped<MeadowDialogLauncher>();
+// Meldet der gerade gerenderten Seite, dass eine Behandlung dazugekommen ist.
+// Ohne das erschien ein Eintrag, der ueber FAB, Add-Menue oder Dashboard
+// angelegt wurde, erst nach dem Neuladen in der Tabelle.
+builder.Services.AddScoped<MeadowDataChanges>();
 
-builder.Services.AddHostedService<CowSyncBackgroundService>();
+// Genau ein HostedService, je nach Modus ein anderer. Im Demo-Modus wuerde
+// XLinkService.SaveCowData jede Demo-Kuh als IsGone markieren, weil der
+// Scraper sie nicht liefert - danach waere jede Kuh-Auswahl in jedem Dialog
+// leer. Und ein nicht erreichbarer XLink-Host (der Default ist eine
+// Hof-LAN-Adresse) faerbt die Zeile im Datenbank-Dialog rot.
+if (demoSettings.Enabled)
+{
+    builder.Services.AddHostedService<DemoResetBackgroundService>();
+}
+else
+{
+    builder.Services.AddHostedService<CowSyncBackgroundService>();
+}
 builder.WebHost.UseStaticWebAssets();
 var app = builder.Build();
 using (var scope = app.Services.CreateScope())
@@ -75,6 +107,13 @@ using (var scope = app.Services.CreateScope())
     await MigrationHelper.EnsureInitialMigrationRecordedAsync(context, "20251223183944_InitialCreate", "8.0.6");
     await context.Database.MigrateAsync();
     await DataSeeder.SeedAsync(context);
+
+    // Fachliche Beispieldaten nur fuer die oeffentliche Demo-Instanz.
+    // Idempotent: legt nichts an, sobald Kuehe in der Datenbank stehen.
+    if (demoSettings.Enabled)
+    {
+        await DemoDataSeeder.SeedAsync(context);
+    }
 }
 app.UseStaticFiles();
 if (!app.Environment.IsDevelopment())

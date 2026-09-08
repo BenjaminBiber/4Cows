@@ -1,4 +1,5 @@
 @page "/Verband_Daten"
+@implements IDisposable
 
 @using _4Cows_FE.Components._4CowsComponent.Dialogs
 @using _4Cows_FE.Components.Meadow
@@ -8,6 +9,7 @@
 @inject ISnackbar Snackbar
 @inject MeadowDataLoader Data
 @inject MeadowDialogLauncher Launcher
+@inject MeadowDataChanges Changes
 @inject ClawTreatmentService clawTreatmentService
 @inject CowService cowService
 
@@ -37,6 +39,7 @@
                 <span class="mw-row-card__title">Nr. @Collar(row)</span>
                 <MeadowDayChip Days="row.Days" />
             </div>
+            <span class="mw-row-card__code">@EarTag(row)</span>
             <div class="mw-row-card__meta">
                 <span>@row.HoofText</span>
                 <span>seit @row.Since.ToString("dd.MM.yyyy")</span>
@@ -71,6 +74,32 @@
         await Data.EnsureClawTreatmentsAsync();
         Rebuild();
         BuildColumns();
+
+        Changes.Changed += OnDataChanged;
+    }
+
+    public void Dispose() => Changes.Changed -= OnDataChanged;
+
+    private void OnDataChanged(MeadowDataKind kind)
+    {
+        if (kind != MeadowDataKind.ClawTreatment)
+        {
+            return;
+        }
+
+        // Die Meldung kommt aus dem Dialog-Aufrufer, nicht aus dem
+        // Renderpfad dieser Seite - deshalb InvokeAsync.
+        _ = InvokeAsync(async () =>
+        {
+            await RebuildAsync();
+            StateHasChanged();
+        });
+    }
+
+    private async Task RebuildAsync()
+    {
+        await clawTreatmentService.GetAllDataAsync();
+        Rebuild();
     }
 
     private void Rebuild()
@@ -87,6 +116,13 @@
             Text = Collar,
             SortBy = r => CollarSortKey(r),
             Style = MeadowCellStyle.Bold
+        },
+        new MeadowColumn<BandagedClaw>
+        {
+            Title = "Ohrmarke",
+            Text = EarTag,
+            SortBy = EarTag,
+            Style = MeadowCellStyle.Mono
         },
         new MeadowColumn<BandagedClaw>
         {
@@ -134,6 +170,8 @@
         var collar = cowService.GetCollarNumberByCowId(r.CowId);
         return collar == int.MinValue ? int.MaxValue : collar;
     }
+
+    private string EarTag(BandagedClaw r) => cowService.GetEarTagDisplay(r.CowId);
 
     // ---- Filter -------------------------------------------------------
 
@@ -232,8 +270,7 @@
         }
 
         // Der Verband kann jetzt woanders sitzen - Projektion neu bauen.
-        await clawTreatmentService.GetAllDataAsync();
-        Rebuild();
+        await RebuildAsync();
     }
 
     private async Task RemoveBandage(BandagedClaw row)
@@ -286,12 +323,7 @@
         }
     }
 
-    private async Task AddTreatment()
-    {
-        if (await Launcher.ShowAndAwaitAsync<Add_Claw_Treatment_Dialog>())
-        {
-            await clawTreatmentService.GetAllDataAsync();
-            Rebuild();
-        }
-    }
+    // Derselbe Weg wie FAB, Add-Menue und Dashboard: der Launcher meldet das
+    // Speichern, OnDataChanged laedt nach.
+    private Task AddTreatment() => Launcher.OpenClawTreatmentAsync();
 }

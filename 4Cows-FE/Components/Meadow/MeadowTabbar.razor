@@ -8,10 +8,11 @@
     leuchten (Klauen, geplante Klauen, Verbände).
 *@
 @inject NavigationManager Nav
+@inject DemoSettings Demo
 
 <div class="mw-tabbar">
     <button type="button" class="@TabClass(NavGroup.Dashboard)"
-            @onclick="() => Go(MeadowRoutes.Dashboard)">
+            @onclick="() => Go(Demo.DashboardHref)">
         <MeadowIcon Name="MeadowIconName.Dashboard" Size="22" />
         <span>Start</span>
     </button>

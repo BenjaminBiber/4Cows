@@ -1,4 +1,5 @@
-﻿<!DOCTYPE html>
+﻿@inject DemoSettings Demo
+<!DOCTYPE html>
 <html lang="de">
 
 <head>
@@ -38,6 +39,16 @@
 
     <link rel="stylesheet" href="css/meadow-components.css" />
 
+    @* Nur im Demo-Modus: diese Datei stylt ausschliesslich die
+       Landing-Page, und die ist ohne Demo nicht erreichbar. Position hier
+       und nicht am Ende - mw-lp-* kollidiert mit nichts, und die
+       dokumentierte Reihenfolge "MudBlazor, danach meadow-mud.css" bleibt
+       damit die letzte Aussage im <head>. *@
+    @if (Demo.Enabled)
+    {
+        <link rel="stylesheet" href="css/meadow-landing.css" />
+    }
+
     @* MudBlazor, danach unsere Umleitung seiner Variablen. Diese Reihenfolge
        ist der Grund, warum meadow-mud.css ohne !important auskommt. *@
     <link rel="stylesheet" href="_content/MudBlazor/MudBlazor.min.css" />
@@ -70,6 +81,14 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="js/ChartHelper.js"></script>
 <script src="_content/Blazor.AceEditorJs/BlazorAceEditor.min.js"></script>
+
+@* Scroll-Reveal der Landing-Page. Wie das Stylesheet nur im
+   Demo-Modus - ohne Demo gibt es die Seite nicht. Am Ende von <body>,
+   damit das prerenderte Markup schon steht, wenn es laeuft. *@
+@if (Demo.Enabled)
+{
+    <script src="js/meadow-landing.js"></script>
+}
 </body>
 
 </html>

@@ -1,0 +1,437 @@
+@*
+    Inhalt der Landing-Page. Ohne eigene @@page-Direktive - die Route "/"
+    gehoert Pages/Home.razor, das je nach Demo-Flag diese Komponente oder
+    das Dashboard rendert.
+
+    Bewusst OHNE MeadowOfflineGate (anders als Index.razor:20): die Seite
+    liest nichts aus der Datenbank und soll auch dann erscheinen, wenn
+    MariaDB gerade nicht erreichbar ist. Genau deshalb steht hier auch
+    keine Live-Zahl ("X Behandlungen erfasst") - die waere ein DB-Zugriff.
+
+    Aufbau: Hero, fuenf Feature-Baender, Mobil-Abschnitt, Abschluss-CTA,
+    FAQ. Gestylt in wwwroot/css/meadow-landing.css, Einblenden beim
+    Scrollen ueber .mw-lp-rv und wwwroot/js/meadow-landing.js.
+*@
+
+<PageTitle>Meadow · Klauen- und Tiergesundheit dokumentieren</PageTitle>
+
+@* Der HeadOutlet dafuer steht bereits in App.razor. *@
+<HeadContent>
+    <meta name="description"
+          content="Meadow erfasst und plant Klauen- und Tierbehandlungen im Rinderbestand. Läuft im eigenen Betriebsnetz, ohne Cloud. Live-Demo mit Beispieldaten, ohne Anmeldung." />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Meadow · Klauen- und Tiergesundheit dokumentieren" />
+    <meta property="og:description"
+          content="Behandlungen dokumentieren, planen und auswerten – betriebsintern, ohne Cloud. Live-Demo mit Beispieldaten." />
+    <meta property="og:image" content="images/Mockups/Desktop/seite-01-dashboard-macbook.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    @* FAQPage-Auszeichnung zur FAQ-Sektion weiter unten. Die Fragen stehen
+       hier ein zweites Mal, weil Razor den Text nicht aus dem Markup
+       zurueckliest - beim Aendern also beide Stellen anfassen. Das @@ vor
+       "context"/"type" ist Razor-Escaping fuer ein literales @@. *@
+    <script type="application/ld+json">
+    {
+      "@@context": "https://schema.org",
+      "@@type": "FAQPage",
+      "mainEntity": [
+        @for (var i = 0; i < Faqs.Length; i++)
+        {
+            @(new MarkupString(i > 0 ? "," : string.Empty))
+            <text>{
+          "@@type": "Question",
+          "name": "@Faqs[i].Question",
+          "acceptedAnswer": { "@@type": "Answer", "text": "@Faqs[i].PlainAnswer" }
+        }</text>
+        }
+      ]
+    }
+    </script>
+</HeadContent>
+
+@* ── Hero ──────────────────────────────────────────────────── *@
+<section class="mw-lp-hero">
+    <div class="mw-lp-wrap mw-lp-hero__grid">
+        <div>
+            <span class="mw-lp-eyebrow">Live-Demo mit Beispieldaten</span>
+
+            @* Genau ein h1: Routes.razor fokussiert nach jeder Navigation
+               per FocusOnNavigate Selector="h1". Alle weiteren
+               Ueberschriften sind h2/h3. *@
+            <h1 class="mw-lp-hero__title">
+                Behandlungen dokumentieren.<br />
+                <span>Betriebsintern.</span>
+            </h1>
+
+            <p class="mw-lp-hero__lead">
+                Meadow erfasst Klauen- und Tierbehandlungen, plant Termine und
+                wertet den Bestand aus – ohne Cloud, ohne Konto, am Rechner im
+                Büro genauso wie auf dem Handy im Stall.
+            </p>
+
+            <div class="mw-lp-hero__cta">
+                @* Echte <a>-Elemente statt Buttons mit NavigateTo: Blazor faengt den
+                   Klick ab und navigiert im Circuit, der Link bleibt aber
+                   tastaturerreichbar und mit der mittleren Maustaste in einem neuen
+                   Tab oeffenbar. Und die Zurueck-Taste fuehrt danach hierher. *@
+                <a class="mw-btn mw-btn--primary mw-btn--wide" href="@MeadowRoutes.Dashboard">
+                    Demo starten
+                    <MeadowIcon Name="MeadowIconName.ArrowRight" Size="17" />
+                </a>
+                <a class="mw-btn mw-btn--wide mw-lp-btn--on-dark" href="#funktionen">
+                    Funktionen ansehen
+                </a>
+            </div>
+        </div>
+
+        <div class="mw-lp-shot">
+            <img class="mw-lp-shot__desk"
+                 src="images/Mockups/Desktop/seite-01-dashboard-macbook.png"
+                 width="@DeskW" height="@DeskH"
+                 alt="Meadow-Dashboard auf einem Notebook: Kennzahlen und Jahresdiagramme" />
+            <img class="mw-lp-shot__phone"
+                 src="images/Mockups/Mobile/seite-01-dashboard-iphone.png"
+                 width="@PhoneW" height="@PhoneH"
+                 alt="Dasselbe Dashboard auf einem Smartphone" />
+        </div>
+    </div>
+</section>
+
+@* ── Funktionen: Ueberschrift und fuenf Baender ─────────────── *@
+<div class="mw-lp-features-head" id="funktionen">
+    <div class="mw-lp-wrap">
+        <div class="mw-lp-head mw-lp-rv">
+            <span class="mw-lp-eyebrow">Funktionen</span>
+            <h2 class="mw-lp-head__title">Alles, was der Betrieb zur Dokumentation braucht</h2>
+            <p class="mw-lp-head__sub">
+                Von der einzelnen Klaue bis zur Jahresauswertung – in einer
+                Oberfläche, die auf dem Hof genauso funktioniert wie am
+                Schreibtisch.
+            </p>
+        </div>
+    </div>
+</div>
+
+@* Jedes zweite Band bekommt die getoente Flaeche und die gespiegelte
+   Anordnung - so wie im Vorbild. *@
+@for (var i = 0; i < Bands.Length; i++)
+{
+    var band = Bands[i];
+    var mirrored = i % 2 == 1;
+
+    <div class="mw-lp-band @(mirrored ? "mw-lp-band--alt" : null)">
+        <div class="mw-lp-wrap">
+            <div class="mw-lp-row mw-lp-rv @(mirrored ? "mw-lp-row--rev" : null)">
+                <div class="mw-lp-feat">
+                    <span class="mw-lp-feat__icon">
+                        <MeadowIcon Name="@band.Icon" Size="22" />
+                    </span>
+                    <p class="mw-lp-feat__label">@band.Label</p>
+                    <h3 class="mw-lp-feat__title">@band.Title</h3>
+                    <p class="mw-lp-feat__text">@band.Text</p>
+                    <ul class="mw-lp-feat__bullets">
+                        @foreach (var bullet in band.Bullets)
+                        {
+                            <li>
+                                <MeadowIcon Name="MeadowIconName.Check" Size="15" />
+                                <span>@bullet</span>
+                            </li>
+                        }
+                    </ul>
+                </div>
+
+                <div class="mw-lp-shot">
+                    <img class="mw-lp-shot__desk" src="@band.DeskImage" alt="@band.Alt"
+                         width="@DeskW" height="@DeskH" loading="lazy" />
+                    @if (band.PhoneImage is not null)
+                    {
+                        <img class="mw-lp-shot__phone" src="@band.PhoneImage" alt=""
+                             width="@PhoneW" height="@PhoneH" loading="lazy" />
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@* ── Mobil ─────────────────────────────────────────────────── *@
+<section class="mw-lp-mob" id="mobil">
+    <div class="mw-lp-wrap mw-lp-mob__grid">
+        @* Tablet als Basis, Telefon davor - dieselbe Sprache wie im Hero,
+           nur eine Geraeteklasse kleiner. Zeigt beides, was der Abschnitt
+           behauptet: "Fuer Handy und Tablet ausgelegt". *@
+        <div class="mw-lp-mob__devices mw-lp-rv mw-lp-rv--l">
+            <img class="mw-lp-mob__tablet"
+                 src="images/Mockups/Tablet/seite-02-kuh-behandlungen-ipad.png"
+                 width="@TabletW" height="@TabletH"
+                 alt="Kuh-Behandlungen als Karten auf einem Tablet" loading="lazy" />
+            <img class="mw-lp-mob__phone"
+                 src="images/Mockups/Mobile/seite-01-dashboard-iphone.png"
+                 width="@PhoneW" height="@PhoneH"
+                 alt="Dashboard mit Tabbar und Plus-Knopf auf einem Smartphone"
+                 loading="lazy" />
+        </div>
+
+        <div class="mw-lp-rv mw-lp-rv--r">
+            <span class="mw-lp-eyebrow">Mobil</span>
+            <h2 class="mw-lp-mob__title">Im Stall genauso wie im Büro.</h2>
+            <p class="mw-lp-mob__text">
+                Dieselbe Anwendung, ein anderes Layout: unten eine Tabbar mit
+                einem großen Plus, Tabellen werden zu Karten mit beschrifteten
+                Feldern, Filter und Dialoge kommen als Bottom-Sheet von unten.
+                Kein App-Download, es läuft im Browser.
+            </p>
+            <ul class="mw-lp-mob__list">
+                @foreach (var point in MobilePoints)
+                {
+                    <li>
+                        <MeadowIcon Name="@point.Icon" Size="19" />
+                        <span>@point.Text</span>
+                    </li>
+                }
+            </ul>
+        </div>
+    </div>
+</section>
+
+@* ── Abschluss-CTA ─────────────────────────────────────────── *@
+<section class="mw-lp-cta">
+    <div class="mw-lp-wrap mw-lp-cta__grid">
+        <div class="mw-lp-cta__col mw-lp-rv">
+            <h2 class="mw-lp-cta__title">Einfach ausprobieren</h2>
+            <p class="mw-lp-cta__text">
+                Die Demo läuft mit Beispieldaten, ohne Login und ohne
+                Installation. Jede Nacht wird sie zurückgesetzt – hier kann
+                nichts kaputtgehen.
+            </p>
+            <div class="mw-lp-cta__actions">
+                <a class="mw-btn mw-btn--wide mw-lp-btn--white" href="@MeadowRoutes.Dashboard">
+                    Zur Demo
+                    <MeadowIcon Name="MeadowIconName.ArrowRight" Size="17" />
+                </a>
+            </div>
+        </div>
+
+        <div class="mw-lp-cta__shot mw-lp-rv mw-lp-rv--r">
+            <img src="images/Mockups/Desktop/seite-05-klauen-behandlungen-macbook.png"
+                 width="@DeskW" height="@DeskH"
+                 alt="Klauen-Behandlungen in der Tabellenansicht" loading="lazy" />
+        </div>
+    </div>
+</section>
+
+@* ── FAQ ───────────────────────────────────────────────────── *@
+<section class="mw-lp-faq" id="faq">
+    <div class="mw-lp-wrap">
+        <div class="mw-lp-head mw-lp-rv">
+            <span class="mw-lp-eyebrow">FAQ</span>
+            <h2 class="mw-lp-head__title">Häufige Fragen</h2>
+        </div>
+
+        @* Native <details>: kein JS, kein Popover-Provider, und die
+           Antworten stehen auch im HTML, wenn sie zugeklappt sind. *@
+        <div class="mw-lp-faq__list mw-lp-rv">
+            @foreach (var faq in Faqs)
+            {
+                <details class="mw-lp-faq__item">
+                    <summary class="mw-lp-faq__q">@faq.Question</summary>
+                    <p class="mw-lp-faq__a">@faq.Answer</p>
+                </details>
+            }
+        </div>
+    </div>
+</section>
+
+@code {
+    private sealed record Band(
+        MeadowIconName Icon,
+        string Label,
+        string Title,
+        string Text,
+        string[] Bullets,
+        string DeskImage,
+        string Alt,
+        string? PhoneImage = null);
+
+    private sealed record MobilePoint(MeadowIconName Icon, string Text);
+
+    /// <param name="PlainAnswer">
+    /// Dieselbe Antwort ohne Gedankenstriche und Anfuehrungszeichen, fuer
+    /// das JSON-LD im Kopf. Getrennt gehalten, weil ein " im JSON-String
+    /// die Auszeichnung zerlegen wuerde und Razor hier nicht escaped.
+    /// </param>
+    private sealed record Faq(string Question, string Answer, string PlainAnswer);
+
+    private const string Mockups = "images/Mockups/";
+
+    // Alle Desktop-Mockups sind 2884x1998, alle Mobil-Mockups 1168x1934,
+    // alle Tablet-Mockups 1840x2368.
+    // width/height stehen im Markup, damit der Browser den Platz schon vor
+    // dem Laden reserviert. Ohne die Angaben ist ein noch nicht geladenes
+    // loading="lazy"-Bild 0px hoch, und das Layout springt beim Scrollen,
+    // sobald es eintrifft. Die Groesse selbst kommt weiter aus dem CSS
+    // (width:100%; height:auto), die Attribute liefern nur das
+    // Seitenverhaeltnis.
+    private const int DeskW = 2884;
+    private const int DeskH = 1998;
+    private const int PhoneW = 1168;
+    private const int PhoneH = 1934;
+    private const int TabletW = 1840;
+    private const int TabletH = 2368;
+
+    // Reihenfolge nach Gewicht: die drei Punkte, die beworben werden sollen
+    // (betriebsintern, erfassen, nachschlagen) stehen vorn, Planen und
+    // Auswerten folgen. Der Mobil-Punkt hat weiter unten seinen eigenen
+    // Abschnitt, weil er zwei Telefone braucht und kein Notebook.
+    private static readonly Band[] Bands =
+    {
+        new(MeadowIconName.Lock,
+            "Betriebsintern",
+            "Die Daten bleiben, wo sie hingehören",
+            "Meadow läuft als Container im eigenen Netz, die Datenbank steht "
+            + "daneben. Keine Cloud, kein Konto bei einem Anbieter, keine "
+            + "Verbindung nach außen – wer keinen Zugang zum Betriebsnetz hat, "
+            + "sieht nichts.",
+            new[]
+            {
+                "Eigener Server, eigene MariaDB",
+                "Kein Cloud-Konto, keine Registrierung",
+                "Keine Übertragung an Dritte",
+                "Per Docker Compose aufgesetzt"
+            },
+            Mockups + "Desktop/dialog-08-datenbank-informationen-macbook.png",
+            "Dialog mit den Datenbank-Informationen: Server 127.0.0.1",
+            Mockups + "Mobile/dialog-08-datenbank-informationen-iphone.png"),
+
+        new(MeadowIconName.Plus,
+            "Erfassen",
+            "Behandlungen in wenigen Klicks eintragen",
+            "Kuhbehandlung mit Medikament, Menge und Euterviertel, "
+            + "Klauenbehandlung Klaue für Klaue mit Befund, Verband und Klotz. "
+            + "Standardwerte sind vorbelegt, damit der Alltagsfall zwei "
+            + "Eingaben braucht.",
+            new[]
+            {
+                "Eigene Dialoge für Kuh und Klaue",
+                "Euterviertel und Klauen grafisch wählen",
+                "Standardwerte für den Alltagsfall",
+                "Medikamente und Befunde selbst pflegen"
+            },
+            Mockups + "Desktop/dialog-01-kuh-behandlung-hinzufuegen-macbook.png",
+            "Dialog zum Hinzufügen einer Kuh-Behandlung"),
+
+        new(MeadowIconName.Search,
+            "Nachschlagen",
+            "Jede Behandlung sofort wiederfinden",
+            "Suche über Halsband und Ohrmarke, Mehrfach-Filter auf Medikament, "
+            + "Stelle und Zeitraum, sortierbare Spalten. Wer wissen will, was "
+            + "Kuh 142 im Frühjahr bekommen hat, hat die Antwort in zwei "
+            + "Handgriffen.",
+            new[]
+            {
+                "Volltextsuche über Halsband und Ohrmarke",
+                "Mehrfach-Filter auf Medikament und Stelle",
+                "Sortierbare Spalten mit Seitenzahlen",
+                "Fällige Verbandsabnahmen in eigener Liste"
+            },
+            Mockups + "Desktop/seite-02-kuh-behandlungen-macbook.png",
+            "Tabelle der Kuh-Behandlungen mit Suche und Filter",
+            Mockups + "Mobile/seite-02-kuh-behandlungen-iphone.png"),
+
+        new(MeadowIconName.PlannedCow,
+            "Planen",
+            "Die nächsten Termine stehen fest",
+            "Geplante Kuh- und Klauenbehandlungen mit Notiz und Datum, "
+            + "überfällige Einträge farblich hervorgehoben. Aus der Planung "
+            + "geht es direkt in die Behandlung.",
+            new[]
+            {
+                "Geplante Behandlungen mit Notiz und Termin",
+                "Überfällige Einträge hervorgehoben",
+                "Verbände mit fälliger Abnahme",
+                "Direkt in die Behandlung übernehmen"
+            },
+            Mockups + "Desktop/seite-03-geplante-kuh-behandlungen-macbook.png",
+            "Liste der geplanten Kuh-Behandlungen"),
+
+        new(MeadowIconName.Dashboard,
+            "Auswerten",
+            "Kennzahlen und Jahresverlauf auf einer Seite",
+            "Frei konfigurierbare Kennzahlen auf dem Dashboard, "
+            + "Jahresdiagramme auf Wunsch nach Medikament aufgeschlüsselt. "
+            + "Klauenbehandlungen gehen als Excel-Datei heraus, Bestandsdaten "
+            + "kommen über XLink aus Lely Horizon.",
+            new[]
+            {
+                "Eigene KPIs zusammenstellen",
+                "Jahresdiagramm je Medikament",
+                "Excel-Export der Klauenbehandlungen",
+                "Bestand automatisch aus Lely Horizon"
+            },
+            Mockups + "Desktop/dialog-09-diagramm-medikamente-macbook.png",
+            "Jahresdiagramm, nach Medikament aufgeschlüsselt",
+            Mockups + "Mobile/dialog-09-diagramm-medikamente-iphone.png")
+    };
+
+    private static readonly MobilePoint[] MobilePoints =
+    {
+        new(MeadowIconName.Smartphone, "Für Handy und Tablet ausgelegt"),
+        new(MeadowIconName.Dashboard, "Tabbar und Plus-Knopf statt Menüleiste"),
+        new(MeadowIconName.Sun, "Hell- und Dunkelmodus"),
+        new(MeadowIconName.CloudOff, "Kein Download, läuft im Browser")
+    };
+
+    private static readonly Faq[] Faqs =
+    {
+        new("Was ist Meadow?",
+            "Meadow dokumentiert und plant Klauen- und Tierbehandlungen im "
+            + "Rinderbestand: Behandlungen erfassen, Termine planen, den "
+            + "Bestand auswerten – als Weboberfläche, die im Betriebsnetz läuft.",
+            "Meadow dokumentiert und plant Klauen- und Tierbehandlungen im "
+            + "Rinderbestand: Behandlungen erfassen, Termine planen, den "
+            + "Bestand auswerten. Es laeuft als Weboberflaeche im Betriebsnetz."),
+
+        new("Verlassen die Daten den Betrieb?",
+            "Nein. Anwendung und MariaDB stehen auf einem Server im eigenen "
+            + "Netz. Es gibt keine Cloud-Anbindung, kein Benutzerkonto bei "
+            + "einem Anbieter und keine Übertragung an Dritte.",
+            "Nein. Anwendung und MariaDB stehen auf einem Server im eigenen "
+            + "Netz. Es gibt keine Cloud-Anbindung, kein Benutzerkonto bei "
+            + "einem Anbieter und keine Uebertragung an Dritte."),
+
+        new("Wie wird Meadow installiert?",
+            "Über Docker Compose: ein Container für die Anwendung, einer für "
+            + "MariaDB. Einzutragen ist die Adresse des XLink-Servers, falls "
+            + "Bestandsdaten aus Lely Horizon übernommen werden sollen.",
+            "Ueber Docker Compose: ein Container fuer die Anwendung, einer fuer "
+            + "MariaDB. Einzutragen ist die Adresse des XLink-Servers, falls "
+            + "Bestandsdaten aus Lely Horizon uebernommen werden sollen."),
+
+        new("Funktioniert Meadow auf dem Handy?",
+            "Ja. Die Oberfläche ist für Handy und Tablet ausgelegt: Tabellen "
+            + "werden zu Karten mit beschrifteten Feldern, Filter und Dialoge "
+            + "kommen als Bottom-Sheet, unten liegt eine Tabbar mit einem "
+            + "großen Plus. Ein App-Download ist nicht nötig.",
+            "Ja. Die Oberflaeche ist fuer Handy und Tablet ausgelegt: Tabellen "
+            + "werden zu Karten, Filter und Dialoge kommen als Bottom-Sheet, "
+            + "unten liegt eine Tabbar mit einem grossen Plus. Ein "
+            + "App-Download ist nicht noetig."),
+
+        new("Kann ich in der Demo etwas kaputt machen?",
+            "Nein. Die Demo arbeitet mit erzeugten Beispieldaten und wird jede "
+            + "Nacht zurückgesetzt. Anlegen, Ändern und Löschen ist "
+            + "ausdrücklich erwünscht.",
+            "Nein. Die Demo arbeitet mit erzeugten Beispieldaten und wird jede "
+            + "Nacht zurueckgesetzt. Anlegen, Aendern und Loeschen ist "
+            + "ausdruecklich erwuenscht."),
+
+        new("Lassen sich Behandlungen exportieren?",
+            "Klauenbehandlungen gehen als Excel-Datei heraus. Bestandsdaten "
+            + "lassen sich über die XLink-Schnittstelle automatisch aus Lely "
+            + "Horizon übernehmen.",
+            "Klauenbehandlungen gehen als Excel-Datei heraus. Bestandsdaten "
+            + "lassen sich ueber die XLink-Schnittstelle automatisch aus Lely "
+            + "Horizon uebernehmen.")
+    };
+}

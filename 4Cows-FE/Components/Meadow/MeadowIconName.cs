@@ -29,5 +29,11 @@ public enum MeadowIconName
     Trash,
     ChevronDown,
     Lock,
-    CloudOff
+    CloudOff,
+
+    // Nur von der Landing-Page gebraucht (Bullet-Haken, CTA-Pfeil,
+    // Mobil-Abschnitt) - im Meadow-Prototyp kommen sie nicht vor.
+    Check,
+    ArrowRight,
+    Smartphone
 }

@@ -1,10 +1,8 @@
-﻿<Router AppAssembly="typeof(Program).Assembly">
+﻿@inject DemoSettings Demo
+
+<Router AppAssembly="typeof(Program).Assembly">
     <Found Context="routeData">
-        <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)"/>
-        @* Fokussiert nach jeder Navigation die Seitenueberschrift im Header.
-           Ohne <h1> bliebe der Fokus auf dem angeklickten Nav-Item und
-           Screenreader kuendigten die neue Seite nie an. *@
-        <FocusOnNavigate RouteData="routeData" Selector="h1"/>
+        <RouteView RouteData="routeData" DefaultLayout="@LayoutFor(routeData)"/>
     </Found>
     <NotFound>
         @* Diesen Zweig gab es bisher nicht - eine unbekannte URL rendert
@@ -14,3 +12,18 @@
         </LayoutView>
     </NotFound>
 </Router>
+
+@code {
+    /// <summary>
+    /// Nur die Landing-Page laeuft ohne die Shell. Entschieden wird das ueber
+    /// den PageType und nicht ueber die Uri: der Router rendert &lt;Found&gt; bei
+    /// jeder Navigation neu und der Typ liegt dort schon aufgeloest vor.
+    ///
+    /// Pages.Home ist der Dispatcher auf "/". Ohne Demo rendert er das
+    /// Dashboard und braucht deshalb das MainLayout wie jede andere Seite.
+    /// </summary>
+    private Type LayoutFor(RouteData routeData)
+        => Demo.Enabled && routeData.PageType == typeof(Pages.Home)
+            ? typeof(Layout.LandingLayout)
+            : typeof(Layout.MainLayout);
+}

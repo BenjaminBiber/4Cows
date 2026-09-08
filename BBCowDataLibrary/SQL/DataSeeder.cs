@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using BB_Cow.Class;
+using BB_Cow.Kpi;
 using Microsoft.EntityFrameworkCore;
 
 namespace BBCowDataLibrary.SQL;
@@ -50,80 +51,35 @@ public static class DataSeeder
             return;
         }
 
-        var defaultKpis = new List<KPI>
-        {
-            new()
-            {
-                Title = "Geplante Kuh Behandlungen",
-                Url = "geplante_Kuh_Daten",
-                Script = "SELECT CAST(COUNT(*) AS CHAR) AS value FROM Planned_Cow_Treatment;",
-                SortOrder = 0
-            },
-            new()
-            {
-                Title = "Kuh Behandlungen",
-                Url = "Kuh_Daten",
-                Script = "SELECT CAST(COUNT(*) AS CHAR) AS value FROM Cow_Treatment;",
-                SortOrder = 1
-            },
-            new()
-            {
-                Title = "Klauen Behandlungen",
-                Url = "Klauen_Daten",
-                Script = "SELECT CAST(COUNT(*) AS CHAR) AS value FROM Claw_Treatment;",
-                SortOrder = 2
-            },
-            new()
-            {
-                Title = "Geplante Klauen Behandlungen",
-                Url = "geplante_Klauen_Daten",
-                Script = "SELECT CAST(COUNT(*) AS CHAR) AS value FROM Planned_Claw_Treatment;",
-                SortOrder = 3
-            },
-            new()
-            {
-                Title = "Kuh mit den meisten Behandlungen",
-                Url = "Kuh_Daten",
-                Script = @"SELECT CAST(c.Collar_Number AS CHAR) AS value
-                            FROM Cow_Treatment ct
-                            LEFT JOIN Cow c ON ct.Ear_Tag_Number = c.Cow_ID
-                            GROUP BY ct.Ear_Tag_Number
-                            ORDER BY COUNT(*) DESC
-                            LIMIT 1;",
-                SortOrder = 4
-            },
-            new()
-            {
-                Title = "Meist behandeltes Viertel",
-                Url = "Kuh_Daten",
-                Script = @"SELECT TRIM(BOTH '/' FROM CONCAT_WS('/ ', 
-                            CASE WHEN c.Quarter_LV = 1 THEN 'LV' END, 
-                            CASE WHEN c.Quarter_LH = 1 THEN 'LH' END, 
-                            CASE WHEN c.Quarter_RV = 1 THEN 'RV' END, 
-                            CASE WHEN c.Quarter_RH = 1 THEN 'RH' END )) AS value 
-                        FROM Cow_Treatment ct 
-                        LEFT JOIN Udder c ON ct.COW_QUARTER_ID = c.UDDER_ID 
-                        WHERE c.UDDER_ID != 16 
-                        GROUP BY ct.COW_QUARTER_ID 
-                        ORDER BY COUNT(*) DESC 
-                        LIMIT 1;",
-                SortOrder = 5
-            },
-            new()
-            {
-                Title = "Kuh mit den meisten Klauen Behandlungen",
-                Url = "Klauen_Daten",
-                Script = @"SELECT CAST(c.Collar_Number AS CHAR) AS value
-                            FROM Claw_Treatment ct
-                            LEFT JOIN Cow c ON ct.Ear_Tag_Number = c.Cow_ID
-                            GROUP BY ct.Ear_Tag_Number
-                            ORDER BY COUNT(*) DESC
-                            LIMIT 1;",
-                SortOrder = 6
-            }
-        };
+        // The seven shipped KPIs, now declarative instead of hand-written SQL. The definitions live
+        // in KpiSeeds so a test can assert that all seven evaluate - they are the acceptance test
+        // for the builder being complete enough.
+        //
+        // Only FRESH databases get these: the AnyAsync guard above leaves existing installations on
+        // their hand-written scripts, which keep working unchanged as Kind = Sql.
+        var defaultKpis = KpiSeeds.Default
+            .Select(seed => Builder(seed.Title, seed.SortOrder, seed.Definition))
+            .ToList();
 
         await context.KPIs.AddRangeAsync(defaultKpis);
         await context.SaveChangesAsync();
     }
+
+    /// <summary>
+    /// A declarative KPI. The click target comes from KpiSourceRegistry rather than a literal, so
+    /// the route lives in one place and a seed cannot point at a page that does not exist - the
+    /// failure mode of the old free-text Url, where a typo silently produced a 404.
+    ///
+    /// Script stays an empty string: the column is NOT NULL, and there is nothing to gain from
+    /// making it nullable.
+    /// </summary>
+    private static KPI Builder(string title, int sortOrder, KpiDefinition definition) => new()
+    {
+        Title = title,
+        Url = KpiSourceRegistry.Find(definition.Source)?.Route ?? string.Empty,
+        Script = string.Empty,
+        SortOrder = sortOrder,
+        Kind = (int)KpiKind.Builder,
+        Definition = KpiDefinition.Serialize(definition)
+    };
 }
