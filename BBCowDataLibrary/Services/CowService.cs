@@ -269,7 +269,9 @@ public class CowService
             return "Kalb";
         }
 
-        // Friendly label for a Cow_ID so the raw GUID of a calf is never shown to the user.
+        // Ohrmarken-Label fuer einen Cow_ID in den Behandlungsdialogen. Die Halsbandnummer steht
+        // direkt daneben in ihrem eigenen Feld und wird hier deshalb nicht wiederholt. Ein Kalb
+        // hat keine Ohrenmarkennummer, dort bleibt die Halsbandnummer als einziges Merkmal.
         public string GetDisplayLabel(string? cowId)
         {
             if (string.IsNullOrEmpty(cowId) || !_cachedCows.ContainsKey(cowId))
@@ -280,10 +282,10 @@ public class CowService
             var cow = _cachedCows[cowId];
             if (cow.IsCalv || string.IsNullOrWhiteSpace(cow.EarTagNumber))
             {
-                return $"{cow.CollarNumber} (Kalb)";
+                return $"Kalb ({cow.CollarNumber})";
             }
 
-            return $"{cow.CollarNumber} / {cow.EarTagNumber}";
+            return cow.EarTagNumber;
         }
 
         public bool FilterFuncCow(string cowId, string searchString)

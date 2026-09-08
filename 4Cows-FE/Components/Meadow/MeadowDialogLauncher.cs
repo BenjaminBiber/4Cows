@@ -1,4 +1,5 @@
 using _4Cows_FE.Components._4CowsComponent.Dialogs;
+using _4Cows_FE.Components.Services;
 using Microsoft.AspNetCore.Components;
 using MudBlazor;
 
@@ -22,36 +23,49 @@ public sealed class MeadowDialogLauncher
     };
 
     private readonly IDialogService _dialogs;
+    private readonly MeadowDataChanges _changes;
 
-    public MeadowDialogLauncher(IDialogService dialogs) => _dialogs = dialogs;
+    public MeadowDialogLauncher(IDialogService dialogs, MeadowDataChanges changes)
+    {
+        _dialogs = dialogs;
+        _changes = changes;
+    }
 
     /// <summary>
-    /// Oeffnet einen Dialog und wartet, bis er geschlossen ist. Liefert
-    /// false, wenn abgebrochen wurde.
+    /// Oeffnet einen Hinzufuegen-Dialog, wartet bis er geschlossen ist und
+    /// meldet die Aenderung, sofern gespeichert wurde.
     ///
-    /// Die Open*-Methoden darunter geben absichtlich nur Task zurueck: sie
-    /// haengen an EventCallbacks in Header, FAB und Add-Menue, die kein
-    /// Ergebnis brauchen. ShowAsync allein wuerde ausserdem schon nach dem
-    /// OEFFNEN fortsetzen - wer danach neu laden will, braucht diese Methode.
+    /// Die Open*-Methoden darunter geben nur Task zurueck: sie haengen an
+    /// EventCallbacks in FAB, Add-Menue und Dashboard, die kein Ergebnis
+    /// brauchen. Gewartet werden MUSS trotzdem - ShowAsync allein kehrt
+    /// schon nach dem OEFFNEN zurueck, und dann gibt es keinen Zeitpunkt,
+    /// an dem die Meldung stimmt.
     /// </summary>
-    public async Task<bool> ShowAndAwaitAsync<TDialog>() where TDialog : ComponentBase
+    private async Task ShowAndNotifyAsync<TDialog>(MeadowDataKind kind)
+        where TDialog : ComponentBase
     {
         var dialog = await _dialogs.ShowAsync<TDialog>(string.Empty, AddOptions);
         var result = await dialog.Result;
-        return result is not null && !result.Canceled;
+
+        if (result is null || result.Canceled)
+        {
+            return;
+        }
+
+        _changes.Notify(kind);
     }
 
     public Task OpenCowTreatmentAsync()
-        => _dialogs.ShowAsync<Add_Cow_Treatment_Dialog>(string.Empty, AddOptions);
+        => ShowAndNotifyAsync<Add_Cow_Treatment_Dialog>(MeadowDataKind.CowTreatment);
 
     public Task OpenPlannedCowTreatmentAsync()
-        => _dialogs.ShowAsync<Add_Planned_Cow_Treatment_Dialog>(string.Empty, AddOptions);
+        => ShowAndNotifyAsync<Add_Planned_Cow_Treatment_Dialog>(MeadowDataKind.PlannedCowTreatment);
 
     public Task OpenClawTreatmentAsync()
-        => _dialogs.ShowAsync<Add_Claw_Treatment_Dialog>(string.Empty, AddOptions);
+        => ShowAndNotifyAsync<Add_Claw_Treatment_Dialog>(MeadowDataKind.ClawTreatment);
 
     public Task OpenPlannedClawTreatmentAsync()
-        => _dialogs.ShowAsync<Add_Planned_Claw_Treatment_Dialog>(string.Empty, AddOptions);
+        => ShowAndNotifyAsync<Add_Planned_Claw_Treatment_Dialog>(MeadowDataKind.PlannedClawTreatment);
 
     public Task OpenDatabaseInfoAsync()
         => _dialogs.ShowAsync<DatabaseInfoDialog>(string.Empty, new DialogOptions

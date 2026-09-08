@@ -1,11 +1,14 @@
 @page "/Kuh_Daten"
+@implements IDisposable
 
 @using _4Cows_FE.Components._4CowsComponent.Dialogs
 @using _4Cows_FE.Components.Meadow
 @using _4Cows_FE.Components.Services
 
+@inject NavigationManager Nav
 @inject MeadowDataLoader Data
 @inject MeadowDialogLauncher Launcher
+@inject MeadowDataChanges Changes
 @inject CowTreatmentService cowTreatmentService
 @inject CowService cowService
 @inject MedicineService medicineService
@@ -32,6 +35,9 @@
             <ChildContent>
                 <MeadowMultiSelect Label="Medikament" Options="MedicineOptions"
                                    Selected="_filter.Medicines"
+                                   SelectionChanged="Apply" />
+                <MeadowMultiSelect Label="Kuh (Halsband)" Options="CowOptions"
+                                   Selected="_filter.Cows"
                                    SelectionChanged="Apply" />
                 <MeadowSingleSelect Label="Zeitraum" Options="DateRanges.Labels"
                                     Value="@DateRanges.ToLabel(_filter.Range)"
@@ -114,9 +120,17 @@
         // Suche zusaetzlich ALLE Zeilen weg.
         await Data.EnsureCowTreatmentsAsync();
         _all = cowTreatmentService.Treatments.Values.ToList();
+        // Eine KPI-Kachel verlinkt mit ihren Filtern im Query-String hierher. ApplyTo mutiert das
+        // vorhandene _filter, also leuchtet die ganze Filter-UI von selbst auf und Apply() bleibt
+        // unveraendert.
+        KpiDrillDown.ApplyTo(_filter, Nav);
         BuildColumns();
         Apply();
+
+        Changes.Changed += OnDataChanged;
     }
+
+    public void Dispose() => Changes.Changed -= OnDataChanged;
 
     // ---- Spalten ------------------------------------------------------
 
@@ -229,6 +243,17 @@
         .OrderBy(n => n, StringComparer.CurrentCulture)
         .ToList();
 
+    /// <summary>
+    /// Halsbandnummern der vorkommenden Zeilen, numerisch sortiert - alphabetisch
+    /// stuende 104 vor 21.
+    /// </summary>
+    private IReadOnlyList<string> CowOptions => _all
+        .Select(Collar)
+        .Where(c => c != "–")
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(c => int.TryParse(c, out var number) ? number : int.MaxValue)
+        .ToList();
+
     private string CountText => $"{_rows.Count} von {_all.Count}";
 
     private void Apply()
@@ -249,6 +274,14 @@
         if (_filter.Medicines.Count > 0)
         {
             query = query.Where(r => _filter.Medicines.Contains(Medicine(r)));
+        }
+
+        // Gleichheit auf der Halsbandnummer, nicht Teilstring: genau das
+        // unterscheidet den Kachel-Drill-down von der Suche, die "104" auch in
+        // der Ohrmarke "... 1042" findet.
+        if (_filter.Cows.Count > 0)
+        {
+            query = query.Where(r => _filter.Cows.Contains(Collar(r)));
         }
 
         query = query.Where(r => DateRanges.Matches(_filter.Range, r.AdministrationDate));
@@ -290,12 +323,26 @@
 
     // ---- Aktionen -----------------------------------------------------
 
-    private async Task AddTreatment()
+    // Derselbe Weg wie FAB, Add-Menue und Dashboard: der Launcher meldet das
+    // Speichern, OnDataChanged laedt nach. Vorher lud dieser Knopf selbst neu
+    // - und war damit der einzige Weg, auf dem die Zeile sofort erschien,
+    // obwohl er wegen .mw-only-desktop mobil gar nicht sichtbar ist.
+    private Task AddTreatment() => Launcher.OpenCowTreatmentAsync();
+
+    private void OnDataChanged(MeadowDataKind kind)
     {
-        if (await Launcher.ShowAndAwaitAsync<Add_Cow_Treatment_Dialog>())
+        if (kind != MeadowDataKind.CowTreatment)
+        {
+            return;
+        }
+
+        // Die Meldung kommt aus dem Dialog-Aufrufer, nicht aus dem
+        // Renderpfad dieser Seite - deshalb InvokeAsync.
+        _ = InvokeAsync(async () =>
         {
             await ReloadAsync();
-        }
+            StateHasChanged();
+        });
     }
 
     private async Task ReloadAsync()

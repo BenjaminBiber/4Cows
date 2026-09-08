@@ -1,29 +1,60 @@
 @page "/geplante_Kuh_Daten"
+@implements IDisposable
 
 @using _4Cows_FE.Components._4CowsComponent.Dialogs
 @using _4Cows_FE.Components.Meadow
 @using _4Cows_FE.Components.Services
+@using BB_Cow.Kpi
 
 @inject IDialogService DialogService
+@inject NavigationManager Nav
 @inject ISnackbar Snackbar
 @inject MeadowDataLoader Data
 @inject MeadowDialogLauncher Launcher
+@inject MeadowDataChanges Changes
 @inject PCowTreatmentService pCowTreatmentService
 @inject MedicineService medicineService
 @inject CowService cowService
 @inject WhereHowService WhereHowService
 @inject UdderService UdderService
 
+@* Dieselbe Filterleiste wie Cow_Table/Claw_Table - bisher hatte diese Seite
+   nur ein Suchfeld. Der Zeitraum zeigt hier in die ZUKUNFT: geplante
+   Behandlungen sind absichtlich vordatiert, "letzte 30 Tage" wuerde alles
+   wegfiltern. Siehe PlannedDateRanges. *@
 <MeadowToolbar>
     <Left>
-        <MeadowSearchBox Value="@_search" ValueChanged="OnSearchChanged"
+        <MeadowSearchBox Value="@_filter.Search" ValueChanged="OnSearchChanged"
                          AriaLabel="Geplante Kuh Behandlungen durchsuchen" />
-        @if (_search.Length > 0)
+        @if (_filter.HasAny)
         {
             <span class="mw-result-count mw-only-desktop">@CountText</span>
         }
     </Left>
     <Right>
+        <MeadowFilterPopover Open="_filterOpen" ShowReset="@(_filter.ActiveCount > 0)"
+                             CountText="@($"{CountText} Behandlungen")"
+                             OnClose="CloseFilter" OnReset="ResetFilter">
+            <Trigger>
+                <MeadowFilterButton ActiveCount="_filter.ActiveCount" Open="_filterOpen"
+                                    OnClick="ToggleFilter" />
+            </Trigger>
+            <ChildContent>
+                <MeadowMultiSelect Label="Medikament" Options="MedicineOptions"
+                                   Selected="_filter.Medicines"
+                                   SelectionChanged="Apply" />
+                <MeadowSingleSelect Label="Gefunden" Options="FlagStates.FoundLabels"
+                                    Value="@_filter.Found"
+                                    ValueChanged="OnFoundChanged" />
+                <MeadowSingleSelect Label="Behandelt" Options="FlagStates.TreatedLabels"
+                                    Value="@_filter.Treated"
+                                    ValueChanged="OnTreatedChanged" />
+                <MeadowSingleSelect Label="Zeitraum" Options="PlannedDateRanges.Labels"
+                                    Value="@PlannedDateRanges.ToLabel(_filter.Range)"
+                                    ValueChanged="OnRangeChanged" />
+            </ChildContent>
+        </MeadowFilterPopover>
+
         <button type="button" class="mw-btn mw-btn--primary mw-only-desktop" @onclick="Plan">
             <MeadowIcon Name="MeadowIconName.Plus" Size="20" />
             <span>Planen</span>
@@ -37,6 +68,14 @@
              PagerLabel="Behandlungen pro Seite"
              MoreLabel="Weitere Behandlungen laden"
              EmptyText="Keine geplanten Behandlungen gefunden.">
+    <EmptyContent>
+        @if (_filter.HasAny)
+        {
+            <button type="button" class="mw-empty__reset" @onclick="ClearAll">
+                Suche und Filter zurücksetzen
+            </button>
+        }
+    </EmptyContent>
     <MobileCard Context="row">
         <div class="mw-row-card">
             <div class="mw-row-card__top">
@@ -63,11 +102,40 @@
     private List<PlannedCowTreatment> _rows = new();
     private List<MeadowColumn<PlannedCowTreatment>> _columns = new();
 
-    private string _search = "";
+    private readonly PlannedCowTableFilter _filter = new();
+    private bool _filterOpen;
 
     protected override async Task OnInitializedAsync()
     {
         await Data.EnsurePlannedCowAsync();
+        // Eine KPI-Kachel verlinkt mit ihren Filtern im Query-String hierher.
+        KpiDrillDown.ApplyTo(_filter, Nav);
+        Reload();
+
+        Changes.Changed += OnDataChanged;
+    }
+
+    public void Dispose() => Changes.Changed -= OnDataChanged;
+
+    private void OnDataChanged(MeadowDataKind kind)
+    {
+        if (kind != MeadowDataKind.PlannedCowTreatment)
+        {
+            return;
+        }
+
+        // Die Meldung kommt aus dem Dialog-Aufrufer, nicht aus dem
+        // Renderpfad dieser Seite - deshalb InvokeAsync.
+        _ = InvokeAsync(async () =>
+        {
+            await ReloadAsync();
+            StateHasChanged();
+        });
+    }
+
+    private async Task ReloadAsync()
+    {
+        await pCowTreatmentService.GetAllDataAsync();
         Reload();
     }
 
@@ -175,11 +243,23 @@
 
     // ---- Filter -------------------------------------------------------
 
+    /// <summary>
+    /// Nur die tatsaechlich vorkommenden Medikamente - nicht GetMedicineNames(),
+    /// das automatisch angelegte und nie benutzte Namen enthaelt. Gleiche Regel
+    /// wie in Cow_Table.
+    /// </summary>
+    private IReadOnlyList<string> MedicineOptions => _all
+        .Select(r => medicineService.GetMedicineNameById(r.MedicineId))
+        .Where(n => !string.IsNullOrEmpty(n) && n != "--")
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(n => n, StringComparer.CurrentCulture)
+        .ToList();
+
     private void Apply()
     {
         IEnumerable<PlannedCowTreatment> query = _all;
 
-        var search = _search.Trim();
+        var search = _filter.Search.Trim();
         if (search.Length > 0)
         {
             query = query.Where(r =>
@@ -189,25 +269,68 @@
                 || WhereHow(r).Contains(search, StringComparison.OrdinalIgnoreCase));
         }
 
+        // Leere Auswahl = kein Filter, ODER innerhalb der Gruppe.
+        if (_filter.Medicines.Count > 0)
+        {
+            query = query.Where(r => _filter.Medicines.Contains(Medicine(r)));
+        }
+
+        // Getrennte Gruppen, also UND: "gefunden, aber noch nicht behandelt".
+        query = query
+            .Where(r => FlagStates.Matches(_filter.Found, r.IsFound, KpiFlags.Found))
+            .Where(r => FlagStates.Matches(_filter.Treated, r.IsTreatet, KpiFlags.Treated))
+            .Where(r => PlannedDateRanges.Matches(_filter.Range, r.AdministrationDate));
+
         _rows = query.ToList();
     }
 
     private void OnSearchChanged(string value)
     {
-        _search = value;
+        _filter.Search = value;
+        Apply();
+    }
+
+    private void OnFoundChanged(string value)
+    {
+        _filter.Found = value;
+        Apply();
+    }
+
+    private void OnTreatedChanged(string value)
+    {
+        _filter.Treated = value;
+        Apply();
+    }
+
+    private void OnRangeChanged(string label)
+    {
+        _filter.Range = PlannedDateRanges.Parse(label);
+        Apply();
+    }
+
+    private void ToggleFilter() => _filterOpen = !_filterOpen;
+
+    private void CloseFilter() => _filterOpen = false;
+
+    private void ResetFilter()
+    {
+        _filter.Reset();
+        Apply();
+    }
+
+    /// <summary>Aus dem Leerzustand heraus: hier gehoert der Suchtext mit weg.</summary>
+    private void ClearAll()
+    {
+        _filter.Reset();
+        _filter.Search = "";
         Apply();
     }
 
     // ---- Aktionen -----------------------------------------------------
 
-    private async Task Plan()
-    {
-        if (await Launcher.ShowAndAwaitAsync<Add_Planned_Cow_Treatment_Dialog>())
-        {
-            await pCowTreatmentService.GetAllDataAsync();
-            Reload();
-        }
-    }
+    // Derselbe Weg wie FAB, Add-Menue und Dashboard: der Launcher meldet das
+    // Speichern, OnDataChanged laedt nach.
+    private Task Plan() => Launcher.OpenPlannedCowTreatmentAsync();
 
     private async Task Complete(PlannedCowTreatment planned)
     {

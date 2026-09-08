@@ -1,0 +1,820 @@
+/* ============================================================
+   Meadow — Landing (nur im Demo-Modus geladen)
+
+   Eigene Datei statt eines Anhangs an meadow-components.css: dort
+   entspricht jede Klasse einem st.*-Eintrag aus Meadow.dc.html, die
+   Landing-Page hat im Prototyp keine Entsprechung. Verlinkt wird sie in
+   App.razor nur, wenn Demo:Enabled gesetzt ist.
+
+   Praefix mw-lp-, damit nichts mit den Shell-Klassen kollidiert.
+   Farben, Radien und Schriften AUSSCHLIESSLICH ueber die Tokens aus
+   meadow-tokens.css - dadurch traegt das data-mw-theme-Attribut den Dark
+   Mode hier genauso wie in der App, ohne eine einzige
+   [data-mw-theme="dark"]-Regel in dieser Datei.
+
+   Zwei begruendete Ausnahmen von der Token-Regel:
+   - Hero, Abschluss-CTA und Fuss sind in BEIDEN Themes dunkel. Ihr Text
+     ist deshalb #fff bzw. rgba(255,255,255,...) - ein Token dafuer gibt
+     es nicht, weil die App keine dauerhaft dunkle Flaeche kennt.
+   - Der Hero-Verlauf braucht Navy und Primary-Dark mit Alpha. Die
+     rgb-Tripel 0,47,82 und 31,95,125 sind --mw-navy und
+     --mw-primary-dark; wer die Tokens aendert, muss sie hier mitziehen.
+
+   Akzente im Vordergrund - Eyebrow, Feature-Label, Haken, das Plus der
+   FAQ - nutzen --mw-soft-fg, nicht --mw-primary. --mw-primary ist
+   themenunabhaengig (#2C7DA0) und liegt im Dark Mode auf --mw-soft
+   (#16303a) nur bei 3,1:1; --mw-soft-fg kippt mit dem Theme (#1f5f7d /
+   #60ADC9) und ist in beiden Richtungen besser lesbar. --mw-primary
+   bleibt dort, wo eine FLAECHE gefaerbt wird und weisser Text
+   darauf liegt - .mw-btn--primary und die Icon-Kachel im Hover.
+
+   Wiederverwendet werden .mw-btn / --primary / --ghost / --wide / --sm
+   sowie .mw-only-desktop aus meadow-components.css.
+
+   Die Keyframes stehen hier und nicht in meadow-tokens.css: diese Datei
+   ist Demo-gated, die App braucht mwLp* nie.
+   ============================================================ */
+
+.mw-lp {
+  /* Kein height:100dvh + overflow:hidden wie .mw-shell: die Landing
+     scrollt das Dokument, damit Sprungmarken, Scroll-Restore und die
+     einklappende URL-Leiste auf Mobil funktionieren. min-height haelt
+     den Fuss trotzdem unten, wenn der Inhalt kurz ist. */
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: var(--mw-bg);
+  color: var(--mw-text);
+}
+
+/* Gemeinsamer Inhaltsdeckel. Getrennt von der vertikalen Polsterung,
+   damit ein Band seine Flaeche voll ausfuellen kann, waehrend der Text
+   darin auf --mw-shell-max bleibt. */
+.mw-lp-wrap {
+  max-width: var(--mw-shell-max);
+  margin-inline: auto;
+  padding-inline: clamp(16px, 4vw, 40px);
+}
+
+/* Die Sprungziele liegen unter der klebenden Kopfleiste - ohne
+   scroll-margin schiebt der Anker die Ueberschrift dahinter. */
+.mw-lp [id] {
+  scroll-margin-top: calc(var(--mw-header-h) + 12px);
+}
+
+/* ── Kopfleiste ─────────────────────────────────────────────── */
+.mw-lp__bar {
+  position: sticky;
+  top: 0;
+  z-index: var(--mw-z-header);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--mw-header-h);
+  padding-inline: clamp(16px, 4vw, 40px);
+  background: var(--mw-header);
+  border-bottom: 1px solid var(--mw-border);
+}
+.mw-lp__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-right: 18px;
+  flex-shrink: 0;
+  font-family: var(--mw-font-display);
+  font-weight: 800;
+  font-size: 20px;
+  letter-spacing: .04em;
+  color: var(--mw-text);
+}
+.mw-lp__logo {
+  width: 30px;
+  height: 30px;
+}
+.mw-lp__links {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.mw-lp__link {
+  position: relative;
+  padding: 6px 12px;
+  border-radius: var(--mw-r-sm);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--mw-muted);
+  transition: color var(--mw-t), background var(--mw-t);
+}
+.mw-lp__link::after {
+  content: "";
+  position: absolute;
+  bottom: 2px;
+  left: 12px;
+  right: 12px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--mw-soft-fg);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--mw-t-slide) var(--mw-ease);
+}
+/* Der Knopf schiebt sich selbst nach rechts, damit die Anker mittig
+   stehen bleiben und die Leiste nicht umspringt, wenn sie unter 1024px
+   verschwinden. */
+.mw-lp__bar-cta {
+  margin-left: auto;
+}
+
+/* ── Buttons auf dauerhaft dunkler Flaeche ──────────────────── */
+/* .mw-btn--ghost sitzt auf --mw-panel und stuende auf dem Hero als
+   weisser Block neben dem Primaerknopf. Diese beiden Varianten
+   ERGAENZEN .mw-btn, sie ersetzen es nicht. */
+.mw-lp-btn--on-dark {
+  background: rgba(255, 255, 255, .07);
+  color: #fff;
+  border-color: rgba(255, 255, 255, .26);
+}
+.mw-lp-btn--white {
+  background: #fff;
+  color: var(--mw-primary-dark);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, .18);
+}
+
+/* ── Sektionsrahmen ─────────────────────────────────────────── */
+.mw-lp__main {
+  flex: 1;
+}
+
+/* Zentrierter Ueberschriftsblock (Funktionen, FAQ) */
+.mw-lp-head {
+  text-align: center;
+  max-width: 660px;
+  margin-inline: auto;
+}
+.mw-lp-head__title {
+  margin-top: 10px;
+  font-family: var(--mw-font-display);
+  font-weight: 800;
+  font-size: clamp(30px, 3.6vw, 44px);
+  line-height: 1.08;
+  letter-spacing: -.01em;
+}
+.mw-lp-head__sub {
+  margin-top: 12px;
+  font-size: clamp(15px, 1.5vw, 17px);
+  line-height: 1.7;
+  color: var(--mw-muted);
+}
+
+/* Kleine Ueberschrift mit Strich davor. Auf dem dunklen Hero der
+   Sage-Ton, sonst --mw-soft-fg. */
+.mw-lp-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--mw-soft-fg);
+}
+.mw-lp-eyebrow::before {
+  content: "";
+  width: 22px;
+  height: 2px;
+  border-radius: 1px;
+  background: currentColor;
+}
+.mw-lp-hero .mw-lp-eyebrow {
+  color: var(--mw-sage);
+}
+
+/* ── Hero ───────────────────────────────────────────────────── */
+.mw-lp-hero {
+  /* Einmal definiert, von ::before und ::after benutzt - und in der
+     Media Query unten mit einer Zeile abgeschaltet. */
+  --mw-lp-hero-clip: polygon(0 0, 56% 0, 47% 100%, 0 100%);
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: calc(100dvh - var(--mw-header-h));
+  padding-block: clamp(48px, 7vw, 88px);
+  overflow: hidden;
+}
+
+/* Zwei Ebenen statt einer: ::before traegt das Foto und darf deshalb einen
+   filter bekommen, ::after legt den Farbschleier darueber. In einer
+   einzigen Ebene ginge das nicht - der filter wuerde den Schleier
+   mitnehmen und ihn gleich wieder aufhellen.
+
+   Die Werte sind gemessen, nicht geschaetzt: brightness(.35) plus dieser
+   Schleier bringt weissen Text im schlechtesten Pixel auf 8,85:1 und das
+   12px-Sage des Eyebrows auf 5,02:1. Ein blosser Schleier ohne filter kam
+   auf 5,8:1 bzw. 3,66:1 - der Eyebrow lag damit unter den 4,5:1, die
+   normal grosser Text braucht. Wer das Foto tauscht, muss nachmessen.
+
+   Der Verlauf unter dem Foto traegt, falls images/hero.jpg fehlt. Er nimmt
+   bewusst die HELLEN Tokens: er liegt mit im gefilterten Layer, und
+   --mw-navy waere nach brightness(.35) fast schwarz. */
+.mw-lp-hero::before,
+.mw-lp-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  clip-path: var(--mw-lp-hero-clip);
+}
+.mw-lp-hero::before {
+  background:
+    url("../images/hero.jpg") center / cover no-repeat,
+    linear-gradient(115deg, var(--mw-blue), var(--mw-sage));
+  filter: brightness(.35) saturate(.75);
+}
+.mw-lp-hero::after {
+  background: linear-gradient(115deg,
+    rgba(0, 47, 82, .7) 0%,
+    rgba(31, 95, 125, .58) 75%,
+    rgba(0, 47, 82, .68) 100%);
+}
+.mw-lp-hero__grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr 1.15fr;
+  gap: clamp(24px, 3vw, 48px);
+  align-items: center;
+}
+.mw-lp-hero__title {
+  margin-top: 20px;
+  font-family: var(--mw-font-display);
+  font-weight: 800;
+  font-size: clamp(38px, 5.4vw, 68px);
+  line-height: 1.02;
+  letter-spacing: -.01em;
+  color: #fff;
+}
+.mw-lp-hero__title span {
+  position: relative;
+  display: inline-block;
+  color: var(--mw-sage);
+}
+.mw-lp-hero__lead {
+  margin-top: 18px;
+  max-width: 46ch;
+  font-size: clamp(15px, 1.6vw, 18px);
+  line-height: 1.7;
+  color: rgba(255, 255, 255, .72);
+}
+.mw-lp-hero__cta {
+  margin-top: 30px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* ── Mockup-Paar (Hero und Feature-Baender) ─────────────────── */
+/* Die PNGs unter images/Mockups/ sind bereits in Geraeterahmen mit
+   Schatten gerendert. Deshalb hier KEIN border-radius und kein
+   box-shadow - beides wuerde den Rahmen im Bild doppeln. */
+.mw-lp-shot {
+  position: relative;
+}
+.mw-lp-shot__desk {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.mw-lp-shot__phone {
+  position: absolute;
+  left: -4%;
+  bottom: -3%;
+  z-index: 2;
+  display: block;
+  width: 30%;
+  height: auto;
+}
+
+/* ── Feature-Baender ────────────────────────────────────────── */
+.mw-lp-band {
+  padding-block: clamp(56px, 7vw, 96px);
+  background: var(--mw-panel);
+}
+.mw-lp-band--alt {
+  background: var(--mw-tint);
+}
+/* Der Ueberschriftsblock steht auf derselben Flaeche wie das erste Band,
+   damit beide als ein Block gelesen werden. */
+.mw-lp-features-head {
+  padding-block: clamp(56px, 8vw, 104px) 0;
+  background: var(--mw-panel);
+}
+
+.mw-lp-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(32px, 5vw, 76px);
+  align-items: center;
+}
+/* Gespiegelte Reihe. Bewusst per order statt direction:rtl wie im
+   Vorbild: rtl kippt auch die Interpunktion am Zeilenende. */
+.mw-lp-row--rev .mw-lp-feat {
+  order: 2;
+}
+
+.mw-lp-feat__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: var(--mw-r-2xl);
+  background: var(--mw-soft);
+  color: var(--mw-soft-fg);
+  transition: transform var(--mw-t-pop) var(--mw-ease),
+              background var(--mw-t), color var(--mw-t), box-shadow var(--mw-t);
+}
+.mw-lp-feat__label {
+  margin-top: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--mw-soft-fg);
+}
+.mw-lp-feat__title {
+  margin-top: 8px;
+  font-family: var(--mw-font-display);
+  font-weight: 800;
+  font-size: clamp(26px, 2.8vw, 36px);
+  line-height: 1.1;
+  letter-spacing: -.01em;
+}
+.mw-lp-feat__text {
+  margin-top: 12px;
+  font-size: clamp(14px, 1.4vw, 16px);
+  line-height: 1.75;
+  color: var(--mw-muted);
+}
+.mw-lp-feat__bullets {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  list-style: none;
+}
+.mw-lp-feat__bullets li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--mw-muted);
+}
+.mw-lp-feat__bullets svg {
+  flex-shrink: 0;
+  color: var(--mw-soft-fg);
+}
+
+/* ── Mobil-Abschnitt ────────────────────────────────────────── */
+.mw-lp-mob {
+  padding-block: clamp(64px, 9vw, 116px);
+  background: var(--mw-canvas);
+  overflow: hidden;
+}
+.mw-lp-mob__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(32px, 5vw, 76px);
+  align-items: center;
+}
+/* Tablet und Telefon, ueberlappend - wie das Notebook-Telefon-Paar im
+   Hero, nur eine Geraeteklasse kleiner.
+
+   Beide Breiten sind Prozent DES CONTAINERS: das Tablet nimmt 78%, die
+   restlichen 22% sind der Platz, in den das Telefon ragt. Kein
+   padding-right - prozentuale Polsterung bezieht sich auf die
+   Grid-Zelle, nicht auf die eigene Breite, das Tablet haette also mit
+   der Spaltenbreite die Groesse gewechselt. */
+.mw-lp-mob__devices {
+  position: relative;
+  width: min(360px, 100%);
+  margin-inline: auto;
+}
+.mw-lp-mob__tablet {
+  display: block;
+  width: 78%;
+  height: auto;
+}
+.mw-lp-mob__phone {
+  position: absolute;
+  right: 0;
+  bottom: 4%;
+  z-index: 2;
+  display: block;
+  width: 42%;
+  height: auto;
+}
+.mw-lp-mob__title {
+  margin-top: 12px;
+  font-family: var(--mw-font-display);
+  font-weight: 800;
+  font-size: clamp(30px, 3.4vw, 42px);
+  line-height: 1.08;
+  letter-spacing: -.01em;
+}
+.mw-lp-mob__text {
+  margin-top: 14px;
+  font-size: clamp(14px, 1.4vw, 16px);
+  line-height: 1.75;
+  color: var(--mw-muted);
+}
+.mw-lp-mob__list {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  list-style: none;
+}
+.mw-lp-mob__list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 15px;
+  color: var(--mw-muted);
+}
+.mw-lp-mob__list svg {
+  flex-shrink: 0;
+  color: var(--mw-soft-fg);
+}
+
+/* ── Abschluss-CTA ──────────────────────────────────────────── */
+.mw-lp-cta {
+  position: relative;
+  padding-block: clamp(56px, 8vw, 96px) 0;
+  background: linear-gradient(115deg, var(--mw-navy), var(--mw-primary-dark));
+  color: #fff;
+  overflow: hidden;
+}
+.mw-lp-cta__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(24px, 4vw, 56px);
+  align-items: flex-end;
+}
+.mw-lp-cta__col {
+  padding-bottom: clamp(56px, 7vw, 88px);
+}
+.mw-lp-cta__title {
+  font-family: var(--mw-font-display);
+  font-weight: 800;
+  font-size: clamp(30px, 4vw, 50px);
+  line-height: 1.06;
+  letter-spacing: -.01em;
+}
+.mw-lp-cta__text {
+  margin-top: 14px;
+  max-width: 44ch;
+  font-size: clamp(15px, 1.5vw, 17px);
+  line-height: 1.7;
+  color: rgba(255, 255, 255, .75);
+}
+.mw-lp-cta__actions {
+  margin-top: 28px;
+}
+/* Das Mockup laeuft unten aus dem Abschnitt heraus. Der negative Rand
+   frisst die durchsichtige Polsterung des PNG weg - sonst schwebt das
+   Geraet mit sichtbarem Abstand ueber der Kante. */
+.mw-lp-cta__shot {
+  margin-bottom: -7%;
+}
+.mw-lp-cta__shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* ── FAQ ────────────────────────────────────────────────────── */
+.mw-lp-faq {
+  padding-block: clamp(56px, 8vw, 104px);
+  background: var(--mw-bg);
+}
+.mw-lp-faq__list {
+  margin-top: 44px;
+  margin-inline: auto;
+  max-width: 800px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.mw-lp-faq__item {
+  background: var(--mw-panel);
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-4xl);
+  overflow: hidden;
+  transition: border-color var(--mw-t);
+}
+.mw-lp-faq__item[open] {
+  border-color: var(--mw-soft-fg);
+}
+.mw-lp-faq__q {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 22px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+  transition: color var(--mw-t);
+}
+.mw-lp-faq__q::-webkit-details-marker {
+  display: none;
+}
+/* Das Plus wird beim Aufklappen zum Kreuz. Reines CSS, damit die FAQ
+   ohne JS und ohne MudBlazor-Provider funktioniert. */
+.mw-lp-faq__q::after {
+  content: "+";
+  flex-shrink: 0;
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 1;
+  color: var(--mw-soft-fg);
+  transition: transform var(--mw-t-slide) var(--mw-ease);
+}
+.mw-lp-faq__item[open] .mw-lp-faq__q::after {
+  transform: rotate(45deg);
+}
+.mw-lp-faq__a {
+  padding: 0 22px 18px;
+  font-size: 14px;
+  line-height: 1.75;
+  color: var(--mw-muted);
+}
+.mw-lp-faq__a strong {
+  color: var(--mw-text);
+}
+
+/* ── Fuss ───────────────────────────────────────────────────── */
+.mw-lp__foot {
+  padding: 28px clamp(16px, 4vw, 40px);
+  background: var(--mw-navy);
+  color: rgba(255, 255, 255, .6);
+  font-size: 13px;
+}
+.mw-lp__foot-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  max-width: var(--mw-shell-max);
+  margin-inline: auto;
+}
+.mw-lp__foot-brand {
+  font-family: var(--mw-font-display);
+  font-weight: 800;
+  font-size: 17px;
+  letter-spacing: .04em;
+  color: rgba(255, 255, 255, .92);
+}
+
+/* ── Hover, nur wo es einen Zeiger gibt ─────────────────────── */
+@media (hover: hover) {
+  .mw-lp__brand:hover,
+  .mw-lp__foot-brand:hover {
+    opacity: .85;
+  }
+  .mw-lp__link:hover {
+    color: var(--mw-soft-fg);
+    background: var(--mw-soft);
+  }
+  .mw-lp__link:hover::after {
+    transform: scaleX(1);
+  }
+  /* filter:none hebt das brightness(1.06) aus .mw-btn:hover auf - auf
+     einer halbtransparenten Flaeche wirkt es nicht, die Deckkraft ist
+     hier das bessere Signal. */
+  .mw-lp-btn--on-dark:hover {
+    filter: none;
+    background: rgba(255, 255, 255, .15);
+    border-color: rgba(255, 255, 255, .42);
+  }
+  .mw-lp-btn--white:hover {
+    filter: none;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, .24);
+  }
+  .mw-lp-feat:hover .mw-lp-feat__icon {
+    transform: scale(1.08) rotate(-4deg);
+    background: var(--mw-primary);
+    color: #fff;
+    box-shadow: var(--mw-glow-primary);
+  }
+  .mw-lp-faq__q:hover {
+    color: var(--mw-soft-fg);
+  }
+}
+
+/* ── Bewegung ───────────────────────────────────────────────── */
+/* Alles Sichtbarkeits-Relevante steckt in no-preference: der globale
+   reduce-Block in meadow-tokens.css setzt nur Dauern auf .001s und
+   wuerde ein opacity:0 nicht aufloesen. */
+@media (prefers-reduced-motion: no-preference) {
+
+  /* Sanftes Scrollen zu den Sprungmarken.
+
+     Gescopet per :has(.mw-lp) und NICHT einfach auf :root: diese Datei
+     wird im Demo-Modus auf jeder Seite geladen, also auch im Dashboard.
+     Dort scrollen Drawer, Tabellen und Bottom-Sheets - die sollen weiter
+     sofort springen.
+
+     Gehoert auf das Wurzelelement, weil die Landing das DOKUMENT scrollt
+     (kein .mw-shell mit eigenem Scrollcontainer). Der Versatz unter die
+     klebende Kopfleiste kommt weiter aus dem scroll-margin-top auf
+     .mw-lp [id]. */
+  :root:has(.mw-lp) {
+    scroll-behavior: smooth;
+  }
+
+  /* Der Vorhang haengt am data-Attribut, das meadow-landing.js als
+     erstes auf <html> setzt. Ohne das Skript ist nie etwas versteckt. */
+  :root[data-mw-lp-reveal] .mw-lp-rv {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity .7s var(--mw-ease), transform .7s var(--mw-ease);
+  }
+  :root[data-mw-lp-reveal] .mw-lp-rv--l { transform: translateX(-42px); }
+  :root[data-mw-lp-reveal] .mw-lp-rv--r { transform: translateX(42px); }
+
+  /* Freigeschaltet wird per data-mw-in, NICHT per Klasse: class steht im
+     Blazor-Render-Tree, und ein Re-Render - etwa nach einem Klick auf
+     #funktionen, der durch den Router laeuft - wuerde eine dort
+     hinzugefuegte Klasse wieder wegdiffen. Ein Attribut, das Blazor nie
+     gerendert hat, bleibt unangetastet. */
+  :root[data-mw-lp-reveal] .mw-lp-rv[data-mw-in] {
+    opacity: 1;
+    transform: none;
+  }
+
+  /* Bullets laufen gestaffelt ein, sobald ihre Reihe sichtbar wird. */
+  :root[data-mw-lp-reveal] .mw-lp-rv :is(.mw-lp-feat__bullets, .mw-lp-mob__list) li {
+    opacity: 0;
+    transform: translateX(-12px);
+    transition: opacity .45s var(--mw-ease), transform .45s var(--mw-ease);
+  }
+  :root[data-mw-lp-reveal] .mw-lp-rv[data-mw-in] :is(.mw-lp-feat__bullets, .mw-lp-mob__list) li {
+    opacity: 1;
+    transform: none;
+  }
+  :root[data-mw-lp-reveal] .mw-lp-rv[data-mw-in] :is(.mw-lp-feat__bullets, .mw-lp-mob__list) li:nth-child(1) { transition-delay: .42s; }
+  :root[data-mw-lp-reveal] .mw-lp-rv[data-mw-in] :is(.mw-lp-feat__bullets, .mw-lp-mob__list) li:nth-child(2) { transition-delay: .52s; }
+  :root[data-mw-lp-reveal] .mw-lp-rv[data-mw-in] :is(.mw-lp-feat__bullets, .mw-lp-mob__list) li:nth-child(3) { transition-delay: .62s; }
+  :root[data-mw-lp-reveal] .mw-lp-rv[data-mw-in] :is(.mw-lp-feat__bullets, .mw-lp-mob__list) li:nth-child(4) { transition-delay: .72s; }
+
+  :root[data-mw-lp-reveal] .mw-lp-rv[data-mw-in] .mw-lp-feat__icon {
+    animation: mwLpIconPop .55s var(--mw-ease) .2s both;
+  }
+
+  /* ── Feature-Baender: Spalten getrennt statt Reihe als Block ──
+     Die Reihe selbst bewegt sich nicht mehr, sie ist nur noch der
+     Ausloeser - sonst kaeme zur Bewegung der Spalten noch die des
+     Elternelements dazu und beide Mockups liefen diagonal ein. Text
+     kommt von unten, das Mockup von der Aussenseite. */
+  :root[data-mw-lp-reveal] .mw-lp-row.mw-lp-rv {
+    opacity: 1;
+    transform: none;
+  }
+  :root[data-mw-lp-reveal] .mw-lp-row.mw-lp-rv .mw-lp-feat {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity .7s var(--mw-ease), transform .7s var(--mw-ease);
+  }
+  :root[data-mw-lp-reveal] .mw-lp-row.mw-lp-rv .mw-lp-shot {
+    opacity: 0;
+    /* Aus der Richtung, in der das Mockup steht: rechte Spalte von
+       rechts, gespiegelte Reihe von links. */
+    transform: translateX(44px) scale(.97);
+    transition: opacity .8s var(--mw-ease) .12s, transform .8s var(--mw-ease) .12s;
+  }
+  :root[data-mw-lp-reveal] .mw-lp-row--rev.mw-lp-rv .mw-lp-shot {
+    transform: translateX(-44px) scale(.97);
+  }
+  :root[data-mw-lp-reveal] .mw-lp-row.mw-lp-rv[data-mw-in] .mw-lp-feat,
+  :root[data-mw-lp-reveal] .mw-lp-row.mw-lp-rv[data-mw-in] .mw-lp-shot {
+    opacity: 1;
+    transform: none;
+  }
+
+  /* ── FAQ: Eintraege einzeln gestaffelt ──
+     Auch hier traegt die Liste nur den Ausloeser; die Karten kommen
+     nacheinander. */
+  :root[data-mw-lp-reveal] .mw-lp-faq__list.mw-lp-rv {
+    opacity: 1;
+    transform: none;
+  }
+  :root[data-mw-lp-reveal] .mw-lp-faq__list.mw-lp-rv .mw-lp-faq__item {
+    opacity: 0;
+    transform: translateY(18px);
+    transition: opacity .5s var(--mw-ease), transform .5s var(--mw-ease);
+  }
+  :root[data-mw-lp-reveal] .mw-lp-faq__list.mw-lp-rv[data-mw-in] .mw-lp-faq__item {
+    opacity: 1;
+    transform: none;
+  }
+  :root[data-mw-lp-reveal] .mw-lp-faq__list.mw-lp-rv[data-mw-in] .mw-lp-faq__item:nth-child(1) { transition-delay: .05s; }
+  :root[data-mw-lp-reveal] .mw-lp-faq__list.mw-lp-rv[data-mw-in] .mw-lp-faq__item:nth-child(2) { transition-delay: .12s; }
+  :root[data-mw-lp-reveal] .mw-lp-faq__list.mw-lp-rv[data-mw-in] .mw-lp-faq__item:nth-child(3) { transition-delay: .19s; }
+  :root[data-mw-lp-reveal] .mw-lp-faq__list.mw-lp-rv[data-mw-in] .mw-lp-faq__item:nth-child(4) { transition-delay: .26s; }
+  :root[data-mw-lp-reveal] .mw-lp-faq__list.mw-lp-rv[data-mw-in] .mw-lp-faq__item:nth-child(5) { transition-delay: .33s; }
+  :root[data-mw-lp-reveal] .mw-lp-faq__list.mw-lp-rv[data-mw-in] .mw-lp-faq__item:nth-child(6) { transition-delay: .4s; }
+
+  /* Hero: laeuft ohne Beobachter direkt beim Laden und braucht das
+     data-Attribut deshalb nicht - die Animation endet sichtbar. */
+  .mw-lp-hero .mw-lp-eyebrow { animation: mwLpFadeUp .6s var(--mw-ease) .05s both; }
+  .mw-lp-hero__title         { animation: mwLpFadeUp .7s var(--mw-ease) .18s both; }
+  .mw-lp-hero__lead          { animation: mwLpFadeUp .7s var(--mw-ease) .32s both; }
+  .mw-lp-hero__cta           { animation: mwLpFadeUp .7s var(--mw-ease) .46s both; }
+  .mw-lp-hero .mw-lp-shot    { animation: mwLpFadeUp 1s var(--mw-ease) .22s both; }
+
+  .mw-lp-hero__title span::after {
+    content: "";
+    position: absolute;
+    bottom: -4px;
+    left: 0;
+    right: 0;
+    height: 3px;
+    border-radius: 2px;
+    background: linear-gradient(to right, var(--mw-sage), var(--mw-blue));
+    transform-origin: left;
+    animation: mwLpUnderline .55s var(--mw-ease) .95s both;
+  }
+
+  /* Beide schweben mit demselben Keyframe, das Telefon zeitversetzt -
+     so laufen sie nicht synchron, ohne dass es zwei Keyframes braucht. */
+  .mw-lp-mob__tablet { animation: mwLpFloat 6s ease-in-out infinite; }
+  .mw-lp-mob__phone  { animation: mwLpFloat 6s ease-in-out 1.6s infinite; }
+}
+
+@keyframes mwLpFadeUp {
+  from { opacity: 0; transform: translateY(26px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes mwLpUnderline {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+@keyframes mwLpIconPop {
+  0%   { opacity: 0; transform: scale(.5) rotate(-12deg); }
+  65%  { opacity: 1; transform: scale(1.12) rotate(3deg); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes mwLpFloat {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-12px); }
+}
+
+/* Eine Media Query, wie in meadow-components.css: derselbe Breakpoint,
+   an dem die App auf die mobile Kopfhoehe wechselt. Agrisos zweiter
+   Umbruch bei 480px wird hier von den clamp()-Werten erledigt. */
+@media (max-width: 1023.98px) {
+  .mw-lp__bar { height: var(--mw-header-h-m); }
+  .mw-lp [id] { scroll-margin-top: calc(var(--mw-header-h-m) + 12px); }
+
+  /* Der dunkle Block nimmt den ganzen Hero ein, der Text wird zentriert -
+     eine diagonale Kante hat auf 375px keinen Platz mehr. */
+  .mw-lp-hero {
+    --mw-lp-hero-clip: none;
+    min-height: 0;
+  }
+  /* Ohne die diagonale Kante liegt das Foto unter der GANZEN Textspalte
+     statt nur unter der linken Haelfte, und der Text sitzt ueber
+     helleren Bildstellen. Gemessen: mit brightness(.35) faellt der
+     12px-Eyebrow hier auf 4,31:1 und damit unter die 4,5:1. Mit .28
+     sind es 4,74:1. */
+  .mw-lp-hero::before { filter: brightness(.28) saturate(.75); }
+  .mw-lp-hero__grid { grid-template-columns: 1fr; text-align: center; }
+  .mw-lp-hero__lead { margin-inline: auto; }
+  .mw-lp-hero__cta { justify-content: center; }
+
+  /* Das ueberlappende Telefon wird zu klein, um noch etwas zu zeigen. */
+  .mw-lp-shot__phone { display: none; }
+
+  .mw-lp-row { grid-template-columns: 1fr; }
+  /* Text zuerst, Bild danach - in beiden Richtungen. */
+  .mw-lp-row--rev .mw-lp-feat { order: 0; }
+
+  .mw-lp-mob__grid { grid-template-columns: 1fr; }
+  /* Das Paar bleibt auch mobil beisammen - es ist die Aussage des
+     Abschnitts. Nur kleiner und ohne Schweben. */
+  .mw-lp-mob__devices {
+    order: 2;
+    width: min(320px, 100%);
+  }
+  .mw-lp-mob__tablet,
+  .mw-lp-mob__phone { animation: none; }
+
+  .mw-lp-cta { padding-block: clamp(48px, 8vw, 72px); }
+  .mw-lp-cta__grid { grid-template-columns: 1fr; }
+  .mw-lp-cta__col { padding-bottom: 0; }
+  .mw-lp-cta__shot { display: none; }
+}

@@ -1,0 +1,211 @@
+@using _4Cows_FE.Components.Meadow
+
+@inject WhereHowService WhereHowService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<MeadowDialog Title="@(IsNew ? "Wie / Wo anlegen" : "Wie / Wo ändern")" Size="MeadowDialogSize.Info">
+    <ChildContent>
+        @* MudForm wie im Medikamenten-Dialog: die Required-Validierung samt
+           RequiredError haengt daran, und meadow-mud.css toent die Fehlerzeile
+           schon. *@
+        <MudForm @ref="_form" @bind-IsValid="@_success">
+            <label class="mw-label" for="mw-wherehow-name">Bezeichnung</label>
+            <div class="mw-field">
+                <MudTextField T="string" InputId="mw-wherehow-name" Variant="Variant.Text"
+                              Required="true" @bind-Value="_name"
+                              RequiredError="Bezeichnung muss ausgefüllt werden!" />
+            </div>
+        </MudForm>
+
+        <MeadowSwitch Value="_showDialog" ValueChanged="v => _showDialog = v"
+                      Label="Beim Behandeln nach Euterviertel fragen" />
+        <p class="mw-hint">
+            Aus für Verabreichungsarten ohne Viertelbezug (i.m., s.c., oral …),
+            an für alles, was einzelne Viertel betrifft.
+        </p>
+    </ChildContent>
+    <Footer>
+        <button type="button" class="mw-btn mw-btn--plain mw-btn--wide" @onclick="Cancel">
+            Abbrechen
+        </button>
+        <button type="button" class="mw-btn mw-btn--primary mw-btn--wide" @onclick="Save">
+            Speichern
+        </button>
+    </Footer>
+</MeadowDialog>
+
+@code {
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public WhereHow Entry { get; set; } = new();
+    [Parameter] public bool IsNew { get; set; }
+
+    /// <summary>
+    /// Verwendungen des bearbeiteten Eintrags - steht nur im Text der
+    /// Merge-Rueckfrage, damit dort steht, wie viele Behandlungen umgehaengt
+    /// werden.
+    /// </summary>
+    [Parameter] public int UsageCount { get; set; }
+
+    private MudForm? _form;
+    private bool _success;
+
+    private string _name = "";
+    private bool _showDialog = true;
+
+    protected override void OnInitialized()
+    {
+        // Auf einer Kopie arbeiten, nicht auf Entry: das ist die Instanz aus
+        // dem Service-Cache. Direktes Binden wuerde den Cache schon beim Tippen
+        // aendern, und ein Abbrechen liesse den halben Namen in der Tabelle
+        // stehen, bis irgendwer neu laedt.
+        _name = Entry.WhereHowName;
+        _showDialog = Entry.ShowDialog;
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Save()
+    {
+        if (_form is not null)
+        {
+            await _form.Validate();
+        }
+
+        if (!_success)
+        {
+            return;
+        }
+
+        var name = _name.Trim();
+        if (name.Length == 0)
+        {
+            Snackbar.Add("Bezeichnung ist leer.", Severity.Error);
+            return;
+        }
+
+        // Sich selbst ausnehmen: sonst meldet eine reine
+        // Gross-/Kleinschreibungsaenderung ("oral" -> "Oral") eine Kollision
+        // mit dem Eintrag, der gerade bearbeitet wird.
+        var clash = WhereHowService.WhereHows.Values.FirstOrDefault(w =>
+            w.WhereHowId != Entry.WhereHowId
+            && string.Equals(w.WhereHowName.Trim(), name, StringComparison.OrdinalIgnoreCase));
+
+        if (clash is not null)
+        {
+            await SaveIntoExisting(clash);
+            return;
+        }
+
+        await SaveOwn(name);
+    }
+
+    /// <summary>
+    /// Der Name ist schon vergeben. Beim Bearbeiten wird zusammengefuehrt -
+    /// beim Anlegen gibt es nichts zusammenzufuehren, das ist schlicht ein
+    /// Eingabefehler.
+    /// </summary>
+    private async Task SaveIntoExisting(WhereHow clash)
+    {
+        if (IsNew)
+        {
+            Snackbar.Add($"„{clash.WhereHowName}\" gibt es bereits.", Severity.Error);
+            return;
+        }
+
+        var description = UsageCount == 0
+            ? $"„{Entry.WhereHowName}\" mit „{clash.WhereHowName}\" zusammenführen? "
+              + "Der Eintrag verschwindet danach."
+            : $"„{Entry.WhereHowName}\" wird in {UsageCount} Behandlungen verwendet. "
+              + $"Mit „{clash.WhereHowName}\" zusammenführen? Die Behandlungen werden "
+              + "umgehängt, der Eintrag verschwindet danach.";
+
+        // Der Zieleintrag behaelt seine eigene Viertel-Einstellung. Das ist die
+        // einzige Lesart, die nicht einen Datensatz aendert, den der Nutzer gar
+        // nicht offen hatte - aber es muss dastehen, wenn der Schalter im
+        // Formular gerade etwas anderes zeigt.
+        if (clash.ShowDialog != _showDialog)
+        {
+            description += clash.ShowDialog
+                ? $" „{clash.WhereHowName}\" fragt weiterhin nach dem Euterviertel."
+                : $" „{clash.WhereHowName}\" fragt weiterhin nicht nach dem Euterviertel.";
+        }
+
+        if (!await Confirm("Zusammenführen", description, "Zusammenführen", Color.Warning))
+        {
+            return;
+        }
+
+        if (!await WhereHowService.MergeAsync(Entry.WhereHowId, clash.WhereHowId))
+        {
+            Snackbar.Add("Zusammenführen fehlgeschlagen.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add($"Mit „{clash.WhereHowName}\" zusammengeführt.", Severity.Success);
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+
+    private async Task SaveOwn(string name)
+    {
+        var draft = new WhereHow(Entry.WhereHowId, name, _showDialog);
+
+        if (IsNew)
+        {
+            if (!await Confirm("Anlegen", $"„{name}\" als Wie / Wo anlegen?", "Anlegen", Color.Warning))
+            {
+                return;
+            }
+
+            if (!await WhereHowService.InsertDataAsync(draft))
+            {
+                Snackbar.Add("Anlegen fehlgeschlagen.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add("Wie / Wo angelegt.", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(true));
+            return;
+        }
+
+        // Nichts geaendert: keine Rueckfrage, kein Schreibvorgang, kein Reload
+        // auf der Seite dahinter.
+        if (name == Entry.WhereHowName && _showDialog == Entry.ShowDialog)
+        {
+            MudDialog.Cancel();
+            return;
+        }
+
+        if (!await Confirm("Ändern", "Wollen Sie den Eintrag wirklich ändern?", "Ja", Color.Warning))
+        {
+            return;
+        }
+
+        if (!await WhereHowService.UpdateDataAsync(draft))
+        {
+            Snackbar.Add("Speichern fehlgeschlagen.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add("Wie / Wo gespeichert.", Severity.Success);
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+
+    private async Task<bool> Confirm(string header, string description, string accept, Color scheme)
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var parameters = new DialogParameters<GenericDialog>
+        {
+            { x => x.HeaderText, header },
+            { x => x.Description, description },
+            { x => x.AcceptButtonText, accept },
+            { x => x.CancelButtonText, "Abbrechen" },
+            { x => x.ColorScheme, scheme }
+        };
+
+        var dialog = await DialogService.ShowAsync<GenericDialog>(string.Empty, parameters, options);
+        var result = await dialog.Result;
+        return result is not null && !result.Canceled;
+    }
+}

@@ -6,6 +6,7 @@
 @inject IConfiguration Configuration
 @inject DatabaseConnectionState ConnectionState
 @inject XLinkService XLinkService
+@inject DemoSettings Demo
 
 <MeadowDialog Title="Datenbank Informationen" Size="MeadowDialogSize.Info">
     <ChildContent>
@@ -23,7 +24,11 @@
             <span>XLink Scraper</span>
             <span class="@XLinkClass">@XLinkStatus</span>
         </div>
-        <div class="mw-kv__sub">@XLinkUrl</div>
+        @* Ohne laufenden Sync sagt die Adresse nichts aus. *@
+        @if (!Demo.Enabled)
+        {
+            <div class="mw-kv__sub">@XLinkUrl</div>
+        }
     </ChildContent>
 </MeadowDialog>
 
@@ -46,7 +51,7 @@
         ConnectionState.IsConnected ? "mw-status mw-status--ok" : "mw-status mw-status--bad";
 
     private string XLinkClass =>
-        XLinkService.LastSyncUtc is not null && !XLinkService.LastSyncSucceeded
+        !Demo.Enabled && XLinkService.LastSyncUtc is not null && !XLinkService.LastSyncSucceeded
             ? "mw-kv__bad"
             : "mw-kv__ok";
 
@@ -54,6 +59,15 @@
     {
         get
         {
+            // Im Demo-Modus registriert Program.cs den CowSyncBackgroundService
+            // gar nicht erst - er wuerde jede Demo-Kuh als abgegangen markieren,
+            // weil der Scraper sie nicht liefert. "aktiv ... noch kein Abgleich"
+            // waere hier also schlicht falsch.
+            if (Demo.Enabled)
+            {
+                return "im Demo-Modus deaktiviert";
+            }
+
             var interval = $"alle {IntervalHours:0.##} h";
 
             if (XLinkService.LastSyncUtc is null)

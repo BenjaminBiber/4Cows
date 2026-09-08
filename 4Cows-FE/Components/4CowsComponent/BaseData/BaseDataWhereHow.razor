@@ -1,0 +1,229 @@
+@using _4Cows_FE.Components._4CowsComponent.Dialogs
+@using _4Cows_FE.Components._4CowsComponent.Dialogs.BaseData
+@using _4Cows_FE.Components.Meadow
+
+@inject WhereHowService WhereHowService
+@inject CowTreatmentService CowTreatmentService
+@inject PCowTreatmentService PCowTreatmentService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<MeadowToolbar>
+    <Left>
+        <MeadowSearchBox Value="@_search" ValueChanged="OnSearchChanged"
+                         AriaLabel="Wie / Wo durchsuchen" />
+    </Left>
+</MeadowToolbar>
+
+<MeadowTable TItem="Row" Items="_rows" Columns="_columns"
+             RowKey="@(r => r.Entry.WhereHowId)"
+             Class="mw-table-wrap--dense" ShowMobileCards="false"
+             DefaultSortTitle="Bezeichnung"
+             PagerLabel="Einträge pro Seite"
+             EmptyText="Keine Wie / Wo gefunden." />
+
+<div class="mw-table-foot">
+    <button type="button" class="mw-btn mw-btn--primary" @onclick="OpenNewDialog">
+        <MeadowIcon Name="MeadowIconName.Plus" Size="20" />
+        <span>Wie / Wo hinzufügen</span>
+    </button>
+</div>
+
+@code {
+    /// <summary>
+    /// Eintrag plus abgeleitete Werte. Der Zaehler liegt am Item statt in
+    /// einem Dictionary daneben, weil MeadowColumn.SortBy sonst bei jedem
+    /// Sortiervergleich nachschlagen muesste.
+    /// </summary>
+    private sealed record Row(WhereHow Entry, int? UsageCount, bool IsDuplicate);
+
+    private List<Row> _all = new();
+    private List<Row> _rows = new();
+    private string _search = "";
+
+    private IReadOnlyList<MeadowColumn<Row>> _columns = Array.Empty<MeadowColumn<Row>>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        BuildColumns();
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        await WhereHowService.GetAllDataAsync();
+
+        // Null heisst "nicht zaehlbar" (Datenbank weg). Dann bleibt der
+        // Papierkorb gesperrt, statt jede Zeile als unbenutzt auszuweisen.
+        var counts = await WhereHowService.GetUsageCountsAsync();
+
+        var duplicates = WhereHowService.WhereHows.Values
+            .GroupBy(w => w.WhereHowName.Trim(), StringComparer.OrdinalIgnoreCase)
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        _all = WhereHowService.WhereHows.Values
+            .Select(w => new Row(
+                w,
+                counts?.GetValueOrDefault(w.WhereHowId) ?? (int?)null,
+                duplicates.Contains(w.WhereHowName.Trim())))
+            .ToList();
+
+        ApplyFilter();
+    }
+
+    private void BuildColumns() => _columns = new List<MeadowColumn<Row>>
+    {
+        new()
+        {
+            Title = "ID",
+            Text = r => r.Entry.WhereHowId.ToString(),
+            SortBy = r => r.Entry.WhereHowId,
+            Style = MeadowCellStyle.Mono,
+            Width = "70px"
+        },
+        new()
+        {
+            Title = "Bezeichnung",
+            SortBy = r => r.Entry.WhereHowName,
+            Style = MeadowCellStyle.Bold,
+            Template = row =>
+                @<text>
+                    <span>@row.Entry.WhereHowName</span>
+                    @if (row.IsDuplicate)
+                    {
+                        <span class="mw-pill mw-pill--overdue"
+                              title="Diese Bezeichnung gibt es mehrfach. Umbenennen auf den anderen Eintrag führt beide zusammen.">
+                            doppelt
+                        </span>
+                    }
+                </text>
+        },
+        new()
+        {
+            Title = "Viertel-Auswahl",
+            Text = r => r.Entry.ShowDialog ? "Ja" : "Nein",
+            SortBy = r => r.Entry.ShowDialog,
+            Width = "150px"
+        },
+        new()
+        {
+            Title = "Verwendungen",
+            Text = r => r.UsageCount?.ToString() ?? "–",
+            SortBy = r => r.UsageCount ?? -1,
+            Align = MeadowAlign.Right,
+            Width = "140px"
+        },
+        new()
+        {
+            IsActions = true,
+            Width = "104px",
+            Template = row =>
+                @<text>
+                    <MeadowIconButton Icon="MeadowIconName.Edit" Title="Wie / Wo ändern"
+                                      OnClick="() => OpenEditDialog(row)" />
+                    <MeadowIconButton Icon="MeadowIconName.Trash" Title="@DeleteTitle(row)"
+                                      Danger="true" Disabled="@(row.UsageCount is not 0)"
+                                      OnClick="() => Delete(row)" />
+                </text>
+        }
+    };
+
+    private static string DeleteTitle(Row row) => row.UsageCount switch
+    {
+        null => "Verwendungen unbekannt — Löschen gesperrt",
+        0 => "Wie / Wo löschen",
+        1 => "Wird in 1 Behandlung verwendet",
+        var n => $"Wird in {n} Behandlungen verwendet"
+    };
+
+    private void OnSearchChanged(string value)
+    {
+        _search = value;
+        ApplyFilter();
+    }
+
+    private void ApplyFilter()
+    {
+        var term = _search.Trim();
+        _rows = term.Length == 0
+            ? _all.ToList()
+            : _all.Where(r => r.Entry.WhereHowName.Contains(term, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+    }
+
+    private Task OpenNewDialog() => OpenDialog(new WhereHow(), isNew: true, usageCount: 0);
+
+    private Task OpenEditDialog(Row row)
+        => OpenDialog(row.Entry, isNew: false, usageCount: row.UsageCount ?? 0);
+
+    private async Task OpenDialog(WhereHow entry, bool isNew, int usageCount)
+    {
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true,
+            BackdropClick = false
+        };
+        var parameters = new DialogParameters<EditWhereHowDialog>
+        {
+            { x => x.Entry, entry },
+            { x => x.IsNew, isNew },
+            { x => x.UsageCount, usageCount }
+        };
+
+        var dialog = await DialogService.ShowAsync<EditWhereHowDialog>(
+            string.Empty, parameters, options);
+        var result = await dialog.Result;
+
+        if (result is null || result.Canceled)
+        {
+            return;
+        }
+
+        // Ein Merge haengt Behandlungen um. Ohne dieses Nachladen zeigen die
+        // Behandlungstabellen im selben Circuit noch die verschwundene ID und
+        // damit einen leeren Namen.
+        await CowTreatmentService.GetAllDataAsync();
+        await PCowTreatmentService.GetAllDataAsync();
+
+        await LoadAsync();
+    }
+
+    private async Task Delete(Row row)
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var parameters = new DialogParameters<GenericDialog>
+        {
+            { x => x.HeaderText, "Löschen" },
+            { x => x.Description, $"Soll „{row.Entry.WhereHowName}\" wirklich gelöscht werden?" },
+            { x => x.AcceptButtonText, "Löschen" },
+            { x => x.CancelButtonText, "Abbrechen" },
+            { x => x.ColorScheme, Color.Error }
+        };
+
+        var dialog = await DialogService.ShowAsync<GenericDialog>(string.Empty, parameters, options);
+        var result = await dialog.Result;
+
+        if (result is null || result.Canceled)
+        {
+            return;
+        }
+
+        if (!await WhereHowService.RemoveByIdAsync(row.Entry.WhereHowId))
+        {
+            // Der Service zaehlt vor dem Delete selbst nach. Ein false heisst
+            // hier fast immer: zwischen Seitenaufbau und Klick ist eine
+            // Behandlung dazugekommen.
+            Snackbar.Add(
+                $"„{row.Entry.WhereHowName}\" wurde nicht gelöscht — der Eintrag wird inzwischen verwendet.",
+                Severity.Error);
+            await LoadAsync();
+            return;
+        }
+
+        Snackbar.Add("Wie / Wo gelöscht.", Severity.Success);
+        await LoadAsync();
+    }
+}

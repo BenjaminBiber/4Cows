@@ -1,4 +1,5 @@
 @page "/Klauen_Daten"
+@implements IDisposable
 
 @using _4Cows_FE.Components._4CowsComponent.Dialogs
 @using _4Cows_FE.Components.Meadow
@@ -8,8 +9,10 @@
 
 @inject IDialogService DialogService
 @inject IJSRuntime JS
+@inject NavigationManager Nav
 @inject MeadowDataLoader Data
 @inject MeadowDialogLauncher Launcher
+@inject MeadowDataChanges Changes
 @inject ISnackbar Snackbar
 @inject ClawTreatmentService clawTreatmentService
 @inject CowService cowService
@@ -35,6 +38,9 @@
             <ChildContent>
                 <MeadowMultiSelect Label="Befund" Options="FindingOptions"
                                    Selected="_filter.Findings"
+                                   SelectionChanged="Apply" />
+                <MeadowMultiSelect Label="Kuh (Halsband)" Options="CowOptions"
+                                   Selected="_filter.Cows"
                                    SelectionChanged="Apply" />
             </ChildContent>
         </MeadowFilterPopover>
@@ -85,6 +91,7 @@
                 <span class="mw-row-card__title">Nr. @Collar(row)</span>
                 <span class="mw-row-card__sub">@row.TreatmentDate.ToString("dd.MM.yyyy")</span>
             </div>
+            <span class="mw-row-card__code">@EarTag(row)</span>
             <div class="mw-row-card__meta"><span>@Summary(row)</span></div>
         </button>
     </MobileCard>
@@ -106,8 +113,37 @@
     protected override async Task OnInitializedAsync()
     {
         await Data.EnsureClawTreatmentsAsync();
+        // Eine KPI-Kachel verlinkt mit ihren Filtern im Query-String hierher. ApplyTo mutiert das
+        // vorhandene _filter, also leuchtet die ganze Filter-UI von selbst auf.
+        KpiDrillDown.ApplyTo(_filter, Nav);
         Reload();
         BuildColumns();
+
+        Changes.Changed += OnDataChanged;
+    }
+
+    public void Dispose() => Changes.Changed -= OnDataChanged;
+
+    private void OnDataChanged(MeadowDataKind kind)
+    {
+        if (kind != MeadowDataKind.ClawTreatment)
+        {
+            return;
+        }
+
+        // Die Meldung kommt aus dem Dialog-Aufrufer, nicht aus dem
+        // Renderpfad dieser Seite - deshalb InvokeAsync.
+        _ = InvokeAsync(async () =>
+        {
+            await ReloadAsync();
+            StateHasChanged();
+        });
+    }
+
+    private async Task ReloadAsync()
+    {
+        await clawTreatmentService.GetAllDataAsync();
+        Reload();
     }
 
     private void Reload()
@@ -127,6 +163,13 @@
             Text = Collar,
             SortBy = r => CollarSortKey(r),
             Style = MeadowCellStyle.Bold
+        },
+        new MeadowColumn<ClawTreatment>
+        {
+            Title = "Ohrmarke",
+            Text = EarTag,
+            SortBy = EarTag,
+            Style = MeadowCellStyle.Mono
         },
         new MeadowColumn<ClawTreatment>
         {
@@ -165,6 +208,8 @@
         return collar == int.MinValue ? int.MaxValue : collar;
     }
 
+    private string EarTag(ClawTreatment r) => cowService.GetEarTagDisplay(r.EarTagNumber);
+
     private string Summary(ClawTreatment r)
         => _summaries.TryGetValue(r.ClawTreatmentId, out var s) ? s : "";
 
@@ -192,6 +237,17 @@
         }
     }
 
+    /// <summary>
+    /// Halsbandnummern der vorkommenden Zeilen, numerisch sortiert - alphabetisch
+    /// stuende 104 vor 21.
+    /// </summary>
+    private IReadOnlyList<string> CowOptions => _all
+        .Select(Collar)
+        .Where(c => c != "–")
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(c => int.TryParse(c, out var number) ? number : int.MaxValue)
+        .ToList();
+
     private string CountText => $"{_rows.Count} von {_all.Count}";
 
     private void Apply()
@@ -212,6 +268,14 @@
         if (_filter.Findings.Count > 0)
         {
             query = query.Where(MatchesAnyFinding);
+        }
+
+        // Gleichheit auf der Halsbandnummer, nicht Teilstring: genau das
+        // unterscheidet den Kachel-Drill-down von der Suche, die "104" auch in
+        // der Ohrmarke "... 1042" findet.
+        if (_filter.Cows.Count > 0)
+        {
+            query = query.Where(r => _filter.Cows.Contains(Collar(r)));
         }
 
         _rows = query.ToList();
@@ -340,18 +404,12 @@
             return;
         }
 
-        await clawTreatmentService.GetAllDataAsync();
-        Reload();
+        await ReloadAsync();
     }
 
-    private async Task AddTreatment()
-    {
-        if (await Launcher.ShowAndAwaitAsync<Add_Claw_Treatment_Dialog>())
-        {
-            await clawTreatmentService.GetAllDataAsync();
-            Reload();
-        }
-    }
+    // Derselbe Weg wie FAB, Add-Menue und Dashboard: der Launcher meldet das
+    // Speichern, OnDataChanged laedt nach.
+    private Task AddTreatment() => Launcher.OpenClawTreatmentAsync();
 
     // ---- Excel-Export -------------------------------------------------
 

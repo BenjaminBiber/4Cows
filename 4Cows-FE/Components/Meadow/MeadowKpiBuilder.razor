@@ -1,0 +1,314 @@
+@using BB_Cow.Class
+@using BB_Cow.Kpi
+@inject KpiRowProvider RowProvider
+
+@*
+    Das gefuehrte Formular, das den SQL-Editor als Standardweg ersetzt.
+
+    Fortschreitend, KEIN Wizard: es gibt keine Stepper-Komponente, und vier
+    Schritte in einem 760px-Dialog sind schlechter als ein Formular, das
+    ohnehin scrollt (MeadowDialog setzt mw-scroll auf den Body). Abschnitte
+    erscheinen, sobald der vorige sie moeglich macht.
+
+    Zusammengesetzt aus den vorhandenen Bausteinen - MeadowSingleSelect,
+    MeadowMultiSelect und MeadowSwitch werden unveraendert benutzt. Das geht
+    auf, weil KpiDefinition.Filters bewusst dieselbe Semantik traegt wie
+    MeadowMultiSelect: leer heisst "Alle", ODER innerhalb der Gruppe.
+
+    Was eine Quelle nicht kann, FEHLT in der Liste, statt deaktiviert
+    dazustehen - die Faehigkeiten stehen in KpiSourceRegistry, nicht hier.
+*@
+
+<div class="mw-field-row">
+    <div class="mw-col">
+        <MeadowSingleSelect Label="Datenquelle" Options="SourceLabels"
+                            Value="@Source.Label" ValueChanged="OnSourceChanged" />
+    </div>
+    <div class="mw-col">
+        <MeadowSingleSelect Label="Berechnung" Options="MeasureLabels"
+                            Value="@KpiDefinitionSummary.MeasureLabel(Definition.Measure)"
+                            ValueChanged="OnMeasureChanged" />
+    </div>
+</div>
+
+@if (Definition.RequiresGroupBy)
+{
+    <MeadowSingleSelect Label="Gruppieren nach" Options="GroupLabels"
+                        Value="@KpiDefinitionSummary.GroupBy(Definition.GroupBy)"
+                        ValueChanged="OnGroupChanged" />
+}
+
+@if (Definition.RequiresDosage)
+{
+    <div class="mw-field-row">
+        <div class="mw-col">
+            <label class="mw-label" for="mw-kpi-unit">Einheit</label>
+            <div class="mw-field">
+                <MudTextField T="string" InputId="mw-kpi-unit" Variant="Variant.Text"
+                              Value="@(Definition.Unit ?? "")"
+                              ValueChanged="OnUnitChanged" Placeholder="z.B. ml" />
+            </div>
+        </div>
+        <div class="mw-col">
+            <label class="mw-label" for="mw-kpi-dec">Nachkommastellen</label>
+            <div class="mw-field">
+                <MudNumericField T="int" InputId="mw-kpi-dec" Variant="Variant.Text"
+                                 HideSpinButtons="true" Min="0" Max="4"
+                                 Value="Definition.Decimals" ValueChanged="OnDecimalsChanged" />
+            </div>
+        </div>
+    </div>
+}
+
+@foreach (var tag in Source.Tags)
+{
+    var key = tag.Key;
+    <MeadowMultiSelect Label="@tag.Label" Options="@OptionsFor(key)"
+                       Selected="@SelectedFor(key)"
+                       SelectionChanged="@(() => OnFilterChanged(key))" />
+}
+
+@if (Source.SupportsTimeframe)
+{
+    <MeadowSingleSelect Label="Zeitraum" Options="TimeframeLabels"
+                        Value="@KpiDefinitionSummary.TimeframeOption(Definition.Timeframe, Source.IsPlanned)"
+                        ValueChanged="OnTimeframeChanged" />
+}
+
+@if (Source.SupportsCompare)
+{
+    <MeadowSwitch Label="Vergleich zum Vorzeitraum"
+                  Value="Definition.CompareToPrevious && Definition.AllowsComparison"
+                  ValueChanged="OnCompareChanged" />
+
+    @if (!Definition.AllowsComparison)
+    {
+        <p class="mw-hint">@CompareHint</p>
+    }
+}
+
+<MeadowKpiPreview Result="Preview" TotalRows="_rows.Count" />
+
+@* Dieselbe Auswahl, als SQL. Nicht nur zum Nachlesen: der Expertenmodus
+   uebernimmt genau dieses Skript, man startet dort also nicht bei null.
+
+   Erzeugt wird es aus derselben Definition, aus der die Vorschau oben
+   rechnet, und es liefert nachweislich denselben Wert - inklusive der
+   deutschen Zahlenformatierung und der Einheit. *@
+<div class="mw-check-bar">
+    <span class="mw-label">Als SQL</span>
+    <div>
+        <button type="button" class="mw-btn mw-btn--ghost mw-btn--sm" @onclick="ToggleSql">
+            @(_sqlOpen ? "Verbergen" : "Anzeigen")
+        </button>
+    </div>
+</div>
+
+@if (_sqlOpen)
+{
+    <pre class="mw-sqlbox">@Script.Annotated</pre>
+}
+
+@code {
+    [Parameter, EditorRequired] public KpiDefinition Definition { get; set; } = new();
+
+    [Parameter] public EventCallback Changed { get; set; }
+
+    private static readonly KpiTimeframe[] AllTimeframes =
+        { KpiTimeframe.All, KpiTimeframe.Days7, KpiTimeframe.Days30 };
+
+    private IReadOnlyList<KpiRow> _rows = Array.Empty<KpiRow>();
+    private readonly Dictionary<string, HashSet<string>> _selected = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, IReadOnlyList<string>> _options = new(StringComparer.Ordinal);
+    private KpiSourceId? _loaded;
+
+    private KpiSourceInfo Source
+        => KpiSourceRegistry.Find(Definition.Source) ?? KpiSourceRegistry.All[0];
+
+    /// <summary>
+    /// Live, ohne Knopfdruck und ohne Datenbank: der Evaluator ist eine reine Funktion ueber die
+    /// Caches, die ohnehin im Speicher liegen. Das ist der spuerbarste Unterschied zum bisherigen
+    /// "SQL testen", das eine DB-Runde gekostet hat und an das man sich erinnern musste.
+    /// </summary>
+    private KpiResult Preview => KpiEvaluator.Evaluate(Definition, Source, _rows, DateTime.Now);
+
+    /// <summary>
+    /// Dieselbe Definition als SQL. Reine Funktion, also einfach mitberechnet statt gecacht - und
+    /// der Dialog ruft beim Wechsel in den Expertenmodus dieselbe Funktion auf, sodass Vorschau und
+    /// uebernommenes Skript nicht auseinanderlaufen koennen.
+    /// </summary>
+    private KpiSqlScript Script => KpiSqlBuilder.Build(Definition, Source);
+
+    private bool _sqlOpen;
+
+    private void ToggleSql() => _sqlOpen = !_sqlOpen;
+
+    protected override void OnParametersSet()
+    {
+        if (_loaded != Definition.Source)
+        {
+            Load();
+        }
+    }
+
+    private void Load()
+    {
+        _loaded = Definition.Source;
+        _rows = RowProvider.Rows(Definition.Source);
+
+        _options.Clear();
+        _selected.Clear();
+        foreach (var tag in Source.Tags)
+        {
+            // Optionen aus den TATSAECHLICH vorkommenden Werten, nicht aus den Lookup-Tabellen -
+            // die enthalten automatisch angelegte, nie benutzte Namen (siehe Cow_Table).
+            _options[tag.Key] = Source.OptionsFor(tag.Key, _rows);
+            _selected[tag.Key] = Definition.Filters.TryGetValue(tag.Key, out var values)
+                ? new HashSet<string>(values, StringComparer.OrdinalIgnoreCase)
+                : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    private IReadOnlyList<string> OptionsFor(string key)
+        => _options.TryGetValue(key, out var options) ? options : Array.Empty<string>();
+
+    private HashSet<string> SelectedFor(string key)
+        => _selected.TryGetValue(key, out var selected) ? selected : new(StringComparer.OrdinalIgnoreCase);
+
+    private IReadOnlyList<string> SourceLabels
+        => KpiSourceRegistry.All.Select(s => s.Label).ToList();
+
+    private IReadOnlyList<string> MeasureLabels
+        => Source.Measures.Select(KpiDefinitionSummary.MeasureLabel).ToList();
+
+    private IReadOnlyList<string> GroupLabels
+        => Source.Groupings.Select(KpiDefinitionSummary.GroupBy).ToList();
+
+    private IReadOnlyList<string> TimeframeLabels
+        => AllTimeframes.Select(t => KpiDefinitionSummary.TimeframeOption(t, Source.IsPlanned)).ToList();
+
+    private string CompareHint => Definition.Measure == KpiMeasure.TopValue
+        ? "Ein häufigster Wert ist keine Zahl und lässt sich nicht vergleichen."
+        : "Ohne Zeitraum gibt es keinen Vorzeitraum - wähle 7 oder 30 Tage.";
+
+    // ---- Aenderungen ---------------------------------------------------
+
+    private void OnSourceChanged(string label)
+    {
+        var source = KpiSourceRegistry.All.FirstOrDefault(s => s.Label == label);
+        if (source is null || source.Id == Definition.Source)
+        {
+            return;
+        }
+
+        Definition.Source = source.Id;
+        // Die Filter der alten Quelle gelten hier nicht: sie wuerden als unbekannte Schluessel
+        // liegen bleiben und die Kachel still auf null Treffer filtern.
+        Definition.Filters.Clear();
+        Load();
+        Normalize();
+        Notify();
+    }
+
+    private void OnMeasureChanged(string label)
+    {
+        var measure = Source.Measures
+            .FirstOrDefault(m => KpiDefinitionSummary.MeasureLabel(m) == label);
+        Definition.Measure = measure;
+        Normalize();
+        Notify();
+    }
+
+    private void OnGroupChanged(string label)
+    {
+        Definition.GroupBy = Source.Groupings
+            .FirstOrDefault(g => KpiDefinitionSummary.GroupBy(g) == label);
+        Notify();
+    }
+
+    private void OnTimeframeChanged(string label)
+    {
+        Definition.Timeframe = AllTimeframes
+            .FirstOrDefault(t => KpiDefinitionSummary.TimeframeOption(t, Source.IsPlanned) == label);
+        Normalize();
+        Notify();
+    }
+
+    private void OnCompareChanged(bool value)
+    {
+        Definition.CompareToPrevious = value;
+        Notify();
+    }
+
+    private void OnUnitChanged(string value)
+    {
+        Definition.Unit = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        Notify();
+    }
+
+    private void OnDecimalsChanged(int value)
+    {
+        Definition.Decimals = Math.Clamp(value, 0, 4);
+        Notify();
+    }
+
+    private void OnFilterChanged(string key)
+    {
+        var selected = SelectedFor(key);
+        if (selected.Count == 0)
+        {
+            // Nicht als leere Liste stehen lassen: "kein Eintrag" und "leerer Eintrag" bedeuten
+            // dasselbe, und die gespeicherte Definition bleibt so lesbar.
+            Definition.Filters.Remove(key);
+        }
+        else
+        {
+            Definition.Filters[key] = selected.ToList();
+        }
+
+        Notify();
+    }
+
+    /// <summary>
+    /// Haelt die Definition in einem Zustand, den die Quelle auch rechnen kann. Ohne das koennte ein
+    /// Quellenwechsel eine Kennzahl stehen lassen, die es dort nicht gibt - und die Kachel zeigte
+    /// einen Fehler, obwohl der Benutzer nur die Quelle gewechselt hat.
+    /// </summary>
+    private void Normalize()
+    {
+        if (!Source.Supports(Definition.Measure))
+        {
+            Definition.Measure = Source.Measures.First();
+        }
+
+        if (Definition.RequiresGroupBy)
+        {
+            if (!Source.Supports(Definition.GroupBy))
+            {
+                Definition.GroupBy = Source.Groupings.FirstOrDefault();
+            }
+        }
+        else
+        {
+            Definition.GroupBy = KpiGroupBy.None;
+        }
+
+        if (!Source.SupportsTimeframe)
+        {
+            Definition.Timeframe = KpiTimeframe.All;
+        }
+
+        if (!Definition.AllowsComparison || !Source.SupportsCompare)
+        {
+            Definition.CompareToPrevious = false;
+        }
+
+        if (!Definition.RequiresDosage)
+        {
+            Definition.Unit = null;
+            Definition.Decimals = 0;
+        }
+    }
+
+    private void Notify() => Changed.InvokeAsync();
+}

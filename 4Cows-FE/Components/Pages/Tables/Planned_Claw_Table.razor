@@ -1,27 +1,55 @@
 @page "/geplante_Klauen_Daten"
+@implements IDisposable
 
 @using _4Cows_FE.Components._4CowsComponent.Dialogs
 @using _4Cows_FE.Components.Meadow
 @using _4Cows_FE.Components.Services
+@using BB_Cow.Class
+@using BB_Cow.Kpi
 
 @inject IDialogService DialogService
+@inject NavigationManager Nav
 @inject ISnackbar Snackbar
 @inject MeadowDataLoader Data
 @inject MeadowDialogLauncher Launcher
+@inject MeadowDataChanges Changes
 @inject PClawTreatmentService pClawTreatmentService
 @inject ClawTreatmentService clawTreatmentService
 @inject CowService cowService
 
+@* Dieselbe Filterleiste wie die anderen Tabellen - bisher gab es hier nur ein
+   Suchfeld. Gefiltert wird nach Klauenposition, weil Planned_Claw_Treatment
+   die Befunde als vier Booleans speichert und nicht als Namen: die Position
+   ist alles, was diese Tabelle ueber einen Befund weiss.
+
+   Der Zeitraum zeigt in die ZUKUNFT, siehe PlannedDateRanges. *@
 <MeadowToolbar>
     <Left>
-        <MeadowSearchBox Value="@_search" ValueChanged="OnSearchChanged"
+        <MeadowSearchBox Value="@_filter.Search" ValueChanged="OnSearchChanged"
                          AriaLabel="Geplante Klauen Behandlungen durchsuchen" />
-        @if (_search.Length > 0)
+        @if (_filter.HasAny)
         {
             <span class="mw-result-count mw-only-desktop">@CountText</span>
         }
     </Left>
     <Right>
+        <MeadowFilterPopover Open="_filterOpen" ShowReset="@(_filter.ActiveCount > 0)"
+                             CountText="@($"{CountText} Behandlungen")"
+                             OnClose="CloseFilter" OnReset="ResetFilter">
+            <Trigger>
+                <MeadowFilterButton ActiveCount="_filter.ActiveCount" Open="_filterOpen"
+                                    OnClick="ToggleFilter" />
+            </Trigger>
+            <ChildContent>
+                <MeadowMultiSelect Label="Klaue" Options="PositionOptions"
+                                   Selected="_filter.Positions"
+                                   SelectionChanged="Apply" />
+                <MeadowSingleSelect Label="Zeitraum" Options="PlannedDateRanges.Labels"
+                                    Value="@PlannedDateRanges.ToLabel(_filter.Range)"
+                                    ValueChanged="OnRangeChanged" />
+            </ChildContent>
+        </MeadowFilterPopover>
+
         <button type="button" class="mw-btn mw-btn--primary mw-only-desktop" @onclick="Plan">
             <MeadowIcon Name="MeadowIconName.Plus" Size="20" />
             <span>Planen</span>
@@ -35,12 +63,21 @@
              PagerLabel="Behandlungen pro Seite"
              MoreLabel="Weitere Behandlungen laden"
              EmptyText="Keine geplanten Behandlungen gefunden.">
+    <EmptyContent>
+        @if (_filter.HasAny)
+        {
+            <button type="button" class="mw-empty__reset" @onclick="ClearAll">
+                Suche und Filter zurücksetzen
+            </button>
+        }
+    </EmptyContent>
     <MobileCard Context="row">
         <div class="mw-row-card">
             <div class="mw-row-card__top">
                 <span class="mw-row-card__title">Nr. @Collar(row)</span>
                 <span class="mw-row-card__sub">@row.TreatmentDate.ToString("dd.MM.yyyy")</span>
             </div>
+            <span class="mw-row-card__code">@EarTag(row)</span>
             <div class="mw-row-card__meta">
                 <span>@Description(row)</span>
                 <span>@AffectedClaws(row)</span>
@@ -64,13 +101,42 @@
     private List<PlannedClawTreatment> _rows = new();
     private List<MeadowColumn<PlannedClawTreatment>> _columns = new();
 
-    private string _search = "";
+    private readonly PlannedClawTableFilter _filter = new();
+    private bool _filterOpen;
 
     protected override async Task OnInitializedAsync()
     {
         await Data.EnsurePlannedClawAsync();
+        // Eine KPI-Kachel verlinkt mit ihren Filtern im Query-String hierher.
+        KpiDrillDown.ApplyTo(_filter, Nav);
         Reload();
         BuildColumns();
+
+        Changes.Changed += OnDataChanged;
+    }
+
+    public void Dispose() => Changes.Changed -= OnDataChanged;
+
+    private void OnDataChanged(MeadowDataKind kind)
+    {
+        if (kind != MeadowDataKind.PlannedClawTreatment)
+        {
+            return;
+        }
+
+        // Die Meldung kommt aus dem Dialog-Aufrufer, nicht aus dem
+        // Renderpfad dieser Seite - deshalb InvokeAsync.
+        _ = InvokeAsync(async () =>
+        {
+            await ReloadAsync();
+            StateHasChanged();
+        });
+    }
+
+    private async Task ReloadAsync()
+    {
+        await pClawTreatmentService.GetAllDataAsync();
+        Reload();
     }
 
     private void Reload()
@@ -87,6 +153,13 @@
             Text = Collar,
             SortBy = r => CollarSortKey(r),
             Style = MeadowCellStyle.Bold
+        },
+        new MeadowColumn<PlannedClawTreatment>
+        {
+            Title = "Ohrmarke",
+            Text = EarTag,
+            SortBy = EarTag,
+            Style = MeadowCellStyle.Mono
         },
         new MeadowColumn<PlannedClawTreatment>
         {
@@ -139,6 +212,8 @@
         return collar == int.MinValue ? int.MaxValue : collar;
     }
 
+    private string EarTag(PlannedClawTreatment r) => cowService.GetEarTagDisplay(r.EarTagNumber);
+
     private string Description(PlannedClawTreatment r)
         => string.IsNullOrWhiteSpace(r.Desciption) ? "–" : r.Desciption!;
 
@@ -153,11 +228,21 @@
 
     // ---- Filter -------------------------------------------------------
 
+    /// <summary>
+    /// Nur die tatsaechlich vorkommenden Positionen, in der Zeichenreihenfolge
+    /// des 2x2-Gitters (HoofPositions.All) statt alphabetisch - so stehen sie
+    /// auch im Klauen-Selektor der Dialoge.
+    /// </summary>
+    private IReadOnlyList<string> PositionOptions => HoofPositions.All
+        .Where(p => _all.Any(r => r.GetFlag(p)))
+        .Select(p => p.ToString())
+        .ToList();
+
     private void Apply()
     {
         IEnumerable<PlannedClawTreatment> query = _all;
 
-        var search = _search.Trim();
+        var search = _filter.Search.Trim();
         if (search.Length > 0)
         {
             query = query.Where(r =>
@@ -167,12 +252,46 @@
                 || (r.Desciption ?? "").Contains(search, StringComparison.OrdinalIgnoreCase));
         }
 
+        // Leere Auswahl = kein Filter. ODER innerhalb der Gruppe: eine Zeile
+        // passt, sobald EINE der gewaehlten Klauen angehakt ist.
+        if (_filter.Positions.Count > 0)
+        {
+            query = query.Where(r =>
+                HoofPositions.All.Any(p => r.GetFlag(p) && _filter.Positions.Contains(p.ToString())));
+        }
+
+        query = query.Where(r => PlannedDateRanges.Matches(_filter.Range, r.TreatmentDate));
+
         _rows = query.ToList();
+    }
+
+    private void OnRangeChanged(string label)
+    {
+        _filter.Range = PlannedDateRanges.Parse(label);
+        Apply();
+    }
+
+    private void ToggleFilter() => _filterOpen = !_filterOpen;
+
+    private void CloseFilter() => _filterOpen = false;
+
+    private void ResetFilter()
+    {
+        _filter.Reset();
+        Apply();
+    }
+
+    /// <summary>Aus dem Leerzustand heraus: hier gehoert der Suchtext mit weg.</summary>
+    private void ClearAll()
+    {
+        _filter.Reset();
+        _filter.Search = "";
+        Apply();
     }
 
     private void OnSearchChanged(string value)
     {
-        _search = value;
+        _filter.Search = value;
         Apply();
     }
 
@@ -196,14 +315,9 @@
             string.Empty, parameters, options);
     }
 
-    private async Task Plan()
-    {
-        if (await Launcher.ShowAndAwaitAsync<Add_Planned_Claw_Treatment_Dialog>())
-        {
-            await pClawTreatmentService.GetAllDataAsync();
-            Reload();
-        }
-    }
+    // Derselbe Weg wie FAB, Add-Menue und Dashboard: der Launcher meldet das
+    // Speichern, OnDataChanged laedt nach.
+    private Task Plan() => Launcher.OpenPlannedClawTreatmentAsync();
 
     private async Task Complete(PlannedClawTreatment planned)
     {

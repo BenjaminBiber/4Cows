@@ -202,6 +202,12 @@ namespace BBCowDataLibrary.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("KPIId"));
 
+                    b.Property<string>("Definition")
+                        .HasColumnType("longtext");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("int");
+
                     b.Property<string>("Script")
                         .IsRequired()
                         .HasColumnType("longtext");

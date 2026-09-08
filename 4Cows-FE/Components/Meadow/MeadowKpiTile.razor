@@ -1,3 +1,4 @@
+@using BB_Cow.Kpi
 @*
     kpiCard / st.kpiTitle / st.kpiVal — ersetzt KPI_Component.razor.
 
@@ -5,12 +6,36 @@
     Kacheln zeigen auf Routen, und ein Link ist tastaturerreichbar und
     mit der mittleren Maustaste in einem neuen Tab oeffenbar.
 
-    Die dritte Zeile des Prototyps (st.kpiSub) entfaellt - die KPI-Tabelle
-    hat kein Untertitel-Feld, und dafuer sollte es keine Migration geben.
+    Die dritte Zeile des Prototyps (st.kpiSub) ist jetzt da - als Delta zum
+    Vorzeitraum. Der frueher hier notierte Einwand ("die KPI-Tabelle hat kein
+    Untertitel-Feld, und dafuer sollte es keine Migration geben") bleibt
+    erfuellt: das Delta wird berechnet, nicht gespeichert.
+
+    Title kommt aus @Hint und traegt entweder den Fehlertext oder den Hinweis,
+    warum eine Kachel leer ist - beides war vorher unsichtbar, weil jede
+    Ursache als "--" endete.
+
+    Ohne Href bleibt das <a> OHNE href-Attribut (Blazor laesst null-Attribute
+    weg) und ist damit kein Link - nicht fokussierbar, kein Klickziel. Das
+    braucht die Quelle "Kühe": zu ihr gibt es keine Seite, die Tiere auflistet,
+    und ein Link auf die Behandlungstabelle wuerde eine andere Menge zeigen als
+    die Zahl auf der Kachel.
 *@
-<a class="@CssClass" href="@Href">
+<a class="@CssClass" href="@(string.IsNullOrWhiteSpace(Href) ? null : Href)" title="@Hint">
     <span class="mw-kpi__title">@Title</span>
     <span class="mw-kpi__value">@Value</span>
+
+    @if (!string.IsNullOrWhiteSpace(Delta))
+    {
+        <span class="mw-kpi__delta">
+            @if (Arrow.Length > 0)
+            {
+                <span class="mw-kpi__delta-arrow" aria-hidden="true">@Arrow</span>
+            }
+            <span>@Delta</span>
+            <span class="mw-sr-only">gegenüber dem Vorzeitraum</span>
+        </span>
+    }
 </a>
 
 @code {
@@ -24,5 +49,30 @@
     /// </summary>
     [Parameter] public bool IsAddTile { get; set; }
 
-    private string CssClass => IsAddTile ? "mw-kpi mw-kpi--add" : "mw-kpi";
+    /// <summary>Fertig formatiert, z.B. "+12 %". Leer heisst: kein Vergleich.</summary>
+    [Parameter] public string? Delta { get; set; }
+
+    [Parameter] public KpiTrend Trend { get; set; }
+
+    /// <summary>Die KPI liess sich nicht auswerten - nicht dasselbe wie "kein Ergebnis".</summary>
+    [Parameter] public bool HasError { get; set; }
+
+    /// <summary>Tooltip: Fehlertext, oder warum die Kachel leer ist.</summary>
+    [Parameter] public string? Hint { get; set; }
+
+    private string CssClass => (IsAddTile, HasError) switch
+    {
+        (true, _) => "mw-kpi mw-kpi--add",
+        (_, true) => "mw-kpi mw-kpi--error",
+        _ => "mw-kpi"
+    } + (string.IsNullOrWhiteSpace(Href) ? " mw-kpi--static" : "");
+
+    // Nur Richtung, keine Wertung: siehe den Kommentar zu .mw-kpi__delta.
+    private string Arrow => Trend switch
+    {
+        KpiTrend.Up => "▲",
+        KpiTrend.Down => "▼",
+        KpiTrend.Flat => "▬",
+        _ => ""
+    };
 }

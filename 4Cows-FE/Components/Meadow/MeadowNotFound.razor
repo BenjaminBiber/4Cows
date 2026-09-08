@@ -1,3 +1,5 @@
+@inject DemoSettings Demo
+
 @* 404 im Meadow-Stil. Ersetzt 4CowsComponent/NotFound.razor, das nie
    gerendert wurde (Routes.razor hatte keinen NotFound-Zweig) und auf
    /images/waiting_dark.png zeigte - eine Datei, die so nicht existiert
@@ -8,5 +10,8 @@
     </div>
     <div class="mw-notfound__title">Seite nicht gefunden</div>
     <div class="mw-notfound__text">Diese Adresse gibt es nicht (mehr).</div>
-    <a class="mw-btn mw-btn--primary mw-btn--wide" href="">Zum Dashboard</a>
+    @* href="" zeigte auf die AKTUELLE Adresse - der Knopf liess den Nutzer
+       also auf der 404-Seite stehen. DashboardHref statt der Konstante,
+       damit er im Betriebsmodus auf "/" und im Demo-Modus auf "/app" geht. *@
+    <a class="mw-btn mw-btn--primary mw-btn--wide" href="@Demo.DashboardHref">Zum Dashboard</a>
 </div>

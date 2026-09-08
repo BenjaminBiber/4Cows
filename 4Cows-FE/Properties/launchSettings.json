@@ -9,6 +9,16 @@
       "dotnetRunMessages": true,
       "applicationUrl": "http://localhost:5107"
     },
+    "http-demo": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "Demo__Enabled": "true"
+      },
+      "dotnetRunMessages": true,
+      "applicationUrl": "http://localhost:5107"
+    },
     "https": {
       "commandName": "Project",
       "launchBrowser": true,

@@ -1,0 +1,51 @@
+@using BB_Cow.Kpi
+
+@*
+    Die Live-Vorschau im KPI-Dialog.
+
+    Sie ersetzt den Knopf "SQL testen", der eine Datenbankrunde gekostet hat,
+    das Skript dabei tatsaechlich AUSGEFUEHRT hat und den rohen
+    DB-Ausnahmetext in den Browser geschrieben hat. Hier rechnet der
+    Evaluator ueber die Caches im Speicher - also sofort, bei jeder Aenderung,
+    und ohne dass man an etwas denken muss.
+
+    "n von m Zeilen" nach dem Vorbild von CountText in den Tabellen: es macht
+    den Unterschied zwischen "der Filter trifft nichts" und "die Kennzahl ist
+    nun mal 0" sichtbar, statt beides als eine Null zu zeigen.
+*@
+<div class="mw-kpi-preview">
+    <div class="mw-kpi-preview__head">
+        <span class="mw-label">Vorschau</span>
+        <span class="mw-result-count">@CountText</span>
+    </div>
+
+    <div class="@ValueClass">
+        <span class="mw-kpi-preview__value">@Result.Display</span>
+        @if (!string.IsNullOrWhiteSpace(Result.DeltaDisplay))
+        {
+            <span class="mw-kpi-preview__delta">@Result.DeltaDisplay</span>
+        }
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(Result.Message))
+    {
+        <div class="mw-errbox">@Result.Message</div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public KpiResult Result { get; set; } = default!;
+
+    /// <summary>Zeilen der Quelle insgesamt, also vor Zeitraum und Filtern.</summary>
+    [Parameter] public int TotalRows { get; set; }
+
+    private bool IsError => Result.State == KpiResultState.Error;
+
+    private string ValueClass => IsError
+        ? "mw-kpi-preview__row is-error"
+        : "mw-kpi-preview__row";
+
+    private string CountText => IsError
+        ? "nicht berechenbar"
+        : $"{Result.MatchedRows} von {TotalRows} Zeilen";
+}

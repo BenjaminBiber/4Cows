@@ -19,7 +19,27 @@ public enum NavGroup
 /// </summary>
 public static class MeadowRoutes
 {
-    public const string Dashboard = "";
+    /// <summary>
+    /// Die Startadresse. Ohne Demo zeigt sie das Dashboard, mit Demo die
+    /// Landing-Page - entschieden wird das im Dispatcher Pages/Home.razor,
+    /// nicht hier.
+    /// </summary>
+    public const string Root = "";
+
+    /// <summary>
+    /// Das Dashboard unter /app. Existiert in beiden Modi; im Demo-Modus ist
+    /// es die einzige Dashboard-Adresse, im Betriebsmodus ein Alias auf das,
+    /// was auch unter Root liegt. Wer den Wert aendert, muss das @page in
+    /// Components/Pages/Index.razor mitziehen.
+    /// </summary>
+    public const string Dashboard = "app";
+
+    /// <summary>
+    /// Absoluter Pfad zum Dashboard - fuer Kontexte OHNE das
+    /// &lt;base href="/"&gt; aus App.razor, also Error.cshtml.
+    /// </summary>
+    public const string DashboardPath = "/" + Dashboard;
+
     public const string CowTreatments = "Kuh_Daten";
     public const string PlannedCowTreatments = "geplante_Kuh_Daten";
     public const string Bandages = "Verband_Daten";
@@ -31,6 +51,11 @@ public static class MeadowRoutes
     private static readonly Dictionary<string, string> TitleMap =
         new(StringComparer.OrdinalIgnoreCase)
         {
+            // Beide Dashboard-Adressen. Root wird nur im Betriebsmodus
+            // gelesen: im Demo-Modus rendert "/" die Landing-Page im
+            // LandingLayout, das TitleFor gar nicht erst aufruft. Fehlt der
+            // Eintrag trotzdem, liefert TitleFor unten den 404-Titel.
+            [Root] = "Dashboard",
             [Dashboard] = "Dashboard",
             [CowTreatments] = "Kuh Behandlungen",
             [PlannedCowTreatments] = "Geplante Kuh Behandl.",
@@ -46,7 +71,8 @@ public static class MeadowRoutes
         => baseRelativePath.Split('?', '#')[0].Trim('/');
 
     /// <summary>
-    /// Alle sieben echten Routen stehen in der Tabelle - eine unbekannte
+    /// Alle acht echten Routen stehen in der Tabelle - Root und Dashboard
+    /// zeigen dabei auf dieselbe Seite. Eine unbekannte
     /// Route ist deshalb immer ein 404. Der Fallback lautet nicht "Meadow":
     /// UseStatusCodePagesWithReExecute schreibt nur den Server-Pfad um, die
     /// Adresse im Browser bleibt die falsche. Header und Dokumenttitel
@@ -57,12 +83,12 @@ public static class MeadowRoutes
         => TitleMap.TryGetValue(route, out var title) ? title : TitleMap[NotFound];
 
     /// <summary>
-    /// Gruppe fuer Drawer-Akzent, Tabbar-Hervorhebung und FAB-Aktion.
-    /// Verbände zaehlt hier zur Klaue-Gruppe.
+    /// Gruppe fuer Drawer-Akzent, Tabbar-Hervorhebung, FAB-Aktion und das
+    /// Titel-Dropdown. Verbände zaehlt zur Klaue-Gruppe.
     /// </summary>
     public static NavGroup GroupFor(string route) => route switch
     {
-        Dashboard => NavGroup.Dashboard,
+        Root or Dashboard => NavGroup.Dashboard,
         CowTreatments or PlannedCowTreatments => NavGroup.Cow,
         ClawTreatments or PlannedClawTreatments or Bandages => NavGroup.Claw,
         Settings => NavGroup.System,
@@ -75,24 +101,34 @@ public static class MeadowRoutes
     /// fuellen die Breite, waehrend die Tabellen mit vier Spalten davon
     /// nichts haetten ausser laengeren Zeilen.
     /// </summary>
-    public static bool IsWide(string route) => route is Dashboard;
+    public static bool IsWide(string route) => route is Root or Dashboard;
+
+    // Reihenfolge wie im Drawer, damit man dieselbe Liste nicht in zwei
+    // Anordnungen lernen muss.
+    private static readonly string[] CowGroup =
+        { CowTreatments, PlannedCowTreatments };
+
+    private static readonly string[] ClawGroup =
+        { Bandages, ClawTreatments, PlannedClawTreatments };
 
     /// <summary>
-    /// Ob der Seitentitel ein Dropdown bekommt. Bewusst ein anderes Praedikat
-    /// als GroupFor: das Menue zeigt nur die beiden Zweier-Gruppen, Verbände
-    /// hat dort keine Geschwister.
+    /// Ob der Seitentitel ein Dropdown bekommt (nur mobil - die Kopfzeile
+    /// zeigt den Titel am Desktop als reinen Text).
     /// </summary>
-    public static bool HasSiblings(string route) => route
-        is CowTreatments or PlannedCowTreatments
-        or ClawTreatments or PlannedClawTreatments;
+    public static bool HasSiblings(string route) => SiblingsFor(route).Count > 0;
 
-    /// <summary>Die Geschwister-Routen fuer das Seitentitel-Dropdown.</summary>
-    public static IReadOnlyList<string> SiblingsFor(string route) => route switch
+    /// <summary>
+    /// Die Geschwister-Routen fuer das Seitentitel-Dropdown.
+    ///
+    /// Leitet sich aus GroupFor ab statt die Routen noch einmal
+    /// aufzuzaehlen: vorher standen dieselben Namen in drei Listen, und
+    /// Verbände fehlte in zweien davon - man kam ueber die Tabbar auf die
+    /// Seite, aber nicht per Dropdown wieder weg.
+    /// </summary>
+    public static IReadOnlyList<string> SiblingsFor(string route) => GroupFor(route) switch
     {
-        CowTreatments or PlannedCowTreatments =>
-            new[] { CowTreatments, PlannedCowTreatments },
-        ClawTreatments or PlannedClawTreatments =>
-            new[] { ClawTreatments, PlannedClawTreatments },
+        NavGroup.Cow => CowGroup,
+        NavGroup.Claw => ClawGroup,
         _ => Array.Empty<string>()
     };
 }
