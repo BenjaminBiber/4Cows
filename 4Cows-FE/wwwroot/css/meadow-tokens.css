@@ -155,6 +155,11 @@
   --mw-z-drawer:          1100;
   --mw-z-filter-backdrop: 90;
   --mw-z-filter:          91;
+  /* Mobil wird der Filter ein Bottom-Sheet und muss damit ueber Tabbar (1090)
+     und FAB (1091) liegen - mit 90/91 wuerde er dahinter verschwinden. Unter dem
+     Add-Menue (1097), damit dessen Auswahl weiterhin obenauf liegt. */
+  --mw-z-sheet-backdrop:  1094;
+  --mw-z-sheet:           1095;
 }
 
 /* ── Flaechen: DUNKEL ───────────────────────────────────────── */

@@ -316,9 +316,19 @@
 .mw-menu {
   display: none;
   position: fixed;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 262px;
+  /* Zentriert ueber inset + margin-inline, NICHT ueber translateX(-50%):
+     mwPop animiert transform und haette das translateX waehrend der Animation
+     ueberschrieben - das Menue waere bei jedem Oeffnen sichtbar von rechts
+     eingefahren und erst am Ende in die Mitte gesprungen. Genau der Konflikt,
+     den .mud-dialog.mw-dlg weiter unten schon beschreibt. */
+  left: 0;
+  right: 0;
+  margin-inline: auto;
+  /* 262px reichten fuer "Geplante Klauen Behandlung" nicht: das Label brach
+     auf zwei Zeilen, wodurch die Zeilen unterschiedlich hoch wurden und die
+     Icon-Spalte optisch verrutschte. 300px halten den laengsten Eintrag
+     einzeilig und passen auch auf 320px-Geraeten noch in die max-width. */
+  width: 300px;
   max-width: calc(100% - 26px);
   padding: 6px;
   background: var(--mw-panel);
@@ -948,6 +958,9 @@
   top: calc(100% + 8px);
   right: 0;
   width: 300px;
+  /* Haelt das Popover auch am Desktop im Bild, wenn der Anker weit rechts
+     sitzt oder das Fenster schmal gezogen wird. */
+  max-width: calc(100vw - 32px);
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -987,26 +1000,77 @@
   color: var(--mw-muted);
 }
 
-.mw-filter-group {
+/* ============================================================
+   FILTER-DROPDOWN   (.mw-select — MeadowMultiSelect / MeadowSingleSelect)
+   ============================================================
+   Ersetzt die Chip-Reihen im Filterpanel. Klappt INLINE auf, nicht als
+   eigenes Popover: das Panel ist mobil ein scrollendes Bottom-Sheet, ein
+   verschachteltes Overlay wuerde an dessen overflow abgeschnitten. */
+.mw-select {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
-.mw-filter-group__label {
+
+.mw-select__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 12px;
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-lg);
+  background: var(--mw-panel);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  color: var(--mw-text);
+  cursor: pointer;
+  transition: border-color var(--mw-t), background var(--mw-t), color var(--mw-t);
+}
+.mw-select__trigger.is-open { border-color: var(--mw-primary); }
+@media (hover: hover) {
+  .mw-select__trigger:hover { border-color: var(--mw-primary); }
+}
+
+/* Chevron dreht beim Aufklappen - das Icon ist das einzige svg im Trigger. */
+.mw-select__trigger > svg {
+  flex-shrink: 0;
+  transition: transform var(--mw-t);
+}
+.mw-select__trigger.is-open > svg { transform: rotate(180deg); }
+
+/* Kein text-overflow: ellipsis. Ein abgeschnittener Befundname ("Zwischenzehen…")
+   ist im Filter unbrauchbar; lieber bricht der Trigger auf zwei Zeilen. */
+.mw-select__value {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* Lange Wertelisten scrollen im Dropdown, nicht im ganzen Panel. Die
+   Zeilentrenner lassen eine angeschnittene Zeile sichtbar, das ist der
+   Hinweis, dass hier noch mehr kommt. */
+.mw-select .mw-check-list {
+  max-height: 232px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.mw-select__label {
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .06em;
   color: var(--mw-muted);
 }
-.mw-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-  max-height: 168px;
-  overflow-y: auto;
-}
 
+/* .mw-filter-group und .mw-chips sind mit MeadowFilterGroup/MeadowChipSelect
+   entfallen. .mw-chip bleibt: der Ueberfaellig-Filter der Verbaende-Seite ist
+   ein einzelner Umschalt-Chip direkt in der Toolbar. */
 .mw-chip {
   padding: 6px 13px;
   border: 1px solid var(--mw-border);
@@ -1372,14 +1436,47 @@
   /* Mobil nur das Icon, kein Label (Design L440) */
   .mw-filter-btn { padding: 10px 12px; }
 
-  /* Mobil steht der Filter-Button links in der Toolbar. Mit right:0 wuerde
-     der 250px-Popover vom rechten Rand des schmalen Ankers nach links
-     aufklappen und aus dem Bild laufen. */
-  .mw-pop {
-    width: 250px;
-    left: 0;
-    right: auto;
+  /* Filter mobil: Bottom-Sheet statt Anker-Popover.
+     Der Anker ist ein ~48px breiter Icon-Button im rechten Toolbar-Block. Ein
+     absolut positioniertes 250px-Popover laesst sich daran nicht ausrichten,
+     ohne aus dem Bild zu laufen: mit right:0 klappt es nach links heraus, mit
+     left:0 nach rechts. Gemessen lag seine rechte Kante exakt auf der
+     Viewport-Kante (0px Rand) - jeder weitere Aktionsbutton in der Toolbar
+     und jeder laengere Chip schob es darueber hinaus. Ueber die volle Breite
+     gibt es keine Ankergeometrie mehr, die klemmen kann.
+     Gleiches Sheet-Muster wie die Dialoge (siehe .mw-dlg weiter unten). */
+  .mw-pop-backdrop {
+    background: var(--mw-backdrop-dialog);
+    z-index: var(--mw-z-sheet-backdrop);
+    animation: mwFade .2s ease;
   }
+  .mw-pop {
+    position: fixed;
+    inset: auto 0 0 0;
+    top: auto;
+    width: auto;
+    max-width: var(--mw-sheet-max);
+    margin-inline: auto;
+    max-height: 85dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    /* Oben knapp: den Abstand macht der Griff (.mw-sheet-grab). */
+    padding: 8px 18px calc(18px + env(safe-area-inset-bottom));
+    border-radius: var(--mw-r-6xl) var(--mw-r-6xl) 0 0;
+    box-shadow: var(--mw-shadow-sheet);
+    z-index: var(--mw-z-sheet);
+    animation: mwSheetUp var(--mw-t-sheet) var(--mw-ease);
+  }
+
+  /* Im Sheet ist mehr Platz als im 300px-Popover, also darf die Werteliste
+     hoeher werden, bevor sie selbst scrollt. */
+  .mw-select .mw-check-list { max-height: 40dvh; }
+
+  /* Trefferflaechen fuer die Bedienung mit Handschuhen: 15px Innenabstand auf
+     14px Textzeile ergibt 44px hohe Zeilen. Nur im Filter-Dropdown - die
+     Checkbox-Liste im Diagramm-Dialog behaelt ihre Dichte. */
+  .mw-select__trigger { min-height: var(--mw-control-h-m); }
+  .mw-select .mw-check { padding: 15px 12px; }
 
   .mw-tab { padding: 11px 14px; }
 }
@@ -1907,9 +2004,11 @@
   .mw-check:hover { background: var(--mw-tint); }
 }
 
-/* Natives input[type=checkbox]: accent-color reicht, damit es die
-   Markenfarbe traegt - kein Nachbau, keine MudCheckBox. */
-.mw-check > input[type="checkbox"] {
+/* Natives input[type=checkbox]/[type=radio]: accent-color reicht, damit es die
+   Markenfarbe traegt - kein Nachbau, keine MudCheckBox. Radios braucht die
+   Einfachauswahl im Filter (MeadowSingleSelect). */
+.mw-check > input[type="checkbox"],
+.mw-check > input[type="radio"] {
   width: 17px;
   height: 17px;
   flex-shrink: 0;

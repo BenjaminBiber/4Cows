@@ -30,12 +30,12 @@
                                     OnClick="ToggleFilter" />
             </Trigger>
             <ChildContent>
-                <MeadowChipSelect Label="Medikament" Options="MedicineOptions"
-                                  Selected="@_filter.Medicine"
-                                  SelectedChanged="OnMedicineChanged" />
-                <MeadowChipSelect Label="Zeitraum" Options="DateRanges.Labels"
-                                  Selected="@DateRanges.ToLabel(_filter.Range)"
-                                  SelectedChanged="OnRangeChanged" />
+                <MeadowMultiSelect Label="Medikament" Options="MedicineOptions"
+                                   Selected="_filter.Medicines"
+                                   SelectionChanged="Apply" />
+                <MeadowSingleSelect Label="Zeitraum" Options="DateRanges.Labels"
+                                    Value="@DateRanges.ToLabel(_filter.Range)"
+                                    ValueChanged="OnRangeChanged" />
             </ChildContent>
         </MeadowFilterPopover>
 
@@ -199,10 +199,11 @@
                 || Contains(Medicine(r), search));
         }
 
-        if (_filter.Medicine != DateRanges.AllLabel)
+        // Leere Auswahl = kein Filter. Sonst ODER ueber die gewaehlten
+        // Medikamente; das HashSet vergleicht OrdinalIgnoreCase.
+        if (_filter.Medicines.Count > 0)
         {
-            query = query.Where(r =>
-                string.Equals(Medicine(r), _filter.Medicine, StringComparison.OrdinalIgnoreCase));
+            query = query.Where(r => _filter.Medicines.Contains(Medicine(r)));
         }
 
         query = query.Where(r => DateRanges.Matches(_filter.Range, r.AdministrationDate));
@@ -216,12 +217,6 @@
     private void OnSearchChanged(string value)
     {
         _filter.Search = value;
-        Apply();
-    }
-
-    private void OnMedicineChanged(string value)
-    {
-        _filter.Medicine = value;
         Apply();
     }
 

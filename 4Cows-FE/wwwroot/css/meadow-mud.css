@@ -273,3 +273,36 @@
 .mw-field.mud-checkbox .mud-icon-root { color: var(--mw-muted); }
 .mw-field.mud-checkbox .mud-checked .mud-icon-root { color: var(--mw-primary); }
 .mw-field.mud-checkbox .mud-typography { font-size: 14px; color: var(--mw-text); }
+
+/* ============================================================
+   MudBlazors globaler <button>-Reset
+   ============================================================
+   MudBlazor legt seinen .mud-button-root-Reset zusaetzlich auf JEDES nackte
+   <button> im Dokument:
+
+     button { display: inline-flex; align-items: center;
+              justify-content: center; ... }
+
+   Meadows eigene Buttons ordnen ihren Inhalt aber in Flussrichtung an - Icon
+   an einer festen linken Kante, Label an einer zweiten. Durch das
+   aufgezwungene justify-content: center wanderte statt dessen jede Zeile um
+   die halbe Differenz ihrer Labellaenge nach innen: im Hinzufuegen-Menue des
+   FAB standen die vier Icons ueber 39,7px verteilt statt untereinander.
+
+   Die Regeln unten setzen nur zurueck, was die Komponenten ohnehin schon
+   erklaeren - alle drei tragen text-align: left, .mw-nav-item sitzt in einer
+   Liste, deren uebrige Eintraege <a>-Elemente und damit nie betroffen sind.
+
+   meadow-base.css kann das nicht loesen: es wird VOR MudBlazor geladen, und
+   bei gleicher Spezifitaet (0-0-1 auf "button") gewinnt dann Mud. Hier greift
+   die Klasse (0-1-0) unabhaengig von der Reihenfolge.
+
+   NICHT zurueckgesetzt wird .mw-tabbar__item: das ist flex-direction: column
+   und soll seinen Inhalt tatsaechlich zentrieren.
+   ============================================================ */
+.mw-menu__item,
+.mw-split__item,
+.mw-act,
+.mw-nav-item {
+  justify-content: flex-start;
+}

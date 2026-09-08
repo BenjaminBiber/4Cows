@@ -1,5 +1,6 @@
 @* st.filterPopWrap / st.filterPopBackdrop / st.filterPop — 300px Desktop,
-   250px mobil (per CSS). Escape und Klick daneben schliessen. *@
+   mobil ein Bottom-Sheet ueber die volle Breite (per CSS, siehe .mw-pop im
+   Mobile-Block). Escape und Klick daneben schliessen. *@
 <div class="mw-pop-anchor" @onkeydown="OnKeyDown">
     @Trigger
 
@@ -9,6 +10,9 @@
                 aria-label="Filter schließen" @onclick="OnClose"></button>
 
         <div class="mw-pop" role="dialog" aria-label="Filter">
+            @* Immer im Markup, per CSS nur mobil sichtbar - wie im Dialog. *@
+            <div class="mw-sheet-grab" aria-hidden="true"></div>
+
             <div class="mw-pop__head">
                 <span class="mw-pop__title">Filter</span>
                 @if (ShowReset)

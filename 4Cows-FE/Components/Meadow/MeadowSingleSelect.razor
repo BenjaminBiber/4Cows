@@ -1,0 +1,68 @@
+@*
+    Einfachauswahl-Dropdown — optisch identisch zu MeadowMultiSelect, aber mit
+    Radios.
+
+    Fuer Gruppen, deren Optionen sich gegenseitig ausschliessen. Das ist beim
+    Zeitraum der Fall: "7 Tage" und "30 Tage" zugleich anzuhaken waere
+    dasselbe wie "30 Tage" und wuerde nur eine Auswahl anbieten, die nichts
+    bedeutet. Deshalb hier Radios statt Checkboxen — gleiche Optik, richtige
+    Semantik.
+
+    "Alle" ist eine echte Option in der Liste, nicht ein Sonderfall daneben.
+*@
+<div class="mw-select">
+    <span class="mw-select__label" id="@_labelId">@Label</span>
+
+    <button type="button"
+            class="@(_open ? "mw-select__trigger is-open" : "mw-select__trigger")"
+            aria-expanded="@(_open ? "true" : "false")"
+            aria-labelledby="@_labelId"
+            @onclick="Toggle">
+        <span class="mw-select__value">@Value</span>
+        <MeadowIcon Name="MeadowIconName.ChevronDown" Size="16" />
+    </button>
+
+    @if (_open)
+    {
+        <div class="mw-check-list" role="radiogroup" aria-labelledby="@_labelId">
+            @foreach (var option in Options)
+            {
+                var isOn = string.Equals(option, Value, StringComparison.OrdinalIgnoreCase);
+                <label class="@(isOn ? "mw-check is-on" : "mw-check")">
+                    <input type="radio" name="@_groupName" checked="@isOn"
+                           @onchange="() => PickAsync(option)" />
+                    <span>@option</span>
+                </label>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>Gruppentitel, z.B. "Zeitraum".</summary>
+    [Parameter, EditorRequired] public string Label { get; set; } = "";
+
+    [Parameter] public IReadOnlyList<string> Options { get; set; } = Array.Empty<string>();
+
+    [Parameter] public string Value { get; set; } = "";
+
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+
+    private readonly string _labelId = $"sel-{Guid.NewGuid():N}";
+
+    // Eigener name-Wert pro Instanz, sonst teilen sich zwei Einfachauswahlen
+    // im selben Panel eine Radiogruppe und loeschen sich gegenseitig.
+    private readonly string _groupName = $"grp-{Guid.NewGuid():N}";
+
+    private bool _open;
+
+    private void Toggle() => _open = !_open;
+
+    private Task PickAsync(string option)
+    {
+        // Eine Einfachauswahl ist mit dem Klick erledigt - zuklappen, damit
+        // das Panel nicht unnoetig lang bleibt.
+        _open = false;
+        return ValueChanged.InvokeAsync(option);
+    }
+}
