@@ -49,39 +49,63 @@ public static class DateRanges
     }
 }
 
-/// <summary>Suchtext und Chips der Kuh-Tabelle.</summary>
+/// <summary>Suchtext und Filter der Kuh-Tabelle.</summary>
 public sealed class CowTableFilter
 {
     public string Search { get; set; } = "";
-    public string Medicine { get; set; } = DateRanges.AllLabel;
+
+    /// <summary>
+    /// Mehrfachauswahl. Leer heisst "Alle", also kein Filter - vorher war
+    /// "Alle" ein Sentinel-Wert im Feld selbst. Innerhalb der Gruppe gilt
+    /// ODER: eine Zeile passt, wenn ihr Medikament EINES der gewaehlten ist.
+    /// OrdinalIgnoreCase, damit der Vergleich sich wie das fruehere
+    /// string.Equals(..., OrdinalIgnoreCase) verhaelt.
+    /// </summary>
+    public HashSet<string> Medicines { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Einfachauswahl: die Zeitraeume schliessen sich gegenseitig aus, "7 Tage"
+    /// UND "30 Tage" waere dasselbe wie "30 Tage".
+    /// </summary>
     public DateRange Range { get; set; } = DateRange.All;
 
-    /// <summary>Nur die Chips zaehlen in das Badge, nicht der Suchtext.</summary>
+    /// <summary>
+    /// Nur die Filter zaehlen in das Badge, nicht der Suchtext. Gezaehlt werden
+    /// aktive Gruppen, nicht einzelne Werte - das Badge beantwortet "wie viele
+    /// Filter engen die Liste ein", nicht "wie viele Haken sind gesetzt".
+    /// </summary>
     public int ActiveCount
-        => (Medicine != DateRanges.AllLabel ? 1 : 0) + (Range != DateRange.All ? 1 : 0);
+        => (Medicines.Count > 0 ? 1 : 0) + (Range != DateRange.All ? 1 : 0);
 
     public bool HasAny => ActiveCount > 0 || !string.IsNullOrWhiteSpace(Search);
 
     /// <summary>Zuruecksetzen laesst den Suchtext stehen (wie im Prototyp).</summary>
     public void Reset()
     {
-        Medicine = DateRanges.AllLabel;
+        Medicines.Clear();
         Range = DateRange.All;
     }
 }
 
-/// <summary>Suchtext und Befund-Chip der Klauen-Tabelle.</summary>
+/// <summary>Suchtext und Befund-Filter der Klauen-Tabelle.</summary>
 public sealed class ClawTableFilter
 {
     public const string BandageOption = "Verband";
     public const string BlockOption = "Klotz";
 
     public string Search { get; set; } = "";
-    public string Finding { get; set; } = DateRanges.AllLabel;
 
-    public int ActiveCount => Finding != DateRanges.AllLabel ? 1 : 0;
+    /// <summary>
+    /// Mehrfachauswahl aus Befunden plus den beiden Zustaenden Verband und
+    /// Klotz. Leer heisst "Alle". ODER innerhalb der Gruppe, damit sich
+    /// "Mortellaro oder Sohlengeschwuer" in einem Durchgang zeigen laesst -
+    /// mit der alten Einfachauswahl brauchte das zwei Durchgaenge.
+    /// </summary>
+    public HashSet<string> Findings { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    public int ActiveCount => Findings.Count > 0 ? 1 : 0;
 
     public bool HasAny => ActiveCount > 0 || !string.IsNullOrWhiteSpace(Search);
 
-    public void Reset() => Finding = DateRanges.AllLabel;
+    public void Reset() => Findings.Clear();
 }

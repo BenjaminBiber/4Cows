@@ -1,0 +1,112 @@
+@*
+    Mehrfachauswahl-Dropdown fuer die Filterpanels — ersetzt MeadowChipSelect.
+
+    Die Chip-Reihen liessen nur EINEN Wert zu ("Alle" war ein Sentinel unter
+    den Chips), und bei zehn Medikamenten oder acht Befunden wurde die
+    Chipwolke hoeher als das Panel und musste selbst scrollen.
+
+    Klappt INLINE im Panel auf, nicht als eigenes Popover: das Filterpanel ist
+    mobil ein scrollendes Bottom-Sheet (.mw-pop). Ein darin absolut
+    positioniertes Menue wuerde an dessen overflow abgeschnitten — genau der
+    Fehler, den .mw-pop mobil gerade losgeworden ist.
+
+    Leere Auswahl heisst "Alle", also kein Filter. Innerhalb der Gruppe gilt
+    ODER: eine Zeile passt, wenn sie EINEN der gewaehlten Werte traegt.
+*@
+<div class="mw-select">
+    <span class="mw-select__label" id="@_labelId">@Label</span>
+
+    <button type="button"
+            class="@(_open ? "mw-select__trigger is-open" : "mw-select__trigger")"
+            aria-expanded="@(_open ? "true" : "false")"
+            aria-labelledby="@_labelId"
+            @onclick="Toggle">
+        <span class="mw-select__value">@Summary</span>
+        <MeadowIcon Name="MeadowIconName.ChevronDown" Size="16" />
+    </button>
+
+    @if (_open)
+    {
+        @if (Options.Count == 0)
+        {
+            <p class="mw-hint">Keine Werte vorhanden.</p>
+        }
+        else
+        {
+            <div class="mw-check-bar">
+                <span>@Selected.Count von @Options.Count gewählt</span>
+                @if (Selected.Count > 0)
+                {
+                    <div>
+                        <button type="button" class="mw-btn mw-btn--ghost mw-btn--sm"
+                                @onclick="ClearAsync">
+                            Auswahl löschen
+                        </button>
+                    </div>
+                }
+            </div>
+
+            <div class="mw-check-list" role="group" aria-labelledby="@_labelId">
+                @foreach (var option in Options)
+                {
+                    var isOn = Selected.Contains(option);
+                    <label class="@(isOn ? "mw-check is-on" : "mw-check")">
+                        <input type="checkbox" checked="@isOn"
+                               @onchange="() => ToggleOptionAsync(option)" />
+                        <span>@option</span>
+                    </label>
+                }
+            </div>
+        }
+    }
+</div>
+
+@code {
+    /// <summary>Gruppentitel, z.B. "Befund" oder "Medikament".</summary>
+    [Parameter, EditorRequired] public string Label { get; set; } = "";
+
+    [Parameter] public IReadOnlyList<string> Options { get; set; } = Array.Empty<string>();
+
+    /// <summary>
+    /// Die Menge der Seite, keine Kopie: die Komponente traegt hier ein und
+    /// aus und meldet danach ueber SelectionChanged, damit die Seite neu
+    /// filtern kann. Leer = kein Filter.
+    /// </summary>
+    [Parameter, EditorRequired] public HashSet<string> Selected { get; set; } = new();
+
+    [Parameter] public EventCallback SelectionChanged { get; set; }
+
+    /// <summary>Was der Trigger zeigt, solange nichts gewaehlt ist.</summary>
+    public const string AllLabel = "Alle";
+
+    private readonly string _labelId = $"sel-{Guid.NewGuid():N}";
+
+    private bool _open;
+
+    private string Summary => Selected.Count switch
+    {
+        0 => AllLabel,
+        1 => Selected.First(),
+        _ => $"{Selected.Count} ausgewählt"
+    };
+
+    private void Toggle() => _open = !_open;
+
+    private Task ToggleOptionAsync(string option)
+    {
+        // Remove liefert false, wenn nichts entfernt wurde - dann war der Wert
+        // nicht gewaehlt und kommt jetzt dazu.
+        if (!Selected.Remove(option))
+        {
+            Selected.Add(option);
+        }
+
+        return SelectionChanged.InvokeAsync();
+    }
+
+    private Task ClearAsync()
+    {
+        Selected.Clear();
+        return SelectionChanged.InvokeAsync();
+    }
+}

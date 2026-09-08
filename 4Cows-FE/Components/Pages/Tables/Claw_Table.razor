@@ -33,9 +33,9 @@
                                     OnClick="ToggleFilter" />
             </Trigger>
             <ChildContent>
-                <MeadowChipSelect Label="Befund" Options="FindingOptions"
-                                  Selected="@_filter.Finding"
-                                  SelectedChanged="OnFindingChanged" />
+                <MeadowMultiSelect Label="Befund" Options="FindingOptions"
+                                   Selected="_filter.Findings"
+                                   SelectionChanged="Apply" />
             </ChildContent>
         </MeadowFilterPopover>
 
@@ -207,22 +207,31 @@
                 || Summary(r).Contains(search, StringComparison.OrdinalIgnoreCase));
         }
 
-        if (_filter.Finding != DateRanges.AllLabel)
+        // Leere Auswahl = kein Filter.
+        if (_filter.Findings.Count > 0)
         {
-            query = query.Where(MatchesFinding);
+            query = query.Where(MatchesAnyFinding);
         }
 
         _rows = query.ToList();
     }
 
-    private bool MatchesFinding(ClawTreatment r)
+    // ODER ueber die gewaehlten Werte: eine Zeile passt, sobald sie EINEN
+    // davon traegt. Damit laesst sich "Mortellaro oder Sohlengeschwuer" in
+    // einem Durchgang zeigen - die fruehere Einfachauswahl brauchte zwei.
+    private bool MatchesAnyFinding(ClawTreatment r)
+        => _filter.Findings.Any(value => MatchesFinding(r, value));
+
+    // Verband und Klotz stehen mit in der Werteliste, sind aber Zustaende und
+    // keine Befunde - deshalb getrennt geprueft.
+    private bool MatchesFinding(ClawTreatment r, string value)
     {
-        if (_filter.Finding == ClawTableFilter.BandageOption)
+        if (string.Equals(value, ClawTableFilter.BandageOption, StringComparison.OrdinalIgnoreCase))
         {
             return !r.IsBandageRemoved && HoofPositions.All.Any(r.GetBandage);
         }
 
-        if (_filter.Finding == ClawTableFilter.BlockOption)
+        if (string.Equals(value, ClawTableFilter.BlockOption, StringComparison.OrdinalIgnoreCase))
         {
             return HoofPositions.All.Any(r.GetBlock);
         }
@@ -231,18 +240,12 @@
         // Zusammenfassung - sonst wuerde "Mortellaro" auch "Mortellaro (M2)"
         // und die Woerter Verband/Klotz mitfangen.
         return HoofPositions.All.Any(p =>
-            string.Equals(r.GetFinding(p)?.Trim(), _filter.Finding, StringComparison.OrdinalIgnoreCase));
+            string.Equals(r.GetFinding(p)?.Trim(), value, StringComparison.OrdinalIgnoreCase));
     }
 
     private void OnSearchChanged(string value)
     {
         _filter.Search = value;
-        Apply();
-    }
-
-    private void OnFindingChanged(string value)
-    {
-        _filter.Finding = value;
         Apply();
     }
 
