@@ -1287,6 +1287,99 @@
 .mw-row-card__actions { display: flex; gap: 8px; margin-top: 12px; }
 .mw-row-card__actions > * { flex: 1; }
 
+/* ── Kachel mit beschrifteten Feldern ─────────────────────────
+   Aufsatz auf .mw-row-card fuer Zeilen, die mobil mehr als drei
+   Werte zeigen muessen: Kopf mit Titel und Datum, darunter ein
+   Code-Chip (Ohrmarke) und - durch eine Haarlinie getrennt - die
+   Werte mit eigener Beschriftung in drei Spalten.
+
+   Das __meta-Band darueber traegt seine Werte ohne Label; sobald
+   drei gleich aussehende Zahlen nebeneinander stehen, raet man,
+   welche die Menge ist. Deshalb hier Label statt Fliesstext.
+   ------------------------------------------------------------ */
+.mw-row-card__date {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  /* --mw-soft-fg statt --mw-primary: der Primaerton ist in beiden Themes
+     derselbe und traegt auf der dunklen Karte nur 3,1:1. soft-fg dreht mit
+     dem Theme mit (hell 7,1:1, dunkel 5,8:1) und ist der Ton, den das Pill
+     daneben ohnehin schon benutzt. */
+  color: var(--mw-soft-fg);
+  white-space: nowrap;
+}
+.mw-row-card__date svg { flex: none; }
+
+/* Ohrmarken sind lang und ziffernlastig - Mono haelt die Gruppen
+   untereinander lesbar, die Flaeche trennt sie vom Titel. */
+.mw-row-card__code {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 9px;
+  padding: 5px 10px;
+  border-radius: var(--mw-r-lg);
+  background: var(--mw-tint);
+  font-family: var(--mw-font-mono);
+  font-size: 13px;
+  line-height: 1.35;
+  letter-spacing: .02em;
+  color: var(--mw-text);
+  overflow-wrap: anywhere;
+}
+
+.mw-row-card__fields {
+  display: grid;
+  /* Keine drei gleichen Drittel: Medikamentennamen sind lang, die Menge
+     ist es nie. minmax(0,..) statt blossem fr, damit ein langer Name die
+     Spalte nicht ueber ihren Anteil hinaus aufblaeht. */
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, .85fr);
+  gap: 11px 12px;
+  margin-top: 12px;
+  padding-top: 11px;
+  border-top: 1px solid var(--mw-border);
+}
+.mw-row-card__field { min-width: 0; }
+.mw-row-card__label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--mw-muted);
+}
+.mw-row-card__value {
+  display: block;
+  line-height: 1.4;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--mw-text);
+  /* hyphens trennt lange Woerter nach den Regeln von <html lang="de">,
+     wo der Browser Trennmuster hat (mobiles Chrome, Safari). Wo nicht,
+     bricht overflow-wrap notfalls mitten im Wort - besser als eine Zeile,
+     die aus ihrer Spalte laeuft. */
+  hyphens: auto;
+  overflow-wrap: anywhere;
+}
+/* Ein Pill als Wert darf umbrechen statt aus seiner Spalte zu laufen -
+   aber an Leer- und Bindestrichen, nicht mitten im Wort. Deshalb hier
+   break-word statt des geerbten anywhere. */
+.mw-row-card__value .mw-pill { max-width: 100%; overflow-wrap: break-word; }
+
+.mw-row-card__sep  { margin: 0 4px; color: var(--mw-muted); font-weight: 500; }
+.mw-row-card__unit { margin-left: 3px; font-weight: 500; color: var(--mw-muted); }
+
+/* Auf 320px-Geraeten bleiben von drei Spalten je ~80px - zu wenig fuer
+   "Intramuskulaer" oder einen Wirkstoffnamen. Dann lieber zwei Spalten
+   und die Menge in der zweiten Zeile. */
+@media (max-width: 359.98px) {
+  .mw-row-card__fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
 .mw-filter-row {
   display: flex;
   gap: 8px;

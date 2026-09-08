@@ -60,16 +60,38 @@
         }
     </EmptyContent>
     <MobileCard Context="row">
+        @{ var place = SplitWhereHow(WhereHow(row)); }
         <div class="mw-row-card">
             <div class="mw-row-card__top">
                 <span class="mw-row-card__title">Nr. @Collar(row)</span>
-                <span class="mw-pill">@Medicine(row)</span>
+                <span class="mw-row-card__date">
+                    <MeadowIcon Name="MeadowIconName.Calendar" Size="13" />
+                    @row.AdministrationDate.ToString("dd.MM.yyyy")
+                </span>
             </div>
-            <div class="mw-row-card__mono">@EarTag(row)</div>
-            <div class="mw-row-card__meta">
-                <span>@row.AdministrationDate.ToString("dd.MM.yyyy")</span>
-                <span>@WhereHow(row)</span>
-                <span>@Dosage(row)</span>
+            <span class="mw-row-card__code">@EarTag(row)</span>
+            <div class="mw-row-card__fields">
+                <div class="mw-row-card__field">
+                    <span class="mw-row-card__label">Medikament</span>
+                    <span class="mw-row-card__value">
+                        <span class="mw-pill">@Medicine(row)</span>
+                    </span>
+                </div>
+                <div class="mw-row-card__field">
+                    <span class="mw-row-card__label">Stelle</span>
+                    <span class="mw-row-card__value">
+                        @place.Place@if (place.Detail is not null)
+                        {
+                            <span class="mw-row-card__sep">&#183;</span>@place.Detail
+                        }
+                    </span>
+                </div>
+                <div class="mw-row-card__field">
+                    <span class="mw-row-card__label">Menge</span>
+                    <span class="mw-row-card__value">
+                        @Dosage(row)<span class="mw-row-card__unit">@DosageUnit</span>
+                    </span>
+                </div>
             </div>
         </div>
     </MobileCard>
@@ -168,6 +190,28 @@
         => WhereHowService.GetFullWhereHowName(r.WhereHowId, UdderService, r.UdderId);
 
     private string Dosage(CowTreatment r) => r.MedicineDosage.ToString("0.##");
+
+    // Der Entwurf zeigt die Menge mit Einheit. In der Datenbank steht nur
+    // die Zahl (Cow_Treatment.Medicine_Dosage, float) - ein Einheitenfeld
+    // gibt es weder am Medikament noch an der Behandlung. Bis es eines
+    // gibt, ist das hier die einzige Stelle, die sich aendern muss.
+    private const string DosageUnit = "ml";
+
+    // GetFullWhereHowName liefert "Euter (LV/ RH)". Auf der Kachel steht
+    // die Stelle als "Euter . LV/RH": dieselbe Angabe, aber ohne Klammern,
+    // die in einer 100px breiten Spalte nur Platz kosten. Die Desktop-
+    // Spalte "Wie / Wo" bleibt unveraendert.
+    private static (string Place, string? Detail) SplitWhereHow(string value)
+    {
+        var open = value.LastIndexOf('(');
+        if (open <= 0 || !value.EndsWith(')'))
+        {
+            return (value.Trim(), null);
+        }
+
+        var detail = value[(open + 1)..^1].Replace("/ ", "/").Trim();
+        return (value[..open].TrimEnd(), detail.Length == 0 ? null : detail);
+    }
 
     // ---- Filter -------------------------------------------------------
 
