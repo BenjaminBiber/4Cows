@@ -6,8 +6,12 @@
     Desktop-Tabelle UND Mobile-Kartenliste stehen beide im Markup, CSS zeigt
     eine davon. Kein serverseitiges Viewport-Erkennen: Blazor Server
     prerendert ohne Viewport-Wissen, jede JS-Weiche wuerde beim ersten Frame
-    die falsche Variante rendern und dann umklappen. Der Preis sind ~2x DOM
-    fuer maximal eine Seite Zeilen.
+    die falsche Variante rendern und dann umklappen.
+
+    Deshalb blaettert der Desktop (_page, bei _pageSize gedeckelt) und die
+    Kartenliste laedt nach (_mobileTake, waechst in Schritten). Zwei Staende
+    fuer dieselben Daten - ein Tablet, das die 1024px-Grenze ueberquert,
+    wechselt still den sichtbaren davon. Ohne Viewport-Wissen nicht loesbar.
 
     Items kommen bereits gefiltert an - Filtern ist Sache der Seite, weil
     jede Tabelle andere Felder durchsucht. Sortieren und Blaettern passiert
@@ -84,7 +88,7 @@
     @if (ShowPagerNow)
     {
         <MeadowTablePager Label="@PagerLabel" Page="@_page" PageCount="@PageCount"
-                          PageSize="@_pageSize" Total="@Items.Count"
+                          PageSize="@_pageSize" Total="@_sorted.Count"
                           PageSizeOptions="@PageSizeOptions"
                           PageChanged="GoToPage" PageSizeChanged="SetPageSize" />
     }
@@ -93,7 +97,10 @@
 @if (ShowMobileCards)
 {
     <div class="mw-cards">
-        @if (_view.Count == 0)
+        @* _sorted, nicht _view: die Kartenliste haengt an ihrem eigenen
+           Stand und darf nicht davon abhaengen, wie der Desktop gerade
+           blaettert. *@
+        @if (_sorted.Count == 0)
         {
             <div class="mw-empty">
                 @EmptyText
@@ -102,7 +109,7 @@
         }
         else if (MobileCard is not null)
         {
-            @foreach (var item in _view)
+            @foreach (var item in _sorted.Take(MobileTake))
             {
                 <div @key="Key(item)">@MobileCard(item)</div>
             }
@@ -111,7 +118,7 @@
         {
             @* Rueckfall fuer Tabellen ohne eigenes Kartenlayout: erste Spalte
                als Titel, letzte Nicht-Aktions-Spalte rechts, Rest als Meta. *@
-            @foreach (var item in _view)
+            @foreach (var item in _sorted.Take(MobileTake))
             {
                 <div class="mw-row-card" @key="Key(item)">
                     <div class="mw-row-card__top">
@@ -128,15 +135,23 @@
             }
         }
 
-        @if (ShowPagerNow)
+        @* ShowPager=false heisst "alles auf einmal" - dann steht hier auch
+           kein Nachladen-Knopf, der nur dauerhaft deaktiviert waere. *@
+        @if (ShowPager && _sorted.Count > MobileBatchSize)
         {
-            @* NICHT .mw-table-wrap: die Klasse ist unter 1024px auf
-               display:none - der Mobil-Pager waere damit unsichtbar. *@
-            <div class="mw-cards-foot">
-                <MeadowTablePager Label="@PagerLabel" Page="@_page" PageCount="@PageCount"
-                                  PageSize="@_pageSize" Total="@Items.Count"
-                                  PageSizeOptions="@PageSizeOptions"
-                                  PageChanged="GoToPage" PageSizeChanged="SetPageSize" />
+            @* Der Button bleibt am Ende montiert und nur deaktiviert. Wuerde
+               er verschwinden, faellt der Fokus beim letzten Tipp auf <body>
+               und Tastatur- wie Screenreader-Nutzer stehen wieder ganz oben.
+
+               role="status" gehoert auf die Zaehlzeile, nie auf .mw-cards:
+               eine Live-Region um hunderte Karten flutet die Vorlese-
+               Warteschlange bei jedem Rendern. *@
+            <div class="mw-cards-more">
+                <button type="button" class="mw-btn mw-btn--ghost mw-btn--block"
+                        disabled="@(!HasMore)" @onclick="LoadMore">
+                    @(HasMore ? MoreLabel : "Alle Einträge geladen")
+                </button>
+                <p class="mw-cards-more__count" role="status">@MobileTake von @_sorted.Count</p>
             </div>
         }
     </div>
@@ -176,13 +191,20 @@ else
     [Parameter] public bool ShowPager { get; set; } = true;
     [Parameter] public string PagerLabel { get; set; } = "Einträge pro Seite";
 
+    /// <summary>Karten je Ladeschritt in der Mobil-Liste.</summary>
+    [Parameter] public int MobileBatchSize { get; set; } = 25;
+
+    [Parameter] public string MoreLabel { get; set; } = "Weitere Inhalte laden";
+
     [Parameter] public string? Class { get; set; }
 
     private string? _sortTitle;
     private bool _sortDescending;
     private int _page;
     private int _pageSize;
+    private int _mobileTake;
     private int _lastItemCount = -1;
+    private List<TItem> _sorted = new();
     private List<TItem> _view = new();
 
     protected override void OnInitialized()
@@ -190,16 +212,25 @@ else
         _sortTitle = DefaultSortTitle;
         _sortDescending = DefaultSortDescending;
         _pageSize = PageSize;
+        _mobileTake = MobileBatchSize;
     }
 
     protected override void OnParametersSet()
     {
         // Filtert die Seite die Liste kleiner, darf man nicht auf einer
-        // leeren Seite sieben stehenbleiben.
+        // leeren Seite sieben stehenbleiben - und mobil nicht auf einem
+        // Nachladen-Stand von 200 Karten, den es nicht mehr gibt.
+        //
+        // Bewusst die Zeilenzahl und NICHT die Listenreferenz: jede Apply()
+        // der Seiten baut eine frische Liste, aber Apply() laeuft auch nach
+        // jedem Dialog - und Bearbeiten aendert die Zeilenzahl nicht. Ein
+        // Referenzvergleich wuerfe den Nutzer nach jedem Speichern von
+        // Seite 4 zurueck auf Seite 1.
         if (Items.Count != _lastItemCount)
         {
             _lastItemCount = Items.Count;
             _page = 0;
+            _mobileTake = MobileBatchSize;
         }
 
         Rebuild();
@@ -220,9 +251,9 @@ else
                        .ThenBy(column.SortBy);
         }
 
-        var list = query.ToList();
+        _sorted = query.ToList();
         PageCount = ShowPager && _pageSize > 0
-            ? Math.Max(1, (int)Math.Ceiling(list.Count / (double)_pageSize))
+            ? Math.Max(1, (int)Math.Ceiling(_sorted.Count / (double)_pageSize))
             : 1;
 
         if (_page >= PageCount)
@@ -230,15 +261,30 @@ else
             _page = PageCount - 1;
         }
 
+        // Das ToList() auch im ungeblaetterten Fall: sonst sind _view und
+        // _sorted dasselbe Objekt, und wer eines davon anfasst, aendert
+        // ungewollt beide.
         _view = ShowPager && _pageSize > 0
-            ? list.Skip(_page * _pageSize).Take(_pageSize).ToList()
-            : list;
+            ? _sorted.Skip(_page * _pageSize).Take(_pageSize).ToList()
+            : _sorted.ToList();
     }
 
     private int PageCount { get; set; } = 1;
 
     /// <summary>Der Pager verschwindet, solange alles auf eine Seite passt.</summary>
-    private bool ShowPagerNow => ShowPager && Items.Count > _pageSize;
+    private bool ShowPagerNow => ShowPager && _sorted.Count > _pageSize;
+
+    // Bewusst NICHT an ShowPagerNow gehaengt: das schwellt auf _pageSize,
+    // die Kartenliste auf MobileBatchSize. Bei PageSize="100" und 60 Zeilen
+    // waere ShowPagerNow false - und mobil kaemen 35 Zeilen nie in Sicht.
+    // ShowPager=false heisst "alles ungeblaettert", also auch mobil alles.
+    private int MobileTake => ShowPager ? Math.Min(_mobileTake, _sorted.Count) : _sorted.Count;
+
+    private bool HasMore => MobileTake < _sorted.Count;
+
+    private void LoadMore()
+        // Kein Rebuild(): sortiert hat sich nichts, nur der Ausschnitt waechst.
+        => _mobileTake = Math.Min(_mobileTake + MobileBatchSize, _sorted.Count);
 
     private object Key(TItem item) => RowKey?.Invoke(item) ?? item!;
 
@@ -253,6 +299,14 @@ else
             _sortTitle = column.Title;
             _sortDescending = false;
         }
+
+        // Seite 3 einer neu sortierten Liste ist eine andere Seite 3 -
+        // beide Ansichten fangen darum wieder vorne an. Der Mobil-Reset ist
+        // nicht tot: die Sortierkoepfe stecken zwar in der Tabelle, die
+        // unter 1024px ausgeblendet ist, aber ein Tablet sortiert im
+        // Querformat und dreht danach ins Hochformat.
+        _page = 0;
+        _mobileTake = MobileBatchSize;
 
         Rebuild();
     }
@@ -285,6 +339,8 @@ else
 
     private void SetPageSize(int size)
     {
+        // Die Auswahl steht nur im Desktop-Pager - _mobileTake bleibt
+        // absichtlich unberuehrt.
         _pageSize = size;
         _page = 0;
         Rebuild();

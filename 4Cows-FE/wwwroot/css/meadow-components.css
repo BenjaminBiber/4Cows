@@ -1177,12 +1177,18 @@
 }
 
 /* Pager — nicht im Prototyp gezeichnet, aber die Datenmenge ist unbegrenzt.
-   Wird ausgeblendet, solange alles auf eine Seite passt. */
+   Wird ausgeblendet, solange alles auf eine Seite passt. Nur Desktop:
+   mobil ersetzt .mw-cards-more das Blaettern. */
 .mw-pager {
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 10px;
+  /* Der Pager sitzt in .mw-table-wrap, und das ist overflow:hidden. Ohne
+     Umbruch wuerde bei schmalem Desktop der Vor-Chevron stumm abgeschnitten
+     statt in eine zweite Zeile zu rutschen. */
+  flex-wrap: wrap;
+  row-gap: 8px;
   padding: 10px 16px;
   background: var(--mw-tint);
   border-top: 1px solid var(--mw-border);
@@ -1190,6 +1196,9 @@
   color: var(--mw-muted);
 }
 .mw-pager select {
+  /* Schiebt Beschriftung und Auswahl nach links; justify-content oben wird
+     damit fuer den Rest wirkungslos. */
+  margin-right: auto;
   padding: 5px 8px;
   border: 1px solid var(--mw-border);
   border-radius: var(--mw-r-sm);
@@ -1197,21 +1206,81 @@
   font: inherit;
   color: var(--mw-text);
 }
+.mw-pager__pages {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  /* Macht ch zu einer verlaesslichen Einheit - ohne das ist eine 1 schmaler
+     als eine 8 und die Leiste zappelt trotz fester Slot-Breite. */
+  font-variant-numeric: tabular-nums;
+}
 .mw-pager__btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
+  /* min-width statt width: dreistellige Seitenzahlen passen sonst nicht. */
+  min-width: 28px;
   height: 28px;
+  padding-inline: 6px;
   border: 1px solid var(--mw-border);
   border-radius: var(--mw-r-md);
   background: var(--mw-panel);
+  font: inherit;
+  font-size: 13px;
   color: var(--mw-muted);
   cursor: pointer;
+  transition: background var(--mw-t), color var(--mw-t);
 }
 .mw-pager__btn:disabled { opacity: .4; cursor: default; }
 .mw-pager__btn--prev svg { transform: rotate(90deg); }
 .mw-pager__btn--next svg { transform: rotate(-90deg); }
+
+/* Chevrons und Zahlen randlos und rund - die Flaeche traegt nur die
+   aktuelle Seite. */
+.mw-pager__btn--prev,
+.mw-pager__btn--next,
+.mw-pager__btn--page {
+  border-color: transparent;
+  background: transparent;
+  border-radius: var(--mw-r-pill);
+}
+/* Zahlen und Luecken teilen sich eine Slot-Breite: die groesste Seitenzahl
+   (--mw-pager-slot, gesetzt von MeadowTablePager) plus Polsterung, nie
+   unter dem 28px-Klickziel. Sonst wandert der Vor-Chevron beim Blaettern
+   unter dem Mauszeiger weg - der klassische Pagination-Fehler. */
+.mw-pager__btn--page,
+.mw-pager__gap {
+  min-width: max(28px, calc(var(--mw-pager-slot, 2ch) + 12px));
+}
+.mw-pager__btn--page { font-weight: 600; }
+/* Dieselbe Paarung wie .mw-btn--primary. --mw-primary ist in beiden Themes
+   derselbe Ton und taugt nur als Flaeche, nie als Textfarbe (vgl.
+   .mw-row-card__date, das deshalb --mw-soft-fg nimmt). */
+.mw-pager__btn--page.is-current {
+  background: var(--mw-primary);
+  color: #fff;
+  box-shadow: var(--mw-glow-btn);
+}
+.mw-pager__gap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  color: var(--mw-muted);
+  user-select: none;
+}
+@media (hover: hover) {
+  .mw-pager__btn:not(:disabled):not(.is-current):hover {
+    background: var(--mw-tint);
+    color: var(--mw-text);
+  }
+}
+/* Mit Seitenzahlen wird Blaettern per Tastatur erst zur echten Interaktion -
+   bisher hatte im Pager nichts einen Fokusring. */
+.mw-pager__btn:focus-visible {
+  outline: 2px solid var(--mw-primary);
+  outline-offset: 2px;
+}
 
 /* ============================================================
    ZELLEN-BAUSTEINE   (st.pill / dayChip / st.tinyBtn)
@@ -2171,14 +2240,21 @@
 /* Gedaempfter Text in Zellen (Gegenstueck zu .mw-tag--removed). */
 .mw-dim { color: var(--mw-muted); }
 
-/* Fuss der Mobil-Kartenliste (Pager). Eigene Klasse, weil .mw-table-wrap
-   unter 1024px display:none ist. */
-.mw-cards-foot {
-  margin-top: 10px;
-  background: var(--mw-panel);
-  border: 1px solid var(--mw-border);
-  border-radius: var(--mw-r-3xl);
-  overflow: hidden;
+/* Fuss der Mobil-Kartenliste. Mobil ersetzt Nachladen das Blaettern: der
+   Daumen scrollt ohnehin, und ein Pager am Ende einer langen Kartenliste
+   wird schlicht uebersehen - er sah dann aus, als haette die Suche nur die
+   ersten 25 Treffer gefunden. */
+.mw-cards-more {
+  margin-top: 4px;   /* .mw-row-card bringt schon 11px margin-bottom mit. */
+  text-align: center;
+}
+/* .mw-btn--block ergibt aus Polsterung und Zeilenhoehe nur ~39px - unter
+   dem Touch-Ziel, auf das die uebrige Mobil-CSS zielt. */
+.mw-cards-more .mw-btn--block { min-height: var(--mw-control-h-m); }
+.mw-cards-more__count {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--mw-muted);
 }
 
 /* Der Info-Eintrag im Drawer ist ein <button>, kein NavLink - er braucht
