@@ -1,6 +1,13 @@
-@* Blaettern und Seitengroesse. Im Prototyp nicht gezeichnet - die Datenmenge
-   ist aber unbegrenzt, und auf einem Blazor-Server-Circuit ist jede
-   ungeblaetterte Zeile Diff-Verkehr bei jedem Tastendruck in der Suche.
+@using System.Globalization
+
+@* Blaettern und Seitengroesse. Nur noch Desktop: mobil ersetzt der
+   Nachladen-Button in MeadowTable das Blaettern.
+
+   Die Zahlenleiste zeigt IMMER gleich viele Felder (SlotCount), auch am
+   Anfang und Ende. Ein Fenster, das an den Raendern schrumpft statt zu
+   gleiten, laesst den Block wachsen - und weil .mw-pager rechtsbuendig ist,
+   wandert dann bei jedem Klick jede Zahl unter dem Mauszeiger weg.
+
    MeadowTable blendet den Pager aus, solange alles auf eine Seite passt. *@
 <div class="mw-pager">
     <span>@Label</span>
@@ -14,17 +21,42 @@
 
     <span>@From&ndash;@To von @Total</span>
 
-    <button type="button" class="mw-pager__btn mw-pager__btn--prev"
-            title="Vorherige Seite" aria-label="Vorherige Seite"
-            disabled="@(Page == 0)" @onclick="() => PageChanged.InvokeAsync(Page - 1)">
-        <MeadowIcon Name="MeadowIconName.ChevronDown" Size="14" />
-    </button>
+    @* --mw-pager-slot ist die Breite der groessten Seitenzahl in ch. Jeder
+       Slot bekommt sie, damit die Leiste beim Blaettern nicht atmet - eine
+       Luecke ist sonst schmaler als ein Button und "100" breiter als "9". *@
+    <nav class="mw-pager__pages" aria-label="Seitennummerierung"
+         style="--mw-pager-slot: @(PageCount.ToString(CultureInfo.InvariantCulture).Length)ch">
+        <button type="button" class="mw-pager__btn mw-pager__btn--prev"
+                title="Vorherige Seite" aria-label="Vorherige Seite"
+                disabled="@(Page == 0)" @onclick="() => PageChanged.InvokeAsync(Page - 1)">
+            <MeadowIcon Name="MeadowIconName.ChevronDown" Size="14" />
+        </button>
 
-    <button type="button" class="mw-pager__btn mw-pager__btn--next"
-            title="Nächste Seite" aria-label="Nächste Seite"
-            disabled="@(Page >= PageCount - 1)" @onclick="() => PageChanged.InvokeAsync(Page + 1)">
-        <MeadowIcon Name="MeadowIconName.ChevronDown" Size="14" />
-    </button>
+        @foreach (var slot in PageSlots())
+        {
+            @if (slot < 0)
+            {
+                <span class="mw-pager__gap" aria-hidden="true">&hellip;</span>
+            }
+            else
+            {
+                @* aria-current MUSS null sein statt false - "@(slot == Page)"
+                   schriebe woertlich "False" in jeden anderen Button, und
+                   genau das lesen Screenreader dann vor. *@
+                <button type="button"
+                        class="mw-pager__btn mw-pager__btn--page @(slot == Page ? "is-current" : null)"
+                        aria-label="Seite @(slot + 1)"
+                        aria-current="@(slot == Page ? "page" : null)"
+                        @onclick="() => PageChanged.InvokeAsync(slot)">@(slot + 1)</button>
+            }
+        }
+
+        <button type="button" class="mw-pager__btn mw-pager__btn--next"
+                title="Nächste Seite" aria-label="Nächste Seite"
+                disabled="@(Page >= PageCount - 1)" @onclick="() => PageChanged.InvokeAsync(Page + 1)">
+            <MeadowIcon Name="MeadowIconName.ChevronDown" Size="14" />
+        </button>
+    </nav>
 </div>
 
 @code {
@@ -44,4 +76,72 @@
         => int.TryParse(e.Value?.ToString(), out var size) && size > 0
             ? PageSizeChanged.InvokeAsync(size)
             : Task.CompletedTask;
+
+    // ---- Zahlenleiste ---------------------------------------------------
+
+    private const int SlotCount = 7;
+
+    // Zwei verschiedene Sentinels statt zweimal -1: sonst kollidieren die
+    // beiden Luecken, sobald jemand die Schleife keyed. Und zwei Luecken
+    // gibt es erst ab PageCount 9 - also weit hinter jedem schnellen Test.
+    private const int GapLeft = -1;
+    private const int GapRight = -2;
+
+    /// <summary>
+    /// Erste und letzte Seite immer, dazu ein Fenster um die aktuelle -
+    /// und zwar so, dass immer genau Min(PageCount, SlotCount) Felder
+    /// herauskommen. Negative Werte sind Luecken, keine Seiten.
+    /// </summary>
+    private IEnumerable<int> PageSlots()
+    {
+        if (PageCount <= 1)
+        {
+            yield break;
+        }
+
+        // PageCount kommt als Parameter - MeadowTable klemmt Page bereits,
+        // ein fremder Aufrufer muss das nicht tun.
+        var current = Math.Clamp(Page, 0, PageCount - 1);
+
+        if (PageCount <= SlotCount)
+        {
+            for (var page = 0; page < PageCount; page++)
+            {
+                yield return page;
+            }
+
+            yield break;
+        }
+
+        yield return 0;
+
+        if (current <= 3)
+        {
+            for (var page = 1; page <= 4; page++)
+            {
+                yield return page;
+            }
+
+            yield return GapRight;
+        }
+        else if (current >= PageCount - 4)
+        {
+            yield return GapLeft;
+
+            for (var page = PageCount - 5; page < PageCount - 1; page++)
+            {
+                yield return page;
+            }
+        }
+        else
+        {
+            yield return GapLeft;
+            yield return current - 1;
+            yield return current;
+            yield return current + 1;
+            yield return GapRight;
+        }
+
+        yield return PageCount - 1;
+    }
 }
