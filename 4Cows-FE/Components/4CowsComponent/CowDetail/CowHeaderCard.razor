@@ -4,6 +4,11 @@
     Kopf der Kuh-Seite: wer das Tier ist, und die vier Wege, ihm etwas
     hinzuzufuegen.
 
+    Bewusst nur EINE Zeile hoch. Halsbandnummer, Ohrmarke und Status standen
+    vorher untereinander; die Karte war damit so hoch wie eine KPI-Kachel,
+    und genau diese Hoehe fehlte unten bei der Tabelle. Die drei Angaben
+    passen auf eine Grundlinie, die Knoepfe sind .mw-btn--sm.
+
     Die Knoepfe tragen bewusst KEIN .mw-only-desktop. Der FAB fuehrt auf
     dieser Route ins Add-Menue und oeffnet von dort LEERE Dialoge - diese
     vier sind mobil also der einzige Weg zu einem schon vorbelegten Formular,
@@ -11,43 +16,47 @@
 *@
 <div class="mw-cow-head">
     <div class="mw-cow-head__id">
-        <div class="mw-cow-head__collar">Nr. @Collar</div>
-        <div class="mw-cow-head__tag">@EarTag</div>
+        <span class="mw-cow-head__collar">Nr. @Collar</span>
 
-        @if (Cow.IsCalv || Cow.IsGone)
+        @* Nur wenn es eine Ohrmarke GIBT. Ohne eine liefert
+           GetEarTagDisplay den Platzhalter "Kalb", und der stand in einer
+           Zeile mit dem Kennzeichen daneben zweimal da: "Nr. 155 Kalb
+           Kalb". Gefragt wird das Feld und nicht der Anzeigetext - ein
+           Kalb, dem eine Ohrmarke zugewiesen wurde, zeigt sie weiter. *@
+        @if (!string.IsNullOrWhiteSpace(Cow.EarTagNumber))
         {
-            <div class="mw-cow-head__tags">
-                @if (Cow.IsCalv)
-                {
-                    <span class="mw-tag mw-tag--bandage">Kalb</span>
-                }
-                @if (Cow.IsGone)
-                {
-                    <span class="mw-tag mw-tag--removed">Abgang</span>
-                }
-            </div>
+            <span class="mw-cow-head__tag">@EarTag</span>
+        }
+
+        @if (Cow.IsCalv)
+        {
+            <span class="mw-tag mw-tag--bandage">Kalb</span>
+        }
+        @if (Cow.IsGone)
+        {
+            <span class="mw-tag mw-tag--removed">Abgang</span>
         }
     </div>
 
     <div class="mw-cow-head__actions">
-        <button type="button" class="mw-btn mw-btn--primary" disabled="@Cow.IsGone"
+        <button type="button" class="mw-btn mw-btn--sm mw-btn--primary" disabled="@Cow.IsGone"
                 title="@ActionTitle" @onclick="OnAddCowTreatment">
-            <MeadowIcon Name="MeadowIconName.Cow" Size="18" />
+            <MeadowIcon Name="MeadowIconName.Cow" Size="16" />
             <span>Kuh Behandlung</span>
         </button>
-        <button type="button" class="mw-btn mw-btn--primary" disabled="@Cow.IsGone"
+        <button type="button" class="mw-btn mw-btn--sm mw-btn--primary" disabled="@Cow.IsGone"
                 title="@ActionTitle" @onclick="OnAddClawTreatment">
-            <MeadowIcon Name="MeadowIconName.Claw" Size="18" />
+            <MeadowIcon Name="MeadowIconName.Claw" Size="16" />
             <span>Klauen Behandlung</span>
         </button>
-        <button type="button" class="mw-btn mw-btn--ghost" disabled="@Cow.IsGone"
+        <button type="button" class="mw-btn mw-btn--sm mw-btn--ghost" disabled="@Cow.IsGone"
                 title="@ActionTitle" @onclick="OnPlanCowTreatment">
-            <MeadowIcon Name="MeadowIconName.PlannedCow" Size="18" />
+            <MeadowIcon Name="MeadowIconName.PlannedCow" Size="16" />
             <span>Kuh planen</span>
         </button>
-        <button type="button" class="mw-btn mw-btn--ghost" disabled="@Cow.IsGone"
+        <button type="button" class="mw-btn mw-btn--sm mw-btn--ghost" disabled="@Cow.IsGone"
                 title="@ActionTitle" @onclick="OnPlanClawTreatment">
-            <MeadowIcon Name="MeadowIconName.PlannedClaw" Size="18" />
+            <MeadowIcon Name="MeadowIconName.PlannedClaw" Size="16" />
             <span>Klauen planen</span>
         </button>
     </div>

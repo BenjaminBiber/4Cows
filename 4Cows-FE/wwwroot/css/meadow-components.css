@@ -2396,7 +2396,7 @@
    dem Touch-Ziel, auf das die uebrige Mobil-CSS zielt. */
 .mw-cards-more .mw-btn--block { min-height: var(--mw-control-h-m); }
 .mw-cards-more__count {
-  margin: 8px 0 0;
+  margin: 6px 0 0;
   font-size: 13px;
   color: var(--mw-muted);
 }
@@ -2412,44 +2412,183 @@ button.mw-nav-item {
 }
 
 /* ============================================================
-   KUH-SEITE   (Kopfkarte, KPI-Reihe, Klauen-Heatmap,
+   KUH-SEITE   (Seitengeruest, Kopfkarte, KPI-Reihe, Klauen-Heatmap,
                 Balkenlisten, Euterviertel, Zellen-Links)
 
-   Steht bewusst am ENDE der Datei. Zwei Regeln hier gewinnen ueber die
+   Steht bewusst am ENDE der Datei. Drei Regeln hier gewinnen ueber die
    Quellreihenfolge und nicht ueber die Spezifitaet: die Heat-Klassen
-   ueberschreiben --mw-hoof aus .mw-hoof-thumb, und die KPI-Regeln muessen
-   den Mobil-Block des Dashboards (nth-child(n+5)) ueberholen.
+   ueberschreiben --mw-hoof aus .mw-hoof-thumb, die KPI-Regeln muessen den
+   Mobil-Block des Dashboards (nth-child(n+5)) ueberholen, und die Karten
+   der Auswertungsspalte muessen das flex:1 von .mw-card--chart loswerden.
    ============================================================ */
 
+/* ── Seitengeruest ────────────────────────────────────────────── */
+/* Mobil ein Stapel, am Desktop zwei Spalten in Fensterhoehe. */
+.mw-cow-page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Kopfkarte und KPI-Reihe sind so hoch wie ihr Inhalt, nicht wie der freie
+   Platz. Ohne das zieht .mw-kpi-grid sein flex:2 mit (gedacht fuer die
+   Reihe .mw-dash-top des Dashboards) und die sechs Kacheln werden zu
+   halbmeterhohen Kaesten. .mw-cow-split holt sich das flex:1 gleich
+   darunter wieder - gleiche Spezifitaet, spaetere Regel gewinnt. */
+.mw-cow-page > * { flex: 0 0 auto; }
+
+@media (min-width: 1024px) {
+  /* Genau der Platz, den .mw-content seinem Inhalt laesst: Fensterhoehe
+     minus Kopfzeile minus dessen Innenabstand. Die Tabbar zaehlt nicht mit,
+     die ist am Desktop display:none.
+
+     Ein height:100% waere hier wirkungslos - .mw-content-inner ist ein
+     Blockelement mit height:auto, und eine Prozenthoehe darin faellt auf
+     auto zurueck. Deshalb die Rechnung ueber die Token. */
+  .mw-cow-page {
+    height: calc(100dvh - var(--mw-header-h) - 2 * var(--mw-content-pad));
+  }
+
+  .mw-cow-split {
+    display: grid;
+    /* minmax(0,...) und nicht 1fr: ein unteilbares "Sohlengeschwuer" im
+       Befundtext reichte seine Breite sonst nach oben durch, und die
+       Tabellenspalte rechts wuerde dafuer schmaler. */
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 14px;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .mw-cow-col {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 0;
+  }
+
+  /* .mw-card--chart traegt fuer die Diagrammreihe des Dashboards ein
+     flex:1 - in einer Spalte hiesse das "so hoch wie der freie Platz", und
+     der Canvas waechst mit. Wer hier wachsen darf, sagt die Regel weiter
+     unten. */
+  .mw-cow-col > * { flex: 0 0 auto; }
+
+  /* Reicht die Hoehe nicht (kurzes Fenster, viele Befunde), scrollt die
+     Auswertung in sich. Die SEITE scrollt nicht - das ist der Punkt der
+     ganzen Aufteilung. */
+  .mw-cow-col--charts {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .mw-cow-col--lists { overflow: hidden; }
+
+  /* Die Tabelle fuellt den Rest der Spalte und scrollt selbst. Bewusst
+     OHNE display-Angabe: .mw-table-wrap ist mobil display:none, und eine
+     Regel mit zwei Klassen wuerde dieses none ueberholen. */
+  .mw-cow-col--lists > .mw-table-wrap {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+  }
+
+  /* Der eigene Waagerecht-Scroller der Tabelle gibt hier auf. Sonst ist ER
+     der naechste scrollende Vorfahr des Spaltenkopfs, und dessen sticky
+     klebte an einem Kasten, der beim Scrollen selbst mitwandert - sichtbar
+     passiert dann gar nichts. Die Wanne oben scrollt in beiden Richtungen. */
+  .mw-cow-col--lists > .mw-table-wrap > .mw-table-scroll { overflow: visible; }
+
+  /* Der Spaltenkopf muss beim Scrollen stehen bleiben. th traegt schon
+     eine deckende Flaeche (--mw-tint), sonst schiene der Text durch. */
+  .mw-cow-col--lists .mw-table th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+
+  /* Fuenf Laschen in einer halben Bildschirmbreite. */
+  .mw-cow-col--lists .mw-tab { padding: 9px 14px; font-size: 13px; }
+
+  /* Kompakte Karten: die Polsterung von .mw-card ist auf ganze Seiten-
+     breite gerechnet, hier stapeln sich drei davon uebereinander. */
+  .mw-cow-col .mw-card {
+    padding: 10px 14px;
+    border-radius: var(--mw-r-2xl);
+  }
+  .mw-cow-col .mw-card__head { margin-bottom: 6px; }
+  .mw-cow-col .mw-card-title { font-size: 15px; }
+
+  /* Das Diagramm ist der Puffer der Spalte: es nimmt, was die drei Karten
+     uebrig lassen, und gibt als erstes wieder ab. Zwoelf Balken brauchen
+     Breite, nicht Hoehe - unter 96px wird die Achse aber unlesbar, deshalb
+     der Boden.
+
+     flex-basis 0 und nicht auto: Chart.js schreibt dem Canvas eine
+     Pixelhoehe, und die zaehlte bei auto in die Grundgroesse des Elternteils
+     zurueck - der Klassiker, bei dem ein Chart.js-Diagramm bei jedem
+     Neuzeichnen ein Stueck waechst.
+
+     Die Karte selbst bekommt bewusst KEIN min-height:0: bei zu wenig Platz
+     soll sie auf ihrer Mindestgroesse stehen bleiben und die Spalte scrollen
+     lassen. Mit min-height:0 schrumpft sie unter ihren Inhalt, und der
+     Canvas laege ungeschnitten auf der Karte darunter. */
+  .mw-cow-col > .mw-card--chart {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+  }
+  .mw-cow-col .mw-chart-canvas {
+    flex: 1 1 0;
+    height: auto;
+    min-height: 96px;
+  }
+  /* Und der Canvas selbst darf nicht in die Mindesthoehe seines Kastens
+     zaehlen. Sonst waere die zuletzt gezeichnete Pixelhoehe der Boden: das
+     Diagramm koennte beim Vergroessern des Fensters wachsen, beim
+     Verkleinern aber nie wieder schrumpfen. */
+  .mw-cow-col .mw-chart-canvas > canvas { position: absolute; inset: 0; }
+
+  /* 40px Polsterung sind in einer kompakten Karte ein Drittel der Hoehe. */
+  .mw-cow-col .mw-empty { padding: 16px 12px; }
+
+  /* In einer Spalte mit gap zaehlt der eigene Abstand doppelt. */
+  .mw-cow-col .mw-chart-error { margin-top: 0; }
+}
+
 /* ── Kopfkarte ────────────────────────────────────────────────── */
+/* Eine Zeile: Nummer, Ohrmarke und Status auf einer Grundlinie, Aktionen
+   rechts. Untereinander war die Karte so hoch wie eine KPI-Kachel. */
 .mw-cow-head {
   display: flex;
-  gap: 20px;
-  align-items: flex-start;
+  gap: 14px;
+  align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  margin-bottom: 20px;
-  padding: 18px 20px;
+  padding: 9px 16px;
   background: var(--mw-panel);
   border: 1px solid var(--mw-border);
   border-radius: var(--mw-r-2xl);
   box-shadow: var(--mw-shadow-card);
 }
-.mw-cow-head__id { min-width: 0; }
+.mw-cow-head__id {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
 .mw-cow-head__collar {
   font-family: var(--mw-font-display);
   font-weight: 800;
-  font-size: 34px;
-  line-height: 1;
+  font-size: 24px;
+  line-height: 1.1;
   color: var(--mw-text);
 }
 .mw-cow-head__tag {
-  margin-top: 4px;
   font-family: var(--mw-font-mono);
   font-size: 13px;
   color: var(--mw-muted);
 }
-.mw-cow-head__tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
 
 /* Bewusst OHNE .mw-only-desktop: der FAB oeffnet ueber das Add-Menue nur
    LEERE Dialoge, diese vier sind also mobil der einzige Weg zu einer schon
@@ -2457,52 +2596,109 @@ button.mw-nav-item {
 .mw-cow-head__actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
 /* ── KPI-Reihe ────────────────────────────────────────────────── */
-/* Sechs Kacheln statt der acht des Dashboards, deshalb 3x2 statt der
-   auto-fit-Spalten: sechs geht in drei UND in zwei Spalten glatt auf, ein
-   Waisenkind in der letzten Reihe kann gar nicht entstehen. Bei auto-fit
-   mit minmax(210px) faellt ein 1280px-Laptop dagegen auf 5+1. */
-.mw-kpi-grid--cow { grid-template-columns: repeat(3, 1fr); }
+/* Sechs Kacheln, und sie sollen so flach sein wie moeglich: der Platz, den
+   sie hier hergeben, geht unten an die Tabelle.
+
+   Feste Spaltenzahl statt auto-fit: sechs geht in sechs, drei UND zwei
+   glatt auf, ein Waisenkind in der letzten Reihe kann gar nicht entstehen.
+   Bei auto-fit mit minmax(210px) faellt ein 1280px-Laptop auf 5+1. */
+.mw-kpi-grid--cow {
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+/* Ab hier eine einzige Reihe: sechs Kacheln nebeneinander sind halb so hoch
+   wie zwei Reihen mit drei, und der gewonnene Platz geht an die Tabelle.
+   Darunter wird es zu eng - "Häufigster Klauenbefund" braucht in einer
+   160px-Kachel schon zwei Zeilen fuer die Ueberschrift allein, und damit
+   ist der Gewinn wieder weg. */
+@media (min-width: 1280px) {
+  .mw-kpi-grid--cow { grid-template-columns: repeat(6, 1fr); }
+}
 
 /* Ein Rasterelement hat min-width:auto und reicht damit die Breite seines
    Inhalts nach oben durch. Ohne das bekommt ein unteilbares
-   "Sohlengeschwuer" in 40px Display-Schrift die GANZE Seite einen
+   "Sohlengeschwuer" in Display-Schrift die GANZE Seite einen
    Waagerecht-Scroller - kein Schoenheitsfehler, sondern ein Layoutbruch. */
 .mw-kpi-grid--cow > * { min-width: 0; }
 
-/* Kacheln, deren Wert ein Wort ist und keine Zahl. */
-.mw-kpi--text .mw-kpi__value {
-  font-size: 22px;
-  line-height: 1.15;
-  overflow-wrap: anywhere;
+/* Raster statt Spalte: der Vergleich zum Vorzeitraum steht RECHTS neben der
+   Zahl und nicht darunter. Als dritte Zeile machte er die eine Kachel, die
+   ihn hat, 15px hoeher als die anderen fuenf - und weil Rasterzeilen gleich
+   hoch sind, die ganze Reihe. */
+.mw-kpi-grid--cow .mw-kpi {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 8px;
+  padding: 8px 12px;
+  border-radius: var(--mw-r-lg);
 }
+.mw-kpi-grid--cow .mw-kpi__title { grid-column: 1 / -1; font-size: 11px; }
+.mw-kpi-grid--cow .mw-kpi__value { font-size: 24px; }
+.mw-kpi-grid--cow .mw-kpi__delta { font-size: 11px; }
 
-/* ── Kartenreihen ─────────────────────────────────────────────── */
-/* Die Zeitreihe bekommt doppelte Breite: zwoelf Balken brauchen sie, die
-   Heatmap daneben ist ein 2x2-Quadrat und nicht. */
-.mw-card--wide { flex: 2 1 460px; }
+/* Kacheln, deren Wert ein Wort ist und keine Zahl. Die Groesse steht in der
+   --cow-Regel und nicht hier: die Klasse kommt nur auf dieser Seite vor,
+   und dort setzt sie ohnehin jede Regel dieses Abschnitts. */
+.mw-kpi--text .mw-kpi__value { overflow-wrap: anywhere; }
+.mw-kpi-grid--cow .mw-kpi--text .mw-kpi__value { font-size: 15px; line-height: 1.25; }
 
+/* ── Karten der Auswertungsspalte ─────────────────────────────── */
 /* Wie .mw-card--chart, aber ohne Canvas - fuer Heatmap, Balkenlisten und
-   Euterviertel, die reines DOM sind. */
-.mw-card--panel { flex: 1; min-width: 300px; }
+   Euterviertel, die reines DOM sind.
 
-/* Die Heatmap braucht mehr als die 300px der anderen Karten: zwei Spalten
-   mit je einem 52px-Huf plus Befundtext. Bei 300px neben der doppelt so
-   breiten Zeitreihe wurden die beiden rechten Klauen aus der Karte
-   herausgedrueckt, bei 400px blieben dem Befund noch 76px - "Sohlengeschwür"
-   allein ist breiter. 460px lassen der Zelle rund 113px. Eigene Klasse und
-   nicht .mw-card--panel angehoben: in der zweiten Reihe stehen drei Karten
-   nebeneinander, dort waere das auf einem 1024px-Schirm zu viel. */
-.mw-card--heat { min-width: 460px; }
+   Nur min-width und KEIN flex: die Karte stand frueher in einer Reihe
+   neben anderen, heute stapelt sie in .mw-cow-col. Ein flex:1 hiesse dort
+   "so hoch wie der freie Platz", und weil diese Regel spaeter in der Datei
+   steht als das flex:0 0 auto der Spalte, koennte man es dort nicht
+   zurueckholen. */
+.mw-card--panel { min-width: 0; }
+
+/* Mehrere schmale Verteilungen in einer Karte. align-items:start, damit die
+   kuerzere Spalte nicht auf die Hoehe der laengsten mitwaechst. */
+.mw-cow-duo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+/* Euterviertel, Medikamente und Gruende. Das Euter bekommt weniger: es ist
+   ein 2x2 aus vier zweistelligen Zahlen, die Balkenlisten tragen Text. */
+.mw-cow-duo--trio {
+  grid-template-columns: minmax(0, .8fr) minmax(0, 1fr) minmax(0, 1fr);
+}
+.mw-cow-duo__part { min-width: 0; }
+
+/* Zwischentitel, bewusst keine Ueberschrift: .mw-card-title ist auch ein
+   span, und die Gruppierung fuer Screenreader liefern die role="group" der
+   Grafiken bzw. das ol der Balkenlisten. Kleiner und gedaempft, damit der
+   Kartentitel darueber der Kartentitel bleibt. */
+.mw-cow-duo__title {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--mw-muted);
+}
 
 /* Rasterelemente haben min-width:auto und reichen die Breite ihres Inhalts
    nach oben durch. Ohne das sprengt ein langer Befund die Karte, statt
    umzubrechen. */
 .mw-heat-grid > * { min-width: 0; }
 
-/* Und weil "Weiße-Linie-Defekt" auch in 113px nicht als Ganzes passt, darf
-   es notfalls mitten im Wort brechen. Nur hier: im Anzeige-Dialog steht
-   derselbe Befund in einer viel breiteren Spalte. */
-.mw-heat-grid .mw-show-cell__finding { overflow-wrap: anywhere; }
+/* Und weil "Weiße-Linie-Defekt" auch in einer halben Zelle nicht als Ganzes
+   passt, darf es notfalls mitten im Wort brechen. Nur hier: im
+   Anzeige-Dialog steht derselbe Befund in einer viel breiteren Spalte.
+
+   Der engere Zeilenabstand ist dort load-bearing, wo eine Kuh drei Befunde
+   an einer Klaue hat: die Zeile bricht dann um, und 1.5 mal 13px kosten in
+   vier Zellen zusammen mehr als das ganze Diagramm daneben hoch ist. */
+.mw-heat-grid .mw-show-cell__finding {
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
 
 /* ── Heat-Rampe ───────────────────────────────────────────────── */
 /* Die Stufe setzt nur --mw-heat; was daraus wird, entscheidet der
@@ -2529,13 +2725,25 @@ button.mw-nav-item {
 .mw-heat-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 14px;
+  gap: 8px;
+}
+.mw-heat-grid .mw-show-cell { padding: 8px 10px; }
+.mw-heat-grid .mw-show-cell__row { gap: 9px; }
+.mw-heat-grid .mw-hoof-thumb { width: 38px; height: 38px; }
+.mw-heat-grid .mw-show-cell__tags { gap: 4px; margin-top: 5px; }
+
+/* Bezeichnung und Zahl auf einer Grundlinie statt untereinander - siehe
+   den Kommentar in CowHoofHeatmap. */
+.mw-heat-cell__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
 }
 .mw-heat-cell__count {
-  margin-top: 2px;
   font-family: var(--mw-font-display);
   font-weight: 800;
-  font-size: 22px;
+  font-size: 18px;
   line-height: 1;
   color: var(--mw-text);
 }
@@ -2545,14 +2753,14 @@ button.mw-nav-item {
 .mw-heat-legend {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin: 14px 0 0;
-  font-size: 12px;
+  gap: 5px;
+  margin: 6px 0 0;
+  font-size: 11px;
   color: var(--mw-muted);
 }
 .mw-heat-legend__swatch {
-  width: 20px;
-  height: 10px;
+  width: 16px;
+  height: 8px;
   border-radius: var(--mw-r-xs);
   background: var(--mw-heat);
 }
@@ -2606,6 +2814,17 @@ button.mw-nav-item {
   font-weight: 700;
   color: var(--mw-text);
 }
+/* Neben zwei weiteren Verteilungen bleiben rund 240px - die volle
+   Textspalte waere davon fast die Haelfte. Der ganze Name steht im
+   title-Attribut. Und die Zeilenhoehe kommt aus dem Balken (10px) und nicht
+   aus dem Zeilenabstand des Fliesstexts: acht Zeilen mal 1.5 sind sonst
+   allein 30px Luft. */
+.mw-cow-duo .mw-barlist {
+  grid-template-columns: minmax(0, 6.5rem) 1fr auto;
+  gap: 5px 8px;
+}
+.mw-cow-duo .mw-barlist__label,
+.mw-cow-duo .mw-barlist__value { line-height: 1.25; }
 
 /* ── Euterviertel ─────────────────────────────────────────────── */
 /* Geometrie wie das Viertel-Raster im UdderDialog, aber nur zum Lesen:
@@ -2614,7 +2833,7 @@ button.mw-nav-item {
 .mw-udder-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  gap: 8px;
 }
 .mw-udder-cell {
   display: flex;
@@ -2622,7 +2841,7 @@ button.mw-nav-item {
   align-items: center;
   justify-content: center;
   gap: 2px;
-  padding: 18px 8px;
+  padding: 11px 8px;
   border: 1px solid var(--mw-border);
   border-radius: var(--mw-r-2xl);
   /* Flaeche UND Schrift kommen aus derselben Stufe. Nur die Flaeche zu
@@ -2639,9 +2858,12 @@ button.mw-nav-item {
 .mw-udder-cell__count {
   font-family: var(--mw-font-display);
   font-weight: 800;
-  font-size: 26px;
+  font-size: 20px;
   line-height: 1;
 }
+/* Die Fussnoten unter den Grafiken - zwei Zeilen davon waeren so hoch wie
+   eine halbe Zelle. */
+.mw-cow-duo .mw-hint { margin-top: 6px; font-size: 11px; line-height: 1.4; }
 
 /* ── Tab-Leiste mit fuenf Laschen ─────────────────────────────── */
 /* Umbrechen darf sie nicht: der Unterstrich der aktiven Lasche liegt auf
@@ -2684,6 +2906,16 @@ a.mw-row-card { text-decoration: none; }
 
 /* ── Kuh-Seite mobil ──────────────────────────────────────────── */
 @media (max-width: 1023.98px) {
+  /* Kein Zweispalter und keine gedeckelte Hoehe: mobil scrollt die Seite
+     als Ganzes, so wie jede andere auch. .mw-cow-page bleibt der Stapel,
+     der es in der Basis schon ist. */
+  .mw-cow-split,
+  .mw-cow-col { display: flex; flex-direction: column; gap: 12px; }
+
+  /* Zwei Grafiken nebeneinander sind auf 360px keine zwei Grafiken. */
+  .mw-cow-duo,
+  .mw-cow-duo--trio { grid-template-columns: 1fr; gap: 16px; }
+
   /* Muss wiederholt werden: die unbedingte --cow-Regel oben steht SPAETER
      in der Datei als der Mobil-Block des Dashboards und erzwaenge sonst
      auch auf 360px drei Spalten, also 106px je Kachel. */
@@ -2697,29 +2929,33 @@ a.mw-row-card { text-decoration: none; }
      revert - .mw-kpi IST flex, revert fiele auf inline zurueck. */
   .mw-kpi-grid.mw-kpi-grid--cow > *:nth-child(n+5) { display: flex; }
 
-  .mw-kpi--text .mw-kpi__value { font-size: 18px; }
+  /* Am Daumen ist Platz, den der Desktop nicht hat: dort muss die Reihe
+     flach bleiben, hier darf die Zahl wieder lesbar gross sein. */
+  .mw-kpi-grid--cow .mw-kpi__value { font-size: 28px; }
+  .mw-kpi-grid--cow .mw-kpi--text .mw-kpi__value { font-size: 17px; }
 
-  .mw-cow-head { padding: 14px 16px; margin-bottom: 14px; }
-  .mw-cow-head__collar { font-size: 28px; }
+  .mw-cow-head { padding: 12px 16px; }
+  .mw-cow-head__collar { font-size: 26px; }
   .mw-cow-head__actions { width: 100%; }
   .mw-cow-head__actions .mw-btn { flex: 1 1 46%; justify-content: center; }
 
-  .mw-card--wide, .mw-card--panel { flex: 1 1 100%; min-width: 0; }
-
-  /* Zwei gestapelte Reihen brauchen eine Legende, und die frisst mobil ein
-     Sechstel der 150px aus --mw-bars-h. */
-  .mw-card--wide .mw-chart-canvas { height: 190px; }
+  /* Die Legende unter dem Diagramm frisst mobil ein Sechstel der 150px aus
+     --mw-bars-h. Nur hier und nicht an .mw-chart-canvas selbst: auf dem
+     Dashboard stehen drei Diagramme ohne Legende. */
+  .mw-cow-page .mw-chart-canvas { height: 190px; }
 
   .mw-heat-grid { gap: 10px; }
   .mw-heat-grid .mw-show-cell { padding: 10px; }
   .mw-heat-grid .mw-hoof-thumb { width: 40px; height: 40px; }
+  .mw-heat-cell__count { font-size: 20px; }
 
   .mw-udder-cell { padding: 14px 6px; }
   .mw-udder-cell__count { font-size: 22px; }
 
   /* "Amoxicillin 400 mg" in 9.5rem waere fast nur noch Ellipse. Die
      Beschriftung steht deshalb ueber dem Balken, der Wert bleibt rechts. */
-  .mw-barlist { grid-template-columns: 1fr auto; row-gap: 4px; }
+  .mw-barlist,
+  .mw-cow-duo .mw-barlist { grid-template-columns: 1fr auto; row-gap: 4px; }
   .mw-barlist__label { grid-column: 1 / -1; white-space: normal; }
 
   /* Fuenf Laschen passen auf 328px nur mit schmalerem Innenabstand -

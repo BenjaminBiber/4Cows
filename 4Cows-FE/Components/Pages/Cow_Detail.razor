@@ -37,96 +37,130 @@
 }
 else
 {
-    <CowHeaderCard Cow="_cow" Collar="@Collar" EarTag="@EarTag"
-                   OnAddCowTreatment="AddCowTreatment"
-                   OnAddClawTreatment="AddClawTreatment"
-                   OnPlanCowTreatment="PlanCowTreatment"
-                   OnPlanClawTreatment="PlanClawTreatment" />
+    @* Am Desktop zwei Spalten statt eines langen Stapels: links die
+       Auswertung, rechts die Listen.
 
-    <CowKpiTiles Profile="_profile" Collar="@Collar" TopMedicineName="@TopMedicineName" />
+       Die Seite ist dabei auf die Fensterhoehe festgenagelt (.mw-cow-page)
+       und scrollt NICHT mehr als Ganzes - gescrollt wird innerhalb einer
+       Spalte. Nur so bleiben die vier Aktionsknoepfe im Kopf und die Zeile,
+       die man gerade sucht, gleichzeitig sichtbar; vorher lag zwischen
+       beiden eine ganze Bildschirmhoehe Diagramme.
 
-    <div class="mw-dash-charts">
-        <MeadowChartCard Title="@($"Behandlungen pro Monat · {ChartRange}")" Class="mw-card--wide">
-            <ChildContent>
-                @* role="img" plus Zusammenfassung: ein Canvas ist fuer
-                   Screenreader eine leere Flaeche, und die Einzelwerte stehen
-                   ohnehin in den Tabellen weiter unten. *@
-                <canvas id="@ChartId" role="img" aria-label="@ChartSummary"></canvas>
-            </ChildContent>
-        </MeadowChartCard>
+       Mobil bleibt alles ein Stapel - siehe den Mobil-Block im CSS. *@
+    <div class="mw-cow-page">
+        <CowHeaderCard Cow="_cow" Collar="@Collar" EarTag="@EarTag"
+                       OnAddCowTreatment="AddCowTreatment"
+                       OnAddClawTreatment="AddClawTreatment"
+                       OnPlanCowTreatment="PlanCowTreatment"
+                       OnPlanClawTreatment="PlanClawTreatment" />
 
-        <MeadowPanelCard Title="Klauen-Heatmap" Class="mw-card--heat">
-            <CowHoofHeatmap Hoofs="_profile.Hoofs"
-                            TotalTreatments="_profile.TotalClawTreatments"
-                            FallbackFinding="@Settings.ClawFindingFallback" />
-        </MeadowPanelCard>
-    </div>
+        <CowKpiTiles Profile="_profile" Collar="@Collar" TopMedicineName="@TopMedicineName" />
 
-    @if (_chartError is not null)
-    {
-        @* Steht ZWISCHEN den Kartenreihen und nicht am Seitenende wie auf dem
-           Dashboard: darunter kommen noch drei Karten, und dort gelesen
-           wirkte die Meldung, als gehoere sie zur Eutergrafik. *@
-        <div class="mw-chart-error" role="status">
-            Das Diagramm konnte nicht gezeichnet werden. Prüfe, ob die
-            Chart.js-Bibliothek erreichbar ist.
+        <div class="mw-cow-split">
+            <div class="mw-cow-col mw-cow-col--charts mw-scroll">
+                <MeadowChartCard Title="@($"Behandlungen pro Monat · {ChartRange}")">
+                    <ChildContent>
+                        @* role="img" plus Zusammenfassung: ein Canvas ist fuer
+                           Screenreader eine leere Flaeche, und die Einzelwerte
+                           stehen ohnehin in den Tabellen der rechten Spalte. *@
+                        <canvas id="@ChartId" role="img" aria-label="@ChartSummary"></canvas>
+                    </ChildContent>
+                </MeadowChartCard>
+
+                @if (_chartError is not null)
+                {
+                    @* Direkt unter der betroffenen Karte und nicht am Ende der
+                       Spalte: darunter stehen zwei Karten, die gar kein JS
+                       brauchen - dort gelesen wirkte die Meldung, als gehoere
+                       sie zur Eutergrafik. *@
+                    <div class="mw-chart-error" role="status">
+                        Das Diagramm konnte nicht gezeichnet werden. Prüfe, ob die
+                        Chart.js-Bibliothek erreichbar ist.
+                    </div>
+                }
+
+                @* Zwei Karten statt der vier von vorher.
+
+                   Die Klauen bleiben allein auf einer Karte und bekommen die
+                   ganze Spaltenbreite: die Zelle traegt neben dem Huf einen
+                   Befundtext, und "Ballenhornfaeule · Mortellaro (M2)" auf
+                   zwei Zeilen kostet mehr Hoehe, als eine zweite Grafik
+                   daneben einsparen wuerde.
+
+                   Die drei schmalen Verteilungen teilen sich dafuer eine
+                   Karte - Euterviertel sind vier Zahlen, die Balkenlisten
+                   zwei bis acht Zeilen. Die Zwischentitel sind bewusst KEINE
+                   Ueberschriften, sondern Spans wie .mw-card-title: die
+                   Gruppierung fuer Screenreader liefern die role="group" der
+                   Eutergrafik bzw. das ol der Balkenlisten. *@
+                <MeadowPanelCard Title="Klauen">
+                    <CowHoofHeatmap Hoofs="_profile.Hoofs"
+                                    TotalTreatments="_profile.TotalClawTreatments"
+                                    FallbackFinding="@Settings.ClawFindingFallback" />
+                </MeadowPanelCard>
+
+                <MeadowPanelCard Title="Euterviertel, Medikamente & Gründe">
+                    <div class="mw-cow-duo mw-cow-duo--trio">
+                        <section class="mw-cow-duo__part">
+                            <span class="mw-cow-duo__title">Euterviertel</span>
+                            <CowUdderQuadrants Quarters="_profile.UdderQuarters"
+                                               WithQuarter="_profile.UdderTreatments"
+                                               Total="_profile.TotalCowTreatments" />
+                        </section>
+                        <section class="mw-cow-duo__part">
+                            <span class="mw-cow-duo__title">Medikamente</span>
+                            <MeadowBarList Items="MedicineBars" EmptyText="Keine Medikamente erfasst." />
+                        </section>
+                        <section class="mw-cow-duo__part">
+                            <span class="mw-cow-duo__title">Behandlungsgründe</span>
+                            <MeadowBarList Items="ReasonBars" Teal="true" EmptyText="Kein Behandlungsgrund erfasst." />
+                        </section>
+                    </div>
+                </MeadowPanelCard>
+            </div>
+
+            <div class="mw-cow-col mw-cow-col--lists">
+                <div class="mw-tabs mw-tabs--scroll">
+                    @foreach (var tab in CowDetailTabs.All)
+                    {
+                        @* Echte Links, keine Knoepfe: die Auswahl lebt in ?tab=, also ist
+                           aria-current="page" hier woertlich richtig - und die Kacheln
+                           "offene Verbaende" und "offene Termine" koennen darauf zeigen.
+                           null und nicht false: "@(x == y)" schriebe das Literal "False"
+                           ins Attribut, das ein Screenreader dann vorliest. *@
+                        <a class="mw-tab @(_tab == tab ? "is-active" : null)"
+                           href="@TabHref(tab)"
+                           aria-current="@(_tab == tab ? "page" : null)">
+                            @CowDetailTabs.Label(tab)<span class="mw-tab__count">@Count(tab)</span>
+                        </a>
+                    }
+                </div>
+
+                @switch (_tab)
+                {
+                    case CowDetailTab.CowTreatments:
+                        <CowTreatmentsPanel Rows="_profile.CowTreatments" />
+                        break;
+
+                    case CowDetailTab.ClawTreatments:
+                        <ClawTreatmentsPanel Rows="_profile.ClawTreatments" OnChanged="ReloadAsync" />
+                        break;
+
+                    case CowDetailTab.PlannedCow:
+                        <PlannedCowPanel Rows="_profile.PlannedCowTreatments" OnChanged="ReloadAsync" />
+                        break;
+
+                    case CowDetailTab.PlannedClaw:
+                        <PlannedClawPanel Rows="_profile.PlannedClawTreatments" OnChanged="ReloadAsync" />
+                        break;
+
+                    default:
+                        <BandagesPanel Treatments="_profile.ClawTreatments" OnChanged="ReloadAsync" />
+                        break;
+                }
+            </div>
         </div>
-    }
-
-    <div class="mw-dash-charts">
-        <MeadowPanelCard Title="Medikamente">
-            <MeadowBarList Items="MedicineBars" EmptyText="Keine Medikamente erfasst." />
-        </MeadowPanelCard>
-
-        <MeadowPanelCard Title="Behandlungsgründe">
-            <MeadowBarList Items="ReasonBars" Teal="true" EmptyText="Kein Behandlungsgrund erfasst." />
-        </MeadowPanelCard>
-
-        <MeadowPanelCard Title="Euterviertel">
-            <CowUdderQuadrants Quarters="_profile.UdderQuarters"
-                               WithQuarter="_profile.UdderTreatments"
-                               Total="_profile.TotalCowTreatments" />
-        </MeadowPanelCard>
     </div>
-
-    <div class="mw-tabs mw-tabs--scroll">
-        @foreach (var tab in CowDetailTabs.All)
-        {
-            @* Echte Links, keine Knoepfe: die Auswahl lebt in ?tab=, also ist
-               aria-current="page" hier woertlich richtig - und die Kacheln
-               "offene Verbaende" und "offene Termine" koennen darauf zeigen.
-               null und nicht false: "@(x == y)" schriebe das Literal "False"
-               ins Attribut, das ein Screenreader dann vorliest. *@
-            <a class="mw-tab @(_tab == tab ? "is-active" : null)"
-               href="@TabHref(tab)"
-               aria-current="@(_tab == tab ? "page" : null)">
-                @CowDetailTabs.Label(tab)<span class="mw-tab__count">@Count(tab)</span>
-            </a>
-        }
-    </div>
-
-    @switch (_tab)
-    {
-        case CowDetailTab.CowTreatments:
-            <CowTreatmentsPanel Rows="_profile.CowTreatments" />
-            break;
-
-        case CowDetailTab.ClawTreatments:
-            <ClawTreatmentsPanel Rows="_profile.ClawTreatments" OnChanged="ReloadAsync" />
-            break;
-
-        case CowDetailTab.PlannedCow:
-            <PlannedCowPanel Rows="_profile.PlannedCowTreatments" OnChanged="ReloadAsync" />
-            break;
-
-        case CowDetailTab.PlannedClaw:
-            <PlannedClawPanel Rows="_profile.PlannedClawTreatments" OnChanged="ReloadAsync" />
-            break;
-
-        default:
-            <BandagesPanel Treatments="_profile.ClawTreatments" OnChanged="ReloadAsync" />
-            break;
-    }
 }
 
 @code {

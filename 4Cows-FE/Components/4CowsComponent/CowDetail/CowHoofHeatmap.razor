@@ -34,11 +34,17 @@ else
                     <span class="mw-hoof-thumb mw-heat-@Step(hoof.TreatmentCount)"><Hoof /></span>
 
                     <div class="mw-show-cell__body">
-                        <div class="mw-show-cell__title">@HoofPositions.Label(hoof.Position)</div>
-                        <div class="mw-heat-cell__count">
-                            @hoof.TreatmentCount.ToString("N0")
-                            <span class="mw-sr-only">
-                                @(hoof.TreatmentCount == 1 ? "Behandlung" : "Behandlungen")
+                        @* Bezeichnung und Zahl auf EINER Grundlinie. Unter-
+                           einander kostete jede Zelle rund 20px mehr, und
+                           vier davon sind auf einer hoehenbegrenzten Seite
+                           ein Drittel der Karte. *@
+                        <div class="mw-heat-cell__head">
+                            <span class="mw-show-cell__title">@HoofPositions.Label(hoof.Position)</span>
+                            <span class="mw-heat-cell__count">
+                                @hoof.TreatmentCount.ToString("N0")
+                                <span class="mw-sr-only">
+                                    @(hoof.TreatmentCount == 1 ? "Behandlung" : "Behandlungen")
+                                </span>
                             </span>
                         </div>
                         <div class="mw-show-cell__finding">@FindingText(hoof)</div>
