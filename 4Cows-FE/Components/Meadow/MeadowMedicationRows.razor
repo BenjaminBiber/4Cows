@@ -1,0 +1,266 @@
+@using _4Cows_FE.Components._4CowsComponent.Dialogs
+
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject CowTreatmentService CowTreatmentService
+@inject MedicineService MedicineService
+@inject WhereHowService WhereHowService
+@inject UdderService UdderService
+@inject SettingsService SettingsService
+
+@*
+    Die Medikamente einer Behandlungs-Eingabe: je Zeile Medikament, Menge und
+    Wie/Wo - und damit auch die Euterviertel, denn die haengen am Wie/Wo.
+
+    Warum eine eigene Komponente: an der Wie/Wo-Spalte haengen die Anlage neuer
+    Wie/Wos und die Viertel-Auswahl, also rund hundert Zeilen mit heiklen
+    Sonderfaellen. Die standen bisher zweimal - einmal im Behandlungs-, einmal
+    im Plan-Dialog. Je Zeile waeren sie vierfach. Jetzt stehen sie einmal.
+
+    Kein Wurzelelement: Karten und Plus-Knopf sind so direkte Kinder von
+    .mw-dlg-body und erben dessen gap - genau wie der Tier-Wiederholer darueber.
+
+    Beschriftet wird per <span class="mw-label"> plus Label am Mud-Feld, nicht
+    per <label for> mit InputId wie in der alten Einzelfassung: die Zeile
+    wiederholt sich, und eine wiederholte id ist doppelt im DOM - ein Klick auf
+    die Beschriftung landete dann immer in der ersten Zeile. Genau deshalb
+    machen die Tierzeilen es schon so.
+*@
+@foreach (var entry in Rows)
+{
+    <div class="mw-med-row" @key="entry">
+        <div>
+            <div class="mw-med-row__head">
+                <span class="mw-label">Medikament</span>
+
+                @* Der Papierkorb gehoert zur KARTE, nicht zu einem Feld - und
+                   er steht bewusst nicht am Ende der Wie/Wo-Zeile: dort waere
+                   er direkt neben dem Plus-Icon "Wie / Wo speichern", zwei
+                   28px grosse Ziele, und ein Fehlgriff loescht die ganze
+                   Karte. *@
+                @if (Rows.Count > 1)
+                {
+                    <MeadowIconButton Icon="MeadowIconName.Trash" Title="Medikament entfernen"
+                                      Danger="true" OnClick="() => RemoveRow(entry)" />
+                }
+            </div>
+            <div class="mw-field">
+                @* CoerceValue bleibt: unbekannte Medikamente werden beim
+                   Speichern angelegt (MedicineService.GetMedicineIdByName).
+
+                   ValueChanged statt @bind-Value, damit die Auswahl Einheit
+                   und Wie/Wo DIESER Zeile vorbelegen kann - dasselbe Muster
+                   wie beim Wie/Wo-Feld darunter. *@
+                <MudAutocomplete T="string" Label="Medikament" Variant="Variant.Text"
+                                 SelectValueOnTab="true" CoerceValue="true"
+                                 Value="@entry.MedicineName"
+                                 ValueChanged="@(v => OnMedicineChanged(entry, v))"
+                                 SearchFunc="@((string s, CancellationToken c) =>
+                                     CowTreatmentService.SearchCowTreatmentMedicaments(s, c, MedicineService))"
+                                 Placeholder="Medikament suchen…" />
+            </div>
+        </div>
+
+        <div class="mw-field-row">
+            <div class="mw-col mw-col--double">
+                <span class="mw-label">Wie / Wo</span>
+                @* Die Icons bleiben Geschwister des Feldes: MudAutocomplete
+                   erlaubt nur ein Adornment, hier braucht es bis zu zwei. *@
+                <div class="mw-field mw-field--row">
+                    <MudAutocomplete T="string" Label="Wie / Wo" Variant="Variant.Text"
+                                     SelectValueOnTab="true" CoerceValue="true" CoerceText="true"
+                                     Immediate="true"
+                                     Value="@entry.WhereHowName"
+                                     ValueChanged="@(v => OnWhereHowChanged(entry, v))"
+                                     SearchFunc="@((string s, CancellationToken c) =>
+                                         CowTreatmentService.SearchCowTreatmentWhereHow(s, c))"
+                                     Placeholder="z.B. Euter · VL" />
+
+                    @if (entry.ShowEditWhereHowOptions)
+                    {
+                        <MeadowIconButton Icon="@(entry.ShowDialogForNewWhereHow ? MeadowIconName.Claw : MeadowIconName.Cow)"
+                                          Title="@(entry.ShowDialogForNewWhereHow
+                                                   ? "Mit Viertel-Auswahl (aktiv)"
+                                                   : "Ohne Viertel-Auswahl")"
+                                          Size="16"
+                                          OnClick="() => entry.ShowDialogForNewWhereHow = !entry.ShowDialogForNewWhereHow" />
+                        <MeadowIconButton Icon="MeadowIconName.Plus" Title="Wie / Wo speichern"
+                                          Size="16" OnClick="() => SaveNewWhereHow(entry)" />
+                    }
+                    else if (entry.ShowUdderButton)
+                    {
+                        @* Danger, solange kein Viertel gewaehlt ist: sonst
+                           waere die neue Pflicht erst nach dem Klick auf den
+                           Knopf im Dialog-Fuss zu sehen. *@
+                        <MeadowIconButton Icon="MeadowIconName.Cow" Title="@UdderButtonTitle(entry)"
+                                          Danger="@(!UdderService.HasAnyQuarter(entry.UdderId))"
+                                          Size="16" OnClick="() => OpenUdderDialog(entry)" />
+                    }
+                </div>
+            </div>
+            <div class="mw-col">
+                <span class="mw-label">Menge</span>
+                <div class="mw-field">
+                    @* Die Einheit als Adornment und nicht als eigenes Feld:
+                       sie ist abgeleitet, nicht eingegeben. Sie haengt am
+                       Medikament, also an der Zeile - zwei Medikamente in
+                       einer Eingabe koennen "ml" und "Injektor" sein. *@
+                    <MudNumericField T="float" Label="Menge" Variant="Variant.Text"
+                                     HideSpinButtons="true" @bind-Value="entry.Dosage"
+                                     Adornment="Adornment.End" AdornmentText="@entry.DosageUnit"
+                                     Placeholder="20" />
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<button type="button" class="mw-add-row" @onclick="AddRow">
+    <MeadowIcon Name="MeadowIconName.Plus" Size="16" />
+    <span>Weiteres Medikament hinzufügen</span>
+</button>
+
+@code {
+    /// <summary>
+    /// Die Liste des Dialogs, keine Kopie - wie MeadowMultiSelect.Selected. Der
+    /// Dialog legt die erste Zeile in OnInitialized an (und belegt sie beim
+    /// Abschliessen einer Planung vor) und liest sie in Save wieder aus.
+    ///
+    /// Kein EventCallback&lt;List&lt;MedicationEntry&gt;&gt;: damit waere die
+    /// Klasse "Parameter-Set ueberschreibt lokale Eingabe" zurueck, die
+    /// ClawSelector ausdruecklich vermeidet.
+    /// </summary>
+    [Parameter, EditorRequired] public List<MedicationEntry> Rows { get; set; } = new();
+
+    /// <summary>
+    /// Nach Hinzufuegen und Entfernen einer Zeile. Der Dialog zeigt unter dem
+    /// Formular, wie viele Behandlungen Tiere mal Medikamente ergeben - und
+    /// diese Zahl braucht die Tierzeilen, die es hier nicht gibt.
+    /// </summary>
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    private Task AddRow()
+    {
+        // Mit der Voreinstellung als Einheit, damit am Mengenfeld schon vor
+        // der Medikamentenwahl die uebliche Einheit steht.
+        Rows.Add(new MedicationEntry { DosageUnit = SettingsService.DefaultDosageUnit });
+        return OnChanged.InvokeAsync();
+    }
+
+    private Task RemoveRow(MedicationEntry entry)
+    {
+        // Die letzte Zeile bleibt. Der Papierkorb wird erst ab Rows.Count > 1
+        // gerendert; der Guard hier ist die Zusicherung dazu, nicht die
+        // Anzeige.
+        if (Rows.Count <= 1)
+        {
+            return Task.CompletedTask;
+        }
+
+        Rows.Remove(entry);
+        return OnChanged.InvokeAsync();
+    }
+
+    private void OnMedicineChanged(MedicationEntry entry, string? value)
+        => MedicationRows.ApplyMedicine(
+            entry, value, MedicineService, WhereHowService, SettingsService);
+
+    private void OnWhereHowChanged(MedicationEntry entry, string? value)
+        => MedicationRows.ApplyWhereHow(entry, value, WhereHowService);
+
+    private async Task SaveNewWhereHow(MedicationEntry entry)
+    {
+        if (string.IsNullOrWhiteSpace(entry.WhereHowName))
+        {
+            Snackbar.Add("Wie / Wo ist leer.", Severity.Error);
+            return;
+        }
+
+        if (!await Confirm("Speichern", $"„{entry.WhereHowName}\" als Wie / Wo speichern?", "Ja", Color.Warning))
+        {
+            return;
+        }
+
+        // Rueckgabewert auswerten: schlaegt der Insert fehl - etwa an der
+        // UNIQUE-Spalte auf Alt-Bestaenden, wenn jemand parallel denselben
+        // Namen anlegt - lief der Dialog vorher weiter und meldete Erfolg.
+        var inserted = await WhereHowService.InsertDataAsync(new WhereHow
+        {
+            WhereHowName = entry.WhereHowName.Trim(),
+            ShowDialog = entry.ShowDialogForNewWhereHow
+        });
+
+        if (!inserted)
+        {
+            Snackbar.Add("Wie / Wo konnte nicht gespeichert werden.", Severity.Error);
+            return;
+        }
+
+        entry.ShowEditWhereHowOptions = false;
+
+        // Der neue Eintrag steht jetzt im Cache. Traegt er die Viertel-Auswahl,
+        // muss der Euter-Knopf DIESER Zeile erreichbar bleiben: bricht der
+        // Nutzer den Viertel-Dialog gleich darunter ab, waere er sonst mit
+        // einem Wie/Wo ohne Viertel eingesperrt, das das Speichern nicht mehr
+        // durchlaesst.
+        entry.ShowUdderButton = entry.ShowDialogForNewWhereHow;
+
+        if (entry.ShowDialogForNewWhereHow)
+        {
+            await OpenUdderDialog(entry);
+        }
+        else
+        {
+            entry.UdderId = await UdderService.GetIdForNoQuarters();
+        }
+    }
+
+    private async Task OpenUdderDialog(MedicationEntry entry)
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<UdderDialog>(string.Empty, options);
+        var result = await dialog.Result;
+
+        // Abbruch darf NICHT als "keine Viertel" durchgehen - dann bleibt die
+        // vorher getroffene Auswahl dieser Zeile bestehen.
+        if (result is null || result.Canceled || result.Data is not int id || id == int.MinValue)
+        {
+            return;
+        }
+
+        entry.UdderId = id;
+
+        // Der Knopf bleibt stehen. Er ist der einzige Weg, eine getroffene
+        // Auswahl noch zu aendern - und sein Titel ist die einzige Stelle, an
+        // der sie ueberhaupt zu sehen ist. Jetzt je Zeile, also zeigt jede
+        // Zeile ihre eigenen Viertel.
+    }
+
+    private string UdderButtonTitle(MedicationEntry entry)
+    {
+        if (!UdderService.HasAnyQuarter(entry.UdderId))
+        {
+            return "Euterviertel wählen — erforderlich";
+        }
+
+        var quarters = WhereHowService.GetUdderString(UdderService.GetById(entry.UdderId));
+        return $"Euterviertel {quarters} — ändern";
+    }
+
+    private async Task<bool> Confirm(string header, string description, string accept, Color scheme)
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var parameters = new DialogParameters<GenericDialog>
+        {
+            { x => x.HeaderText, header },
+            { x => x.Description, description },
+            { x => x.AcceptButtonText, accept },
+            { x => x.CancelButtonText, "Abbrechen" },
+            { x => x.ColorScheme, scheme }
+        };
+
+        var dialog = await DialogService.ShowAsync<GenericDialog>(string.Empty, parameters, options);
+        var result = await dialog.Result;
+        return result is not null && !result.Canceled;
+    }
+}

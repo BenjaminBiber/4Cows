@@ -45,19 +45,44 @@ namespace BB_Cow.Services
             }
         }
 
-        public async Task<bool> InsertDataAsync(PlannedCowTreatment cowTreatment)
+        /// <summary>
+        /// Mehrere Planungen in EINEM SaveChanges und mit EINEM Cache-Neuladen.
+        ///
+        /// Vorher lud der Insert nach JEDER Zeile die ganze Tabelle neu. Bei
+        /// mehreren Tieren mal mehreren Medikamenten waren das N mal M
+        /// Volldurchlaeufe fuer einen Klick. Das eine Neuladen deckt beide
+        /// abgeleiteten Listen mit ab.
+        ///
+        /// Alles oder nichts: SaveChangesAsync auf einem Context ist eine
+        /// Transaktion, ein Fehler laesst also keine Zeile stehen. Damit gibt es
+        /// die halb gespeicherte Serie nicht mehr, um die sich die
+        /// Teilerfolgs-Meldung im Dialog kuemmern musste.
+        ///
+        /// Jede Planung muss eine EIGENE Instanz sein. Eine wiederverwendete
+        /// waere beim zweiten Add dieselbe - nun getrackte - Zeile, und AddRange
+        /// schriebe sie still nur einmal.
+        /// </summary>
+        public async Task<bool> InsertRangeAsync(IReadOnlyCollection<PlannedCowTreatment> treatments)
         {
+            if (treatments.Count == 0)
+            {
+                return true;
+            }
+
             try
             {
                 await using var context = await _contextFactory.CreateDbContextAsync();
-                await context.PlannedCowTreatments.AddAsync(cowTreatment);
-                var isSuccess = await context.SaveChangesAsync() > 0;
+                await context.PlannedCowTreatments.AddRangeAsync(treatments);
+
+                // Nicht > 0: eine Teilzahl waere ein Widerspruch zur
+                // Transaktion und soll als Fehlschlag gemeldet werden.
+                var isSuccess = await context.SaveChangesAsync() == treatments.Count;
                 _databaseStatusService.ReportSuccess();
 
                 if (isSuccess)
                 {
                     await GetAllDataAsync();
-                    LoggerService.LogInformation(typeof(PCowTreatmentService), "Data inserted successfully: {@cowTreatment}", cowTreatment);
+                    LoggerService.LogInformation(typeof(PCowTreatmentService), $"Inserted {treatments.Count} planned cow treatments.");
                 }
 
                 return isSuccess;
@@ -65,7 +90,7 @@ namespace BB_Cow.Services
             catch (Exception ex)
             {
                 _databaseStatusService.ReportFailure();
-                LoggerService.LogError(typeof(PCowTreatmentService), "Failed to insert planned cow treatment, with {@Message}", ex, ex.Message);
+                LoggerService.LogError(typeof(PCowTreatmentService), "Failed to insert planned cow treatments, with {@Message}", ex, ex.Message);
                 return false;
             }
         }

@@ -1,18 +1,19 @@
 @using _4Cows_FE.Components.Meadow
 
 @inject ISnackbar Snackbar
-@inject IDialogService DialogService
 @inject PCowTreatmentService pCowTreatmentService
-@inject CowTreatmentService cowTreatmentService
 @inject CowService cowService
 @inject MedicineService medicineService
 @inject WhereHowService WhereHowService
 @inject UdderService UdderService
-@inject SettingsService SettingsService
 @inject TreatmentReasonService TreatmentReasonService
+@inject SettingsService SettingsService
 
 <MeadowDialog Title="Kuh Behandlung planen" Size="MeadowDialogSize.Cow">
     <ChildContent>
+        @* Mehrere Tiere mit gleichem Datum und gleichem Grund. Medikament,
+           Menge und Wie/Wo stehen in den Karten weiter unten - jedes Tier
+           bekommt jedes Medikament. *@
         @foreach (var entry in _numbers)
         {
             <div class="mw-field-row" @key="entry">
@@ -58,67 +59,7 @@
             </div>
         </div>
 
-        <div>
-            <label class="mw-label" for="mw-planned-medicine">Medikament</label>
-            <div class="mw-field">
-                @* ValueChanged statt @bind-Value, damit die Auswahl Einheit
-                   und Wie/Wo vorbelegen kann - wie im Behandlungs-Dialog. *@
-                <MudAutocomplete T="string" InputId="mw-planned-medicine" Variant="Variant.Text"
-                                 SelectValueOnTab="true" CoerceValue="true"
-                                 Value="@MedicineName"
-                                 ValueChanged="OnMedicineChanged"
-                                 SearchFunc="@((string s, CancellationToken c) =>
-                                     cowTreatmentService.SearchCowTreatmentMedicaments(s, c, medicineService))"
-                                 Placeholder="Medikament suchen…" />
-            </div>
-        </div>
-
-        <div class="mw-field-row">
-            <div class="mw-col mw-col--double">
-                <label class="mw-label" for="mw-planned-wherehow">Wie / Wo</label>
-                <div class="mw-field mw-field--row">
-                    <MudAutocomplete T="string" InputId="mw-planned-wherehow" Variant="Variant.Text"
-                                     SelectValueOnTab="true" CoerceValue="true" CoerceText="true"
-                                     Immediate="true"
-                                     Value="@_selectedWhereHow"
-                                     ValueChanged="OnWhereHowChanged"
-                                     SearchFunc="@((string s, CancellationToken c) =>
-                                         cowTreatmentService.SearchCowTreatmentWhereHow(s, c))"
-                                     Placeholder="z.B. Euter · VL" />
-
-                    @if (_showEditWhereHowOptions)
-                    {
-                        <MeadowIconButton Icon="@(_showDialogForNewWhereHow ? MeadowIconName.Claw : MeadowIconName.Cow)"
-                                          Title="@(_showDialogForNewWhereHow
-                                                   ? "Mit Viertel-Auswahl (aktiv)"
-                                                   : "Ohne Viertel-Auswahl")"
-                                          Size="16"
-                                          OnClick="() => _showDialogForNewWhereHow = !_showDialogForNewWhereHow" />
-                        <MeadowIconButton Icon="MeadowIconName.Plus" Title="Wie / Wo speichern"
-                                          Size="16" OnClick="SaveNewWhereHow" />
-                    }
-                    else if (_showUdderButton)
-                    {
-                        @* Danger, solange kein Viertel gewaehlt ist: sonst
-                           waere die neue Pflicht erst nach dem Klick auf
-                           Planen zu sehen. *@
-                        <MeadowIconButton Icon="MeadowIconName.Cow" Title="@UdderButtonTitle"
-                                          Danger="@(!UdderService.HasAnyQuarter(_udderId))"
-                                          Size="16" OnClick="OpenUdderDialog" />
-                    }
-                </div>
-            </div>
-            <div class="mw-col">
-                <label class="mw-label" for="mw-planned-dosage">Menge</label>
-                <div class="mw-field">
-                    @* Einheit als Adornment - abgeleitet, nicht eingegeben. *@
-                    <MudNumericField T="float" InputId="mw-planned-dosage" Variant="Variant.Text"
-                                     HideSpinButtons="true" @bind-Value="_dosage"
-                                     Adornment="Adornment.End" AdornmentText="@_dosageUnit"
-                                     Placeholder="20" />
-                </div>
-            </div>
-        </div>
+        <MeadowMedicationRows Rows="_medications" OnChanged="StateHasChanged" />
 
         <div>
             <label class="mw-label" for="mw-planned-reason">Behandlungsgrund</label>
@@ -134,6 +75,16 @@
                                  Placeholder="optional, z.B. Mastitis" />
             </div>
         </div>
+
+        @if (TotalTreatments > 1)
+        {
+            @* Ohne diesen Hinweis ist das Kreuzprodukt erst an der
+               Erfolgsmeldung zu merken - und dann stehen die Zeilen schon in
+               der Tabelle. *@
+            <div class="mw-hint">
+                Jedes Tier bekommt jedes Medikament: @TotalTreatments Behandlungen werden geplant.
+            </div>
+        }
     </ChildContent>
     <Footer>
         <button type="button" class="mw-btn mw-btn--plain mw-btn--wide" @onclick="Cancel">
@@ -149,88 +100,20 @@
     [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = default!;
 
     private readonly List<NumberEntry> _numbers = new();
+    private readonly List<MedicationEntry> _medications = new();
     private DateTime? NullDate;
-    private string? MedicineName;
-    private float _dosage;
     private string? _reasonName;
-    private string _selectedWhereHow = "";
-    private int _udderId = int.MinValue;
-    private bool _showEditWhereHowOptions;
-    private bool _showDialogForNewWhereHow;
-    private bool _showUdderButton;
 
-    /// <summary>Einheit des gewaehlten Medikaments, nur Anzeige am Mengenfeld.</summary>
-    private string _dosageUnit = "";
-
-    /// <summary>
-    /// Ob der aktuelle Wie/Wo-Wert aus der Vorbelegung stammt und nicht
-    /// getippt wurde - siehe Add_Cow_Treatment_Dialog.
-    /// </summary>
-    private bool _whereHowAutoFilled;
+    private int TotalTreatments => _numbers.Count * _medications.Count;
 
     protected override void OnInitialized()
     {
         NullDate = DateTime.Now;
         _numbers.Add(new NumberEntry());
-        _dosageUnit = SettingsService.DefaultDosageUnit;
-    }
 
-    private void OnMedicineChanged(string? value)
-    {
-        MedicineName = value;
-        _dosageUnit = ResolveUnit(value);
-        ApplyMedicineDefaults(value);
-    }
-
-    /// <summary>
-    /// Uebernimmt die Standard-Verabreichungsart des Medikaments - aber nur in
-    /// ein leeres oder selbst vorbelegtes Feld. Eine von Hand eingetragene
-    /// Verabreichungsart darf ein spaeter korrigiertes Medikament nicht
-    /// wegwerfen.
-    /// </summary>
-    private void ApplyMedicineDefaults(string? medicineName)
-    {
-        if (!string.IsNullOrWhiteSpace(_selectedWhereHow) && !_whereHowAutoFilled)
-        {
-            return;
-        }
-
-        var medicine = FindMedicine(medicineName);
-        if (medicine?.DefaultWhereHowId is not { } whereHowId)
-        {
-            return;
-        }
-
-        var name = WhereHowService.GetWhereHowNameById(whereHowId);
-        if (string.IsNullOrWhiteSpace(name))
-        {
-            return;
-        }
-
-        // Ueber OnWhereHowChanged, weil dort der Euter-Button und das
-        // Zuruecksetzen der Viertel haengen.
-        OnWhereHowChanged(name);
-        _whereHowAutoFilled = true;
-    }
-
-    private string ResolveUnit(string? medicineName)
-    {
-        var medicine = FindMedicine(medicineName);
-
-        return string.IsNullOrWhiteSpace(medicine?.DosageUnit)
-            ? SettingsService.DefaultDosageUnit
-            : medicine!.DosageUnit!.Trim();
-    }
-
-    private Medicine? FindMedicine(string? medicineName)
-    {
-        if (string.IsNullOrWhiteSpace(medicineName))
-        {
-            return null;
-        }
-
-        return medicineService.Medicines.Values.FirstOrDefault(m =>
-            string.Equals(m.MedicineName.Trim(), medicineName.Trim(), StringComparison.OrdinalIgnoreCase));
+        // Mit der Voreinstellung als Einheit: hier ist noch kein Medikament
+        // gewaehlt, das eine eigene mitbringen koennte.
+        _medications.Add(new MedicationEntry { DosageUnit = SettingsService.DefaultDosageUnit });
     }
 
     private void AddRow() => _numbers.Add(new NumberEntry());
@@ -254,107 +137,6 @@
         entry.Value = collar == int.MinValue ? null : collar;
     }
 
-    private void OnWhereHowChanged(string? value)
-    {
-        _selectedWhereHow = value ?? "";
-        var text = _selectedWhereHow.Trim();
-
-        // Jede Aenderung gilt zunaechst als getippt. ApplyMedicineDefaults
-        // setzt das Flag direkt nach seinem Aufruf wieder auf true.
-        _whereHowAutoFilled = false;
-
-        var known = WhereHowService.WhereHows.Values
-            .FirstOrDefault(w => string.Equals(w.WhereHowName.Trim(), text, StringComparison.OrdinalIgnoreCase));
-
-        _showUdderButton = known?.ShowDialog ?? false;
-        _showEditWhereHowOptions = known is null && text.Length > 0;
-
-        // Ohne Viertel-Auswahl darf keine haengenbleiben: wer erst "Euter"
-        // mit LV waehlt und dann auf "i.m." wechselt, plante sonst die
-        // Viertel der verworfenen Auswahl mit.
-        if (!_showUdderButton)
-        {
-            _udderId = int.MinValue;
-        }
-    }
-
-    private async Task SaveNewWhereHow()
-    {
-        if (string.IsNullOrWhiteSpace(_selectedWhereHow))
-        {
-            Snackbar.Add("Wie / Wo ist leer.", Severity.Error);
-            return;
-        }
-
-        if (!await Confirm("Speichern", $"„{_selectedWhereHow}\" als Wie / Wo speichern?", "Ja", Color.Warning))
-        {
-            return;
-        }
-
-        // Rueckgabewert auswerten: schlaegt der Insert fehl - etwa an der
-        // UNIQUE-Spalte auf Alt-Bestaenden, wenn jemand parallel denselben
-        // Namen anlegt - lief der Dialog vorher weiter und meldete Erfolg.
-        var inserted = await WhereHowService.InsertDataAsync(new WhereHow
-        {
-            WhereHowName = _selectedWhereHow.Trim(),
-            ShowDialog = _showDialogForNewWhereHow
-        });
-
-        if (!inserted)
-        {
-            Snackbar.Add("Wie / Wo konnte nicht gespeichert werden.", Severity.Error);
-            return;
-        }
-
-        _showEditWhereHowOptions = false;
-
-        // Der neue Eintrag steht jetzt im Cache. Traegt er die Viertel-
-        // Auswahl, muss der Euter-Knopf erreichbar bleiben: bricht der Nutzer
-        // den Viertel-Dialog gleich darunter ab, waere er sonst mit einem
-        // Wie/Wo ohne Viertel eingesperrt, das Save nicht mehr durchlaesst.
-        _showUdderButton = _showDialogForNewWhereHow;
-
-        if (_showDialogForNewWhereHow)
-        {
-            await OpenUdderDialog();
-        }
-        else
-        {
-            _udderId = await UdderService.GetIdForNoQuarters();
-        }
-    }
-
-    private async Task OpenUdderDialog()
-    {
-        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
-        var dialog = await DialogService.ShowAsync<UdderDialog>(string.Empty, options);
-        var result = await dialog.Result;
-
-        if (result is null || result.Canceled || result.Data is not int id || id == int.MinValue)
-        {
-            return;
-        }
-
-        _udderId = id;
-
-        // Der Knopf bleibt stehen (vorher: _showUdderButton = false). Er ist
-        // jetzt der einzige Weg, eine getroffene Auswahl noch zu aendern -
-        // und sein Titel ist die einzige Stelle, an der sie zu sehen ist.
-    }
-
-    private string UdderButtonTitle
-    {
-        get
-        {
-            if (!UdderService.HasAnyQuarter(_udderId))
-            {
-                return "Euterviertel wählen — erforderlich";
-            }
-
-            return $"Euterviertel {WhereHowService.GetUdderString(UdderService.GetById(_udderId))} — ändern";
-        }
-    }
-
     private void Cancel() => MudDialog.Cancel();
 
     private async Task Save()
@@ -362,18 +144,6 @@
         if (NullDate is null)
         {
             Snackbar.Add("Bitte ein Datum wählen.", Severity.Error);
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(MedicineName))
-        {
-            Snackbar.Add("Bitte ein Medikament angeben.", Severity.Error);
-            return;
-        }
-
-        if (_dosage == 0)
-        {
-            Snackbar.Add("Bitte eine Menge angeben.", Severity.Error);
             return;
         }
 
@@ -386,45 +156,20 @@
             return;
         }
 
-        var medicineId = await medicineService.GetMedicineIdByName(MedicineName);
-        if (medicineId == int.MinValue)
+        // Medikament, Wie/Wo, Menge und Viertel JEDER Karte - aufgeloest, bevor
+        // irgendetwas geschrieben wird. Die Meldung kommt aus ResolveAsync
+        // selbst, null heisst abbrechen.
+        var medications = await MedicationRows.ResolveAsync(
+            _medications, medicineService, WhereHowService, UdderService, Snackbar);
+
+        if (medications is null)
         {
-            Snackbar.Add("Medikament nicht gefunden!", Severity.Error);
             return;
         }
-
-        var whereHowId = await WhereHowService.GetWhereHowIDByName(_selectedWhereHow, _showDialogForNewWhereHow);
-        if (whereHowId == int.MinValue)
-        {
-            Snackbar.Add("Wie / Wo nicht gefunden!", Severity.Error);
-            return;
-        }
-
-        // Traegt das Wie/Wo die Viertel-Auswahl, ist "kein Viertel" keine
-        // gueltige Angabe. Vorher fiel Save hier still auf
-        // GetIdForNoQuarters() zurueck: wer den Euter-Knopf nie antippte oder
-        // den Viertel-Dialog abbrach, plante eine Euterbehandlung ohne
-        // Viertel - und Abschliessen uebernahm sie genau so.
-        //
-        // ShowDialog wird am aufgeloesten Eintrag gelesen, nicht an
-        // _showDialogForNewWhereHow: der Toggle gilt nur fuer neu angelegte
-        // Wie/Wos, und new WhereHow() hat ShowDialog = true.
-        var whereHow = WhereHowService.GetById(whereHowId);
-        if (whereHow.ShowDialog && !UdderService.HasAnyQuarter(_udderId))
-        {
-            Snackbar.Add(
-                $"„{whereHow.WhereHowName}\" braucht mindestens ein Euterviertel.",
-                Severity.Error);
-            return;
-        }
-
-        var udderId = _udderId == int.MinValue
-            ? await UdderService.GetIdForNoQuarters()
-            : _udderId;
 
         // Optional: ein leeres Feld ist gueltig und ergibt null. Aufgeloest
-        // wird VOR der Einfuege-Schleife - wie Medikament und Wie/Wo, damit
-        // ein Fehlschlag keine halb gespeicherte Serie zuruecklaesst.
+        // wird VOR der Einfuege-Schleife - wie die Medikamente, damit ein
+        // Fehlschlag keine halb gespeicherte Serie zuruecklaesst.
         int? reasonId = null;
         if (!string.IsNullOrWhiteSpace(_reasonName))
         {
@@ -438,57 +183,58 @@
             reasonId = resolved;
         }
 
-        var saved = 0;
+        // Kreuzprodukt, Tier aussen: so stehen in der Tabelle alle Mittel von
+        // Tier 1 beieinander, dann die von Tier 2.
+        //
+        // Pro Paar eine NEUE Entitaet. Eine wiederverwendete Instanz waere beim
+        // zweiten Add dieselbe - nun getrackte - Zeile, und AddRange schriebe
+        // sie still nur einmal.
+        var planned = new List<PlannedCowTreatment>(_numbers.Count * medications.Count);
         foreach (var entry in _numbers)
         {
-            // Pro Zeile eine NEUE Entitaet. Bisher wurde eine einzige Instanz
-            // wiederverwendet und nur EarTagNumber umgesetzt - EF haette beim
-            // zweiten Add dieselbe (nun getrackte) Instanz gesehen.
-            var success = await pCowTreatmentService.InsertDataAsync(new PlannedCowTreatment
+            foreach (var medication in medications)
             {
-                EarTagNumber = entry.EarValue!,
-                MedicineId = medicineId,
-                MedicineDosage = _dosage,
-                WhereHowId = whereHowId,
-                AdministrationDate = NullDate.Value,
-                UdderId = udderId,
-                TreatmentReasonId = reasonId
-            });
-
-            if (!success)
-            {
-                Snackbar.Add(
-                    $"Speichern fehlgeschlagen bei Halsbandnummer {entry.Value}. "
-                    + $"{saved} von {_numbers.Count} Planungen wurden gespeichert.",
-                    Severity.Error);
-                MudDialog.Close(DialogResult.Ok(saved > 0));
-                return;
+                planned.Add(new PlannedCowTreatment
+                {
+                    EarTagNumber = entry.EarValue!,
+                    MedicineId = medication.MedicineId,
+                    MedicineDosage = medication.Dosage,
+                    WhereHowId = medication.WhereHowId,
+                    AdministrationDate = NullDate.Value,
+                    UdderId = medication.UdderId,
+                    TreatmentReasonId = reasonId
+                });
             }
-
-            saved++;
         }
 
-        Snackbar.Add(
-            saved == 1 ? "Behandlung geplant." : $"{saved} Behandlungen geplant.",
-            Severity.Success);
+        if (!await pCowTreatmentService.InsertRangeAsync(planned))
+        {
+            // Der Dialog bleibt OFFEN: es ist nichts gespeichert, und die
+            // Eingaben sollen fuer einen zweiten Versuch stehenbleiben. Vorher
+            // schloss der Dialog hier und die Eingaben waren weg.
+            Snackbar.Add(
+                "Planen fehlgeschlagen. Es wurde keine Behandlung geplant.",
+                Severity.Error);
+            return;
+        }
 
+        Snackbar.Add(PlannedMessage(_numbers.Count, medications.Count), Severity.Success);
         MudDialog.Close(DialogResult.Ok(true));
     }
 
-    private async Task<bool> Confirm(string header, string description, string accept, Color scheme)
+    // Eine Meldung, nicht eine pro Tier. Die Aufschluesselung nur, wenn beides
+    // mehr als eins ist: sechs Zeilen aus zwei Eingaben ueberrascht sonst.
+    private static string PlannedMessage(int animals, int medications)
     {
-        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
-        var parameters = new DialogParameters<GenericDialog>
-        {
-            { x => x.HeaderText, header },
-            { x => x.Description, description },
-            { x => x.AcceptButtonText, accept },
-            { x => x.CancelButtonText, "Abbrechen" },
-            { x => x.ColorScheme, scheme }
-        };
+        var total = animals * medications;
 
-        var dialog = await DialogService.ShowAsync<GenericDialog>(string.Empty, parameters, options);
-        var result = await dialog.Result;
-        return result is not null && !result.Canceled;
+        if (total == 1)
+        {
+            return "Behandlung geplant.";
+        }
+
+        return animals > 1 && medications > 1
+            ? $"{total} Behandlungen geplant ({animals} Tiere × {medications} Medikamente)."
+            : $"{total} Behandlungen geplant.";
     }
 }
