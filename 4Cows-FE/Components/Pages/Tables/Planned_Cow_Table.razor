@@ -17,6 +17,7 @@
 @inject CowService cowService
 @inject WhereHowService WhereHowService
 @inject UdderService UdderService
+@inject TreatmentReasonService TreatmentReasonService
 
 @* Dieselbe Filterleiste wie Cow_Table/Claw_Table - bisher hatte diese Seite
    nur ein Suchfeld. Der Zeitraum zeigt hier in die ZUKUNFT: geplante
@@ -42,6 +43,9 @@
             <ChildContent>
                 <MeadowMultiSelect Label="Medikament" Options="MedicineOptions"
                                    Selected="_filter.Medicines"
+                                   SelectionChanged="Apply" />
+                <MeadowMultiSelect Label="Grund" Options="ReasonOptions"
+                                   Selected="_filter.Reasons"
                                    SelectionChanged="Apply" />
                 <MeadowSingleSelect Label="Gefunden" Options="FlagStates.FoundLabels"
                                     Value="@_filter.Found"
@@ -86,6 +90,12 @@
                 <span>@row.AdministrationDate.ToString("dd.MM.yyyy")</span>
                 <span>@WhereHow(row)</span>
                 <span>@Dosage(row)</span>
+                @* Ohne Grund entfaellt die Angabe ganz, statt ein "–" in die
+                   ohnehin knappe Meta-Zeile zu setzen. *@
+                @if (row.TreatmentReasonId is not null)
+                {
+                    <span>@Reason(row)</span>
+                }
             </div>
             <div class="mw-row-card__actions">
                 <button type="button" class="mw-btn mw-btn--sm mw-btn--primary"
@@ -199,6 +209,13 @@
             NoWrap = true
         });
 
+        columns.Add(new MeadowColumn<PlannedCowTreatment>
+        {
+            Title = "Grund",
+            Text = Reason,
+            SortBy = Reason
+        });
+
         // Der bisherige Kopf "Behandelt" hatte keine zugehoerige Zelle -
         // Kopf- und Zellenzahl liefen dadurch auseinander.
         columns.Add(new MeadowColumn<PlannedCowTreatment>
@@ -239,6 +256,17 @@
 
     private string Dosage(PlannedCowTreatment r) => r.MedicineDosage.ToString("0.##");
 
+    // Fuer Spalte und Karte: "–", wenn nichts gesetzt ist.
+    private string Reason(PlannedCowTreatment r) => TreatmentReasonService.GetNameById(r.TreatmentReasonId);
+
+    // Fuer Filter und Optionsliste: null, wenn nichts gesetzt ist. Siehe den
+    // gleichnamigen Helfer in Cow_Table.
+    private string? ReasonKey(PlannedCowTreatment r)
+        => r.TreatmentReasonId is int id
+           && TreatmentReasonService.Reasons.TryGetValue(id, out var reason)
+            ? reason.TreatmentReasonName
+            : null;
+
     private string CountText => $"{_rows.Count} von {_all.Count}";
 
     // ---- Filter -------------------------------------------------------
@@ -254,6 +282,9 @@
         .Distinct(StringComparer.OrdinalIgnoreCase)
         .OrderBy(n => n, StringComparer.CurrentCulture)
         .ToList();
+
+    /// <summary>Vorkommende Gruende plus ggf. "Ohne Grund" - wie in Cow_Table.</summary>
+    private IReadOnlyList<string> ReasonOptions => ReasonFilter.Options(_all.Select(ReasonKey));
 
     private void Apply()
     {
@@ -277,6 +308,7 @@
 
         // Getrennte Gruppen, also UND: "gefunden, aber noch nicht behandelt".
         query = query
+            .Where(r => ReasonFilter.Matches(_filter.Reasons, ReasonKey(r)))
             .Where(r => FlagStates.Matches(_filter.Found, r.IsFound, KpiFlags.Found))
             .Where(r => FlagStates.Matches(_filter.Treated, r.IsTreatet, KpiFlags.Treated))
             .Where(r => PlannedDateRanges.Matches(_filter.Range, r.AdministrationDate));
@@ -349,7 +381,8 @@
             MedicineDosage = planned.MedicineDosage,
             MedicineId = planned.MedicineId,
             WhereHowId = planned.WhereHowId,
-            UdderId = planned.UdderId
+            UdderId = planned.UdderId,
+            TreatmentReasonId = planned.TreatmentReasonId
         };
 
         var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };

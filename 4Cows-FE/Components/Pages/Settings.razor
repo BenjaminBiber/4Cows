@@ -68,6 +68,9 @@ else if (_tab == TabBaseData)
         case "Wie / Wo":
             <BaseDataWhereHow />
             break;
+        case "Behandlungsgrund":
+            <BaseDataTreatmentReason />
+            break;
         default:
             <BaseDataMedicine />
             break;
@@ -107,7 +110,7 @@ else
 
     private static readonly string[] BaseDataTabs =
     {
-        "Kuh Behandlung", "Klauen Behandlung", "Kühe", "Medikamente", "Wie / Wo"
+        "Kuh Behandlung", "Klauen Behandlung", "Kühe", "Medikamente", "Wie / Wo", "Behandlungsgrund"
     };
 
     private string _tab = TabKpi;

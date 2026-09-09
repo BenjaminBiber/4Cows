@@ -63,6 +63,7 @@ builder.Services.AddSingleton<PCowTreatmentService>();
 builder.Services.AddSingleton<MedicineService>();
 builder.Services.AddSingleton<CowService>();
 builder.Services.AddSingleton<WhereHowService>();
+builder.Services.AddSingleton<TreatmentReasonService>();
 builder.Services.AddSingleton<UdderService>();
 // Projects KPI rows out of the caches of the eight services above; KPIService depends on it.
 // Deliberately holds no cache of its own - see the comment on the class.

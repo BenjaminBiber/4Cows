@@ -18,6 +18,7 @@ public sealed class MeadowDataLoader
     private readonly CowService _cows;
     private readonly MedicineService _medicines;
     private readonly WhereHowService _whereHows;
+    private readonly TreatmentReasonService _reasons;
     private readonly UdderService _udders;
     private readonly CowTreatmentService _cowTreatments;
     private readonly ClawTreatmentService _clawTreatments;
@@ -29,6 +30,7 @@ public sealed class MeadowDataLoader
         CowService cows,
         MedicineService medicines,
         WhereHowService whereHows,
+        TreatmentReasonService reasons,
         UdderService udders,
         CowTreatmentService cowTreatments,
         ClawTreatmentService clawTreatments,
@@ -39,6 +41,7 @@ public sealed class MeadowDataLoader
         _cows = cows;
         _medicines = medicines;
         _whereHows = whereHows;
+        _reasons = reasons;
         _udders = udders;
         _cowTreatments = cowTreatments;
         _clawTreatments = clawTreatments;
@@ -47,13 +50,14 @@ public sealed class MeadowDataLoader
         _settings = settings;
     }
 
-    /// <summary>Kuehe, Medikamente, Wie/Wo, Euterviertel - alles, was Spalten aufloest.</summary>
+    /// <summary>Kuehe, Medikamente, Wie/Wo, Behandlungsgruende, Euterviertel - alles, was Spalten aufloest.</summary>
     public async Task EnsureLookupsAsync()
     {
         await _settings.GetAllDataAsync();
         await _cows.GetAllDataAsync();
         await _medicines.GetAllDataAsync();
         await _whereHows.GetAllDataAsync();
+        await _reasons.GetAllDataAsync();
         await _udders.GetAllDataAsync();
     }
 

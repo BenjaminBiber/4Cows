@@ -45,6 +45,17 @@ public static class DemoDataSeeder
     };
 
     /// <summary>
+    /// Beispielgruende NUR fuer die Demo. Produktive Installationen starten mit
+    /// leerer Liste - DataSeeder legt hier bewusst nichts an, damit kein
+    /// Betrieb fremde Begriffe wegraeumen muss.
+    /// </summary>
+    private static readonly string[] TreatmentReasonNames =
+    {
+        "Mastitis", "Lahmheit", "Fieber", "Nachgeburtsverhaltung",
+        "Trockenstellen", "Impfung"
+    };
+
+    /// <summary>
     /// Befunde aus dem Vokabular, das die App selbst verwendet (Platzhalter
     /// im ClawSelector, ClawFindingSummary, DataSeeder-Fallback). Die Spalten
     /// Claw_Finding_* sind varchar(32) - laengere Formulierungen kippen den
@@ -71,8 +82,9 @@ public static class DemoDataSeeder
         var udders = await EnsureUddersAsync(context);
         var medicineIds = await EnsureMedicinesAsync(context);
         var whereHows = await EnsureWhereHowsAsync(context);
+        var reasonIds = await EnsureTreatmentReasonsAsync(context);
 
-        await SeedHerdAndTreatmentsAsync(context, udders, medicineIds, whereHows);
+        await SeedHerdAndTreatmentsAsync(context, udders, medicineIds, whereHows, reasonIds);
     }
 
     // ---- Nachschlagetabellen -------------------------------------------
@@ -155,13 +167,28 @@ public static class DemoDataSeeder
         return await context.WhereHows.AsNoTracking().ToListAsync();
     }
 
+    private static async Task<List<int>> EnsureTreatmentReasonsAsync(DatabaseContext context)
+    {
+        if (!await context.TreatmentReasons.AnyAsync())
+        {
+            await context.TreatmentReasons.AddRangeAsync(
+                TreatmentReasonNames.Select(n => new TreatmentReason(0, n)));
+            await context.SaveChangesAsync();
+        }
+
+        return await context.TreatmentReasons.AsNoTracking()
+            .Select(r => r.TreatmentReasonId)
+            .ToListAsync();
+    }
+
     // ---- Bestand und Behandlungen --------------------------------------
 
     private static async Task SeedHerdAndTreatmentsAsync(
         DatabaseContext context,
         IReadOnlyDictionary<(bool, bool, bool, bool), int> udders,
         IReadOnlyList<int> medicineIds,
-        IReadOnlyList<WhereHow> whereHows)
+        IReadOnlyList<WhereHow> whereHows,
+        IReadOnlyList<int> reasonIds)
     {
         if (await context.Cows.AnyAsync())
         {
@@ -184,13 +211,13 @@ public static class DemoDataSeeder
             .ToList();
 
         await context.CowTreatments.AddRangeAsync(
-            BuildCowTreatments(random, today, active, medicineIds, whereHows, udders));
+            BuildCowTreatments(random, today, active, medicineIds, whereHows, udders, reasonIds));
 
         await context.ClawTreatments.AddRangeAsync(
             BuildClawTreatments(random, today, active));
 
         await context.PlannedCowTreatments.AddRangeAsync(
-            BuildPlannedCowTreatments(random, today, active, medicineIds, whereHows, udders));
+            BuildPlannedCowTreatments(random, today, active, medicineIds, whereHows, udders, reasonIds));
 
         await context.PlannedClawTreatments.AddRangeAsync(
             BuildPlannedClawTreatments(random, today, active));
@@ -245,7 +272,8 @@ public static class DemoDataSeeder
         IReadOnlyList<string> cowIds,
         IReadOnlyList<int> medicineIds,
         IReadOnlyList<WhereHow> whereHows,
-        IReadOnlyDictionary<(bool, bool, bool, bool), int> udders)
+        IReadOnlyDictionary<(bool, bool, bool, bool), int> udders,
+        IReadOnlyList<int> reasonIds)
     {
         var noQuarter = udders[(false, false, false, false)];
         var quarterIds = QuarterIds(udders);
@@ -264,6 +292,13 @@ public static class DemoDataSeeder
                 ? quarterIds[random.Next(quarterIds.Count)]
                 : noQuarter;
 
+            // Rund 70 Prozent mit Grund. Der Rest bleibt bewusst leer: nur so
+            // zeigt die Demo das "–" in der Spalte, und die Filteroption
+            // "Ohne Grund" findet ueberhaupt etwas.
+            int? reasonId = random.Next(100) < 70
+                ? reasonIds[random.Next(reasonIds.Count)]
+                : null;
+
             treatments.Add(new CowTreatment(
                 0,
                 cowIds[random.Next(cowIds.Count)],
@@ -271,7 +306,8 @@ public static class DemoDataSeeder
                 date,
                 Dosage(random),
                 whereHow.WhereHowId,
-                udderId));
+                udderId,
+                reasonId));
         }
 
         return treatments;
@@ -372,7 +408,8 @@ public static class DemoDataSeeder
         IReadOnlyList<string> cowIds,
         IReadOnlyList<int> medicineIds,
         IReadOnlyList<WhereHow> whereHows,
-        IReadOnlyDictionary<(bool, bool, bool, bool), int> udders)
+        IReadOnlyDictionary<(bool, bool, bool, bool), int> udders,
+        IReadOnlyList<int> reasonIds)
     {
         var noQuarter = udders[(false, false, false, false)];
         var quarterIds = QuarterIds(udders);
@@ -384,6 +421,11 @@ public static class DemoDataSeeder
             var whereHow = whereHows[random.Next(whereHows.Count)];
             var isFound = random.Next(100) < 60;
 
+            // Rund 60 Prozent mit Grund - siehe BuildCowTreatments.
+            int? reasonId = random.Next(100) < 60
+                ? reasonIds[random.Next(reasonIds.Count)]
+                : null;
+
             planned.Add(new PlannedCowTreatment(
                 0,
                 cowIds[random.Next(cowIds.Count)],
@@ -393,7 +435,8 @@ public static class DemoDataSeeder
                 whereHow.WhereHowId,
                 isFound,
                 isFound && random.Next(100) < 50,
-                whereHow.ShowDialog ? quarterIds[random.Next(quarterIds.Count)] : noQuarter));
+                whereHow.ShowDialog ? quarterIds[random.Next(quarterIds.Count)] : noQuarter,
+                reasonId));
         }
 
         return planned;

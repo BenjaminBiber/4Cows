@@ -1,0 +1,195 @@
+@using _4Cows_FE.Components.Meadow
+
+@inject TreatmentReasonService TreatmentReasonService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<MeadowDialog Title="@(IsNew ? "Behandlungsgrund anlegen" : "Behandlungsgrund ändern")" Size="MeadowDialogSize.Info">
+    <ChildContent>
+        @* MudForm wie im Wie/Wo-Dialog: die Required-Validierung samt
+           RequiredError haengt daran, und meadow-mud.css toent die Fehlerzeile
+           schon. *@
+        <MudForm @ref="_form" @bind-IsValid="@_success">
+            <label class="mw-label" for="mw-reason-name">Bezeichnung</label>
+            <div class="mw-field">
+                <MudTextField T="string" InputId="mw-reason-name" Variant="Variant.Text"
+                              Required="true" @bind-Value="_name"
+                              RequiredError="Bezeichnung muss ausgefüllt werden!" />
+            </div>
+        </MudForm>
+        <p class="mw-hint">
+            Gründe entstehen sonst nebenbei beim Erfassen einer Behandlung.
+            Umbenennen auf einen bestehenden Grund führt beide zusammen.
+        </p>
+    </ChildContent>
+    <Footer>
+        <button type="button" class="mw-btn mw-btn--plain mw-btn--wide" @onclick="Cancel">
+            Abbrechen
+        </button>
+        <button type="button" class="mw-btn mw-btn--primary mw-btn--wide" @onclick="Save">
+            Speichern
+        </button>
+    </Footer>
+</MeadowDialog>
+
+@code {
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public TreatmentReason Entry { get; set; } = new();
+    [Parameter] public bool IsNew { get; set; }
+
+    /// <summary>
+    /// Verwendungen des bearbeiteten Eintrags - steht nur im Text der
+    /// Merge-Rueckfrage, damit dort steht, wie viele Behandlungen umgehaengt
+    /// werden.
+    /// </summary>
+    [Parameter] public int UsageCount { get; set; }
+
+    private MudForm? _form;
+    private bool _success;
+
+    private string _name = "";
+
+    protected override void OnInitialized()
+    {
+        // Auf einer Kopie arbeiten, nicht auf Entry: das ist die Instanz aus
+        // dem Service-Cache. Direktes Binden wuerde den Cache schon beim Tippen
+        // aendern, und ein Abbrechen liesse den halben Namen in der Tabelle
+        // stehen, bis irgendwer neu laedt.
+        _name = Entry.TreatmentReasonName;
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Save()
+    {
+        if (_form is not null)
+        {
+            await _form.Validate();
+        }
+
+        if (!_success)
+        {
+            return;
+        }
+
+        var name = _name.Trim();
+        if (name.Length == 0)
+        {
+            Snackbar.Add("Bezeichnung ist leer.", Severity.Error);
+            return;
+        }
+
+        // Sich selbst ausnehmen: sonst meldet eine reine
+        // Gross-/Kleinschreibungsaenderung ("mastitis" -> "Mastitis") eine
+        // Kollision mit dem Eintrag, der gerade bearbeitet wird.
+        var clash = TreatmentReasonService.Reasons.Values.FirstOrDefault(r =>
+            r.TreatmentReasonId != Entry.TreatmentReasonId
+            && string.Equals(r.TreatmentReasonName.Trim(), name, StringComparison.OrdinalIgnoreCase));
+
+        if (clash is not null)
+        {
+            await SaveIntoExisting(clash);
+            return;
+        }
+
+        await SaveOwn(name);
+    }
+
+    /// <summary>
+    /// Der Name ist schon vergeben. Beim Bearbeiten wird zusammengefuehrt -
+    /// beim Anlegen gibt es nichts zusammenzufuehren, das ist schlicht ein
+    /// Eingabefehler.
+    /// </summary>
+    private async Task SaveIntoExisting(TreatmentReason clash)
+    {
+        if (IsNew)
+        {
+            Snackbar.Add($"„{clash.TreatmentReasonName}\" gibt es bereits.", Severity.Error);
+            return;
+        }
+
+        // Ein- und Mehrzahl auseinanderhalten: "in 1 Behandlungen verwendet"
+        // steht sonst genau dann da, wenn der haeufigste Fall eintritt.
+        var usage = UsageCount == 1 ? "1 Behandlung" : $"{UsageCount} Behandlungen";
+        var moved = UsageCount == 1 ? "Die Behandlung wird" : "Die Behandlungen werden";
+
+        var description = UsageCount == 0
+            ? $"„{Entry.TreatmentReasonName}\" mit „{clash.TreatmentReasonName}\" zusammenführen? "
+              + "Der Eintrag verschwindet danach."
+            : $"„{Entry.TreatmentReasonName}\" wird in {usage} verwendet. "
+              + $"Mit „{clash.TreatmentReasonName}\" zusammenführen? {moved} "
+              + "umgehängt, der Eintrag verschwindet danach.";
+
+        if (!await Confirm("Zusammenführen", description, "Zusammenführen", Color.Warning))
+        {
+            return;
+        }
+
+        if (!await TreatmentReasonService.MergeAsync(Entry.TreatmentReasonId, clash.TreatmentReasonId))
+        {
+            Snackbar.Add("Zusammenführen fehlgeschlagen.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add($"Mit „{clash.TreatmentReasonName}\" zusammengeführt.", Severity.Success);
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+
+    private async Task SaveOwn(string name)
+    {
+        var draft = new TreatmentReason(Entry.TreatmentReasonId, name);
+
+        if (IsNew)
+        {
+            if (!await Confirm("Anlegen", $"„{name}\" als Behandlungsgrund anlegen?", "Anlegen", Color.Warning))
+            {
+                return;
+            }
+
+            if (!await TreatmentReasonService.InsertDataAsync(draft))
+            {
+                Snackbar.Add("Anlegen fehlgeschlagen.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add("Behandlungsgrund angelegt.", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(true));
+            return;
+        }
+
+        // Nichts geaendert: keine Rueckfrage, kein Schreibvorgang, kein Reload
+        // auf der Seite dahinter.
+        if (name == Entry.TreatmentReasonName)
+        {
+            MudDialog.Cancel();
+            return;
+        }
+
+        if (!await TreatmentReasonService.UpdateDataAsync(draft))
+        {
+            Snackbar.Add("Ändern fehlgeschlagen.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add("Behandlungsgrund geändert.", Severity.Success);
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+
+    private async Task<bool> Confirm(string header, string description, string accept, Color scheme)
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var parameters = new DialogParameters<GenericDialog>
+        {
+            { x => x.HeaderText, header },
+            { x => x.Description, description },
+            { x => x.AcceptButtonText, accept },
+            { x => x.CancelButtonText, "Abbrechen" },
+            { x => x.ColorScheme, scheme }
+        };
+
+        var dialog = await DialogService.ShowAsync<GenericDialog>(string.Empty, parameters, options);
+        var result = await dialog.Result;
+        return result is not null && !result.Canceled;
+    }
+}

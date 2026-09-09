@@ -34,9 +34,23 @@ namespace BB_Cow.Class
         [Column("COW_QUARTER_ID")]
         public int UdderId { get; set; }
 
+        /// <summary>
+        /// Behandlungsgrund, optional. NULL heisst "kein Grund angegeben".
+        ///
+        /// Bewusst nullable und nicht der int.MinValue-Sentinel von UdderId:
+        /// dort bedeutet der Wert "noch nicht gewaehlt" und Save besteht je
+        /// nach Wie/Wo darauf, hier ist "kein Grund" ein regulaerer
+        /// Dauerzustand - und alle Bestandszeilen bekommen ihn durch die
+        /// Migration von selbst.
+        /// </summary>
+        [Column("Treatment_Reason_ID")]
+        public int? TreatmentReasonId { get; set; }
+
         public CowTreatment() : this(0, string.Empty, 0, DateTime.MinValue, 0.0f, int.MinValue, int.MinValue) { }
 
-        public CowTreatment(int cowTreatmentId, string earTagNumber, int medicineId, DateTime administrationDate, float medicineDosage, int whereHowId, int udderId)
+        // treatmentReasonId ist optional, damit die vorhandenen positionellen
+        // Aufrufe - allen voran DemoDataSeeder - unveraendert weiterlaufen.
+        public CowTreatment(int cowTreatmentId, string earTagNumber, int medicineId, DateTime administrationDate, float medicineDosage, int whereHowId, int udderId, int? treatmentReasonId = null)
         {
             CowTreatmentId = cowTreatmentId;
             EarTagNumber = earTagNumber;
@@ -45,6 +59,7 @@ namespace BB_Cow.Class
             MedicineDosage = medicineDosage;
             WhereHowId = whereHowId;
             UdderId = udderId;
+            TreatmentReasonId = treatmentReasonId;
         }
     }
 }
