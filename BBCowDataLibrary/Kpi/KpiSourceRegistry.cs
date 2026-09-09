@@ -121,6 +121,7 @@ public static class KpiSourceRegistry
                 CowLabel = collar,
                 Date = t.AdministrationDate,
                 Dosage = t.MedicineDosage,
+                DosageUnit = l.MedicineDosageUnit(t.MedicineId),
                 Tags = Tags(
                     (KpiTagKeys.Medicine, One(l.MedicineName(t.MedicineId))),
                     (KpiTagKeys.WhereHow, One(l.WhereHowName(t.WhereHowId))),
@@ -192,6 +193,7 @@ public static class KpiSourceRegistry
                 CowLabel = collar,
                 Date = t.AdministrationDate,
                 Dosage = t.MedicineDosage,
+                DosageUnit = l.MedicineDosageUnit(t.MedicineId),
                 Tags = Tags(
                     (KpiTagKeys.Medicine, One(l.MedicineName(t.MedicineId))),
                     (KpiTagKeys.WhereHow, One(l.WhereHowName(t.WhereHowId))),

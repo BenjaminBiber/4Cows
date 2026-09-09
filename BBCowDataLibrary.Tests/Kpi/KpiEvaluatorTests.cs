@@ -62,6 +62,55 @@ public class KpiEvaluatorTests
     }
 
     [Fact]
+    public void SumDosage_over_mixed_units_keeps_the_number_but_drops_the_unit()
+    {
+        // The reason this matters: since the dosage unit moved onto the medicine, a sum can add
+        // millilitres to tablets. "3 + 20 = 23 ml" is not a crash, it is a plausible-looking
+        // falsehood on a dashboard tile - so the unit must not be attached and the tile has to say
+        // that units were mixed.
+        var rows = new[]
+        {
+            Row(dosage: 20, dosageUnit: "ml"),
+            Row(dosage: 3, dosageUnit: "Stück")
+        };
+
+        var result = Evaluate(Definition(measure: KpiMeasure.SumDosage, unit: "ml"), rows);
+
+        Assert.Equal(23, result.Number);
+        Assert.DoesNotContain("ml)", result.Display);
+        Assert.Contains("gemischte Einheiten", result.Display);
+        Assert.Contains("ml", result.Message);
+        Assert.Contains("Stück", result.Message);
+    }
+
+    [Fact]
+    public void SumDosage_over_one_unit_labels_the_value_with_it()
+    {
+        // The medicine's own unit wins over the definition's free-text field: it is closer to the
+        // data than a label somebody typed before units existed.
+        var rows = new[] { Row(dosage: 20, dosageUnit: "Stück"), Row(dosage: 3, dosageUnit: "Stück") };
+
+        var result = Evaluate(Definition(measure: KpiMeasure.SumDosage, unit: "ml"), rows);
+
+        Assert.Contains("Stück", result.Display);
+        Assert.Null(result.Message);
+    }
+
+    [Fact]
+    public void Rows_without_a_recorded_unit_do_not_count_as_a_second_unit()
+    {
+        // Every medicine starts without a unit, so "some recorded, some not" is the normal state
+        // for a long while. Treating the gap as a distinct unit would warn on almost every tile
+        // and train people to ignore the warning.
+        var rows = new[] { Row(dosage: 20, dosageUnit: "ml"), Row(dosage: 3, dosageUnit: null) };
+
+        var result = Evaluate(Definition(measure: KpiMeasure.SumDosage), rows);
+
+        Assert.Equal(23, result.Number);
+        Assert.Null(result.Message);
+    }
+
+    [Fact]
     public void SumDosage_over_nothing_is_zero()
     {
         var result = Evaluate(Definition(measure: KpiMeasure.SumDosage), Array.Empty<KpiRow>());

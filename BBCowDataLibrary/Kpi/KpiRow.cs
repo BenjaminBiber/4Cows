@@ -36,6 +36,17 @@ public sealed record KpiRow
     public double? Dosage { get; init; }
 
     /// <summary>
+    /// The unit <see cref="Dosage"/> is measured in, taken from the medicine. Empty when none is
+    /// recorded, and null for sources without a dosage.
+    ///
+    /// Carried on the row rather than resolved later because a sum is only meaningful when every
+    /// contributing row shares one unit. Before the medicine carried a unit every dosage was
+    /// implicitly ml; now "3 tablets + 20 ml = 23" is a number that looks entirely plausible and is
+    /// nonsense, so the evaluator has to be able to see the mix.
+    /// </summary>
+    public string? DosageUnit { get; init; }
+
+    /// <summary>
     /// Filterable and groupable values by tag key (see <see cref="KpiTagKeys"/>).
     ///
     /// Multi-valued on purpose: a claw treatment carries up to four findings, and a cow treatment

@@ -16,6 +16,12 @@ public class AppSetting
 {
     public const string ClawFindingFallbackKey = "ClawFindingFallback";
 
+    /// <summary>
+    /// Anzeigeeinheit fuer Mengen ohne hinterlegte Dosiereinheit am Medikament.
+    /// Ersetzt die fest verdrahtete Konstante in Cow_Table.
+    /// </summary>
+    public const string DefaultDosageUnitKey = "DefaultDosageUnit";
+
     [Key]
     [Required]
     [StringLength(64)]

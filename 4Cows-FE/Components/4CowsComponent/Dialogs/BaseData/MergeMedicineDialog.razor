@@ -1,0 +1,169 @@
+@using _4Cows_FE.Components.Meadow
+
+@inject MedicineService MedicineService
+@inject WhereHowService WhereHowService
+@inject ISnackbar Snackbar
+
+<MeadowDialog Title="Medikamente zusammenführen" Size="MeadowDialogSize.Info">
+    <ChildContent>
+        <p class="mw-hint">
+            @Description
+        </p>
+
+        <label class="mw-label" for="mw-merge-target">Ziel (bleibt bestehen)</label>
+        <div class="mw-field">
+            @* CoerceValue FALSE: ein Ziel muss existieren. Ein per Tippfehler
+               erfundenes Ziel wuerde die Behandlungen auf eine ID umhaengen,
+               die es nicht gibt. *@
+            <MudAutocomplete T="string" InputId="mw-merge-target" Variant="Variant.Text"
+                             SelectValueOnTab="true" CoerceValue="false"
+                             Value="@_targetName" ValueChanged="OnTargetChanged"
+                             SearchFunc="SearchTargets"
+                             Placeholder="Medikament suchen…" />
+        </div>
+
+        <label class="mw-label">Welcher Name bleibt?</label>
+        <div class="mw-field">
+            @* Die Wahl ist der Kern dieses Dialogs. Der kurze Stallname ist im
+               Autocomplete des Behandlungs-Dialogs brauchbarer, die
+               ausgeschriebene Bezeichnung im Nachweis eindeutiger - was
+               ueberwiegt, haengt am Einzelfall. Der gewaehlte Name landet in
+               Medicine_Name des Zieleintrags. *@
+            <MudRadioGroup T="bool" @bind-Value="_keepSourceName">
+                <MudRadio T="bool" Value="false" Dense="true">
+                    @TargetLabel
+                </MudRadio>
+                <MudRadio T="bool" Value="true" Dense="true">
+                    @SourceLabel
+                </MudRadio>
+            </MudRadioGroup>
+        </div>
+
+        @if (_target is not null)
+        {
+            <div class="mw-kv">
+                <span>Dosiereinheit danach</span>
+                <span class="@(HasUnit ? "mw-kv__ok" : "mw-kv__sub")">@UnitAfter</span>
+            </div>
+            <div class="mw-kv">
+                <span>Verabreichungsart danach</span>
+                <span class="@(HasRoute ? "mw-kv__ok" : "mw-kv__sub")">@RouteAfter</span>
+            </div>
+        }
+    </ChildContent>
+    <Footer>
+        <button type="button" class="mw-btn mw-btn--plain mw-btn--wide" @onclick="Cancel">
+            Abbrechen
+        </button>
+        <button type="button" class="mw-btn mw-btn--primary mw-btn--wide"
+                disabled="@(_target is null)" @onclick="Merge">
+            Zusammenführen
+        </button>
+    </Footer>
+</MeadowDialog>
+
+@code {
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = default!;
+
+    /// <summary>Der Eintrag, der verschwindet.</summary>
+    [Parameter] public Medicine Source { get; set; } = new();
+
+    /// <summary>Optionale Vorbelegung des Ziels; im Dialog aenderbar.</summary>
+    [Parameter] public Medicine? Target { get; set; }
+
+    [Parameter] public int SourceUsageCount { get; set; }
+
+    private Medicine? _target;
+    private string _targetName = "";
+    private bool _keepSourceName;
+
+    private string SourceLabel => $"„{Source.MedicineName}\" behalten (bisheriger Name)";
+
+    private string TargetLabel => _target is null
+        ? "Name des Ziels behalten"
+        : $"„{_target.MedicineName}\" behalten";
+
+    private bool HasUnit => !string.IsNullOrWhiteSpace(UnitSource);
+
+    private string? UnitSource => string.IsNullOrWhiteSpace(_target?.DosageUnit)
+        ? Source.DosageUnit
+        : _target!.DosageUnit;
+
+    private string UnitAfter => HasUnit ? UnitSource!.Trim() : "keine hinterlegt";
+
+    private bool HasRoute => RouteId is not null;
+
+    private int? RouteId => _target?.DefaultWhereHowId ?? Source.DefaultWhereHowId;
+
+    private string RouteAfter => RouteId is { } id
+        ? WhereHowService.GetWhereHowNameById(id)
+        : "keine hinterlegt";
+
+    private string Description
+    {
+        get
+        {
+            var usage = SourceUsageCount == 1 ? "1 Behandlung" : $"{SourceUsageCount} Behandlungen";
+            var moved = SourceUsageCount == 1 ? "Die Behandlung wird" : "Die Behandlungen werden";
+
+            return SourceUsageCount == 0
+                ? $"„{Source.MedicineName}\" verschwindet und wird durch das Ziel ersetzt."
+                : $"„{Source.MedicineName}\" wird in {usage} verwendet. {moved} auf das Ziel "
+                  + "umgehängt, der Eintrag verschwindet danach.";
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        _target = Target;
+        _targetName = Target?.MedicineName ?? "";
+    }
+
+    private void OnTargetChanged(string value)
+    {
+        _targetName = value ?? "";
+
+        _target = MedicineService.Medicines.Values.FirstOrDefault(m =>
+            m.MedicineId != Source.MedicineId
+            && string.Equals(m.MedicineName.Trim(), _targetName.Trim(), StringComparison.OrdinalIgnoreCase));
+    }
+
+    private Task<IEnumerable<string>> SearchTargets(string value, CancellationToken token)
+    {
+        // Sich selbst ausnehmen: ein Merge auf sich selbst wuerde erst
+        // umhaengen und dann genau das Ziel loeschen. Der Service faengt das
+        // ab, aber die Auswahl soll es nicht erst anbieten.
+        var names = MedicineService.Medicines.Values
+            .Where(m => m.MedicineId != Source.MedicineId)
+            .Select(m => m.MedicineName)
+            .Distinct()
+            .OrderBy(n => n);
+
+        return Task.FromResult<IEnumerable<string>>(string.IsNullOrWhiteSpace(value)
+            ? names
+            : names.Where(n => n.Contains(value, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Merge()
+    {
+        if (_target is null)
+        {
+            Snackbar.Add("Bitte ein Ziel wählen.", Severity.Error);
+            return;
+        }
+
+        var survivingName = _keepSourceName ? Source.MedicineName : null;
+
+        if (!await MedicineService.MergeAsync(Source.MedicineId, _target.MedicineId, survivingName))
+        {
+            Snackbar.Add("Zusammenführen fehlgeschlagen.", Severity.Error);
+            return;
+        }
+
+        var finalName = survivingName ?? _target.MedicineName;
+        Snackbar.Add($"Zusammengeführt zu „{finalName}\".", Severity.Success);
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+}

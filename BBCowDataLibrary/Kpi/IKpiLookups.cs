@@ -18,6 +18,18 @@ public interface IKpiLookups
 
     string MedicineName(int medicineId);
 
+    /// <summary>
+    /// Dosiereinheit des Medikaments ("ml", "Stueck"), oder leer wenn keine
+    /// hinterlegt ist.
+    ///
+    /// Wird gebraucht, damit SumDosage/AvgDosage bemerken kann, dass die
+    /// beitragenden Zeilen mehr als eine Einheit umfassen. Bis es die
+    /// Dosiereinheit am Medikament gab, war jede Menge implizit ml und eine
+    /// Summe darueber sinnvoll; ohne diese Pruefung waere sie das jetzt nicht
+    /// mehr - und zwar unbemerkt.
+    /// </summary>
+    string MedicineDosageUnit(int medicineId);
+
     string WhereHowName(int whereHowId);
 
     /// <summary>

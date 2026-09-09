@@ -51,6 +51,13 @@ public class SettingsService
     public string ClawFindingFallback
         => Get(AppSetting.ClawFindingFallbackKey, "Pflege");
 
+    /// <summary>
+    /// Einheit fuer Mengen, deren Medikament keine Dosiereinheit hinterlegt
+    /// hat. War vorher eine Konstante in Cow_Table.
+    /// </summary>
+    public string DefaultDosageUnit
+        => Get(AppSetting.DefaultDosageUnitKey, "ml");
+
     public async Task<bool> SetAsync(string key, string value)
     {
         try

@@ -8,7 +8,8 @@
 - Dark- & Lightmode
 - Exportieren der Klauenbehandlungen als Excel-Dokument
 - Auswerten von Lely Horizon Daten über einen Xlink-Scraper
-
+- Medikamente mit Dosiereinheit und Standard-Verabreichungsart pflegen; beides
+  belegt die Behandlungs-Dialoge vor
 
 ## Installation
 
@@ -61,7 +62,6 @@ services:
 
 ```
 
-
 ## Demo-Modus
 
 Für eine öffentlich erreichbare Demo-Instanz gibt es einen Schalter in
@@ -91,29 +91,6 @@ Was sich damit ändert:
 Der XLink-Sync ist im Demo-Modus abgeschaltet, weil er jede Kuh als
 abgegangen markieren würde, die der Scraper nicht liefert – die
 Beispieltiere wären danach in keiner Auswahl mehr sichtbar.
-
-### Hero-Foto der Landing-Page
-
-Der Hero der Landing-Page erwartet ein Foto unter
-`4Cows-FE/wwwroot/images/hero.jpg` – Stall, Herde oder Hofansicht, quer,
-mindestens etwa 1600px breit. Als JPEG, nicht als PNG: ein Foto in PNG
-wiegt schnell das Siebenfache.
-
-Das Bild liegt hinter `brightness(.35)` und einem Farbschleier, es muss
-also nicht kontrastarm sein - hell darf es aber auch nicht beliebig sein.
-Die beiden Werte in `meadow-landing.css` sind auf das aktuelle Foto
-gemessen (weisser Text 9,07:1, der 12px-Eyebrow in Sage 4,85:1; mobil
-gilt `brightness(.28)`). Wer das Foto tauscht, sollte nachmessen.
-
-Fehlt die Datei, trägt ein Verlauf die Fläche allein: die Seite bleibt
-vollständig lesbar, im Browser-Log steht dann aber ein 404 auf
-`images/hero.jpg`.
-
-Lokal zum Ausprobieren:
-
-```
-dotnet run --project 4Cows-FE --launch-profile http-demo
-```
 
 ## Technologie
 

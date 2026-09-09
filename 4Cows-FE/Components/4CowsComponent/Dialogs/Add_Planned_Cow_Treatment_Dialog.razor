@@ -8,6 +8,7 @@
 @inject MedicineService medicineService
 @inject WhereHowService WhereHowService
 @inject UdderService UdderService
+@inject SettingsService SettingsService
 @inject TreatmentReasonService TreatmentReasonService
 
 <MeadowDialog Title="Kuh Behandlung planen" Size="MeadowDialogSize.Cow">
@@ -60,9 +61,12 @@
         <div>
             <label class="mw-label" for="mw-planned-medicine">Medikament</label>
             <div class="mw-field">
+                @* ValueChanged statt @bind-Value, damit die Auswahl Einheit
+                   und Wie/Wo vorbelegen kann - wie im Behandlungs-Dialog. *@
                 <MudAutocomplete T="string" InputId="mw-planned-medicine" Variant="Variant.Text"
                                  SelectValueOnTab="true" CoerceValue="true"
-                                 @bind-Value="MedicineName"
+                                 Value="@MedicineName"
+                                 ValueChanged="OnMedicineChanged"
                                  SearchFunc="@((string s, CancellationToken c) =>
                                      cowTreatmentService.SearchCowTreatmentMedicaments(s, c, medicineService))"
                                  Placeholder="Medikament suchen…" />
@@ -107,8 +111,10 @@
             <div class="mw-col">
                 <label class="mw-label" for="mw-planned-dosage">Menge</label>
                 <div class="mw-field">
+                    @* Einheit als Adornment - abgeleitet, nicht eingegeben. *@
                     <MudNumericField T="float" InputId="mw-planned-dosage" Variant="Variant.Text"
                                      HideSpinButtons="true" @bind-Value="_dosage"
+                                     Adornment="Adornment.End" AdornmentText="@_dosageUnit"
                                      Placeholder="20" />
                 </div>
             </div>
@@ -153,10 +159,78 @@
     private bool _showDialogForNewWhereHow;
     private bool _showUdderButton;
 
+    /// <summary>Einheit des gewaehlten Medikaments, nur Anzeige am Mengenfeld.</summary>
+    private string _dosageUnit = "";
+
+    /// <summary>
+    /// Ob der aktuelle Wie/Wo-Wert aus der Vorbelegung stammt und nicht
+    /// getippt wurde - siehe Add_Cow_Treatment_Dialog.
+    /// </summary>
+    private bool _whereHowAutoFilled;
+
     protected override void OnInitialized()
     {
         NullDate = DateTime.Now;
         _numbers.Add(new NumberEntry());
+        _dosageUnit = SettingsService.DefaultDosageUnit;
+    }
+
+    private void OnMedicineChanged(string? value)
+    {
+        MedicineName = value;
+        _dosageUnit = ResolveUnit(value);
+        ApplyMedicineDefaults(value);
+    }
+
+    /// <summary>
+    /// Uebernimmt die Standard-Verabreichungsart des Medikaments - aber nur in
+    /// ein leeres oder selbst vorbelegtes Feld. Eine von Hand eingetragene
+    /// Verabreichungsart darf ein spaeter korrigiertes Medikament nicht
+    /// wegwerfen.
+    /// </summary>
+    private void ApplyMedicineDefaults(string? medicineName)
+    {
+        if (!string.IsNullOrWhiteSpace(_selectedWhereHow) && !_whereHowAutoFilled)
+        {
+            return;
+        }
+
+        var medicine = FindMedicine(medicineName);
+        if (medicine?.DefaultWhereHowId is not { } whereHowId)
+        {
+            return;
+        }
+
+        var name = WhereHowService.GetWhereHowNameById(whereHowId);
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return;
+        }
+
+        // Ueber OnWhereHowChanged, weil dort der Euter-Button und das
+        // Zuruecksetzen der Viertel haengen.
+        OnWhereHowChanged(name);
+        _whereHowAutoFilled = true;
+    }
+
+    private string ResolveUnit(string? medicineName)
+    {
+        var medicine = FindMedicine(medicineName);
+
+        return string.IsNullOrWhiteSpace(medicine?.DosageUnit)
+            ? SettingsService.DefaultDosageUnit
+            : medicine!.DosageUnit!.Trim();
+    }
+
+    private Medicine? FindMedicine(string? medicineName)
+    {
+        if (string.IsNullOrWhiteSpace(medicineName))
+        {
+            return null;
+        }
+
+        return medicineService.Medicines.Values.FirstOrDefault(m =>
+            string.Equals(m.MedicineName.Trim(), medicineName.Trim(), StringComparison.OrdinalIgnoreCase));
     }
 
     private void AddRow() => _numbers.Add(new NumberEntry());
@@ -184,6 +258,10 @@
     {
         _selectedWhereHow = value ?? "";
         var text = _selectedWhereHow.Trim();
+
+        // Jede Aenderung gilt zunaechst als getippt. ApplyMedicineDefaults
+        // setzt das Flag direkt nach seinem Aufruf wieder auf true.
+        _whereHowAutoFilled = false;
 
         var known = WhereHowService.WhereHows.Values
             .FirstOrDefault(w => string.Equals(w.WhereHowName.Trim(), text, StringComparison.OrdinalIgnoreCase));

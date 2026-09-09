@@ -23,7 +23,11 @@ public static class DataSeeder
     {
         var defaults = new Dictionary<string, string>
         {
-            [AppSetting.ClawFindingFallbackKey] = "Pflege"
+            [AppSetting.ClawFindingFallbackKey] = "Pflege",
+            // "ml" war bis zur Einfuehrung der Dosiereinheit fest verdrahtet.
+            // Als Standardwert sehen bestehende Zeilen ohne Einheit unveraendert
+            // aus, und ein Betrieb mit anderer Praxis kann ihn aendern.
+            [AppSetting.DefaultDosageUnitKey] = "ml"
         };
 
         var existing = await context.AppSettings

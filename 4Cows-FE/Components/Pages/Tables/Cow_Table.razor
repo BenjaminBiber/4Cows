@@ -15,6 +15,7 @@
 @inject WhereHowService WhereHowService
 @inject UdderService UdderService
 @inject TreatmentReasonService TreatmentReasonService
+@inject SettingsService SettingsService
 
 <MeadowToolbar>
     <Left>
@@ -100,7 +101,7 @@
                 <div class="mw-row-card__field">
                     <span class="mw-row-card__label">Menge</span>
                     <span class="mw-row-card__value">
-                        @Dosage(row)<span class="mw-row-card__unit">@DosageUnit</span>
+                        @Dosage(row)<span class="mw-row-card__unit">@DosageUnitOf(row)</span>
                     </span>
                 </div>
                 @* Ohne Grund entfaellt die Angabe ganz - ein "–" kostet auf der
@@ -188,7 +189,7 @@
         new MeadowColumn<CowTreatment>
         {
             Title = "Menge",
-            Text = Dosage,
+            Text = DosageWithUnit,
             SortBy = r => r.MedicineDosage,
             NoWrap = true
         },
@@ -238,11 +239,18 @@
             ? reason.TreatmentReasonName
             : null;
 
-    // Der Entwurf zeigt die Menge mit Einheit. In der Datenbank steht nur
-    // die Zahl (Cow_Treatment.Medicine_Dosage, float) - ein Einheitenfeld
-    // gibt es weder am Medikament noch an der Behandlung. Bis es eines
-    // gibt, ist das hier die einzige Stelle, die sich aendern muss.
-    private const string DosageUnit = "ml";
+    // Die Einheit steht jetzt am Medikament (Medicine.Dosage_Unit) und wird
+    // von dort geholt. Vorher war sie die Konstante "ml", die jede Menge als
+    // Milliliter auswies - auch die einer Tablette.
+    //
+    // Der Rueckfallwert ist der Standardwert aus AppSetting, damit Zeilen
+    // ohne hinterlegte Einheit unveraendert aussehen wie bisher.
+    private string DosageUnitOf(CowTreatment r)
+        => medicineService.GetDosageUnit(r.MedicineId, SettingsService.DefaultDosageUnit);
+
+    // Zahl plus Einheit fuer die Desktop-Spalte. Sortiert wird weiter ueber
+    // die Zahl, nicht ueber diesen Text.
+    private string DosageWithUnit(CowTreatment r) => $"{Dosage(r)} {DosageUnitOf(r)}";
 
     // GetFullWhereHowName liefert "Euter (LV/ RH)". Auf der Kachel steht
     // die Stelle als "Euter . LV/RH": dieselbe Angabe, aber ohne Klammern,

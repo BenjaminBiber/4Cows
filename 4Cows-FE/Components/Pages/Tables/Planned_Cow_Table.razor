@@ -18,6 +18,7 @@
 @inject WhereHowService WhereHowService
 @inject UdderService UdderService
 @inject TreatmentReasonService TreatmentReasonService
+@inject SettingsService SettingsService
 
 @* Dieselbe Filterleiste wie Cow_Table/Claw_Table - bisher hatte diese Seite
    nur ein Suchfeld. Der Zeitraum zeigt hier in die ZUKUNFT: geplante
@@ -89,7 +90,7 @@
             <div class="mw-row-card__meta">
                 <span>@row.AdministrationDate.ToString("dd.MM.yyyy")</span>
                 <span>@WhereHow(row)</span>
-                <span>@Dosage(row)</span>
+                <span>@DosageWithUnit(row)</span>
                 @* Ohne Grund entfaellt die Angabe ganz, statt ein "–" in die
                    ohnehin knappe Meta-Zeile zu setzen. *@
                 @if (row.TreatmentReasonId is not null)
@@ -204,7 +205,7 @@
         columns.Add(new MeadowColumn<PlannedCowTreatment>
         {
             Title = "Menge",
-            Text = Dosage,
+            Text = DosageWithUnit,
             SortBy = r => r.MedicineDosage,
             NoWrap = true
         });
@@ -255,6 +256,12 @@
         => WhereHowService.GetFullWhereHowName(r.WhereHowId, UdderService, r.UdderId);
 
     private string Dosage(PlannedCowTreatment r) => r.MedicineDosage.ToString("0.##");
+
+    // Die Einheit steht am Medikament (Medicine.Dosage_Unit). Rueckfallwert
+    // ist der Standardwert aus AppSetting, damit Zeilen ohne hinterlegte
+    // Einheit unveraendert aussehen wie bisher.
+    private string DosageWithUnit(PlannedCowTreatment r)
+        => $"{Dosage(r)} {medicineService.GetDosageUnit(r.MedicineId, SettingsService.DefaultDosageUnit)}";
 
     // Fuer Spalte und Karte: "–", wenn nichts gesetzt ist.
     private string Reason(PlannedCowTreatment r) => TreatmentReasonService.GetNameById(r.TreatmentReasonId);

@@ -151,13 +151,17 @@ public class CowTreatmentService
             .ToArray();
     }
     
+    /// <summary>
+    /// Vorschlaege fuer das Medikamenten-Autocomplete.
+    ///
+    /// Ueber <see cref="MedicineSearch.Rank"/> statt alphabetisch ueber die
+    /// ganze Liste: Treffer am Wortanfang stehen damit vor Treffern irgendwo
+    /// in der Mitte. Tippt jemand "Met", steht Metacam vor einem Praeparat,
+    /// das "Metamizol" nur im hinteren Teil des Namens fuehrt.
+    /// </summary>
     public async Task<IEnumerable<string>> SearchCowTreatmentMedicaments(string value, CancellationToken token, MedicineService medicineService)
     {
-        if (string.IsNullOrEmpty(value))
-        {
-            return medicineService.GetMedicineNames().Order();
-        }
-        return medicineService.GetMedicineNames().Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
+        return MedicineSearch.Rank(medicineService.Medicines.Values, value);
     }
 
     public async Task<IEnumerable<string>> SearchCowTreatmentWhereHow(string value, CancellationToken token)
