@@ -1930,6 +1930,44 @@
 .mw-field--row { display: flex; gap: 8px; align-items: center; }
 .mw-field--row > .mud-input-control { flex: 1; }
 
+/* Medikamentenzeile im Behandlungs-Dialog: eine Karte je Medikament.
+
+   Innen zwei Zeilen (Medikament, darunter Wie/Wo + Menge) statt vier Feldern
+   nebeneinander, weil der Dialog 480px breit ist (--mw-dlg-w der Groesse Cow):
+   nebeneinander blieben fuer das Wie/Wo-Feld unter 120px uebrig, und darin
+   stehen bis zu zwei Icons.
+
+   Zwei Zeilen heisst aber: die Karte MUSS sichtbar zusammenhalten, sonst liest
+   sich das Wie/Wo der ersten Karte wie das Medikament der zweiten. Die
+   Tierzeilen darueber brauchen das nicht - dort ist eine Zeile eine Zeile.
+
+   Keine Mobil-Regel: die innere Zeile ist .mw-field-row + .mw-col--double +
+   .mw-col, also genau das Layout, das der Dialog vorher schon hatte und das im
+   Bottom Sheet bereits funktioniert. Es gibt hier nichts neu zu stapeln.
+
+   Rezept wie .mw-show-cell. */
+.mw-med-row {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-2xl);
+  background: var(--mw-tint);
+}
+
+/* Beschriftung und Papierkorb auf einer Zeile: der Knopf gehoert zur KARTE,
+   nicht zu einem Feld. Das margin-bottom ersetzt das der Beschriftung, damit
+   der Abstand zum Feld darunter derselbe bleibt. */
+.mw-med-row__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.mw-med-row__head > .mw-label { margin-bottom: 0; }
+
 /* Ace-Editor im KPI-Dialog: feste Hoehe, nie flex:1 - er misst beim
    Initialisieren und rendert in einem 0px-hohen Container unbrauchbar. */
 .mw-ace {

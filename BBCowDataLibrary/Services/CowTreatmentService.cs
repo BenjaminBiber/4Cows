@@ -44,19 +44,45 @@ public class CowTreatmentService
         }
     }
 
-    public async Task<bool> InsertDataAsync(CowTreatment cowTreatment)
+    /// <summary>
+    /// Mehrere Behandlungen in EINEM SaveChanges und mit EINEM Cache-Neuladen.
+    ///
+    /// Vorher lud der Insert nach JEDER Zeile die ganze Tabelle neu. Bei
+    /// mehreren Tieren mal mehreren Medikamenten waren das N mal M
+    /// Volldurchlaeufe fuer einen Klick.
+    ///
+    /// Alles oder nichts: SaveChangesAsync auf einem Context ist eine
+    /// Transaktion, ein Fehler laesst also keine Zeile stehen. Damit gibt es
+    /// die halb gespeicherte Serie nicht mehr, um die sich die
+    /// Teilerfolgs-Meldung im Dialog kuemmern musste. Ein BeginTransactionAsync
+    /// braucht es dafuer nicht - anders als in TreatmentReasonService.MergeAsync,
+    /// wo mehrere ExecuteUpdateAsync am Change Tracker vorbei laufen.
+    ///
+    /// Jede Behandlung muss eine EIGENE Instanz sein. Eine wiederverwendete
+    /// waere beim zweiten Add dieselbe - nun getrackte - Zeile, und AddRange
+    /// schriebe sie still nur einmal.
+    /// </summary>
+    public async Task<bool> InsertRangeAsync(IReadOnlyCollection<CowTreatment> treatments)
     {
+        if (treatments.Count == 0)
+        {
+            return true;
+        }
+
         try
         {
             await using var context = await _contextFactory.CreateDbContextAsync();
-            await context.CowTreatments.AddAsync(cowTreatment);
-            var isSuccess = await context.SaveChangesAsync() > 0;
+            await context.CowTreatments.AddRangeAsync(treatments);
+
+            // Nicht > 0: eine Teilzahl waere ein Widerspruch zur Transaktion
+            // und soll als Fehlschlag gemeldet werden, nicht als Erfolg.
+            var isSuccess = await context.SaveChangesAsync() == treatments.Count;
             _databaseStatusService.ReportSuccess();
 
             if (isSuccess)
             {
                 await GetAllDataAsync();
-                LoggerService.LogInformation(typeof(CowTreatmentService), "Inserted cow treatment: {@cowTreatment}.", cowTreatment);
+                LoggerService.LogInformation(typeof(CowTreatmentService), $"Inserted {treatments.Count} cow treatments.");
             }
 
             return isSuccess;
@@ -64,7 +90,7 @@ public class CowTreatmentService
         catch (Exception ex)
         {
             _databaseStatusService.ReportFailure();
-            LoggerService.LogError(typeof(CowTreatmentService), "Failed to insert cow treatment, with {@Message}", ex, ex.Message);
+            LoggerService.LogError(typeof(CowTreatmentService), "Failed to insert cow treatments, with {@Message}", ex, ex.Message);
             return false;
         }
     }
