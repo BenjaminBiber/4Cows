@@ -218,16 +218,15 @@ public class KpiSourceRegistryTests
     }
 
     [Fact]
-    public void Only_the_cow_source_has_no_page_to_drill_into()
+    public void Every_source_has_a_page_to_drill_into()
     {
-        // There is no page listing cows: "Kuh_Daten" is the cow TREATMENTS table, and animals are
-        // maintained in a settings tab with no address. A link there would show 120 treatments
-        // behind a tile counting 37 animals, so that source deliberately declares no route.
-        Assert.False(KpiSourceRegistry.Find(KpiSourceId.Cow)!.HasDrillDown);
+        // The cow source used to be the exception: nothing listed animals, so it declared no route
+        // and its tile was not a link. Since /Kuehe exists it has one like everyone else - and
+        // "Kuehe", not "Kuh_Daten", which is the cow TREATMENTS table and would show 120
+        // treatments behind a tile counting 37 animals.
+        Assert.Equal("Kuehe", KpiSourceRegistry.Find(KpiSourceId.Cow)!.Route);
 
-        Assert.All(
-            KpiSourceRegistry.All.Where(s => s.Id != KpiSourceId.Cow),
-            s => Assert.True(s.HasDrillDown));
+        Assert.All(KpiSourceRegistry.All, s => Assert.True(s.HasDrillDown));
     }
 
     [Fact]

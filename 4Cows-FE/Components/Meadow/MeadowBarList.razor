@@ -1,0 +1,57 @@
+@using System.Globalization
+@*
+    Eine Rangliste als Balken: Beschriftung, Balken, Zahl.
+
+    Bewusst kein Chart.js. Zwei bis acht Zeilen brauchen keine Achse, und der
+    Wert steht ohnehin an jeder Zeile - der Balken ist nur der zweite Kanal.
+    Dafuer bleibt die Liste lesbar, wenn das CDN im Hofnetz nicht erreichbar
+    ist (genau der Fall, den .mw-chart-error auf derselben Seite behandelt),
+    sie ist durchsuchbar und kopierbar, und ein Screenreader liest sie vor,
+    waehrend ein Canvas fuer ihn eine leere Flaeche ist.
+
+    <ol>, damit der Rang aus der Struktur kommt und nicht nur aus der
+    Reihenfolge der Pixel. Balken und Spur sind aria-hidden - sie wiederholen
+    nur, was die Zahl daneben schon sagt.
+*@
+@if (Items.Count == 0)
+{
+    <div class="mw-empty">@EmptyText</div>
+}
+else
+{
+    <ol class="mw-barlist @(Teal ? "mw-barlist--teal" : null)">
+        @foreach (var item in Items)
+        {
+            <li class="mw-barlist__row" style="--mw-bar: @Share(item.Count)">
+                <span class="mw-barlist__label" title="@item.Label">@item.Label</span>
+                <span class="mw-barlist__track" aria-hidden="true">
+                    <span class="mw-barlist__fill"></span>
+                </span>
+                <span class="mw-barlist__value">@item.Count.ToString("N0")</span>
+            </li>
+        }
+    </ol>
+}
+
+@code {
+    public sealed record Item(string Label, int Count);
+
+    [Parameter] public IReadOnlyList<Item> Items { get; set; } = Array.Empty<Item>();
+
+    /// <summary>Teal statt Primary - dieselbe Kuh/Klaue-Codierung wie im Diagramm darueber.</summary>
+    [Parameter] public bool Teal { get; set; }
+
+    [Parameter] public string EmptyText { get; set; } = "Keine Daten.";
+
+    private int Max => Items.Count == 0 ? 1 : Math.Max(1, Items.Max(i => i.Count));
+
+    /// <summary>
+    /// InvariantCulture ist Pflicht, nicht Vorsicht: Program.cs legt keine
+    /// Kultur fest, auf einem de-Host waere "0,42" ein ungueltiger
+    /// calc()-Wert, und jeder Balken fiele still auf sein 3px-Minimum zurueck
+    /// - eine Grafik, die plausibel aussieht und komplett falsch ist.
+    /// Dasselbe Muster wie --mw-pager-slot in MeadowTablePager.
+    /// </summary>
+    private string Share(int count)
+        => ((double)count / Max).ToString("0.####", CultureInfo.InvariantCulture);
+}

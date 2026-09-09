@@ -58,9 +58,31 @@
 @code {
     [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = default!;
 
-    private PlannedClawTreatment Planned = new();
+    /// <summary>
+    /// Die zu planende Behandlung. Die Kuh-Seite reicht eine mit gesetzter
+    /// EarTagNumber (= Cow_ID) herein; sonst ist sie leer wie bisher.
+    /// </summary>
+    [Parameter] public PlannedClawTreatment Planned_Claw_Treatment { get; set; } = new();
+
+    private PlannedClawTreatment Planned => Planned_Claw_Treatment;
     private DateTime? NullDate = DateTime.Today;
     private int CollarNumber;
+
+    protected override void OnInitialized()
+    {
+        if (Planned.TreatmentDate != default)
+        {
+            NullDate = Planned.TreatmentDate;
+        }
+
+        if (string.IsNullOrEmpty(Planned.EarTagNumber))
+        {
+            return;
+        }
+
+        var collar = cowService.GetCollarNumberByCowId(Planned.EarTagNumber);
+        CollarNumber = collar == int.MinValue ? 0 : collar;
+    }
 
     private void Cancel() => MudDialog.Cancel();
 
@@ -78,7 +100,17 @@
             return;
         }
 
-        var cowId = cowService.GetCowIdByCollarNumber(CollarNumber);
+        // Eine vorbelegte Cow_ID gewinnt gegen den Umweg ueber die
+        // Halsbandnummer: GetCowIdByCollarNumber sucht mit includeGone:false,
+        // scheitert also bei einem abgegangenen Tier - und trifft bei einer
+        // neu vergebenen Nummer sogar das FALSCHE. Der Gleichheitsvergleich
+        // sorgt dafuer, dass ein Aendern des Halsbandfelds das Tier trotzdem
+        // neu aufloest.
+        var cowId = !string.IsNullOrEmpty(Planned.EarTagNumber)
+                    && CollarNumber == cowService.GetCollarNumberByCowId(Planned.EarTagNumber)
+            ? Planned.EarTagNumber
+            : cowService.GetCowIdByCollarNumber(CollarNumber);
+
         if (string.IsNullOrEmpty(cowId))
         {
             Snackbar.Add($"Halsbandnummer {CollarNumber} nicht gefunden!", Severity.Error);

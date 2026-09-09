@@ -184,17 +184,20 @@ public class KpiDrillDownUrlTests
         => Assert.Equal("/Settings", KpiDrillDownUrl.Build(KpiTileModel.AddTile()));
 
     [Fact]
-    public void A_source_without_a_page_produces_no_link_at_all()
+    public void The_cow_source_links_to_the_cow_list()
     {
-        // Not even a filtered link to some other page: the reader would see a list of something
-        // else and take it for the number they clicked.
+        // This test used to assert the opposite: the cow source had no page, so its tile got no
+        // link at all - not even a filtered one to some other page, because the reader would see
+        // a list of something else and take it for the number they clicked. /Kuehe removed that
+        // dead end. The !HasDrillDown branch in Build stays as a guard but is now unreachable
+        // through a real source, since Build looks the source up in the registry.
         var definition = new KpiDefinition
         {
             Source = KpiSourceId.Cow,
             Filters = { [KpiTagKeys.Herd] = new List<string> { KpiFlags.InHerd } }
         };
 
-        Assert.Equal(string.Empty, KpiDrillDownUrl.Build(Tile(definition, url: "Kuh_Daten")));
+        Assert.Equal("Kuehe?herd=Im%20Bestand", KpiDrillDownUrl.Build(Tile(definition, url: "Kuh_Daten")));
     }
 
     [Theory]

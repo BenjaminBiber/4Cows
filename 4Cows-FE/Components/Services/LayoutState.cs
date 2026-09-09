@@ -20,7 +20,29 @@ public sealed class LayoutState
     public bool PageMenuOpen { get; private set; }
     public bool AddMenuOpen { get; private set; }
 
+    /// <summary>
+    /// Titel, den die aktuelle Seite selbst setzt, oder null fuer den Titel
+    /// aus MeadowRoutes.TitleFor.
+    ///
+    /// Nur die Kuh-Seite braucht das: ihre Route traegt eine Cow_ID, und
+    /// "Kuh 142" laesst sich aus einer Route nicht ableiten. MainLayout
+    /// loescht den Wert bei jeder Navigation, damit er nicht auf der naechsten
+    /// Seite stehen bleibt.
+    /// </summary>
+    public string? PageTitleOverride { get; private set; }
+
     public event Action? Changed;
+
+    public void SetPageTitle(string? title)
+    {
+        if (PageTitleOverride == title)
+        {
+            return;
+        }
+
+        PageTitleOverride = title;
+        Changed?.Invoke();
+    }
 
     /// <summary>Oeffnet genau ein Overlay und schliesst dabei die anderen.</summary>
     public void ToggleDrawer() => Toggle(Overlay.Drawer);

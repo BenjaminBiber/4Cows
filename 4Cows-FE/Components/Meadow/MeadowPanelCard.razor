@@ -1,0 +1,26 @@
+@*
+    Wie MeadowChartCard, aber ohne den .mw-chart-canvas-Rahmen.
+
+    Bewusst eine eigene Komponente und kein Schalter an MeadowChartCard:
+    dessen Kommentar sagt "Rahmen um einen Chart.js-Canvas", und von den
+    Karten der Kuh-Seite enthaelt genau eine ein Canvas. Der Canvas-Rahmen
+    hat eine feste Hoehe (--mw-bars-h) - Inhalte, die von sich aus wachsen,
+    wuerden darin abgeschnitten.
+*@
+<div class="mw-card mw-card--panel @Class">
+    <div class="mw-card__head">
+        <span class="mw-card-title">@Title</span>
+        @if (Tools is not null)
+        {
+            <div class="mw-card__tools">@Tools</div>
+        }
+    </div>
+    @ChildContent
+</div>
+
+@code {
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public RenderFragment? Tools { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public string? Class { get; set; }
+}

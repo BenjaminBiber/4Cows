@@ -72,6 +72,21 @@ public static class ClawTreatmentExtensions
     public static bool HasData(this ClawTreatment t, HoofPosition p)
         => !string.IsNullOrWhiteSpace(t.GetFinding(p)) || t.GetBandage(p) || t.GetBlock(p);
 
+    /// <summary>
+    /// Die Klauen dieser Behandlung, an denen ein Verband noch LIEGT.
+    ///
+    /// IsBandageRemoved gilt behandlungsweit, nicht je Klaue - wer das
+    /// vergisst, zaehlt abgenommene Verbaende mit. Steht deshalb hier und
+    /// nicht ein viertes Mal verstreut ueber BandagedClaw.Project,
+    /// ClawTreatmentService.GetClawTreatmentsWithBandage und den
+    /// CowProfileBuilder: die Zahl auf der Kachel und die Zeilen in der
+    /// Verbaende-Tabelle muessen dieselbe Menge sein.
+    /// </summary>
+    public static IEnumerable<HoofPosition> OpenBandages(this ClawTreatment t)
+        => t.IsBandageRemoved
+            ? Enumerable.Empty<HoofPosition>()
+            : HoofPositions.All.Where(t.GetBandage);
+
     public static bool GetFlag(this PlannedClawTreatment t, HoofPosition p) => p switch
     {
         HoofPosition.LV => t.ClawFindingLV,

@@ -99,6 +99,17 @@
 @code {
     [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = default!;
 
+    /// <summary>
+    /// Vorbelegtes Tier, gesetzt von der Kuh-Seite. Die Cow_ID, nicht die
+    /// Ohrmarke und nicht die Halsbandnummer. Null oeffnet den Dialog leer wie
+    /// bisher.
+    ///
+    /// Anders als bei den beiden erfassten Behandlungen gibt es hier keine
+    /// Entitaet zum Vorbelegen: der Dialog plant mehrere Tiere auf einmal und
+    /// haelt seinen Zustand deshalb in _numbers.
+    /// </summary>
+    [Parameter] public string? CowId { get; set; }
+
     private readonly List<NumberEntry> _numbers = new();
     private readonly List<MedicationEntry> _medications = new();
     private DateTime? NullDate;
@@ -109,10 +120,28 @@
     protected override void OnInitialized()
     {
         NullDate = DateTime.Now;
-        _numbers.Add(new NumberEntry());
+
+        if (string.IsNullOrEmpty(CowId))
+        {
+            _numbers.Add(new NumberEntry());
+        }
+        else
+        {
+            // Halsband darf leer bleiben: ein abgegangenes Tier hat keines
+            // mehr, das die Suche findet - die Cow_ID identifiziert es
+            // trotzdem.
+            var collar = cowService.GetCollarNumberByCowId(CowId);
+            _numbers.Add(new NumberEntry
+            {
+                Value = collar == int.MinValue ? null : collar,
+                EarValue = CowId
+            });
+        }
 
         // Mit der Voreinstellung als Einheit: hier ist noch kein Medikament
-        // gewaehlt, das eine eigene mitbringen koennte.
+        // gewaehlt, das eine eigene mitbringen koennte. Steht bewusst hinter
+        // dem if/else und nicht in einem der Zweige - ohne
+        // Medikamenten-Zeile hat der Dialog kein Mengenfeld.
         _medications.Add(new MedicationEntry { DosageUnit = SettingsService.DefaultDosageUnit });
     }
 

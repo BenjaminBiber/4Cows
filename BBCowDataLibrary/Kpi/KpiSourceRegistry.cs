@@ -243,11 +243,11 @@ public static class KpiSourceRegistry
     {
         Id = KpiSourceId.Cow,
         Label = "Kühe",
-        // No route ON PURPOSE. The application has no page that lists cows - "Kuh_Daten" is the cow
-        // TREATMENTS table, and animals are maintained in the Basisdaten tab of the settings, which
-        // has no address of its own. Pointing there would open a table of 120 treatments behind a
-        // tile that counted 37 animals, so this tile is deliberately not a link.
-        Route = string.Empty,
+        // "Kuehe" and NOT "Kuh_Daten": that one is the cow TREATMENTS table, and pointing there
+        // would open 120 treatments behind a tile that counted 37 animals. Until /Kuehe existed
+        // there was no page listing animals at all and this source deliberately declared no route.
+        // A literal, like the other four - the library cannot reference MeadowRoutes.
+        Route = "Kuehe",
         IsPlanned = false,
         // Cow has no date column whatsoever (Cow_ID, Ear_Tag_Number, Collar_Number, Is_Calv,
         // IsGone), so no timeframe and no trend are computable here.

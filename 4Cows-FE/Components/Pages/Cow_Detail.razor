@@ -1,0 +1,471 @@
+@page "/Kuh/{CowId}"
+@implements IDisposable
+
+@using _4Cows_FE.Components._4CowsComponent.CowDetail
+@using _4Cows_FE.Components.Meadow
+@using _4Cows_FE.Components.Services
+@using BB_Cow.Class
+@using BB_Cow.Profile
+
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject MeadowDataLoader Data
+@inject MeadowDialogLauncher Launcher
+@inject MeadowDataChanges Changes
+@inject LayoutState Layout
+@inject ThemeState Theme
+@inject CowService cowService
+@inject CowTreatmentService cowTreatmentService
+@inject ClawTreatmentService clawTreatmentService
+@inject PCowTreatmentService pCowTreatmentService
+@inject PClawTreatmentService pClawTreatmentService
+@inject MedicineService medicineService
+@inject TreatmentReasonService TreatmentReasonService
+@inject UdderService UdderService
+@inject SettingsService Settings
+
+<PageTitle>@HeaderTitle · Meadow</PageTitle>
+
+@if (_cow is null)
+{
+    @* Bewusst kein NavigateTo("nicht-gefunden"): das schriebe die Adresszeile
+       um und der fehlerhafte Link waere weg. Hier stimmt die Route, nur das
+       Tier dahinter fehlt - UseStatusCodePagesWithReExecute hilft also
+       ohnehin nicht. *@
+    <MeadowNotFound Title="Kuh nicht gefunden"
+                    Text="Zu dieser Adresse gibt es kein Tier (mehr)." />
+}
+else
+{
+    <CowHeaderCard Cow="_cow" Collar="@Collar" EarTag="@EarTag"
+                   OnAddCowTreatment="AddCowTreatment"
+                   OnAddClawTreatment="AddClawTreatment"
+                   OnPlanCowTreatment="PlanCowTreatment"
+                   OnPlanClawTreatment="PlanClawTreatment" />
+
+    <CowKpiTiles Profile="_profile" Collar="@Collar" TopMedicineName="@TopMedicineName" />
+
+    <div class="mw-dash-charts">
+        <MeadowChartCard Title="@($"Behandlungen pro Monat · {ChartRange}")" Class="mw-card--wide">
+            <ChildContent>
+                @* role="img" plus Zusammenfassung: ein Canvas ist fuer
+                   Screenreader eine leere Flaeche, und die Einzelwerte stehen
+                   ohnehin in den Tabellen weiter unten. *@
+                <canvas id="@ChartId" role="img" aria-label="@ChartSummary"></canvas>
+            </ChildContent>
+        </MeadowChartCard>
+
+        <MeadowPanelCard Title="Klauen-Heatmap" Class="mw-card--heat">
+            <CowHoofHeatmap Hoofs="_profile.Hoofs"
+                            TotalTreatments="_profile.TotalClawTreatments"
+                            FallbackFinding="@Settings.ClawFindingFallback" />
+        </MeadowPanelCard>
+    </div>
+
+    @if (_chartError is not null)
+    {
+        @* Steht ZWISCHEN den Kartenreihen und nicht am Seitenende wie auf dem
+           Dashboard: darunter kommen noch drei Karten, und dort gelesen
+           wirkte die Meldung, als gehoere sie zur Eutergrafik. *@
+        <div class="mw-chart-error" role="status">
+            Das Diagramm konnte nicht gezeichnet werden. Prüfe, ob die
+            Chart.js-Bibliothek erreichbar ist.
+        </div>
+    }
+
+    <div class="mw-dash-charts">
+        <MeadowPanelCard Title="Medikamente">
+            <MeadowBarList Items="MedicineBars" EmptyText="Keine Medikamente erfasst." />
+        </MeadowPanelCard>
+
+        <MeadowPanelCard Title="Behandlungsgründe">
+            <MeadowBarList Items="ReasonBars" Teal="true" EmptyText="Kein Behandlungsgrund erfasst." />
+        </MeadowPanelCard>
+
+        <MeadowPanelCard Title="Euterviertel">
+            <CowUdderQuadrants Quarters="_profile.UdderQuarters"
+                               WithQuarter="_profile.UdderTreatments"
+                               Total="_profile.TotalCowTreatments" />
+        </MeadowPanelCard>
+    </div>
+
+    <div class="mw-tabs mw-tabs--scroll">
+        @foreach (var tab in CowDetailTabs.All)
+        {
+            @* Echte Links, keine Knoepfe: die Auswahl lebt in ?tab=, also ist
+               aria-current="page" hier woertlich richtig - und die Kacheln
+               "offene Verbaende" und "offene Termine" koennen darauf zeigen.
+               null und nicht false: "@(x == y)" schriebe das Literal "False"
+               ins Attribut, das ein Screenreader dann vorliest. *@
+            <a class="mw-tab @(_tab == tab ? "is-active" : null)"
+               href="@TabHref(tab)"
+               aria-current="@(_tab == tab ? "page" : null)">
+                @CowDetailTabs.Label(tab)<span class="mw-tab__count">@Count(tab)</span>
+            </a>
+        }
+    </div>
+
+    @switch (_tab)
+    {
+        case CowDetailTab.CowTreatments:
+            <CowTreatmentsPanel Rows="_profile.CowTreatments" />
+            break;
+
+        case CowDetailTab.ClawTreatments:
+            <ClawTreatmentsPanel Rows="_profile.ClawTreatments" OnChanged="ReloadAsync" />
+            break;
+
+        case CowDetailTab.PlannedCow:
+            <PlannedCowPanel Rows="_profile.PlannedCowTreatments" OnChanged="ReloadAsync" />
+            break;
+
+        case CowDetailTab.PlannedClaw:
+            <PlannedClawPanel Rows="_profile.PlannedClawTreatments" OnChanged="ReloadAsync" />
+            break;
+
+        default:
+            <BandagesPanel Treatments="_profile.ClawTreatments" OnChanged="ReloadAsync" />
+            break;
+    }
+}
+
+@code {
+    [Parameter] public string CowId { get; set; } = "";
+
+    /// <summary>
+    /// Die aktive Lasche. Im Query-String und nicht in einem Feld, damit die
+    /// beiden Statuskacheln echte Links sein koennen - siehe CowDetailTabs.
+    /// </summary>
+    [SupplyParameterFromQuery(Name = "tab")]
+    public string? TabSlug { get; set; }
+
+    // Eigene Canvas-ID: ChartHelper.js fuehrt eine modulweite Registry ueber
+    // die ID, "CowChart" waere der Eintrag des Dashboards.
+    private const string ChartId = "CowProfileChart";
+
+    private Cow? _cow;
+    private CowProfile _profile = CowProfileBuilder.Empty("", DateTime.Today);
+    private CowDetailTab _tab = CowDetailTab.CowTreatments;
+
+    private string? _loadedCowId;
+    private string? _chartError;
+    private int _chartPrint;
+    private bool _chartDirty;
+
+    protected override void OnInitialized()
+    {
+        Changes.Changed += OnDataChanged;
+        Theme.Changed += OnThemeChanged;
+    }
+
+    /// <summary>
+    /// Geladen wird in OnParametersSetAsync, NICHT in OnInitializedAsync:
+    /// /Kuh/A -> /Kuh/B behaelt dieselbe Komponenteninstanz, OnInitialized
+    /// liefe also kein zweites Mal und die Seite zeigte weiter das alte Tier.
+    /// Der Waechter verhindert im Gegenzug, dass jedes Rendern neu laedt.
+    /// </summary>
+    protected override async Task OnParametersSetAsync()
+    {
+        _tab = CowDetailTabs.Parse(TabSlug);
+
+        if (_loadedCowId == CowId)
+        {
+            return;
+        }
+
+        _loadedCowId = CowId;
+        await Data.EnsureCowProfileAsync();
+        Rebuild();
+        Layout.SetPageTitle(HeaderTitle);
+        // Gezeichnet wird nicht hier, sondern in OnAfterRenderAsync - siehe
+        // dort. Rebuild hat den Auftrag dafuer schon hinterlegt.
+    }
+
+    public void Dispose()
+    {
+        Changes.Changed -= OnDataChanged;
+        Theme.Changed -= OnThemeChanged;
+        Layout.SetPageTitle(null);
+    }
+
+    /// <summary>
+    /// Der einzige Ort, an dem gezeichnet wird - und bewusst NICHT nur beim
+    /// ersten Render.
+    ///
+    /// OnParametersSetAsync wartet auf die Daten; bis dahin rendert die Seite
+    /// den 404-Zweig, in dem es gar kein &lt;canvas&gt; gibt. Ein Aufruf im
+    /// Ladepfad traf deshalb auf getElementById(...) === null. Statt auf
+    /// firstRender zu warten, hinterlegt jede Aenderung einen Auftrag, und
+    /// gezeichnet wird, sobald das Element tatsaechlich im DOM steht.
+    /// </summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_chartDirty || _cow is null)
+        {
+            return;
+        }
+
+        _chartDirty = false;
+        await RenderChartAsync();
+    }
+
+    // ---- Daten ----------------------------------------------------------
+
+    private void Rebuild()
+    {
+        _cow = cowService.GetById(CowId);
+
+        // Fuer ein Tier, das es nicht gibt, wird gar nicht erst gerechnet.
+        _profile = _cow is null
+            ? CowProfileBuilder.Empty(CowId, DateTime.Today)
+            : CowProfileBuilder.Build(
+                CowId,
+                cowTreatmentService.Treatments.Values,
+                clawTreatmentService.Treatments.Values,
+                pCowTreatmentService.Treatments.Values,
+                pClawTreatmentService.Treatments.Values,
+                UdderService.Udder,
+                DateTime.Today);
+
+        MarkChartDirty();
+    }
+
+    private async Task ReloadAsync()
+    {
+        await Data.EnsureCowProfileAsync();
+        Rebuild();
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Ohne Unterscheidung nach Art, wie auf dem Dashboard: jede der vier
+    /// Arten geht in mindestens eine Kachel ein.
+    /// </summary>
+    private void OnDataChanged(MeadowDataKind kind) => _ = InvokeAsync(ReloadAsync);
+
+    private void OnThemeChanged() => _ = InvokeAsync(() =>
+    {
+        // Achsen-, Gitter- und Balkenfarben stecken in der Chart.js-Config,
+        // nicht im CSS - beim Themenwechsel muss IMMER neu gezeichnet werden,
+        // auch wenn sich an den Zahlen nichts geaendert hat. Daher force.
+        MarkChartDirty(force: true);
+        StateHasChanged();
+    });
+
+    // ---- Anzeige --------------------------------------------------------
+
+    private string Collar
+    {
+        get
+        {
+            var collar = cowService.GetCollarNumberByCowId(CowId);
+            return collar == int.MinValue ? "–" : collar.ToString();
+        }
+    }
+
+    // Ueber den Service: bei einem Kalb steht dort "Kalb", und die rohe
+    // Cow_ID darf nie in die Anzeige - die ist dann eine GUID.
+    private string EarTag => cowService.GetEarTagDisplay(CowId);
+
+    private string HeaderTitle => _cow is null ? "Kuh" : $"Kuh {Collar}";
+
+    /// <summary>
+    /// Name des haeufigsten Medikaments, oder null. "--" wird uebersprungen:
+    /// so heisst bei MedicineService eine unbekannte ID, und als Kachelwert
+    /// waere das keine Auskunft. Dieselbe Regel wie in Cow_Table.
+    /// </summary>
+    private string? TopMedicineName => _profile.Medicines
+        .Select(m => medicineService.GetMedicineNameById(m.Id))
+        .FirstOrDefault(n => !string.IsNullOrEmpty(n) && n != "--");
+
+    private IReadOnlyList<MeadowBarList.Item> MedicineBars => _profile.Medicines
+        .Select(m => new MeadowBarList.Item(medicineService.GetMedicineNameById(m.Id), m.Count))
+        .Where(i => !string.IsNullOrEmpty(i.Label) && i.Label != "--")
+        .ToList();
+
+    /// <summary>
+    /// Behandlungen ohne Grund bekommen eine eigene Zeile statt zu
+    /// verschwinden - sonst summierten sich die Balken auf weniger als die
+    /// Kachel "Behandlungen gesamt" zeigt, und das sieht nach Fehler aus.
+    /// </summary>
+    private IReadOnlyList<MeadowBarList.Item> ReasonBars => _profile.Reasons
+        .Select(r => new MeadowBarList.Item(
+            r.Id == CowProfile.NoReasonId ? "Ohne Angabe" : TreatmentReasonService.GetNameById(r.Id),
+            r.Count))
+        .ToList();
+
+    private int Count(CowDetailTab tab) => tab switch
+    {
+        CowDetailTab.CowTreatments => _profile.CowTreatments.Count,
+        CowDetailTab.ClawTreatments => _profile.ClawTreatments.Count,
+        CowDetailTab.PlannedCow => _profile.PlannedCowTreatments.Count,
+        CowDetailTab.PlannedClaw => _profile.PlannedClawTreatments.Count,
+        _ => _profile.OpenBandages
+    };
+
+    private string TabHref(CowDetailTab tab)
+        => $"{MeadowRoutes.CowDetailFor(CowId)}?tab={CowDetailTabs.ToSlug(tab)}";
+
+    // ---- Diagramm -------------------------------------------------------
+
+    private DateTime ChartStart => _profile.Months.Count == 0
+        ? DateTime.Today
+        : new DateTime(_profile.Months[0].Year, _profile.Months[0].Month, 1);
+
+    private string ChartRange => MeadowMonthAxis.RangeCaption(ChartStart, _profile.Months.Count);
+
+    private string ChartSummary
+    {
+        get
+        {
+            var cow = _profile.Months.Sum(m => m.CowCount);
+            var claw = _profile.Months.Sum(m => m.ClawCount);
+            return $"Behandlungen pro Monat, {ChartRange}: {cow + claw} gesamt, "
+                   + $"davon {cow} Kuh und {claw} Klaue.";
+        }
+    }
+
+    /// <summary>
+    /// Ein Fingerabdruck ueber die Monatsreihe. Jeder Dialogabschluss meldet
+    /// eine Aenderung, aber die meisten davon aendern an DIESEM Diagramm
+    /// nichts - und ein Neuzeichnen ist eine JS-Runde ueber den Circuit.
+    /// </summary>
+    private static int Print(CowProfile profile)
+        => profile.Months.Aggregate(17, (a, m) => HashCode.Combine(a, m.CowCount, m.ClawCount));
+
+    /// <param name="force">
+    /// Auch zeichnen, wenn die Zahlen gleich geblieben sind - fuer den
+    /// Themenwechsel, bei dem sich nur die Farben aendern.
+    /// </param>
+    private void MarkChartDirty(bool force = false)
+    {
+        var print = Print(_profile);
+        if (!force && print == _chartPrint)
+        {
+            return;
+        }
+
+        _chartPrint = print;
+        _chartDirty = true;
+    }
+
+    /// <summary>
+    /// Einziger Einstiegspunkt zum Zeichnen. Chart.js kommt vom CDN und ist
+    /// im Hofnetz nicht garantiert erreichbar - schlaegt der Aufruf fehl,
+    /// soll die Seite ohne Diagramm weiterlaufen. Ein unbehandelter
+    /// Interop-Fehler risse sonst den ganzen Circuit ab, samt Heatmap,
+    /// Balkenlisten und Tabellen, die gar kein JS brauchen.
+    /// </summary>
+    private async Task RenderChartAsync()
+    {
+        try
+        {
+            var tokens = await JS.InvokeAsync<Dictionary<string, string>>(
+                "meadowTheme.tokens",
+                new[] { "primary", "teal", "muted", "border" });
+
+            var primary = Pick(tokens, "primary", "#2C7DA0");
+            var teal = Pick(tokens, "teal", "#619B98");
+            var muted = Pick(tokens, "muted", "#6c7b78");
+            var border = Pick(tokens, "border", "#e6ecea");
+
+            var config = new
+            {
+                type = "bar",
+                data = new
+                {
+                    labels = MeadowMonthAxis.TickLabels(ChartStart, _profile.Months.Count),
+                    datasets = new object[]
+                    {
+                        new
+                        {
+                            label = "Kuh",
+                            data = _profile.Months.Select(m => m.CowCount).ToArray(),
+                            backgroundColor = primary,
+                            borderRadius = 5,
+                            borderSkipped = "bottom",
+                            borderWidth = 0
+                        },
+                        new
+                        {
+                            label = "Klaue",
+                            data = _profile.Months.Select(m => m.ClawCount).ToArray(),
+                            backgroundColor = teal,
+                            borderRadius = 5,
+                            borderSkipped = "bottom",
+                            borderWidth = 0
+                        }
+                    }
+                },
+                options = new
+                {
+                    responsive = true,
+                    maintainAspectRatio = false,
+                    interaction = new { intersect = false, mode = "index" },
+                    scales = new
+                    {
+                        x = new
+                        {
+                            stacked = true,
+                            grid = new { display = false },
+                            border = new { color = border },
+                            ticks = new { color = muted, font = new { size = 10 } }
+                        },
+                        y = new
+                        {
+                            stacked = true,
+                            beginAtZero = true,
+                            grid = new { color = border },
+                            border = new { display = false },
+                            ticks = new { color = muted, precision = 0, font = new { size = 10 } }
+                        }
+                    },
+                    plugins = new
+                    {
+                        legend = new
+                        {
+                            display = true,
+                            labels = new { color = muted, boxWidth = 12, font = new { size = 11 } }
+                        }
+                    }
+                }
+            };
+
+            // Die Achse zeigt nur Anfangsbuchstaben, der Tooltip Monat UND
+            // Jahr - ein rollendes Fenster ueberschreitet den Jahreswechsel.
+            await JS.InvokeVoidAsync(
+                "meadowChart.render",
+                ChartId,
+                config,
+                MeadowMonthAxis.TooltipTitles(ChartStart, _profile.Months.Count));
+
+            _chartError = null;
+        }
+        catch (JSException ex)
+        {
+            _chartError = ex.Message;
+        }
+
+        StateHasChanged();
+    }
+
+    private static string Pick(IReadOnlyDictionary<string, string> tokens, string key, string fallback)
+        => tokens.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value)
+            ? value
+            : fallback;
+
+    // ---- Aktionen -------------------------------------------------------
+    //
+    // Ueber den Launcher wie ueberall: er meldet das Speichern, OnDataChanged
+    // laedt nach. Vorbelegt wird mit der Cow_ID, nicht mit der
+    // Halsbandnummer - die ist bei einem abgegangenen Tier nicht mehr
+    // aufloesbar und bei einer neu vergebenen sogar falsch.
+
+    private Task AddCowTreatment() => Launcher.OpenCowTreatmentAsync(CowId);
+
+    private Task AddClawTreatment() => Launcher.OpenClawTreatmentAsync(CowId);
+
+    private Task PlanCowTreatment() => Launcher.OpenPlannedCowTreatmentAsync(CowId);
+
+    private Task PlanClawTreatment() => Launcher.OpenPlannedClawTreatmentAsync(CowId);
+}

@@ -8,10 +8,19 @@
     <div class="mw-notfound__badge">
         <MeadowIcon Name="MeadowIconName.Search" Size="30" />
     </div>
-    <div class="mw-notfound__title">Seite nicht gefunden</div>
-    <div class="mw-notfound__text">Diese Adresse gibt es nicht (mehr).</div>
+    <div class="mw-notfound__title">@Title</div>
+    <div class="mw-notfound__text">@Text</div>
     @* href="" zeigte auf die AKTUELLE Adresse - der Knopf liess den Nutzer
        also auf der 404-Seite stehen. DashboardHref statt der Konstante,
        damit er im Betriebsmodus auf "/" und im Demo-Modus auf "/app" geht. *@
     <a class="mw-btn mw-btn--primary mw-btn--wide" href="@Demo.DashboardHref">Zum Dashboard</a>
 </div>
+
+@code {
+    // Ueberschreibbar, weil die Kuh-Seite dieselbe Karte fuer einen anderen
+    // Fall braucht: dort stimmt die ADRESSE, nur das Tier dahinter gibt es
+    // nicht. "Seite nicht gefunden" waere dann schlicht falsch.
+    [Parameter] public string Title { get; set; } = "Seite nicht gefunden";
+
+    [Parameter] public string Text { get; set; } = "Diese Adresse gibt es nicht (mehr).";
+}

@@ -1,0 +1,199 @@
+@using _4Cows_FE.Components._4CowsComponent.Dialogs
+@using _4Cows_FE.Components.Meadow
+@using BB_Cow.Class
+@*
+    Tab "Verbände": die noch liegenden Verbaende dieses Tieres, eine Zeile
+    je Klaue.
+
+    Dieselbe Projektion wie die Verbaende-Seite (BandagedClaw.Project), damit
+    die Zeilenzahl hier, die Zahl auf der Kachel und die gefilterte Zeilenzahl
+    unter /Verband_Daten nicht auseinanderlaufen koennen.
+*@
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject ClawTreatmentService clawTreatmentService
+
+<MeadowTable TItem="BandagedClaw" Items="_rows" Columns="_columns"
+             RowKey="@(r => r.Key)"
+             DefaultSortTitle="Tage" DefaultSortDescending="true"
+             PagerLabel="Verbände pro Seite"
+             MoreLabel="Weitere Verbände laden"
+             EmptyText="Bei dieser Kuh liegt kein Verband.">
+    <MobileCard Context="row">
+        <div class="mw-row-card">
+            <div class="mw-row-card__top">
+                <span class="mw-row-card__title">@row.HoofText</span>
+                <MeadowDayChip Days="row.Days" />
+            </div>
+            <div class="mw-row-card__meta">
+                <span>seit @row.Since.ToString("dd.MM.yyyy")</span>
+                @if (row.Finding.Length > 0)
+                {
+                    <span>@row.Finding</span>
+                }
+            </div>
+            <div class="mw-row-card__actions">
+                <button type="button" class="mw-btn mw-btn--ghost mw-btn--sm"
+                        @onclick="() => OpenTreatment(row)">Öffnen</button>
+                <button type="button" class="mw-btn mw-btn--primary mw-btn--sm"
+                        @onclick="() => RemoveBandage(row)">Entfernen</button>
+            </div>
+        </div>
+    </MobileCard>
+</MeadowTable>
+
+@code {
+    /// <summary>ALLE Klauenbehandlungen dieser Kuh - die Projektion filtert selbst.</summary>
+    [Parameter] public IReadOnlyList<ClawTreatment> Treatments { get; set; }
+        = Array.Empty<ClawTreatment>();
+
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    private IReadOnlyList<BandagedClaw> _rows = Array.Empty<BandagedClaw>();
+    private List<MeadowColumn<BandagedClaw>> _columns = new();
+
+    protected override void OnParametersSet() => _rows = BandagedClaw.Project(Treatments);
+
+    protected override void OnInitialized() => _columns = new()
+    {
+        new MeadowColumn<BandagedClaw>
+        {
+            Title = "Klaue",
+            Text = r => r.HoofText,
+            SortBy = r => r.Position.ToString(),
+            Style = MeadowCellStyle.Bold
+        },
+        new MeadowColumn<BandagedClaw>
+        {
+            Title = "Befund",
+            Text = r => r.Finding.Length == 0 ? "–" : r.Finding,
+            SortBy = r => r.Finding
+        },
+        new MeadowColumn<BandagedClaw>
+        {
+            Title = "Angelegt",
+            Text = r => r.Since.ToString("dd.MM.yyyy"),
+            SortBy = r => r.Since,
+            NoWrap = true
+        },
+        new MeadowColumn<BandagedClaw>
+        {
+            Title = "Tage",
+            Text = r => $"{r.Days} Tage",
+            SortBy = r => r.Days,
+            Template = row =>@<MeadowDayChip Days="row.Days" />
+        },
+        new MeadowColumn<BandagedClaw>
+        {
+            IsActions = true,
+            Template = row =>@<text>
+                <button type="button" class="mw-btn mw-btn--sm mw-btn--ghost"
+                        @onclick="() => OpenTreatment(row)">Behandlung öffnen</button>
+                <button type="button" class="mw-btn mw-btn--sm mw-btn--primary"
+                        @onclick="() => RemoveBandage(row)">Entfernen</button>
+            </text>
+        }
+    };
+
+    // ---- Aktionen -----------------------------------------------------
+
+    private async Task OpenTreatment(BandagedClaw row)
+    {
+        var treatment = Treatments.FirstOrDefault(t => t.ClawTreatmentId == row.TreatmentId);
+        if (treatment is null)
+        {
+            return;
+        }
+
+        var options = new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            CloseButton = true,
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true
+        };
+        var parameters = new DialogParameters<Show_Claw_Treatment_Dialog>
+        {
+            { x => x.Claw_Treatment, treatment }
+        };
+
+        var dialog = await DialogService.ShowAsync<Show_Claw_Treatment_Dialog>(
+            string.Empty, parameters, options);
+        var result = await dialog.Result;
+
+        if (result is null || result.Canceled || result.Data is not ClawTreatment edit)
+        {
+            return;
+        }
+
+        var editOptions = new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true
+        };
+        var editParameters = new DialogParameters<Add_Claw_Treatment_Dialog>
+        {
+            { x => x.Claw_Treatment, edit }
+        };
+
+        var editDialog = await DialogService.ShowAsync<Add_Claw_Treatment_Dialog>(
+            string.Empty, editParameters, editOptions);
+        var editResult = await editDialog.Result;
+
+        if (editResult is null || editResult.Canceled)
+        {
+            return;
+        }
+
+        await OnChanged.InvokeAsync();
+    }
+
+    private async Task RemoveBandage(BandagedClaw row)
+    {
+        // RemoveBandageAsync legt das EINE IsBandageRemoved der ganzen
+        // Behandlung um. Bei mehreren bandagierten Klauen verschwinden
+        // deshalb alle - das muss vorher dastehen. Wortgleich aus
+        // Remove_Claw_Bandage_Table.
+        var siblings = _rows.Where(r => r.TreatmentId == row.TreatmentId).ToList();
+
+        var description = siblings.Count == 1
+            ? $"Verband {row.HoofText} als entfernt markieren?"
+            : $"An dieser Behandlung sind {siblings.Count} Verbände erfasst "
+              + $"({string.Join(", ", siblings.Select(s => s.Position))}). "
+              + "Die Behandlung speichert nur ein gemeinsames Kennzeichen — beim "
+              + $"Entfernen werden ALLE {siblings.Count} Verbände als entfernt markiert. Fortfahren?";
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, NoHeader = true };
+        var parameters = new DialogParameters<GenericDialog>
+        {
+            { x => x.HeaderText, "Verband entfernen" },
+            { x => x.Description, description },
+            { x => x.AcceptButtonText, "Entfernen" },
+            { x => x.CancelButtonText, "Abbrechen" },
+            { x => x.ColorScheme, Color.Error }
+        };
+
+        var dialog = await DialogService.ShowAsync<GenericDialog>(string.Empty, parameters, options);
+        var result = await dialog.Result;
+        if (result is null || result.Canceled)
+        {
+            return;
+        }
+
+        if (await clawTreatmentService.RemoveBandageAsync(row.TreatmentId))
+        {
+            Snackbar.Add(
+                siblings.Count == 1
+                    ? "Verband als entfernt markiert."
+                    : $"{siblings.Count} Verbände als entfernt markiert.",
+                Severity.Success);
+
+            await OnChanged.InvokeAsync();
+        }
+        else
+        {
+            Snackbar.Add("Entfernen des Verbands fehlgeschlagen.", Severity.Error);
+        }
+    }
+}

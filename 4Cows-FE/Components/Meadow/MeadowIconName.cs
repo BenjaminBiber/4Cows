@@ -13,6 +13,14 @@ public enum MeadowIconName
     Sun,
     Dashboard,
     Cow,
+
+    /// <summary>
+    /// Die Kuh-Uebersicht. Eigenes Glyph und nicht noch einmal
+    /// <see cref="Cow"/>: die beiden staenden im Drawer direkt untereinander
+    /// in derselben Gruppe, und zwei identische Symbole nebeneinander machen
+    /// die Liste unlesbarer, nicht ruhiger.
+    /// </summary>
+    Herd,
     PlannedCow,
     Bandage,
     Claw,

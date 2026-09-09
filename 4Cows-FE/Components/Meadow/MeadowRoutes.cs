@@ -48,6 +48,27 @@ public static class MeadowRoutes
     public const string Settings = "Settings";
     public const string NotFound = "nicht-gefunden";
 
+    /// <summary>
+    /// Die Kuh-Uebersicht. Steht auch in KpiSourceRegistry.Cows().Route - dort
+    /// als Literal, weil die Bibliothek diese Klasse nicht kennen kann.
+    /// </summary>
+    public const string Cows = "Kuehe";
+
+    /// <summary>
+    /// Erstes Segment der Kuh-Seite; danach folgt die Cow_ID. Eigene
+    /// Konstante, weil TitleFor, GroupFor und IsWide ueber BaseOf nur dieses
+    /// Segment zu sehen bekommen.
+    /// </summary>
+    public const string CowDetail = "Kuh";
+
+    /// <summary>
+    /// Adresse einer Kuh. EscapeDataString ist Pflicht und keine Vorsicht:
+    /// fuer erfasste Tiere IST die Cow_ID die Ohrmarke, und die enthaelt
+    /// Leerzeichen ("DE 08 1523 4567").
+    /// </summary>
+    public static string CowDetailFor(string cowId)
+        => $"{CowDetail}/{Uri.EscapeDataString(cowId)}";
+
     private static readonly Dictionary<string, string> TitleMap =
         new(StringComparer.OrdinalIgnoreCase)
         {
@@ -57,6 +78,12 @@ public static class MeadowRoutes
             // Eintrag trotzdem, liefert TitleFor unten den 404-Titel.
             [Root] = "Dashboard",
             [Dashboard] = "Dashboard",
+            [Cows] = "Kühe",
+            // Ohne die Cow_ID - die steht in der Route, nicht in der Tabelle.
+            // Den Titel mit Halsbandnummer setzt die Seite selbst ueber
+            // LayoutState.SetPageTitle; das hier ist der Wert fuer das eine
+            // Bild davor und fuer den Fall, dass die Kuh es nicht gibt.
+            [CowDetail] = "Kuh",
             [CowTreatments] = "Kuh Behandlungen",
             [PlannedCowTreatments] = "Geplante Kuh Behandl.",
             [Bandages] = "Verbände",
@@ -71,8 +98,24 @@ public static class MeadowRoutes
         => baseRelativePath.Split('?', '#')[0].Trim('/');
 
     /// <summary>
-    /// Alle acht echten Routen stehen in der Tabelle - Root und Dashboard
-    /// zeigen dabei auf dieselbe Seite. Eine unbekannte
+    /// Nur das erste Segment: "Kuh/DE%2008%201523%204567" wird zu "Kuh".
+    ///
+    /// Die Kuh-Seite ist die einzige Route mit Parameter. Ohne diesen Schritt
+    /// faende TitleFor sie nicht in der Tabelle (also 404-Titel) und GroupFor
+    /// gaebe NavGroup.None zurueck - Drawer, Tabbar und Titel-Dropdown
+    /// verloeren auf ihr die Orientierung. Und der Parameter kommt escaped
+    /// an: ToBaseRelativePath liefert "Kuh/DE%2008...", nicht "Kuh/DE 08...".
+    /// </summary>
+    public static string BaseOf(string route)
+    {
+        var slash = route.IndexOf('/');
+        return slash < 0 ? route : route[..slash];
+    }
+
+    /// <summary>
+    /// Alle echten Routen stehen in der Tabelle - Root und Dashboard zeigen
+    /// dabei auf dieselbe Seite, und die Kuh-Seite steht ueber BaseOf mit
+    /// ihrem ersten Segment darin. Eine unbekannte
     /// Route ist deshalb immer ein 404. Der Fallback lautet nicht "Meadow":
     /// UseStatusCodePagesWithReExecute schreibt nur den Server-Pfad um, die
     /// Adresse im Browser bleibt die falsche. Header und Dokumenttitel
@@ -80,16 +123,16 @@ public static class MeadowRoutes
     /// gefunden" sagen, nicht den Produktnamen doppeln ("Meadow · Meadow").
     /// </summary>
     public static string TitleFor(string route)
-        => TitleMap.TryGetValue(route, out var title) ? title : TitleMap[NotFound];
+        => TitleMap.TryGetValue(BaseOf(route), out var title) ? title : TitleMap[NotFound];
 
     /// <summary>
     /// Gruppe fuer Drawer-Akzent, Tabbar-Hervorhebung, FAB-Aktion und das
     /// Titel-Dropdown. Verbände zaehlt zur Klaue-Gruppe.
     /// </summary>
-    public static NavGroup GroupFor(string route) => route switch
+    public static NavGroup GroupFor(string route) => BaseOf(route) switch
     {
         Root or Dashboard => NavGroup.Dashboard,
-        CowTreatments or PlannedCowTreatments => NavGroup.Cow,
+        Cows or CowDetail or CowTreatments or PlannedCowTreatments => NavGroup.Cow,
         ClawTreatments or PlannedClawTreatments or Bandages => NavGroup.Claw,
         Settings => NavGroup.System,
         _ => NavGroup.None
@@ -97,16 +140,17 @@ public static class MeadowRoutes
 
     /// <summary>
     /// Ob die Seite die volle Inhaltsbreite bekommt statt des 1260px-Deckels
-    /// aus --mw-shell-max. Nur das Dashboard: dessen Kacheln und Diagramme
-    /// fuellen die Breite, waehrend die Tabellen mit vier Spalten davon
-    /// nichts haetten ausser laengeren Zeilen.
+    /// aus --mw-shell-max. Dashboard und Kuh-Seite: deren Kacheln und
+    /// Diagramme fuellen die Breite, waehrend die Tabellen mit vier Spalten
+    /// davon nichts haetten ausser laengeren Zeilen. Die Kuh-UEBERSICHT ist
+    /// deshalb bewusst nicht dabei - die ist wieder eine Tabelle.
     /// </summary>
-    public static bool IsWide(string route) => route is Root or Dashboard;
+    public static bool IsWide(string route) => BaseOf(route) is Root or Dashboard or CowDetail;
 
     // Reihenfolge wie im Drawer, damit man dieselbe Liste nicht in zwei
     // Anordnungen lernen muss.
     private static readonly string[] CowGroup =
-        { CowTreatments, PlannedCowTreatments };
+        { Cows, CowTreatments, PlannedCowTreatments };
 
     private static readonly string[] ClawGroup =
         { Bandages, ClawTreatments, PlannedClawTreatments };

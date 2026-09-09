@@ -65,6 +65,19 @@ public static class KpiDrillDown
         ReadSearch(query, s => filter.Search = s);
     }
 
+    public static void ApplyTo(CowOverviewFilter filter, NavigationManager nav)
+    {
+        var query = Parse(nav);
+        // Die einzige Filtergruppe dieser Seite. FromKpi darf die Vorgabe
+        // "Nur im Bestand" ueberschreiben - ein Drill-down auf "Abgaenge"
+        // zeigte sonst garantiert null Zeilen.
+        filter.Status = CowStatusFilter.FromKpi(
+            KpiDrillDownUrl.Values(query, KpiTagKeys.Calf),
+            KpiDrillDownUrl.Values(query, KpiTagKeys.Herd),
+            filter.Status);
+        ReadSearch(query, s => filter.Search = s);
+    }
+
     // ---- Hilfsfunktionen -----------------------------------------------
 
     private static IReadOnlyDictionary<string, string[]> Parse(NavigationManager nav)

@@ -1,0 +1,299 @@
+@page "/Kuehe"
+@implements IDisposable
+
+@using _4Cows_FE.Components.Meadow
+@using _4Cows_FE.Components.Services
+@using BB_Cow.Profile
+
+@inject NavigationManager Nav
+@inject MeadowDataLoader Data
+@inject MeadowDataChanges Changes
+@inject CowService cowService
+@inject CowTreatmentService cowTreatmentService
+@inject ClawTreatmentService clawTreatmentService
+
+<MeadowToolbar>
+    <Left>
+        <MeadowSearchBox Value="@_filter.Search" ValueChanged="OnSearchChanged"
+                         AriaLabel="Kühe durchsuchen" />
+        @if (_filter.HasAny)
+        {
+            <span class="mw-result-count mw-only-desktop">@CountText</span>
+        }
+    </Left>
+    <Right>
+        <MeadowFilterPopover Open="_filterOpen" ShowReset="@(_filter.Status != CowStatus.InHerd)"
+                             CountText="@($"{CountText} Tieren")"
+                             OnClose="CloseFilter" OnReset="ResetFilter">
+            <Trigger>
+                <MeadowFilterButton ActiveCount="_filter.ActiveCount" Open="_filterOpen"
+                                    OnClick="ToggleFilter" />
+            </Trigger>
+            <ChildContent>
+                <MeadowSingleSelect Label="Status" Options="CowStatusFilter.Labels"
+                                    Value="@CowStatusFilter.ToLabel(_filter.Status)"
+                                    ValueChanged="OnStatusChanged" />
+            </ChildContent>
+        </MeadowFilterPopover>
+    </Right>
+</MeadowToolbar>
+
+<MeadowTable TItem="CowOverviewRow" Items="_rows" Columns="_columns"
+             RowKey="@(r => r.CowId)"
+             DefaultSortTitle="Halsband"
+             PagerLabel="Kühe pro Seite"
+             MoreLabel="Weitere Kühe laden"
+             EmptyText="Keine Kühe gefunden.">
+    <EmptyContent>
+        @if (_filter.HasAny)
+        {
+            <button type="button" class="mw-empty__reset" @onclick="ClearAll">
+                Suche und Filter zurücksetzen
+            </button>
+        }
+    </EmptyContent>
+    <MobileCard Context="row">
+        @* Die ganze Karte ist der Link. Das geht hier - anders als bei den
+           Verbaenden und den geplanten Behandlungen -, weil sie keine
+           Aktionsknoepfe enthaelt: ein Knopf in einem Link waere ungueltiges
+           Markup und wuerde vom Browser auseinandergerissen. *@
+        <a class="mw-row-card mw-row-card--clickable"
+           href="@MeadowRoutes.CowDetailFor(row.CowId)">
+            <div class="mw-row-card__top">
+                <span class="mw-row-card__title">Nr. @Collar(row)</span>
+                @if (row.LastTreatment is { } last)
+                {
+                    <span class="mw-row-card__date">
+                        <MeadowIcon Name="MeadowIconName.Calendar" Size="13" />
+                        @last.ToString("dd.MM.yyyy")
+                    </span>
+                }
+            </div>
+            <span class="mw-row-card__code">@EarTag(row)</span>
+            <div class="mw-row-card__fields">
+                <div class="mw-row-card__field">
+                    <span class="mw-row-card__label">Kuh Behandl.</span>
+                    <span class="mw-row-card__value">@row.CowTreatments.ToString("N0")</span>
+                </div>
+                <div class="mw-row-card__field">
+                    <span class="mw-row-card__label">Klauen Behandl.</span>
+                    <span class="mw-row-card__value">@row.ClawTreatments.ToString("N0")</span>
+                </div>
+                @if (row.IsCalf || row.IsGone)
+                {
+                    <div class="mw-row-card__field">
+                        <span class="mw-row-card__label">Status</span>
+                        <span class="mw-row-card__value">@StatusText(row)</span>
+                    </div>
+                }
+            </div>
+        </a>
+    </MobileCard>
+</MeadowTable>
+
+@code {
+    private readonly CowOverviewFilter _filter = new();
+    private bool _filterOpen;
+
+    private IReadOnlyList<CowOverviewRow> _all = Array.Empty<CowOverviewRow>();
+    private List<CowOverviewRow> _rows = new();
+    private List<MeadowColumn<CowOverviewRow>> _columns = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Data.EnsureCowOverviewAsync();
+        Rebuild();
+        // Die Kachel der Quelle "Kühe" verlinkt seit /Kuehe hierher und bringt
+        // ihre Filter im Query-String mit. ApplyTo mutiert das vorhandene
+        // _filter, also leuchtet die Filter-UI von selbst auf.
+        KpiDrillDown.ApplyTo(_filter, Nav);
+        BuildColumns();
+        Apply();
+
+        Changes.Changed += OnDataChanged;
+    }
+
+    public void Dispose() => Changes.Changed -= OnDataChanged;
+
+    private void Rebuild() => _all = CowOverviewBuilder.Build(
+        cowService.Cows.Values,
+        cowTreatmentService.Treatments.Values,
+        clawTreatmentService.Treatments.Values);
+
+    // ---- Spalten ------------------------------------------------------
+
+    private void BuildColumns() => _columns = new()
+    {
+        new MeadowColumn<CowOverviewRow>
+        {
+            Title = "Halsband",
+            Text = Collar,
+            // Lambda und keine Methodengruppe: SortBy ist Func<T, IComparable?>,
+            // und ein int hat dorthin keine Methodengruppen-Konvertierung.
+            SortBy = r => CollarSortKey(r),
+            Style = MeadowCellStyle.Bold,
+            // Die Zelle ist der Link, nicht die Zeile: ein echtes <a href> ist
+            // tastaturerreichbar und mit der mittleren Maustaste zu oeffnen,
+            // und MeadowTable bleibt unangetastet. Text bleibt gesetzt, damit
+            // Suche und Sortierung unveraendert weiterlesen.
+            Template = row =>@<a class="mw-cell-link" href="@MeadowRoutes.CowDetailFor(row.CowId)">@Collar(row)</a>
+        },
+        new MeadowColumn<CowOverviewRow>
+        {
+            Title = "Ohrmarke",
+            Text = EarTag,
+            SortBy = EarTag,
+            Style = MeadowCellStyle.Mono
+        },
+        new MeadowColumn<CowOverviewRow>
+        {
+            Title = "Status",
+            Text = StatusText,
+            SortBy = StatusText,
+            Template = row =>@<text>
+                @if (row.IsCalf)
+                {
+                    <span class="mw-tag mw-tag--bandage">Kalb</span>
+                }
+                @if (row.IsGone)
+                {
+                    <span class="mw-tag mw-tag--removed">Abgang</span>
+                }
+            </text>
+        },
+        new MeadowColumn<CowOverviewRow>
+        {
+            Title = "Kuh Behandlungen",
+            Text = r => r.CowTreatments.ToString("N0"),
+            SortBy = r => r.CowTreatments,
+            Align = MeadowAlign.Right,
+            NoWrap = true
+        },
+        new MeadowColumn<CowOverviewRow>
+        {
+            Title = "Klauen Behandlungen",
+            Text = r => r.ClawTreatments.ToString("N0"),
+            SortBy = r => r.ClawTreatments,
+            Align = MeadowAlign.Right,
+            NoWrap = true
+        },
+        new MeadowColumn<CowOverviewRow>
+        {
+            Title = "Letzte Behandlung",
+            Text = LastText,
+            // Nach dem Datum sortieren, nicht nach dem Text: "01.02.2026"
+            // stuende sonst vor "31.12.2025". Tiere ohne Behandlung haben
+            // null - MeadowTable sortiert die in beiden Richtungen ans Ende.
+            SortBy = r => r.LastTreatment,
+            NoWrap = true
+        }
+    };
+
+    // ---- Anzeige-Helfer -----------------------------------------------
+
+    private string Collar(CowOverviewRow r)
+        => r.CollarNumber == int.MinValue ? "–" : r.CollarNumber.ToString();
+
+    // Unbekannt ist int.MinValue und wuerde sonst VOR allen echten
+    // Halsbandnummern sortieren.
+    private int CollarSortKey(CowOverviewRow r)
+        => r.CollarNumber == int.MinValue ? int.MaxValue : r.CollarNumber;
+
+    // Ueber den Service und nicht ueber row.EarTagNumber: das liefert bei
+    // einem Kalb "Kalb" statt null, und die GUID der Cow_ID darf nie in die
+    // Anzeige geraten.
+    private string EarTag(CowOverviewRow r) => cowService.GetEarTagDisplay(r.CowId);
+
+    private static string StatusText(CowOverviewRow r) => (r.IsCalf, r.IsGone) switch
+    {
+        (true, true) => "Kalb · Abgang",
+        (true, false) => "Kalb",
+        (false, true) => "Abgang",
+        _ => ""
+    };
+
+    private static string LastText(CowOverviewRow r)
+        => r.LastTreatment?.ToString("dd.MM.yyyy") ?? "–";
+
+    // ---- Filter -------------------------------------------------------
+
+    private string CountText => $"{_rows.Count} von {_all.Count}";
+
+    private void Apply()
+    {
+        IEnumerable<CowOverviewRow> query = _all;
+
+        var search = _filter.Search.Trim();
+        if (search.Length > 0)
+        {
+            query = query.Where(r =>
+                Contains(Collar(r), search)
+                || Contains(EarTag(r), search));
+        }
+
+        // Steht bewusst ohne Bedingung davor: die Vorgabe "Nur im Bestand"
+        // filtert bereits, im Gegensatz zu den Behandlungstabellen.
+        query = query.Where(r => CowStatusFilter.Matches(_filter.Status, r));
+
+        _rows = query.ToList();
+    }
+
+    private static bool Contains(string haystack, string needle)
+        => haystack.Contains(needle, StringComparison.OrdinalIgnoreCase);
+
+    private void OnSearchChanged(string value)
+    {
+        _filter.Search = value;
+        Apply();
+    }
+
+    private void OnStatusChanged(string label)
+    {
+        _filter.Status = CowStatusFilter.Parse(label);
+        Apply();
+    }
+
+    private void ToggleFilter() => _filterOpen = !_filterOpen;
+
+    private void CloseFilter() => _filterOpen = false;
+
+    private void ResetFilter()
+    {
+        _filter.Reset();
+        Apply();
+    }
+
+    private void ClearAll()
+    {
+        _filter.Search = "";
+        _filter.Reset();
+        Apply();
+    }
+
+    // ---- Aktualisierung -------------------------------------------------
+
+    /// <summary>
+    /// Ohne Unterscheidung nach Art: die zwei Zaehlspalten und die Spalte
+    /// "Letzte Behandlung" haengen an beiden erfassten Arten, und eine
+    /// anderswo angelegte Behandlung soll hier nicht bis zum Seitenwechsel
+    /// fehlen. Geplante Termine stehen in dieser Tabelle nicht und loesen
+    /// deshalb nichts aus.
+    /// </summary>
+    private void OnDataChanged(MeadowDataKind kind)
+    {
+        if (kind is not (MeadowDataKind.CowTreatment or MeadowDataKind.ClawTreatment))
+        {
+            return;
+        }
+
+        // Die Meldung kommt aus dem Dialog-Aufrufer, nicht aus dem Renderpfad
+        // dieser Seite - deshalb InvokeAsync.
+        _ = InvokeAsync(async () =>
+        {
+            await Data.EnsureCowOverviewAsync();
+            Rebuild();
+            Apply();
+            StateHasChanged();
+        });
+    }
+}
