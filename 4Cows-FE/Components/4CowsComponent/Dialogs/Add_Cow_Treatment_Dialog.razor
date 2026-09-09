@@ -7,6 +7,7 @@
 @inject MedicineService medicineService
 @inject WhereHowService WhereHowService
 @inject UdderService UdderService
+@inject TreatmentReasonService TreatmentReasonService
 
 <MeadowDialog Title="Kuh Behandlung hinzufügen" Size="MeadowDialogSize.Cow">
     <ChildContent>
@@ -117,6 +118,21 @@
                 </div>
             </div>
         </div>
+
+        <div>
+            <label class="mw-label" for="mw-reason">Behandlungsgrund</label>
+            <div class="mw-field">
+                @* Optional: leer lassen ist erlaubt und loest in Save keine
+                   Meldung aus. CoerceValue wie beim Medikament - ein
+                   unbekannter Grund wird beim Speichern angelegt. *@
+                <MudAutocomplete T="string" InputId="mw-reason" Variant="Variant.Text"
+                                 SelectValueOnTab="true" CoerceValue="true"
+                                 ResetValueOnEmptyText="true"
+                                 @bind-Value="ReasonName"
+                                 SearchFunc="TreatmentReasonService.SearchAsync"
+                                 Placeholder="optional, z.B. Mastitis" />
+            </div>
+        </div>
     </ChildContent>
     <Footer>
         <button type="button" class="mw-btn mw-btn--plain mw-btn--wide" @onclick="Cancel">
@@ -136,6 +152,7 @@
     private readonly List<NumberEntry> _numbers = new();
     private DateTime? NullDate;
     private string? MedicineName;
+    private string? ReasonName;
     private string _selectedWhereHow = "";
     private bool _showEditWhereHowOptions;
     private bool _showDialogForNewWhereHow;
@@ -167,6 +184,16 @@
             // Ueber OnWhereHowChanged, damit der Euter-Button bei einem
             // vorbelegten Wie/Wo mit ShowDialog sofort erscheint.
             OnWhereHowChanged(WhereHowService.GetWhereHowNameById(Cow_Treatment.WhereHowId));
+        }
+
+        // Der Abschluss-Dialog einer geplanten Behandlung bekommt den Grund
+        // vorbelegt. Bewusst ueber den Cache und nicht ueber GetNameById: das
+        // liefert bei unbekannter ID "–", und dieses Zeichen stuende dann im
+        // Eingabefeld - und wuerde beim Speichern als Grund angelegt.
+        if (Cow_Treatment.TreatmentReasonId is int reasonId
+            && TreatmentReasonService.Reasons.TryGetValue(reasonId, out var reason))
+        {
+            ReasonName = reason.TreatmentReasonName;
         }
     }
 
@@ -361,6 +388,22 @@
             ? await UdderService.GetIdForNoQuarters()
             : Cow_Treatment.UdderId;
 
+        // Optional: ein leeres Feld ist gueltig und ergibt null. Aufgeloest
+        // wird VOR der Einfuege-Schleife - wie Medikament und Wie/Wo, damit
+        // ein Fehlschlag keine halb gespeicherte Serie zuruecklaesst.
+        int? reasonId = null;
+        if (!string.IsNullOrWhiteSpace(ReasonName))
+        {
+            var resolved = await TreatmentReasonService.GetIdByNameAsync(ReasonName);
+            if (resolved == int.MinValue)
+            {
+                Snackbar.Add("Behandlungsgrund konnte nicht gespeichert werden.", Severity.Error);
+                return;
+            }
+
+            reasonId = resolved;
+        }
+
         var saved = 0;
         foreach (var entry in _numbers)
         {
@@ -371,7 +414,8 @@
                 MedicineDosage = Cow_Treatment.MedicineDosage,
                 WhereHowId = whereHowId,
                 AdministrationDate = NullDate.Value,
-                UdderId = udderId
+                UdderId = udderId,
+                TreatmentReasonId = reasonId
             });
 
             if (!success)

@@ -14,6 +14,7 @@
 @inject MedicineService medicineService
 @inject WhereHowService WhereHowService
 @inject UdderService UdderService
+@inject TreatmentReasonService TreatmentReasonService
 
 <MeadowToolbar>
     <Left>
@@ -38,6 +39,9 @@
                                    SelectionChanged="Apply" />
                 <MeadowMultiSelect Label="Kuh (Halsband)" Options="CowOptions"
                                    Selected="_filter.Cows"
+                                   SelectionChanged="Apply" />
+                <MeadowMultiSelect Label="Grund" Options="ReasonOptions"
+                                   Selected="_filter.Reasons"
                                    SelectionChanged="Apply" />
                 <MeadowSingleSelect Label="Zeitraum" Options="DateRanges.Labels"
                                     Value="@DateRanges.ToLabel(_filter.Range)"
@@ -99,6 +103,15 @@
                         @Dosage(row)<span class="mw-row-card__unit">@DosageUnit</span>
                     </span>
                 </div>
+                @* Ohne Grund entfaellt die Angabe ganz - ein "–" kostet auf der
+                   Karte nur Platz, den die drei belegten Felder brauchen. *@
+                @if (row.TreatmentReasonId is not null)
+                {
+                    <div class="mw-row-card__field">
+                        <span class="mw-row-card__label">Grund</span>
+                        <span class="mw-row-card__value">@Reason(row)</span>
+                    </div>
+                }
             </div>
         </div>
     </MobileCard>
@@ -178,6 +191,12 @@
             Text = Dosage,
             SortBy = r => r.MedicineDosage,
             NoWrap = true
+        },
+        new MeadowColumn<CowTreatment>
+        {
+            Title = "Grund",
+            Text = Reason,
+            SortBy = Reason
         }
     };
 
@@ -205,6 +224,19 @@
         => WhereHowService.GetFullWhereHowName(r.WhereHowId, UdderService, r.UdderId);
 
     private string Dosage(CowTreatment r) => r.MedicineDosage.ToString("0.##");
+
+    // Fuer Spalte und Karte: "–", wenn nichts gesetzt ist.
+    private string Reason(CowTreatment r) => TreatmentReasonService.GetNameById(r.TreatmentReasonId);
+
+    // Fuer Filter und Optionsliste: null, wenn nichts gesetzt ist. Das "–" der
+    // Anzeige darf hier NICHT auftauchen, sonst stuende es als waehlbarer
+    // "Grund" in der Filterliste. Eine gesetzte, aber unbekannte ID gilt
+    // ebenfalls als "ohne Grund" - anzeigen laesst sie sich ohnehin nicht.
+    private string? ReasonKey(CowTreatment r)
+        => r.TreatmentReasonId is int id
+           && TreatmentReasonService.Reasons.TryGetValue(id, out var reason)
+            ? reason.TreatmentReasonName
+            : null;
 
     // Der Entwurf zeigt die Menge mit Einheit. In der Datenbank steht nur
     // die Zahl (Cow_Treatment.Medicine_Dosage, float) - ein Einheitenfeld
@@ -254,6 +286,12 @@
         .OrderBy(c => int.TryParse(c, out var number) ? number : int.MaxValue)
         .ToList();
 
+    /// <summary>
+    /// Vorkommende Gruende plus ggf. "Ohne Grund". Sortierung und
+    /// Sentinel-Behandlung liegen in ReasonFilter.Options.
+    /// </summary>
+    private IReadOnlyList<string> ReasonOptions => ReasonFilter.Options(_all.Select(ReasonKey));
+
     private string CountText => $"{_rows.Count} von {_all.Count}";
 
     private void Apply()
@@ -283,6 +321,10 @@
         {
             query = query.Where(r => _filter.Cows.Contains(Collar(r)));
         }
+
+        // Leere Auswahl laesst alles durch, der Aufruf darf deshalb
+        // unbedingt stehen.
+        query = query.Where(r => ReasonFilter.Matches(_filter.Reasons, ReasonKey(r)));
 
         query = query.Where(r => DateRanges.Matches(_filter.Range, r.AdministrationDate));
 

@@ -51,6 +51,64 @@ public static class DateRanges
     }
 }
 
+/// <summary>
+/// Die Grund-Auswahl der beiden Kuh-Tabellen.
+///
+/// "Ohne Grund" ist ausschliesslich eine Anzeigeoption: sie steht in derselben
+/// Auswahlmenge wie die echten Gruende, entsteht aber nie in der Datenbank und
+/// wird nie an TreatmentReasonService.GetIdByNameAsync weitergereicht. Die
+/// Konstante liegt hier, damit Filterleiste und Zeilenpruefung nicht mit zwei
+/// getrennten Literalen auseinanderdriften.
+/// </summary>
+public static class ReasonFilter
+{
+    public const string NoneOption = "Ohne Grund";
+
+    /// <summary>
+    /// Die Optionsliste aus den tatsaechlich vorkommenden Gruenden - nicht aus
+    /// dem gesamten Stammdatenbestand, gleiche Regel wie bei den Medikamenten.
+    /// "Ohne Grund" steht vorn, aber nur, wenn es ueberhaupt eine Zeile ohne
+    /// Grund gibt: sonst stuende dort eine Option, die garantiert nichts findet.
+    /// </summary>
+    public static IReadOnlyList<string> Options(IEnumerable<string?> reasonNames)
+    {
+        var names = reasonNames.ToList();
+
+        var known = names
+            .Where(n => !string.IsNullOrEmpty(n))
+            .Select(n => n!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(n => n, StringComparer.CurrentCulture)
+            .ToList();
+
+        if (!names.Any(string.IsNullOrEmpty))
+        {
+            return known;
+        }
+
+        var withNone = new List<string>(known.Count + 1) { NoneOption };
+        withNone.AddRange(known);
+        return withNone;
+    }
+
+    /// <summary>
+    /// Leere Auswahl = kein Filter. Sonst ODER innerhalb der Gruppe: die Zeile
+    /// passt, wenn ihr Grund gewaehlt ist - oder wenn sie keinen hat und
+    /// "Ohne Grund" gewaehlt ist.
+    /// </summary>
+    public static bool Matches(HashSet<string> selected, string? reasonName)
+    {
+        if (selected.Count == 0)
+        {
+            return true;
+        }
+
+        return string.IsNullOrEmpty(reasonName)
+            ? selected.Contains(NoneOption)
+            : selected.Contains(reasonName);
+    }
+}
+
 /// <summary>Suchtext und Filter der Kuh-Tabelle.</summary>
 public sealed class CowTableFilter
 {
@@ -74,6 +132,13 @@ public sealed class CowTableFilter
     public HashSet<string> Cows { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
+    /// Behandlungsgruende. Leer heisst "Alle". Kann neben echten Gruenden den
+    /// Sentinel <see cref="ReasonFilter.NoneOption"/> enthalten, der fuer
+    /// Zeilen ohne Grund steht.
+    /// </summary>
+    public HashSet<string> Reasons { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
     /// Einfachauswahl: die Zeitraeume schliessen sich gegenseitig aus, "7 Tage"
     /// UND "30 Tage" waere dasselbe wie "30 Tage".
     /// </summary>
@@ -87,6 +152,7 @@ public sealed class CowTableFilter
     public int ActiveCount
         => (Medicines.Count > 0 ? 1 : 0)
            + (Cows.Count > 0 ? 1 : 0)
+           + (Reasons.Count > 0 ? 1 : 0)
            + (Range != DateRange.All ? 1 : 0);
 
     public bool HasAny => ActiveCount > 0 || !string.IsNullOrWhiteSpace(Search);
@@ -96,6 +162,7 @@ public sealed class CowTableFilter
     {
         Medicines.Clear();
         Cows.Clear();
+        Reasons.Clear();
         Range = DateRange.All;
     }
 }
@@ -223,6 +290,9 @@ public sealed class PlannedCowTableFilter
     /// <summary>Leer heisst "Alle", ODER innerhalb der Gruppe - wie CowTableFilter.</summary>
     public HashSet<string> Medicines { get; } = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>Behandlungsgruende - siehe <see cref="CowTableFilter.Reasons"/>.</summary>
+    public HashSet<string> Reasons { get; } = new(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>Getrennte Gruppen, damit sie sich UND-verknuepfen: "gefunden, aber
     /// noch nicht behandelt" ist der Hauptzweck dieser Tabelle.</summary>
     public string Found { get; set; } = FlagStates.Any;
@@ -233,6 +303,7 @@ public sealed class PlannedCowTableFilter
 
     public int ActiveCount
         => (Medicines.Count > 0 ? 1 : 0)
+           + (Reasons.Count > 0 ? 1 : 0)
            + (Found != FlagStates.Any ? 1 : 0)
            + (Treated != FlagStates.Any ? 1 : 0)
            + (Range != PlannedDateRange.All ? 1 : 0);
@@ -242,6 +313,7 @@ public sealed class PlannedCowTableFilter
     public void Reset()
     {
         Medicines.Clear();
+        Reasons.Clear();
         Found = FlagStates.Any;
         Treated = FlagStates.Any;
         Range = PlannedDateRange.All;

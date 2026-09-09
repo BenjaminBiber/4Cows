@@ -46,7 +46,8 @@ public sealed class DemoResetBackgroundService : BackgroundService
         "Planned_Cow_Treatment",
         "Cow",
         "Medicine",
-        "WhereHow"
+        "WhereHow",
+        "Treatment_Reason"
     };
 
     private readonly IDbContextFactory<DatabaseContext> _contextFactory;
