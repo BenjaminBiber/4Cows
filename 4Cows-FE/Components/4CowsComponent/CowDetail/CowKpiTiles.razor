@@ -1,0 +1,91 @@
+@using _4Cows_FE.Components.Meadow
+@using BB_Cow.Profile
+@*
+    Die sechs Kacheln der Kuh-Seite.
+
+    Verlinkt ist nur, was sich hinter einem Link auch wirklich wiederfindet.
+    Die ersten beiden addieren Kuh- UND Klauenbehandlungen; keine Tabelle
+    zeigt diese Summe, ein Link dorthin fuehrte also zu einer anderen Zahl
+    als der geklickten. Sie bleiben ohne Href und damit .mw-kpi--static -
+    dasselbe Argument, das MeadowKpiTile in seinem Kopfkommentar macht.
+*@
+<div class="mw-kpi-grid mw-kpi-grid--cow">
+    <MeadowKpiTile Title="Behandlungen gesamt"
+                   Value="@Profile.TotalTreatments.ToString("N0")"
+                   Hint="@($"{Profile.TotalCowTreatments} Kuh · {Profile.TotalClawTreatments} Klaue")" />
+
+    <MeadowKpiTile Title="Letzte 12 Monate"
+                   Value="@Profile.Last12Months.ToString("N0")"
+                   Delta="@Profile.DeltaDisplay"
+                   Trend="@Profile.Trend"
+                   Hint="@($"Vorzeitraum: {Profile.Previous12Months}")" />
+
+    <MeadowKpiTile Title="Häufigstes Medikament"
+                   Value="@TopMedicine"
+                   Class="mw-kpi--text"
+                   Href="@MedicineHref"
+                   Hint="@TopMedicineHint" />
+
+    <MeadowKpiTile Title="Häufigster Klauenbefund"
+                   Value="@TopFinding"
+                   Class="mw-kpi--text"
+                   Href="@FindingHref"
+                   Hint="@TopFindingHint" />
+
+    @* Die beiden handlungsrelevanten Zahlen. Sie verlinken auf die eigenen
+       Tabs der Seite - moeglich, weil die Tabauswahl in ?tab= liegt und
+       damit eine echte Adresse hat. Ein href="#..." waere eine Luege. *@
+    <MeadowKpiTile Title="Offene Verbände"
+                   Value="@Profile.OpenBandages.ToString("N0")"
+                   Href="@TabHref(CowDetailTab.Bandages)"
+                   Hint="Verbände, die noch liegen" />
+
+    <MeadowKpiTile Title="Offene geplante Termine"
+                   Value="@Profile.OpenPlanned.ToString("N0")"
+                   Href="@TabHref(CowDetailTab.PlannedCow)"
+                   Hint="@($"{Profile.PlannedCowTreatments.Count} Kuh · {Profile.PlannedClawTreatments.Count} Klaue")" />
+</div>
+
+@code {
+    [Parameter, EditorRequired] public CowProfile Profile { get; set; } = default!;
+
+    /// <summary>Halsbandnummer dieser Kuh - der Drill-down filtert danach, nicht nach der Ohrmarke.</summary>
+    [Parameter] public string Collar { get; set; } = "";
+
+    /// <summary>Vom Aufrufer aufgeloest: die Bibliothek liefert IDs, keine Namen.</summary>
+    [Parameter] public string? TopMedicineName { get; set; }
+
+    private const string None = "–";
+
+    private string TopMedicine => string.IsNullOrEmpty(TopMedicineName) ? None : TopMedicineName;
+
+    private string TopFinding => Profile.TopFinding?.Key ?? None;
+
+    private string? TopMedicineHint => Profile.Medicines.Count > 0 && TopMedicine != None
+        ? $"{TopMedicine} · {Profile.Medicines[0].Count}×"
+        : "Kein Medikament erfasst";
+
+    private string? TopFindingHint => Profile.TopFinding is { } finding
+        ? $"{finding.Key} · {finding.Count}×"
+        : "Kein Klauenbefund erfasst";
+
+    /// <summary>
+    /// Der Drill-down erwartet die HALSBANDNUMMER, nicht die Cow_ID: die
+    /// Zieltabellen vergleichen ihre Spalte "Halsband" (siehe
+    /// Cow_Table.Apply). Ohne Halsband gibt es keinen sinnvollen Link.
+    /// </summary>
+    private string MedicineHref
+        => TopMedicine == None || Collar.Length == 0 || Collar == None
+            ? ""
+            : $"{MeadowRoutes.CowTreatments}?cow={Uri.EscapeDataString(Collar)}"
+              + $"&medicine={Uri.EscapeDataString(TopMedicine)}";
+
+    private string FindingHref
+        => TopFinding == None || Collar.Length == 0 || Collar == None
+            ? ""
+            : $"{MeadowRoutes.ClawTreatments}?cow={Uri.EscapeDataString(Collar)}"
+              + $"&clawFinding={Uri.EscapeDataString(TopFinding)}";
+
+    private string TabHref(CowDetailTab tab)
+        => $"{MeadowRoutes.CowDetailFor(Profile.CowId)}?tab={CowDetailTabs.ToSlug(tab)}";
+}

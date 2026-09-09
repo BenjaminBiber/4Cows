@@ -22,6 +22,15 @@
         </MeadowNavItem>
 
         <div class="mw-nav-group">Kuh</div>
+        @* Steht vor den Behandlungen, weil man von hier aus zum Tier und
+           von dort zu seinen Behandlungen kommt - die Reihenfolge im Drawer
+           ist dieselbe wie in MeadowRoutes.CowGroup, damit das Titel-Dropdown
+           mobil nicht anders sortiert. Prefix-Matching ist segmentweise,
+           "Kuehe" leuchtet also nicht auf "Kuh/..." mit auf. *@
+        <MeadowNavItem Href="@MeadowRoutes.Cows"
+                       Accent="NavGroup.Cow" Icon="MeadowIconName.Herd">
+            Kühe
+        </MeadowNavItem>
         <MeadowNavItem Href="@MeadowRoutes.CowTreatments"
                        Accent="NavGroup.Cow" Icon="MeadowIconName.Cow">
             Kuh Behandlungen

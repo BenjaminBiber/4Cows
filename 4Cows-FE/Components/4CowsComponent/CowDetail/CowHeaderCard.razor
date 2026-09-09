@@ -1,0 +1,80 @@
+@using _4Cows_FE.Components.Meadow
+@using BB_Cow.Class
+@*
+    Kopf der Kuh-Seite: wer das Tier ist, und die vier Wege, ihm etwas
+    hinzuzufuegen.
+
+    Die Knoepfe tragen bewusst KEIN .mw-only-desktop. Der FAB fuehrt auf
+    dieser Route ins Add-Menue und oeffnet von dort LEERE Dialoge - diese
+    vier sind mobil also der einzige Weg zu einem schon vorbelegten Formular,
+    und das ist der Grund, warum man ueberhaupt auf der Seite ist.
+*@
+<div class="mw-cow-head">
+    <div class="mw-cow-head__id">
+        <div class="mw-cow-head__collar">Nr. @Collar</div>
+        <div class="mw-cow-head__tag">@EarTag</div>
+
+        @if (Cow.IsCalv || Cow.IsGone)
+        {
+            <div class="mw-cow-head__tags">
+                @if (Cow.IsCalv)
+                {
+                    <span class="mw-tag mw-tag--bandage">Kalb</span>
+                }
+                @if (Cow.IsGone)
+                {
+                    <span class="mw-tag mw-tag--removed">Abgang</span>
+                }
+            </div>
+        }
+    </div>
+
+    <div class="mw-cow-head__actions">
+        <button type="button" class="mw-btn mw-btn--primary" disabled="@Cow.IsGone"
+                title="@ActionTitle" @onclick="OnAddCowTreatment">
+            <MeadowIcon Name="MeadowIconName.Cow" Size="18" />
+            <span>Kuh Behandlung</span>
+        </button>
+        <button type="button" class="mw-btn mw-btn--primary" disabled="@Cow.IsGone"
+                title="@ActionTitle" @onclick="OnAddClawTreatment">
+            <MeadowIcon Name="MeadowIconName.Claw" Size="18" />
+            <span>Klauen Behandlung</span>
+        </button>
+        <button type="button" class="mw-btn mw-btn--ghost" disabled="@Cow.IsGone"
+                title="@ActionTitle" @onclick="OnPlanCowTreatment">
+            <MeadowIcon Name="MeadowIconName.PlannedCow" Size="18" />
+            <span>Kuh planen</span>
+        </button>
+        <button type="button" class="mw-btn mw-btn--ghost" disabled="@Cow.IsGone"
+                title="@ActionTitle" @onclick="OnPlanClawTreatment">
+            <MeadowIcon Name="MeadowIconName.PlannedClaw" Size="18" />
+            <span>Klauen planen</span>
+        </button>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Cow Cow { get; set; } = new();
+
+    /// <summary>Halsbandnummer oder "–", schon aufgeloest von der Seite.</summary>
+    [Parameter] public string Collar { get; set; } = "–";
+
+    /// <summary>Ohrmarke oder "Kalb". Nie die rohe Cow_ID - die ist bei einem Kalb eine GUID.</summary>
+    [Parameter] public string EarTag { get; set; } = "";
+
+    [Parameter] public EventCallback OnAddCowTreatment { get; set; }
+    [Parameter] public EventCallback OnAddClawTreatment { get; set; }
+    [Parameter] public EventCallback OnPlanCowTreatment { get; set; }
+    [Parameter] public EventCallback OnPlanClawTreatment { get; set; }
+
+    /// <summary>
+    /// Bei einem abgegangenen Tier sind alle vier Knoepfe aus. CowService.
+    /// SearchCows blendet Abgaenge aus und GetCowIdByCollarNumber laeuft mit
+    /// includeGone:false - der geplante Klauen-Dialog scheiterte also
+    /// spaetestens beim Speichern. Ein Formular anzubieten, das nicht
+    /// speichern kann, ist schlechter als ein grauer Knopf mit Begruendung.
+    /// </summary>
+    private string? ActionTitle => Cow.IsGone
+        ? "Das Tier ist abgegangen — es lassen sich keine neuen Behandlungen erfassen."
+        : null;
+}

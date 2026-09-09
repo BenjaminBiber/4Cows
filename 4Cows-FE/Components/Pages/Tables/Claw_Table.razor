@@ -85,6 +85,11 @@
         }
     </EmptyContent>
     <MobileCard Context="row">
+        @* Diese Karte bleibt als Ganzes der Knopf zur Behandlung und bekommt
+           KEINEN Link zur Kuh-Seite: ein <a> in einem <button> ist ungueltiges
+           Markup, und ein zweites Ziel neben dem Oeffnen-Gestus waere hier
+           auch eine Zumutung. Am Desktop verlinkt die Halsband-Spalte; mobil
+           fuehren /Kuehe und die Kuh-Behandlungen zur Kuh-Seite. *@
         <button type="button" class="mw-row-card mw-row-card--clickable"
                 @onclick="() => OpenTreatment(row)">
             <div class="mw-row-card__top">
@@ -162,7 +167,11 @@
             Title = "Halsband",
             Text = Collar,
             SortBy = r => CollarSortKey(r),
-            Style = MeadowCellStyle.Bold
+            Style = MeadowCellStyle.Bold,
+            // Die Zelle verlinkt auf die Kuh-Seite - siehe den ausfuehrlichen
+            // Kommentar in Cow_Table.
+            Template = row =>@<a class="mw-cell-link"
+                                 href="@MeadowRoutes.CowDetailFor(row.EarTagNumber)">@Collar(row)</a>
         },
         new MeadowColumn<ClawTreatment>
         {

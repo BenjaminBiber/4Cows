@@ -1,0 +1,83 @@
+@using BB_Cow.Class
+@*
+    Die vier Euterviertel, eingefaerbt nach Behandlungshaeufigkeit.
+
+    Anordnung und Reihenfolge wie im UdderDialog: LV RV oben, LH RH unten.
+    Das Euter wird von hinten betrachtet, und die Anwendung ist darin
+    durchgaengig - diese Seite ist nicht die richtige Stelle, um als einzige
+    zu spiegeln.
+
+    CSS-Raster und kein SVG: die Anwendung hat keine Euterzeichnung, der
+    UdderDialog setzt vier Kaesten in ein 1fr-1fr-Raster, und das ist die
+    ganze vorhandene Formensprache. Ein SVG lohnte sich nur, wenn es echte
+    Geometrie zeichnete; hier tragen die Zellen Text.
+*@
+@if (Total == 0)
+{
+    <div class="mw-empty">Für diese Kuh sind keine Kuhbehandlungen erfasst.</div>
+}
+else if (WithQuarter == 0)
+{
+    <div class="mw-empty">Keine Behandlung mit Viertelangabe.</div>
+    <p class="mw-hint">@Total von @Total Behandlungen ohne Angabe eines Viertels.</p>
+}
+else
+{
+    <div class="mw-udder-grid" role="group" aria-label="Euterviertel nach Behandlungshäufigkeit">
+        @foreach (var position in HoofPositions.All)
+        {
+            var count = Count(position);
+            <div class="mw-udder-cell mw-heat-@Step(count)">
+                <span class="mw-udder-cell__code" aria-hidden="true">@position</span>
+                <span class="mw-udder-cell__count" aria-hidden="true">@count.ToString("N0")</span>
+                @* "LV" ist kein Wort - vorgelesen wird die Langform. *@
+                <span class="mw-sr-only">
+                    @LongLabel(position), @count @(count == 1 ? "Behandlung" : "Behandlungen")
+                </span>
+            </div>
+        }
+    </div>
+
+    @* Eine Behandlung kann mehrere Viertel treffen - die Udder-Zeile traegt
+       vier Booleans. Die vier Zahlen summieren sich deshalb hoeher als die
+       Zahl der Behandlungen, und das muss dastehen: sonst rechnet jemand nach
+       und findet einen Fehler, der keiner ist. *@
+    <p class="mw-hint">
+        @WithQuarter von @Total Behandlungen mit Viertelangabe. Mehrfachnennung möglich.
+    </p>
+}
+
+@code {
+    /// <summary>Behandlungen je Viertel, aus CowProfile.UdderQuarters.</summary>
+    [Parameter] public IReadOnlyDictionary<HoofPosition, int> Quarters { get; set; }
+        = new Dictionary<HoofPosition, int>();
+
+    /// <summary>Kuhbehandlungen MIT Viertelangabe.</summary>
+    [Parameter] public int WithQuarter { get; set; }
+
+    /// <summary>Alle Kuhbehandlungen dieser Kuh.</summary>
+    [Parameter] public int Total { get; set; }
+
+    private const int Steps = 4;
+
+    private int Count(HoofPosition position)
+        => Quarters.TryGetValue(position, out var count) ? count : 0;
+
+    private int Max => HoofPositions.All.Max(Count);
+
+    private int Step(int count)
+        => count == 0 || Max == 0 ? 0 : (int)Math.Ceiling((double)Steps * count / Max);
+
+    /// <summary>
+    /// Bewusst hier und nicht ueber HoofPositions.SideLabel: die Woerter
+    /// stimmen heute ueberein, aber das ist Klauen-Vokabular. Ein spaeterer
+    /// Umbau dort wuerde sonst still die Eutergrafik umbenennen.
+    /// </summary>
+    private static string LongLabel(HoofPosition position) => position switch
+    {
+        HoofPosition.LV => "Vorne links",
+        HoofPosition.RV => "Vorne rechts",
+        HoofPosition.LH => "Hinten links",
+        _ => "Hinten rechts"
+    };
+}

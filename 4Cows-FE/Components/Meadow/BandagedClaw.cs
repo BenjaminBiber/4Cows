@@ -27,10 +27,15 @@ public sealed record BandagedClaw(
     /// <summary>"LV · Vorne links"</summary>
     public string HoofText => $"{Position} · {HoofPositions.SideLabel(Position)}";
 
+    /// <summary>
+    /// Ueber OpenBandages und nicht ueber GetBandage: der Aufrufer filtert
+    /// heute schon auf !IsBandageRemoved, aber die Kuh-Seite reicht die
+    /// Klauenbehandlungen EINER Kuh ungefiltert herein. So kann die Zeilenzahl
+    /// hier nicht von der Kachel "offene Verbaende" abweichen.
+    /// </summary>
     public static IReadOnlyList<BandagedClaw> Project(IEnumerable<ClawTreatment> withBandage)
         => withBandage
-            .SelectMany(t => HoofPositions.All
-                .Where(t.GetBandage)
+            .SelectMany(t => t.OpenBandages()
                 .Select(p => new BandagedClaw(
                     t.ClawTreatmentId,
                     t.EarTagNumber,

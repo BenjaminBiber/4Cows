@@ -9,7 +9,7 @@
 @inject ThemeState Theme
 @inject MeadowDialogLauncher Launcher
 
-<PageTitle>@_title · Meadow</PageTitle>
+<PageTitle>@Title · Meadow</PageTitle>
 
 @* MudBlazor bleibt als Wirt fuer Dialoge, Snackbars und die Formular-Popover.
    MudThemeProvider ist nicht das, was die App dunkel macht - das erledigt das
@@ -21,7 +21,7 @@
 <MudSnackbarProvider />
 
 <div class="mw-shell">
-    <MeadowHeader PageTitle="@_title"
+    <MeadowHeader PageTitle="@Title"
                   HasSiblings="@_hasSiblings"
                   IsDark="@Theme.IsDark"
                   OnMenu="@Layout.ToggleDrawer"
@@ -47,10 +47,22 @@
 
 @code {
     private string _route = "";
-    private string _title = "Dashboard";
+    private string _routeTitle = "Dashboard";
     private string _fabTitle = "Hinzufügen";
     private bool _hasSiblings;
     private bool _wide;
+
+    /// <summary>
+    /// Der Titel der Seite: was sie selbst angemeldet hat, sonst der aus der
+    /// Route.
+    ///
+    /// Bewusst eine Eigenschaft und kein in ReadRoute berechnetes Feld. Die
+    /// Kuh-Seite ruft SetPageTitle in OnParametersSetAsync auf, also NACH
+    /// ReadRoute; ein Feld haette den alten Wert dann schon uebernommen, und
+    /// das StateHasChanged aus dem Changed-Ereignis rendere ihn nur noch
+    /// einmal.
+    /// </summary>
+    private string Title => Layout.PageTitleOverride ?? _routeTitle;
 
     protected override void OnInitialized()
     {
@@ -74,7 +86,7 @@
     private void ReadRoute()
     {
         _route = MeadowRoutes.Normalize(Nav.ToBaseRelativePath(Nav.Uri));
-        _title = MeadowRoutes.TitleFor(_route);
+        _routeTitle = MeadowRoutes.TitleFor(_route);
         _hasSiblings = MeadowRoutes.HasSiblings(_route);
         _fabTitle = MeadowDialogLauncher.FabTitleFor(_route);
         _wide = MeadowRoutes.IsWide(_route);
@@ -82,6 +94,10 @@
 
     private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
     {
+        // VOR ReadRoute: sonst traegt die neue Seite fuer einen Moment den
+        // Titel der alten. Die Kuh-Seite setzt ihren gleich danach in
+        // OnParametersSetAsync wieder.
+        Layout.SetPageTitle(null);
         ReadRoute();
         // Jede Navigation schliesst Drawer und Mobile-Menues (Prototyp: go()).
         Layout.CloseAll();

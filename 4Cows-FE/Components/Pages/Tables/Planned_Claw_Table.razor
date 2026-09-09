@@ -74,7 +74,10 @@
     <MobileCard Context="row">
         <div class="mw-row-card">
             <div class="mw-row-card__top">
-                <span class="mw-row-card__title">Nr. @Collar(row)</span>
+                @* Nur der Titel ist der Link - die Karte traegt darunter drei
+                   Aktionsknoepfe. *@
+                <a class="mw-row-card__title mw-cell-link"
+                   href="@MeadowRoutes.CowDetailFor(row.EarTagNumber)">Nr. @Collar(row)</a>
                 <span class="mw-row-card__sub">@row.TreatmentDate.ToString("dd.MM.yyyy")</span>
             </div>
             <span class="mw-row-card__code">@EarTag(row)</span>
@@ -152,7 +155,10 @@
             Title = "Halsband",
             Text = Collar,
             SortBy = r => CollarSortKey(r),
-            Style = MeadowCellStyle.Bold
+            Style = MeadowCellStyle.Bold,
+            // Die Zelle verlinkt auf die Kuh-Seite - siehe Cow_Table.
+            Template = row =>@<a class="mw-cell-link"
+                                 href="@MeadowRoutes.CowDetailFor(row.EarTagNumber)">@Collar(row)</a>
         },
         new MeadowColumn<PlannedClawTreatment>
         {

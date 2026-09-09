@@ -73,7 +73,12 @@
     </EmptyContent>
     <MobileCard Context="row">
         @{ var place = SplitWhereHow(WhereHow(row)); }
-        <div class="mw-row-card">
+        @* Die ganze Karte ist der Link zur Kuh - sie enthaelt keine weiteren
+           Bedienelemente. Bei Karten MIT Aktionsknoepfen (Verbaende, geplante
+           Behandlungen) waere das ein Knopf im Link; dort ist nur der Titel
+           verlinkt. *@
+        <a class="mw-row-card mw-row-card--clickable"
+           href="@MeadowRoutes.CowDetailFor(row.EarTagNumber)">
             <div class="mw-row-card__top">
                 <span class="mw-row-card__title">Nr. @Collar(row)</span>
                 <span class="mw-row-card__date">
@@ -114,7 +119,7 @@
                     </div>
                 }
             </div>
-        </div>
+        </a>
     </MobileCard>
 </MeadowTable>
 
@@ -155,7 +160,15 @@
             Title = "Halsband",
             Text = Collar,
             SortBy = r => CollarSortKey(r),
-            Style = MeadowCellStyle.Bold
+            Style = MeadowCellStyle.Bold,
+            // Die ZELLE ist der Link, nicht die Zeile: ein echtes <a href>
+            // kann Tastatur, Mittelklick und "in neuem Tab oeffnen", und
+            // MeadowTable bleibt unangetastet - Aktionsknoepfe anderer
+            // Tabellen koennen so gar nicht erst mit einem Zeilenklick
+            // kollidieren. Text bleibt gesetzt, Suche und Sortierung lesen
+            // also unveraendert weiter.
+            Template = row =>@<a class="mw-cell-link"
+                                 href="@MeadowRoutes.CowDetailFor(row.EarTagNumber)">@Collar(row)</a>
         },
         new MeadowColumn<CowTreatment>
         {

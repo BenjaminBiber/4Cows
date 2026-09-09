@@ -85,6 +85,25 @@ public sealed class MeadowDataLoader
         await _plannedClaw.GetAllDataAsync();
     }
 
+    /// <summary>
+    /// Die Kuh-Uebersicht: Tiere plus die beiden erfassten Behandlungsarten
+    /// fuer die Zaehlspalten. Geplante Termine stehen dort nicht.
+    /// </summary>
+    public async Task EnsureCowOverviewAsync()
+    {
+        await EnsureLookupsAsync();
+        await _cowTreatments.GetAllDataAsync();
+        await _clawTreatments.GetAllDataAsync();
+    }
+
+    /// <summary>
+    /// Die Kuh-Seite rechnet ueber alle vier Behandlungsarten, genau wie das
+    /// Dashboard. Eigener Name statt eines Aufrufs von EnsureDashboardAsync,
+    /// damit die Regel "eine Methode pro Seite" hier nicht bricht - und damit
+    /// man sie aendern kann, ohne das Dashboard mitzuziehen.
+    /// </summary>
+    public Task EnsureCowProfileAsync() => EnsureDashboardAsync();
+
     /// <summary>Alles - das Dashboard rechnet ueber saemtliche Behandlungsarten.</summary>
     public async Task EnsureDashboardAsync()
     {

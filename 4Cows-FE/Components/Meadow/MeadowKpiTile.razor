@@ -16,10 +16,12 @@
     Ursache als "--" endete.
 
     Ohne Href bleibt das <a> OHNE href-Attribut (Blazor laesst null-Attribute
-    weg) und ist damit kein Link - nicht fokussierbar, kein Klickziel. Das
-    braucht die Quelle "Kühe": zu ihr gibt es keine Seite, die Tiere auflistet,
-    und ein Link auf die Behandlungstabelle wuerde eine andere Menge zeigen als
-    die Zahl auf der Kachel.
+    weg) und ist damit kein Link - nicht fokussierbar, kein Klickziel. Auf der
+    Kuh-Seite brauchen das die beiden Kacheln, die zwei Quellen addieren: keine
+    Tabelle zeigt "Kuh- UND Klauenbehandlungen zusammen", ein Link dorthin
+    wuerde also eine andere Menge zeigen als die Zahl auf der Kachel.
+    (Die Quelle "Kühe" war frueher derselbe Fall; sie zeigt seit /Kuehe auf die
+    Kuh-Uebersicht.)
 *@
 <a class="@CssClass" href="@(string.IsNullOrWhiteSpace(Href) ? null : Href)" title="@Hint">
     <span class="mw-kpi__title">@Title</span>
@@ -60,12 +62,21 @@
     /// <summary>Tooltip: Fehlertext, oder warum die Kachel leer ist.</summary>
     [Parameter] public string? Hint { get; set; }
 
+    /// <summary>
+    /// Zusatzklasse, wie bei MeadowChartCard. Gebraucht fuer .mw-kpi--text:
+    /// eine Kachel, deren Wert ein Wort ist ("Sohlengeschwür") und keine Zahl,
+    /// traegt die 40px Display-Schrift nicht.
+    /// </summary>
+    [Parameter] public string? Class { get; set; }
+
     private string CssClass => (IsAddTile, HasError) switch
     {
         (true, _) => "mw-kpi mw-kpi--add",
         (_, true) => "mw-kpi mw-kpi--error",
         _ => "mw-kpi"
-    } + (string.IsNullOrWhiteSpace(Href) ? " mw-kpi--static" : "");
+    }
+    + (string.IsNullOrWhiteSpace(Href) ? " mw-kpi--static" : "")
+    + (string.IsNullOrWhiteSpace(Class) ? "" : " " + Class);
 
     // Nur Richtung, keine Wertung: siehe den Kommentar zu .mw-kpi__delta.
     private string Arrow => Trend switch

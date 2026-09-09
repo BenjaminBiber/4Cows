@@ -1,0 +1,194 @@
+@using _4Cows_FE.Components._4CowsComponent.Dialogs
+@using _4Cows_FE.Components.Meadow
+@using BB_Cow.Class
+@*
+    Tab "Gepl. Kuh": die geplanten Kuhbehandlungen dieses Tieres.
+
+    Abschliessen und Loeschen sind wortgleich aus Planned_Cow_Table
+    uebernommen - einschliesslich der Regel, dass ein abgebrochener Dialog
+    die Planung stehen laesst (frueher wurde sie beim OEFFNEN geloescht).
+*@
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject PCowTreatmentService pCowTreatmentService
+@inject MedicineService medicineService
+@inject WhereHowService WhereHowService
+@inject UdderService UdderService
+@inject TreatmentReasonService TreatmentReasonService
+@inject SettingsService SettingsService
+
+<MeadowTable TItem="PlannedCowTreatment" Items="Rows" Columns="_columns"
+             RowKey="@(r => r.PlannedCowTreatmentId)"
+             DefaultSortTitle="Geplant für"
+             PagerLabel="Planungen pro Seite"
+             MoreLabel="Weitere Planungen laden"
+             EmptyText="Für diese Kuh ist keine Behandlung geplant.">
+    <MobileCard Context="row">
+        <div class="mw-row-card">
+            <div class="mw-row-card__top">
+                <span class="mw-row-card__title">@Medicine(row)</span>
+                <span class="mw-row-card__date">
+                    <MeadowIcon Name="MeadowIconName.Calendar" Size="13" />
+                    @row.AdministrationDate.ToString("dd.MM.yyyy")
+                </span>
+            </div>
+            <div class="mw-row-card__meta">
+                <span>@WhereHow(row)</span>
+                <span>@DosageWithUnit(row)</span>
+            </div>
+            <div class="mw-row-card__actions">
+                <button type="button" class="mw-btn mw-btn--primary mw-btn--sm"
+                        @onclick="() => Complete(row)">Abschließen</button>
+                <MeadowIconButton Icon="MeadowIconName.Trash" Title="Planung entfernen"
+                                  Danger="true" OnClick="() => Remove(row)" />
+            </div>
+        </div>
+    </MobileCard>
+</MeadowTable>
+
+@code {
+    [Parameter] public IReadOnlyList<PlannedCowTreatment> Rows { get; set; }
+        = Array.Empty<PlannedCowTreatment>();
+
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    private List<MeadowColumn<PlannedCowTreatment>> _columns = new();
+
+    protected override void OnInitialized() => _columns = new()
+    {
+        new MeadowColumn<PlannedCowTreatment>
+        {
+            Title = "Geplant für",
+            Text = r => r.AdministrationDate.ToString("dd.MM.yyyy"),
+            SortBy = r => r.AdministrationDate,
+            Style = MeadowCellStyle.Bold,
+            NoWrap = true
+        },
+        new MeadowColumn<PlannedCowTreatment>
+        {
+            Title = "Medikament",
+            Text = Medicine,
+            SortBy = Medicine,
+            Template = row =>@<span class="mw-pill">@Medicine(row)</span>
+        },
+        new MeadowColumn<PlannedCowTreatment>
+        {
+            Title = "Wie / Wo",
+            Text = WhereHow,
+            SortBy = WhereHow
+        },
+        new MeadowColumn<PlannedCowTreatment>
+        {
+            Title = "Menge",
+            Text = DosageWithUnit,
+            // Sortiert wird ueber die Zahl, nicht ueber den Text mit Einheit.
+            SortBy = r => r.MedicineDosage,
+            Align = MeadowAlign.Right,
+            NoWrap = true
+        },
+        new MeadowColumn<PlannedCowTreatment>
+        {
+            Title = "Grund",
+            Text = Reason,
+            SortBy = Reason
+        },
+        new MeadowColumn<PlannedCowTreatment>
+        {
+            IsActions = true,
+            Template = row =>@<text>
+                <button type="button" class="mw-btn mw-btn--sm mw-btn--primary"
+                        @onclick="() => Complete(row)">Behandlung abschließen</button>
+                <MeadowIconButton Icon="MeadowIconName.Trash" Title="Planung entfernen"
+                                  Danger="true" OnClick="() => Remove(row)" />
+            </text>
+        }
+    };
+
+    private string Medicine(PlannedCowTreatment r) => medicineService.GetMedicineNameById(r.MedicineId);
+
+    private string WhereHow(PlannedCowTreatment r)
+        => WhereHowService.GetFullWhereHowName(r.WhereHowId, UdderService, r.UdderId);
+
+    private string Dosage(PlannedCowTreatment r) => r.MedicineDosage.ToString("0.##");
+
+    // Die Einheit haengt am Medikament (Medicine.Dosage_Unit), Rueckfallwert
+    // ist der Standard aus AppSetting - wie in Planned_Cow_Table.
+    private string DosageWithUnit(PlannedCowTreatment r)
+        => $"{Dosage(r)} {medicineService.GetDosageUnit(r.MedicineId, SettingsService.DefaultDosageUnit)}";
+
+    private string Reason(PlannedCowTreatment r) => TreatmentReasonService.GetNameById(r.TreatmentReasonId);
+
+    // ---- Aktionen -----------------------------------------------------
+
+    private async Task Complete(PlannedCowTreatment planned)
+    {
+        if (!await Confirm("Speichern", "Wollen Sie die Behandlung wirklich speichern?",
+                "Ja", Color.Success))
+        {
+            return;
+        }
+
+        var treatment = new CowTreatment
+        {
+            EarTagNumber = planned.EarTagNumber,
+            AdministrationDate = planned.AdministrationDate,
+            MedicineDosage = planned.MedicineDosage,
+            MedicineId = planned.MedicineId,
+            WhereHowId = planned.WhereHowId,
+            UdderId = planned.UdderId,
+            TreatmentReasonId = planned.TreatmentReasonId
+        };
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var parameters = new DialogParameters<Add_Cow_Treatment_Dialog>
+        {
+            { x => x.Cow_Treatment, treatment }
+        };
+
+        var dialog = await DialogService.ShowAsync<Add_Cow_Treatment_Dialog>(
+            string.Empty, parameters, options);
+        var result = await dialog.Result;
+
+        // Die Planung bleibt stehen, wenn der Dialog abgebrochen wird -
+        // sonst waere sie weg, ohne dass eine Behandlung entstanden ist.
+        if (result is null || result.Canceled)
+        {
+            Snackbar.Add("Abgebrochen — die Planung bleibt bestehen.", Severity.Warning);
+            return;
+        }
+
+        await pCowTreatmentService.RemoveByIDAsync(planned.PlannedCowTreatmentId);
+        Snackbar.Add("Behandlung abgeschlossen.", Severity.Success);
+        await OnChanged.InvokeAsync();
+    }
+
+    private async Task Remove(PlannedCowTreatment planned)
+    {
+        if (!await Confirm("Löschen", "Wollen Sie die geplante Behandlung wirklich löschen?",
+                "Löschen", Color.Error))
+        {
+            return;
+        }
+
+        await pCowTreatmentService.RemoveByIDAsync(planned.PlannedCowTreatmentId);
+        Snackbar.Add("Geplante Behandlung gelöscht.", Severity.Success);
+        await OnChanged.InvokeAsync();
+    }
+
+    private async Task<bool> Confirm(string header, string description, string accept, Color scheme)
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, NoHeader = true };
+        var parameters = new DialogParameters<GenericDialog>
+        {
+            { x => x.HeaderText, header },
+            { x => x.Description, description },
+            { x => x.AcceptButtonText, accept },
+            { x => x.CancelButtonText, "Abbrechen" },
+            { x => x.ColorScheme, scheme }
+        };
+
+        var dialog = await DialogService.ShowAsync<GenericDialog>(string.Empty, parameters, options);
+        var result = await dialog.Result;
+        return result is not null && !result.Canceled;
+    }
+}

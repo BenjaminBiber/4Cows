@@ -1231,6 +1231,13 @@
 .mw-td--bold    { font-weight: 700; }
 .mw-td--mono    { font-family: var(--mw-font-mono); font-size: 13px; color: var(--mw-muted); }
 .mw-td--right   { text-align: right; }
+/* MeadowTable haengt dieselbe Klasse an den Spaltenkopf. Ohne diese Zeile
+   verliert sie dort gegen ".mw-table th { text-align: left }" (0-1-1 schlaegt
+   0-1-0), und der Kopf einer rechtsbuendigen Zahlenspalte stuende links
+   ueber Zahlen, die rechts stehen. Faellt erst auf, seit es ueberhaupt
+   rechtsbuendige Spalten MIT Ueberschrift gibt - die Aktionsspalte hat
+   keine. */
+.mw-table th.mw-td--right { text-align: right; }
 .mw-td--nowrap  { white-space: nowrap; }
 .mw-td--actions { text-align: right; white-space: nowrap; }
 .mw-td--actions > * + * { margin-left: 6px; }
@@ -2402,4 +2409,320 @@ button.mw-nav-item {
   border-left: 3px solid transparent;
   font-family: inherit;
   text-align: left;
+}
+
+/* ============================================================
+   KUH-SEITE   (Kopfkarte, KPI-Reihe, Klauen-Heatmap,
+                Balkenlisten, Euterviertel, Zellen-Links)
+
+   Steht bewusst am ENDE der Datei. Zwei Regeln hier gewinnen ueber die
+   Quellreihenfolge und nicht ueber die Spezifitaet: die Heat-Klassen
+   ueberschreiben --mw-hoof aus .mw-hoof-thumb, und die KPI-Regeln muessen
+   den Mobil-Block des Dashboards (nth-child(n+5)) ueberholen.
+   ============================================================ */
+
+/* ── Kopfkarte ────────────────────────────────────────────────── */
+.mw-cow-head {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+  padding: 18px 20px;
+  background: var(--mw-panel);
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-2xl);
+  box-shadow: var(--mw-shadow-card);
+}
+.mw-cow-head__id { min-width: 0; }
+.mw-cow-head__collar {
+  font-family: var(--mw-font-display);
+  font-weight: 800;
+  font-size: 34px;
+  line-height: 1;
+  color: var(--mw-text);
+}
+.mw-cow-head__tag {
+  margin-top: 4px;
+  font-family: var(--mw-font-mono);
+  font-size: 13px;
+  color: var(--mw-muted);
+}
+.mw-cow-head__tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+
+/* Bewusst OHNE .mw-only-desktop: der FAB oeffnet ueber das Add-Menue nur
+   LEERE Dialoge, diese vier sind also mobil der einzige Weg zu einer schon
+   auf dieses Tier eingestellten Behandlung. */
+.mw-cow-head__actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ── KPI-Reihe ────────────────────────────────────────────────── */
+/* Sechs Kacheln statt der acht des Dashboards, deshalb 3x2 statt der
+   auto-fit-Spalten: sechs geht in drei UND in zwei Spalten glatt auf, ein
+   Waisenkind in der letzten Reihe kann gar nicht entstehen. Bei auto-fit
+   mit minmax(210px) faellt ein 1280px-Laptop dagegen auf 5+1. */
+.mw-kpi-grid--cow { grid-template-columns: repeat(3, 1fr); }
+
+/* Ein Rasterelement hat min-width:auto und reicht damit die Breite seines
+   Inhalts nach oben durch. Ohne das bekommt ein unteilbares
+   "Sohlengeschwuer" in 40px Display-Schrift die GANZE Seite einen
+   Waagerecht-Scroller - kein Schoenheitsfehler, sondern ein Layoutbruch. */
+.mw-kpi-grid--cow > * { min-width: 0; }
+
+/* Kacheln, deren Wert ein Wort ist und keine Zahl. */
+.mw-kpi--text .mw-kpi__value {
+  font-size: 22px;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+/* ── Kartenreihen ─────────────────────────────────────────────── */
+/* Die Zeitreihe bekommt doppelte Breite: zwoelf Balken brauchen sie, die
+   Heatmap daneben ist ein 2x2-Quadrat und nicht. */
+.mw-card--wide { flex: 2 1 460px; }
+
+/* Wie .mw-card--chart, aber ohne Canvas - fuer Heatmap, Balkenlisten und
+   Euterviertel, die reines DOM sind. */
+.mw-card--panel { flex: 1; min-width: 300px; }
+
+/* Die Heatmap braucht mehr als die 300px der anderen Karten: zwei Spalten
+   mit je einem 52px-Huf plus Befundtext. Bei 300px neben der doppelt so
+   breiten Zeitreihe wurden die beiden rechten Klauen aus der Karte
+   herausgedrueckt, bei 400px blieben dem Befund noch 76px - "Sohlengeschwür"
+   allein ist breiter. 460px lassen der Zelle rund 113px. Eigene Klasse und
+   nicht .mw-card--panel angehoben: in der zweiten Reihe stehen drei Karten
+   nebeneinander, dort waere das auf einem 1024px-Schirm zu viel. */
+.mw-card--heat { min-width: 460px; }
+
+/* Rasterelemente haben min-width:auto und reichen die Breite ihres Inhalts
+   nach oben durch. Ohne das sprengt ein langer Befund die Karte, statt
+   umzubrechen. */
+.mw-heat-grid > * { min-width: 0; }
+
+/* Und weil "Weiße-Linie-Defekt" auch in 113px nicht als Ganzes passt, darf
+   es notfalls mitten im Wort brechen. Nur hier: im Anzeige-Dialog steht
+   derselbe Befund in einer viel breiteren Spalte. */
+.mw-heat-grid .mw-show-cell__finding { overflow-wrap: anywhere; }
+
+/* ── Heat-Rampe ───────────────────────────────────────────────── */
+/* Die Stufe setzt nur --mw-heat; was daraus wird, entscheidet der
+   Verbraucher: der Huf faerbt seine Silhouette, das Euterviertel seine
+   Flaeche. Eine Rampe, zwei Grafiken. */
+.mw-heat-0 { --mw-heat: var(--mw-hoof-idle); --mw-heat-fg: var(--mw-muted); }
+.mw-heat-1 { --mw-heat: var(--mw-heat-1);    --mw-heat-fg: var(--mw-heat-1-fg); }
+.mw-heat-2 { --mw-heat: var(--mw-heat-2);    --mw-heat-fg: var(--mw-heat-2-fg); }
+.mw-heat-3 { --mw-heat: var(--mw-heat-3);    --mw-heat-fg: var(--mw-heat-3-fg); }
+.mw-heat-4 { --mw-heat: var(--mw-heat-4);    --mw-heat-fg: var(--mw-heat-4-fg); }
+
+/* Der Huf zieht die Stufe in die Property, die .mw-hoof-svg liest. Muss
+   NACH .mw-hoof-thumb.is-treated/.is-idle stehen - gleiche Spezifitaet. */
+.mw-hoof-thumb.mw-heat-0,
+.mw-hoof-thumb.mw-heat-1,
+.mw-hoof-thumb.mw-heat-2,
+.mw-hoof-thumb.mw-heat-3,
+.mw-hoof-thumb.mw-heat-4 { --mw-hoof: var(--mw-heat); }
+
+/* NICHT .mw-show-grid wiederverwenden: das faellt mobil auf eine Spalte
+   zurueck. Hier IST das 2x2 die Aussage - vorne/hinten und links/rechts
+   stehen an ihrem Platz am Tier. Vier Klauen untereinander waeren eine
+   Liste, keine Karte. Die Zelle selbst bleibt .mw-show-cell. */
+.mw-heat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.mw-heat-cell__count {
+  margin-top: 2px;
+  font-family: var(--mw-font-display);
+  font-weight: 800;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--mw-text);
+}
+
+/* Die Farbe ist der ZWEITE Kanal - die Zahl steht in jeder Zelle -, deshalb
+   tragen die Felder keine Beschriftung, nur die beiden Enden der Skala. */
+.mw-heat-legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 14px 0 0;
+  font-size: 12px;
+  color: var(--mw-muted);
+}
+.mw-heat-legend__swatch {
+  width: 20px;
+  height: 10px;
+  border-radius: var(--mw-r-xs);
+  background: var(--mw-heat);
+}
+
+/* ── Balkenlisten (Medikamente / Gruende) ─────────────────────── */
+/* Bewusst kein Chart.js: zwei bis acht Zeilen brauchen keine Achse, und die
+   Zahl steht ohnehin an jeder Zeile. Dafuer bleibt die Liste lesbar, wenn
+   das CDN im Hofnetz nicht erreichbar ist - genau der Fall, den
+   .mw-chart-error nebenan behandelt -, sie ist durchsuchbar, und ein
+   Screenreader liest sie ohne Zusatzarbeit vor. */
+.mw-barlist {
+  display: grid;
+  grid-template-columns: minmax(0, 9.5rem) 1fr auto;
+  align-items: center;
+  gap: 8px 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+/* Eine Zeile ohne eigene Box, damit alle drei Spalten ueber die Zeilen
+   hinweg fluchten. Nimmt dem li nur den Kasten, nicht die Semantik. */
+.mw-barlist__row { display: contents; }
+.mw-barlist__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  color: var(--mw-text);
+}
+.mw-barlist__track {
+  height: 10px;
+  border-radius: var(--mw-r-pill);
+  background: var(--mw-tint);
+  overflow: hidden;
+}
+.mw-barlist__fill {
+  display: block;
+  height: 100%;
+  /* Untergrenze, damit "1 von 40" nicht auf null Pixel zusammenfaellt und
+     dann wie "keine" aussieht. */
+  min-width: 3px;
+  width: calc(var(--mw-bar, 0) * 100%);
+  border-radius: var(--mw-r-pill);
+  background: var(--mw-primary);
+}
+.mw-barlist--teal .mw-barlist__fill { background: var(--mw-teal); }
+.mw-barlist__value {
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--mw-text);
+}
+
+/* ── Euterviertel ─────────────────────────────────────────────── */
+/* Geometrie wie das Viertel-Raster im UdderDialog, aber nur zum Lesen:
+   keine Knoepfe, kein Umschalten. Bleibt auch mobil 2x2 - die Anordnung
+   IST die Aussage. */
+.mw-udder-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.mw-udder-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 18px 8px;
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-2xl);
+  /* Flaeche UND Schrift kommen aus derselben Stufe. Nur die Flaeche zu
+     faerben ginge schief: bei Stufe 4 stuende sonst dunkler Text auf
+     dunklem Blau (hell) bzw. heller auf hellem (dunkel). */
+  background: var(--mw-heat, var(--mw-tint));
+  color: var(--mw-heat-fg, var(--mw-muted));
+}
+.mw-udder-cell__code {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .1em;
+}
+.mw-udder-cell__count {
+  font-family: var(--mw-font-display);
+  font-weight: 800;
+  font-size: 26px;
+  line-height: 1;
+}
+
+/* ── Tab-Leiste mit fuenf Laschen ─────────────────────────────── */
+/* Umbrechen darf sie nicht: der Unterstrich der aktiven Lasche liegt auf
+   dem Rahmen des Containers und hinge in einer ersten Zeile in der Luft.
+   Also scrollen. */
+.mw-tabs--scroll {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.mw-tabs--scroll .mw-tab { flex: 0 0 auto; white-space: nowrap; }
+
+/* Die Anzahl hinter dem Tabnamen. Kein .mw-badge: das ist ein gefuellter
+   Zaehler fuer den Filterknopf, hier soll die Zahl der Beschriftung
+   nachgeordnet bleiben. */
+.mw-tab__count {
+  margin-left: 6px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  opacity: .65;
+}
+
+/* ── Verlinkte Tabellenzelle ──────────────────────────────────── */
+/* Ein echtes a-href statt eines Klicks auf die ganze Zeile: Tastatur,
+   Mittelklick und "in neuem Tab oeffnen" funktionieren damit von selbst -
+   dasselbe Argument steht im Kopfkommentar von MeadowKpiTile. Und die
+   Aktionsknoepfe in den Spalten daneben koennen gar nicht erst mit einem
+   Zeilenklick kollidieren. */
+.mw-cell-link {
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+@media (hover: hover) {
+  .mw-cell-link:hover { color: var(--mw-primary); border-bottom-color: currentColor; }
+}
+/* Die Karte gibt es als button (oeffnet einen Dialog) und als a (fuehrt zur
+   Kuh-Seite); ohne das waere die zweite unterstrichen. */
+a.mw-row-card { text-decoration: none; }
+
+/* ── Kuh-Seite mobil ──────────────────────────────────────────── */
+@media (max-width: 1023.98px) {
+  /* Muss wiederholt werden: die unbedingte --cow-Regel oben steht SPAETER
+     in der Datei als der Mobil-Block des Dashboards und erzwaenge sonst
+     auch auf 360px drei Spalten, also 106px je Kachel. */
+  .mw-kpi-grid--cow { grid-template-columns: 1fr 1fr; }
+
+  /* Das Dashboard blendet ab der fuenften Kachel aus, weil es acht hat und
+     das Design mobil vier zeichnet. Hier sind alle sechs gemeint: offene
+     Verbaende und offene Termine sind genau die zwei Zahlen, wegen denen
+     jemand im Stall aufs Handy schaut. Doppelte Klasse, damit die Regel
+     unabhaengig von der Quellreihenfolge gewinnt; display:flex und nicht
+     revert - .mw-kpi IST flex, revert fiele auf inline zurueck. */
+  .mw-kpi-grid.mw-kpi-grid--cow > *:nth-child(n+5) { display: flex; }
+
+  .mw-kpi--text .mw-kpi__value { font-size: 18px; }
+
+  .mw-cow-head { padding: 14px 16px; margin-bottom: 14px; }
+  .mw-cow-head__collar { font-size: 28px; }
+  .mw-cow-head__actions { width: 100%; }
+  .mw-cow-head__actions .mw-btn { flex: 1 1 46%; justify-content: center; }
+
+  .mw-card--wide, .mw-card--panel { flex: 1 1 100%; min-width: 0; }
+
+  /* Zwei gestapelte Reihen brauchen eine Legende, und die frisst mobil ein
+     Sechstel der 150px aus --mw-bars-h. */
+  .mw-card--wide .mw-chart-canvas { height: 190px; }
+
+  .mw-heat-grid { gap: 10px; }
+  .mw-heat-grid .mw-show-cell { padding: 10px; }
+  .mw-heat-grid .mw-hoof-thumb { width: 40px; height: 40px; }
+
+  .mw-udder-cell { padding: 14px 6px; }
+  .mw-udder-cell__count { font-size: 22px; }
+
+  /* "Amoxicillin 400 mg" in 9.5rem waere fast nur noch Ellipse. Die
+     Beschriftung steht deshalb ueber dem Balken, der Wert bleibt rechts. */
+  .mw-barlist { grid-template-columns: 1fr auto; row-gap: 4px; }
+  .mw-barlist__label { grid-column: 1 / -1; white-space: normal; }
+
+  /* Fuenf Laschen passen auf 328px nur mit schmalerem Innenabstand -
+     load-bearing, nicht Politur. */
+  .mw-tabs--scroll .mw-tab { padding: 11px 12px; }
 }

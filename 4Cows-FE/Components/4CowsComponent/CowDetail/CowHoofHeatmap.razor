@@ -1,0 +1,122 @@
+@using _4Cows_FE.Components.Meadow
+@using BB_Cow.Profile
+@*
+    Die vier Klauen, eingefaerbt nach Behandlungshaeufigkeit.
+
+    Beantwortet die Frage, die eine Liste nicht beantwortet: ist immer
+    dieselbe Klaue betroffen? Die Farbe ist dabei der ZWEITE Kanal - jede
+    Zelle nennt ihre Zahl -, damit die Aussage auch ohne Farbwahrnehmung und
+    in beiden Themes ankommt.
+
+    Die Einfaerbung ist relativ zum Hoechstwert DIESER Kuh. Eine absolute
+    Skala zeichnete ein Tier, dessen schlimmste Klaue zweimal dran war, als
+    vier ununterscheidbar blasse Zellen - und die Frage auf einer
+    Detailseite lautet nie "wie steht sie zur Herde", sondern immer "welche
+    ihrer vier Klauen ist das Problem". Die Legende nennt den tatsaechlichen
+    Hoechstwert, damit die Relativitaet dasteht statt impliziert zu sein.
+*@
+@if (TotalTreatments == 0)
+{
+    @* Vier graue Hufe unter einer Legende "selten (1) ... haeufig (0)"
+       beschreiben eine Skala ohne Daten - das liest sich als kaputtes
+       Widget, nicht als leeres. *@
+    <div class="mw-empty">Für diese Kuh sind keine Klauenbehandlungen erfasst.</div>
+}
+else
+{
+    <div class="mw-heat-grid" role="group" aria-label="Klauen nach Behandlungshäufigkeit">
+        @foreach (var hoof in Hoofs)
+        {
+            <div class="mw-show-cell">
+                <div class="mw-show-cell__row">
+                    @* Der Huf traegt kein Title und ist damit aria-hidden:
+                       die Zahl daneben sagt dasselbe in Worten. *@
+                    <span class="mw-hoof-thumb mw-heat-@Step(hoof.TreatmentCount)"><Hoof /></span>
+
+                    <div class="mw-show-cell__body">
+                        <div class="mw-show-cell__title">@HoofPositions.Label(hoof.Position)</div>
+                        <div class="mw-heat-cell__count">
+                            @hoof.TreatmentCount.ToString("N0")
+                            <span class="mw-sr-only">
+                                @(hoof.TreatmentCount == 1 ? "Behandlung" : "Behandlungen")
+                            </span>
+                        </div>
+                        <div class="mw-show-cell__finding">@FindingText(hoof)</div>
+
+                        <div class="mw-show-cell__tags">
+                            @if (hoof.OpenBandageCount > 0)
+                            {
+                                <span class="mw-tag mw-tag--bandage">
+                                    @hoof.OpenBandageCount @(hoof.OpenBandageCount == 1 ? "Verband" : "Verbände")
+                                </span>
+                            }
+                            @* Der Klotz haengt NICHT an IsBandageRemoved - genau
+                               diese Vermischung war der Fehler, den ClawSummary
+                               behoben hat. *@
+                            @if (hoof.BlockCount > 0)
+                            {
+                                <span class="mw-tag mw-tag--block">
+                                    @hoof.BlockCount @(hoof.BlockCount == 1 ? "Klotz" : "Klötze")
+                                </span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <p class="mw-heat-legend">
+        <span>selten (1)</span>
+        <span class="mw-heat-legend__swatch mw-heat-1" aria-hidden="true"></span>
+        <span class="mw-heat-legend__swatch mw-heat-2" aria-hidden="true"></span>
+        <span class="mw-heat-legend__swatch mw-heat-3" aria-hidden="true"></span>
+        <span class="mw-heat-legend__swatch mw-heat-4" aria-hidden="true"></span>
+        <span>häufig (@Max)</span>
+        <span class="mw-sr-only">
+            Die Einfärbung ist relativ zum höchsten Wert dieser Kuh; die genaue Zahl
+            steht in jeder Zelle.
+        </span>
+    </p>
+}
+
+@code {
+    /// <summary>Genau vier, in der Reihenfolge von HoofPositions.All.</summary>
+    [Parameter] public IReadOnlyList<CowProfileHoof> Hoofs { get; set; } = Array.Empty<CowProfileHoof>();
+
+    /// <summary>Anzahl der Klauenbehandlungen dieser Kuh - entscheidet ueber den Leerzustand.</summary>
+    [Parameter] public int TotalTreatments { get; set; }
+
+    /// <summary>
+    /// Anzeigetext, wenn an einer Klaue nichts erfasst wurde. Pflegbar unter
+    /// Einstellungen -> Standardwerte; gespeichert wird er nicht, und in die
+    /// Auswertung geht er nicht ein - sonst hiesse der haeufigste Befund
+    /// jeder Kuh "Pflege". Genau wie in ClawSummary.
+    /// </summary>
+    [Parameter] public string FallbackFinding { get; set; } = "";
+
+    private const int Steps = 4;
+    private const int MaxSegments = 3;
+
+    private int Max => Hoofs.Count == 0 ? 0 : Hoofs.Max(h => h.TreatmentCount);
+
+    private int Step(int count)
+        => count == 0 || Max == 0 ? 0 : (int)Math.Ceiling((double)Steps * count / Max);
+
+    /// <summary>
+    /// Die Befunde dieser Klaue, haeufigster zuerst. Gekappt wie in
+    /// ClawFindingSummary - drei Segmente plus Rest, sonst sprengt eine Kuh
+    /// mit fuenf verschiedenen Befunden die Zelle.
+    /// </summary>
+    private string FindingText(CowProfileHoof hoof)
+    {
+        if (hoof.Findings.Count == 0)
+        {
+            return string.IsNullOrEmpty(FallbackFinding) ? "–" : FallbackFinding;
+        }
+
+        var text = string.Join(" · ", hoof.Findings.Take(MaxSegments).Select(f => f.Key));
+        var overflow = hoof.Findings.Count - MaxSegments;
+        return overflow > 0 ? $"{text} · +{overflow} weitere" : text;
+    }
+}

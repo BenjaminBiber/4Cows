@@ -89,6 +89,29 @@
   --mw-neg-fg:      #d02418;
   --mw-hoof-idle:   #c6d4d0;
 
+  /* ── Heat-Rampe (Klauen-Heatmap und Euterviertel) ─────────── */
+  /* Vier Stufen, bewusst als eigene Token und NICHT als
+     rgba(var(--mw-primary-rgb), alpha): eine halbtransparente Markenfarbe
+     kippt auf der dunklen Flaeche (--mw-panel: #262930) in ein Grau, das
+     weder gegen das Panel noch gegen --mw-tint steht - die unteren zwei
+     Stufen waeren dort unsichtbar.
+
+     Hell laeuft die Rampe nach DUNKEL, dunkel nach HELL. Eine Rampe, die in
+     beiden Themes in dieselbe Richtung liefe, drehte beim Umschalten ihre
+     Bedeutung um.
+
+     Jede Stufe traegt ihre Vordergrundfarbe mit, wie soft/block/neg auch:
+     das Euterviertel faerbt Flaeche UND Zahl aus derselben Stufe, sonst
+     stuende bei Stufe 4 dunkler Text auf dunklem Blau. */
+  --mw-heat-1:      #dbebf2;
+  --mw-heat-1-fg:   #1f5f7d;
+  --mw-heat-2:      #b3d5e5;
+  --mw-heat-2-fg:   #1f5f7d;
+  --mw-heat-3:      #7fb6cf;
+  --mw-heat-3-fg:   #133f52;
+  --mw-heat-4:      #2C7DA0;   /* = --mw-primary */
+  --mw-heat-4-fg:   #ffffff;
+
   /* ── Backdrops ────────────────────────────────────────────── */
   --mw-backdrop-drawer: rgba(8, 20, 24, .42);
   --mw-backdrop-dialog: rgba(6, 18, 22, .5);
@@ -181,6 +204,16 @@
   --mw-neg-bg:    #3a2726;
   --mw-neg-fg:    #f0a29c;
   --mw-hoof-idle: #41504d;
+
+  /* Umgekehrte Laufrichtung - siehe die Begruendung im hellen Block. */
+  --mw-heat-1:    #23414e;
+  --mw-heat-1-fg: #cfe3ec;
+  --mw-heat-2:    #2f6178;
+  --mw-heat-2-fg: #dbeef7;
+  --mw-heat-3:    #4691b0;
+  --mw-heat-3-fg: #0d2630;
+  --mw-heat-4:    #60ADC9;   /* = --mw-blue */
+  --mw-heat-4-fg: #10262e;
 }
 
 /* ── Keyframes (Prototyp Zeilen 23-27) ──────────────────────── */

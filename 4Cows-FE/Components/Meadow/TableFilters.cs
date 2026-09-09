@@ -1,4 +1,5 @@
 using BB_Cow.Kpi;
+using BB_Cow.Profile;
 
 namespace _4Cows_FE.Components.Meadow;
 
@@ -344,4 +345,107 @@ public sealed class PlannedClawTableFilter
         Positions.Clear();
         Range = PlannedDateRange.All;
     }
+}
+
+/// <summary>
+/// Statusfilter der Kuh-Uebersicht.
+///
+/// Bewusst eine EINFACHauswahl ueber nicht disjunkte Praedikate und keine
+/// Partition: ein Kalb ist auch im Bestand. "Nur Kaelber" ist deshalb eine
+/// Verschaerfung von "Nur im Bestand", keine Alternative dazu - und genau so
+/// liest es sich auch im Panel.
+///
+/// "Alle" gehoert dazu, weil es sonst keinen Weg gaebe, Abgaenge UND
+/// Bestandstiere zusammen zu sehen.
+/// </summary>
+public enum CowStatus
+{
+    InHerd,
+    Calves,
+    Gone,
+    All
+}
+
+public static class CowStatusFilter
+{
+    public const string InHerdLabel = "Nur im Bestand";
+    public const string CalvesLabel = "Nur Kälber";
+    public const string GoneLabel = "Nur Abgänge";
+    public const string AllLabel = "Alle";
+
+    public static readonly string[] Labels = { InHerdLabel, CalvesLabel, GoneLabel, AllLabel };
+
+    public static CowStatus Parse(string label) => label switch
+    {
+        CalvesLabel => CowStatus.Calves,
+        GoneLabel => CowStatus.Gone,
+        AllLabel => CowStatus.All,
+        _ => CowStatus.InHerd
+    };
+
+    public static string ToLabel(CowStatus status) => status switch
+    {
+        CowStatus.Calves => CalvesLabel,
+        CowStatus.Gone => GoneLabel,
+        CowStatus.All => AllLabel,
+        _ => InHerdLabel
+    };
+
+    public static bool Matches(CowStatus status, CowOverviewRow row) => status switch
+    {
+        CowStatus.Calves => row.IsCalf && !row.IsGone,
+        CowStatus.Gone => row.IsGone,
+        CowStatus.All => true,
+        _ => !row.IsGone
+    };
+
+    /// <summary>
+    /// Uebersetzt die KPI-Filtergruppen "calf" und "herd" in den einen Status,
+    /// den diese Seite kennt.
+    ///
+    /// Der Auswerter verknuepft die beiden Gruppen mit UND, die Uebersicht hat
+    /// aber nur eine Einfachauswahl - abbilden lassen sich deshalb nur die
+    /// Faelle, die einer der vier Optionen entsprechen. Alles andere laesst den
+    /// aktuellen Wert stehen, statt eine Auswahl zu erfinden, die die Kachel
+    /// nicht gemeint hat.
+    /// </summary>
+    public static CowStatus FromKpi(
+        IReadOnlyList<string>? calf, IReadOnlyList<string>? herd, CowStatus current)
+    {
+        var onlyCalves = calf is { Count: 1 } && calf[0] == KpiFlags.Calf;
+        var gone = herd is { Count: 1 } && herd[0] == KpiFlags.Gone;
+        var inHerd = herd is { Count: 1 } && herd[0] == KpiFlags.InHerd;
+
+        // Abgang schlaegt alles: ein Drill-down auf "Abgaenge" muss die
+        // Vorgabe "Nur im Bestand" ueberschreiben duerfen, sonst zeigte er
+        // garantiert null Zeilen.
+        if (gone) return CowStatus.Gone;
+        if (onlyCalves) return CowStatus.Calves;
+        if (inHerd) return CowStatus.InHerd;
+
+        return current;
+    }
+}
+
+public sealed class CowOverviewFilter
+{
+    public string Search { get; set; } = "";
+
+    /// <summary>
+    /// Vorgabe "Nur im Bestand": Abgaenge sind Historie und wuerden die Liste
+    /// sonst um alles erweitern, was den Hof je verlassen hat.
+    /// </summary>
+    public CowStatus Status { get; set; } = CowStatus.InHerd;
+
+    /// <summary>
+    /// Zaehlt den Status MIT, auch in der Vorgabe - anders als bei den vier
+    /// Behandlungstabellen, wo die Vorgabe nichts ausblendet. Hier tut sie es,
+    /// und ein Badge, das das verschweigt, laesst die Liste kaputt aussehen
+    /// ("wo ist Nummer 118?").
+    /// </summary>
+    public int ActiveCount => 1;
+
+    public bool HasAny => Status != CowStatus.InHerd || !string.IsNullOrWhiteSpace(Search);
+
+    public void Reset() => Status = CowStatus.InHerd;
 }
