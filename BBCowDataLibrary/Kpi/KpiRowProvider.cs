@@ -68,6 +68,10 @@ public sealed class KpiRowProvider : IKpiLookups
     // implementation rather than only for this one.
     public string MedicineName(int medicineId) => _medicines.GetMedicineNameById(medicineId);
 
+    // Leerer Rueckfallwert, nicht "ml": eine fehlende Einheit soll die
+    // Mischungspruefung in KpiEvaluator nicht als zweite Einheit auslegen.
+    public string MedicineDosageUnit(int medicineId) => _medicines.GetDosageUnit(medicineId, "");
+
     public string WhereHowName(int whereHowId) => _whereHows.GetWhereHowNameById(whereHowId);
 
     /// <summary>

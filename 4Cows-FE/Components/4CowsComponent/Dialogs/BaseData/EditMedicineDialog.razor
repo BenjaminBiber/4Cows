@@ -1,20 +1,53 @@
 @using _4Cows_FE.Components.Meadow
-
 @inject MedicineService MedicineService
+@inject WhereHowService WhereHowService
 @inject IDialogService DialogService
+@inject ISnackbar Snackbar
 
-<MeadowDialog Title="Medikament ändern" Size="MeadowDialogSize.Info">
+<MeadowDialog Title="@(IsNew ? "Medikament anlegen" : "Medikament ändern")" Size="MeadowDialogSize.Info">
     <ChildContent>
-        @* MudForm bleibt: die Required-Validierung samt RequiredError haengt
-           daran, und meadow-mud.css toent die Fehlerzeile schon. *@
+        @* MudForm wie im Wie/Wo-Dialog: die Required-Validierung samt
+           RequiredError haengt daran, und meadow-mud.css toent die Fehlerzeile
+           schon. *@
         <MudForm @ref="_form" @bind-IsValid="@_success">
             <label class="mw-label" for="mw-medicine-name">Medikamentenname</label>
             <div class="mw-field">
                 <MudTextField T="string" InputId="mw-medicine-name" Variant="Variant.Text"
-                              Required="true" @bind-Value="_Medicine.MedicineName"
+                              Required="true" @bind-Value="_name"
                               RequiredError="Medikamentenname muss ausgefüllt werden!" />
             </div>
+
+            <label class="mw-label" for="mw-medicine-unit">Dosiereinheit</label>
+            <div class="mw-field">
+                @* CoerceValue: ein Betrieb darf eine eigene Einheit eintragen
+                   ("Bolus"), die Vorschlaege sind nur die gaengigen vier. *@
+                <MudAutocomplete T="string" InputId="mw-medicine-unit" Variant="Variant.Text"
+                                 SelectValueOnTab="true" CoerceValue="true" CoerceText="true"
+                                 @bind-Value="_unit"
+                                 SearchFunc="SearchUnits"
+                                 Placeholder="z.B. ml" />
+            </div>
+
+            <label class="mw-label" for="mw-medicine-wherehow">Verabreichungsart (Standard)</label>
+            <div class="mw-field">
+                @* CoerceValue bewusst FALSE - der einzige Ort im Projekt, an
+                   dem das Hausmuster umgedreht ist. Eine Vorbelegung muss auf
+                   eine bestehende "Wie / Wo"-Zeile zeigen; ein Tippfehler
+                   wuerde hier sonst zu einem Stammdatensatz befoerdert. *@
+                <MudAutocomplete T="string" InputId="mw-medicine-wherehow" Variant="Variant.Text"
+                                 SelectValueOnTab="true" CoerceValue="false"
+                                 @bind-Value="_whereHowName"
+                                 SearchFunc="SearchWhereHows"
+                                 Clearable="true"
+                                 Placeholder="optional, z.B. IZ" />
+            </div>
         </MudForm>
+
+        <p class="mw-hint">
+            Einheit und Verabreichungsart werden in den Behandlungs-Dialogen
+            vorbelegt, sobald dieses Medikament gewählt wird. Umbenennen auf
+            ein bestehendes Medikament führt beide zusammen.
+        </p>
     </ChildContent>
     <Footer>
         <button type="button" class="mw-btn mw-btn--plain mw-btn--wide" @onclick="Cancel">
@@ -29,10 +62,62 @@
 @code {
     [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = default!;
 
-    [Parameter] public Medicine _Medicine { get; set; } = new();
+    [Parameter] public Medicine Entry { get; set; } = new();
+    [Parameter] public bool IsNew { get; set; }
+
+    /// <summary>
+    /// Verwendungen des bearbeiteten Eintrags - steht nur im Text der
+    /// Merge-Rueckfrage, damit dort steht, wie viele Behandlungen umgehaengt
+    /// werden.
+    /// </summary>
+    [Parameter] public int UsageCount { get; set; }
+
+    /// <summary>Die vier gaengigen Einheiten als Vorschlag, nicht als Zwang.</summary>
+    private static readonly string[] StandardUnits = { "ml", "Stück", "g", "Injektor" };
 
     private MudForm? _form;
     private bool _success;
+
+    private string _name = "";
+    private string _unit = "";
+    private string _whereHowName = "";
+
+    protected override void OnInitialized()
+    {
+        // Auf Kopien arbeiten, nicht auf Entry: das ist die Instanz aus dem
+        // Service-Cache. Direktes Binden wuerde den Cache schon beim Tippen
+        // aendern, und ein Abbrechen liesse den halben Namen in der Tabelle
+        // stehen, bis irgendwer neu laedt.
+        _name = Entry.MedicineName;
+        _unit = Entry.DosageUnit ?? "";
+        _whereHowName = Entry.DefaultWhereHowId is { } id
+            ? WhereHowService.GetWhereHowNameById(id)
+            : "";
+    }
+
+    private Task<IEnumerable<string>> SearchUnits(string value, CancellationToken token)
+    {
+        var known = MedicineService.Medicines.Values
+            .Select(m => m.DosageUnit)
+            .Where(u => !string.IsNullOrWhiteSpace(u))
+            .Select(u => u!.Trim())
+            .Concat(StandardUnits)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(u => u);
+
+        return Task.FromResult(string.IsNullOrWhiteSpace(value)
+            ? known
+            : known.Where(u => u.Contains(value, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private Task<IEnumerable<string>> SearchWhereHows(string value, CancellationToken token)
+    {
+        var names = WhereHowService.WhereHowNames.OrderBy(n => n);
+
+        return Task.FromResult<IEnumerable<string>>(string.IsNullOrWhiteSpace(value)
+            ? names
+            : names.Where(n => n.Contains(value, StringComparison.OrdinalIgnoreCase)));
+    }
 
     private void Cancel() => MudDialog.Cancel();
 
@@ -48,25 +133,164 @@
             return;
         }
 
-        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
-        var parameters = new DialogParameters<GenericDialog>
+        var name = _name.Trim();
+        if (name.Length == 0)
         {
-            { x => x.HeaderText, "Ändern" },
-            { x => x.Description, "Wollen Sie das Medikament wirklich ändern?" },
-            { x => x.AcceptButtonText, "Ja" },
-            { x => x.CancelButtonText, "Abbrechen" },
-            { x => x.ColorScheme, Color.Warning }
-        };
+            Snackbar.Add("Medikamentenname ist leer.", Severity.Error);
+            return;
+        }
 
-        var dialog = await DialogService.ShowAsync<GenericDialog>(string.Empty, parameters, options);
-        var result = await dialog.Result;
+        if (name.Length > Medicine.NameMaxLength)
+        {
+            Snackbar.Add($"Der Name ist länger als {Medicine.NameMaxLength} Zeichen.", Severity.Error);
+            return;
+        }
 
-        if (result is null || result.Canceled)
+        // Eine gesetzte Verabreichungsart muss auflösbar sein. CoerceValue ist
+        // am Feld aus, dies ist die zweite Absicherung.
+        int? whereHowId = null;
+        if (!string.IsNullOrWhiteSpace(_whereHowName))
+        {
+            var match = WhereHowService.WhereHows.Values.FirstOrDefault(w =>
+                string.Equals(w.WhereHowName.Trim(), _whereHowName.Trim(), StringComparison.OrdinalIgnoreCase));
+
+            if (match is null)
+            {
+                Snackbar.Add(
+                    $"„{_whereHowName}\" gibt es unter „Wie / Wo\" nicht. Bitte dort zuerst anlegen.",
+                    Severity.Error);
+                return;
+            }
+
+            whereHowId = match.WhereHowId;
+        }
+
+        // Sich selbst ausnehmen: sonst meldet eine reine
+        // Gross-/Kleinschreibungsaenderung eine Kollision mit dem Eintrag, der
+        // gerade bearbeitet wird.
+        var clash = MedicineService.Medicines.Values.FirstOrDefault(m =>
+            m.MedicineId != Entry.MedicineId
+            && string.Equals(m.MedicineName.Trim(), name, StringComparison.OrdinalIgnoreCase));
+
+        if (clash is not null)
+        {
+            await SaveIntoExisting(clash);
+            return;
+        }
+
+        await SaveOwn(name, whereHowId);
+    }
+
+    /// <summary>
+    /// Der Name ist schon vergeben. Beim Bearbeiten wird zusammengefuehrt -
+    /// beim Anlegen gibt es nichts zusammenzufuehren, das ist schlicht ein
+    /// Eingabefehler.
+    /// </summary>
+    private async Task SaveIntoExisting(Medicine clash)
+    {
+        if (IsNew)
+        {
+            Snackbar.Add($"„{clash.MedicineName}\" gibt es bereits.", Severity.Error);
+            return;
+        }
+
+        // Ein- und Mehrzahl auseinanderhalten: "in 1 Behandlungen verwendet"
+        // steht sonst genau dann da, wenn der haeufigste Fall eintritt.
+        var usage = UsageCount == 1 ? "1 Behandlung" : $"{UsageCount} Behandlungen";
+        var moved = UsageCount == 1 ? "Die Behandlung wird" : "Die Behandlungen werden";
+
+        var description = UsageCount == 0
+            ? $"„{Entry.MedicineName}\" mit „{clash.MedicineName}\" zusammenführen? "
+              + "Der Eintrag verschwindet danach."
+            : $"„{Entry.MedicineName}\" wird in {usage} verwendet. "
+              + $"Mit „{clash.MedicineName}\" zusammenführen? {moved} "
+              + "umgehängt, der Eintrag verschwindet danach.";
+
+        if (!await Confirm("Zusammenführen", description, "Zusammenführen", Color.Warning))
         {
             return;
         }
 
-        await MedicineService.UpdateDataAsync(_Medicine);
+        if (!await MedicineService.MergeAsync(Entry.MedicineId, clash.MedicineId))
+        {
+            Snackbar.Add("Zusammenführen fehlgeschlagen.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add($"Mit „{clash.MedicineName}\" zusammengeführt.", Severity.Success);
         MudDialog.Close(DialogResult.Ok(true));
+    }
+
+    private async Task SaveOwn(string name, int? whereHowId)
+    {
+        var unit = _unit.Trim();
+
+        if (IsNew)
+        {
+            if (!await Confirm("Anlegen", $"„{name}\" als Medikament anlegen?", "Anlegen", Color.Warning))
+            {
+                return;
+            }
+
+            var draft = new Medicine(0, name)
+            {
+                DosageUnit = unit.Length == 0 ? null : unit,
+                DefaultWhereHowId = whereHowId
+            };
+
+            if (!await MedicineService.InsertDataAsync(draft))
+            {
+                Snackbar.Add("Anlegen fehlgeschlagen.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add("Medikament angelegt.", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(true));
+            return;
+        }
+
+        // Nichts geaendert: keine Rueckfrage, kein Schreibvorgang, kein Reload
+        // auf der Seite dahinter.
+        var unchanged = name == Entry.MedicineName
+                        && unit == (Entry.DosageUnit ?? "")
+                        && whereHowId == Entry.DefaultWhereHowId;
+
+        if (unchanged)
+        {
+            MudDialog.Cancel();
+            return;
+        }
+
+        var update = new Medicine(Entry.MedicineId, name)
+        {
+            DosageUnit = unit.Length == 0 ? null : unit,
+            DefaultWhereHowId = whereHowId
+        };
+
+        if (!await MedicineService.UpdateDataAsync(update))
+        {
+            Snackbar.Add("Ändern fehlgeschlagen.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add("Medikament geändert.", Severity.Success);
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+
+    private async Task<bool> Confirm(string header, string description, string accept, Color scheme)
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var parameters = new DialogParameters<GenericDialog>
+        {
+            { x => x.HeaderText, header },
+            { x => x.Description, description },
+            { x => x.AcceptButtonText, accept },
+            { x => x.CancelButtonText, "Abbrechen" },
+            { x => x.ColorScheme, scheme }
+        };
+
+        var dialog = await DialogService.ShowAsync<GenericDialog>(string.Empty, parameters, options);
+        var result = await dialog.Result;
+        return result is not null && !result.Canceled;
     }
 }

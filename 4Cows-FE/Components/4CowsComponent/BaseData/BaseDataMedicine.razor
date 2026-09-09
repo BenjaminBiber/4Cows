@@ -1,8 +1,13 @@
+@using _4Cows_FE.Components._4CowsComponent.Dialogs
 @using _4Cows_FE.Components._4CowsComponent.Dialogs.BaseData
 @using _4Cows_FE.Components.Meadow
 
 @inject MedicineService MedicineService
+@inject WhereHowService WhereHowService
+@inject CowTreatmentService CowTreatmentService
+@inject PCowTreatmentService PCowTreatmentService
 @inject IDialogService DialogService
+@inject ISnackbar Snackbar
 
 <MeadowToolbar>
     <Left>
@@ -11,58 +16,166 @@
     </Left>
 </MeadowToolbar>
 
-<MeadowTable TItem="Medicine" Items="_rows" Columns="_columns"
-             RowKey="@(m => m.MedicineId)"
+<MeadowTable TItem="Row" Items="_rows" Columns="_columns"
+             RowKey="@(r => r.Entry.MedicineId)"
              Class="mw-table-wrap--dense" ShowMobileCards="false"
              DefaultSortTitle="Medikamentenname"
              PagerLabel="Medikamente pro Seite"
              EmptyText="Keine Medikamente gefunden." />
 
+<div class="mw-table-foot">
+    <button type="button" class="mw-btn mw-btn--primary" @onclick="OpenNewDialog">
+        <MeadowIcon Name="MeadowIconName.Plus" Size="20" />
+        <span>Medikament hinzufügen</span>
+    </button>
+</div>
+
 @code {
-    private List<Medicine> _all = new();
-    private List<Medicine> _rows = new();
+    /// <summary>
+    /// Eintrag plus abgeleitete Werte. Die Werte liegen am Item statt in einem
+    /// Dictionary daneben, weil MeadowColumn.SortBy sonst bei jedem
+    /// Sortiervergleich nachschlagen muesste.
+    /// </summary>
+    private sealed record Row(
+        Medicine Entry,
+        int? UsageCount,
+        bool IsDuplicate);
+
+    private List<Row> _all = new();
+    private List<Row> _rows = new();
     private string _search = "";
 
-    private IReadOnlyList<MeadowColumn<Medicine>> _columns = Array.Empty<MeadowColumn<Medicine>>();
+    private IReadOnlyList<MeadowColumn<Row>> _columns = Array.Empty<MeadowColumn<Row>>();
 
     protected override async Task OnInitializedAsync()
     {
         BuildColumns();
-        await MedicineService.GetAllDataAsync();
-        Reload();
+        await LoadAsync();
     }
 
-    private void BuildColumns() => _columns = new List<MeadowColumn<Medicine>>
+    private async Task LoadAsync()
+    {
+        await MedicineService.GetAllDataAsync();
+        await WhereHowService.GetAllDataAsync();
+
+        // Null heisst "nicht zaehlbar" (Datenbank weg). Dann bleibt der
+        // Papierkorb gesperrt, statt jede Zeile als unbenutzt auszuweisen.
+        var counts = await MedicineService.GetUsageCountsAsync();
+
+        var all = MedicineService.Medicines.Values.ToList();
+
+        var duplicates = all
+            .GroupBy(m => m.MedicineName.Trim(), StringComparer.OrdinalIgnoreCase)
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        _all = all
+            .Select(m => new Row(
+                m,
+                counts?.GetValueOrDefault(m.MedicineId) ?? (int?)null,
+                duplicates.Contains(m.MedicineName.Trim())))
+            .ToList();
+
+        ApplyFilter();
+    }
+
+    private void BuildColumns() => _columns = new List<MeadowColumn<Row>>
     {
         new()
         {
             Title = "ID",
-            Text = m => m.MedicineId.ToString(),
-            SortBy = m => m.MedicineId,
+            Text = r => r.Entry.MedicineId.ToString(),
+            SortBy = r => r.Entry.MedicineId,
             Style = MeadowCellStyle.Mono,
             Width = "70px"
         },
         new()
         {
             Title = "Medikamentenname",
-            Text = m => m.MedicineName,
-            SortBy = m => m.MedicineName,
-            Style = MeadowCellStyle.Bold
+            SortBy = r => r.Entry.MedicineName,
+            Style = MeadowCellStyle.Bold,
+            Template = row =>
+                @<text>
+                    <span>@row.Entry.MedicineName</span>
+                    @if (row.IsDuplicate)
+                    {
+                        <span class="mw-pill mw-pill--overdue"
+                              title="Diese Bezeichnung gibt es mehrfach. Über „Zusammenführen“ lassen sich beide Einträge vereinen.">
+                            doppelt
+                        </span>
+                    }
+                </text>
+        },
+        new()
+        {
+            Title = "Einheit",
+            Text = r => string.IsNullOrWhiteSpace(r.Entry.DosageUnit) ? "–" : r.Entry.DosageUnit!,
+            SortBy = r => r.Entry.DosageUnit ?? "",
+            Width = "110px"
+        },
+        new()
+        {
+            Title = "Wie / Wo",
+            Text = RouteName,
+            SortBy = RouteName,
+            Width = "150px"
+        },
+        new()
+        {
+            Title = "Verwendungen",
+            Text = r => r.UsageCount?.ToString() ?? "–",
+            SortBy = r => r.UsageCount ?? -1,
+            Align = MeadowAlign.Right,
+            Width = "140px"
         },
         new()
         {
             IsActions = true,
-            Template = medicine =>
-                @<MeadowIconButton Icon="MeadowIconName.Edit" Title="Medikament ändern"
-                                   OnClick="() => OpenMedicineDialog(medicine)" />
+            Width = "144px",
+            Template = row =>
+                @<text>
+                    <MeadowIconButton Icon="MeadowIconName.Edit" Title="Medikament ändern"
+                                      OnClick="() => OpenEditDialog(row)" />
+                    <MeadowIconButton Icon="MeadowIconName.ArrowRight"
+                                      Title="Mit einem anderen Medikament zusammenführen"
+                                      OnClick="() => OpenMergeDialog(row)" />
+                    <MeadowIconButton Icon="MeadowIconName.Trash" Title="@DeleteTitle(row)"
+                                      Danger="true" Disabled="@(!CanDelete(row))"
+                                      OnClick="() => Delete(row)" />
+                </text>
         }
     };
 
-    private void Reload()
+    /// <summary>
+    /// Die vorbelegte Verabreichungsart als Name. Nicht static, weil die
+    /// Auflaesung ueber den WhereHowService-Cache laeuft - Fremdschluessel und
+    /// Navigationseigenschaften gibt es im Schema nicht.
+    /// </summary>
+    private string RouteName(Row row)
     {
-        _all = MedicineService.Medicines.Values.ToList();
-        ApplyFilter();
+        if (row.Entry.DefaultWhereHowId is not { } id)
+        {
+            return "–";
+        }
+
+        var name = WhereHowService.GetWhereHowNameById(id);
+
+        // GetWhereHowNameById gibt bei unbekannter ID einen leeren String
+        // zurueck. Das passiert, wenn die Zeile inzwischen geloescht wurde -
+        // ohne Fremdschluessel haelt die Datenbank das nicht auf.
+        return string.IsNullOrWhiteSpace(name) ? "–" : name;
     }
+
+    private static bool CanDelete(Row row) => row.UsageCount is 0;
+
+    private static string DeleteTitle(Row row) => row switch
+    {
+        { UsageCount: null } => "Verwendungen unbekannt — Löschen gesperrt",
+        { UsageCount: 0 } => "Medikament löschen",
+        { UsageCount: 1 } => "Wird in 1 Behandlung verwendet",
+        var r => $"Wird in {r.UsageCount} Behandlungen verwendet"
+    };
 
     private void OnSearchChanged(string value)
     {
@@ -73,13 +186,23 @@
     private void ApplyFilter()
     {
         var term = _search.Trim();
-        _rows = term.Length == 0
-            ? _all.ToList()
-            : _all.Where(m => m.MedicineName.Contains(term, StringComparison.OrdinalIgnoreCase))
-                .ToList();
+
+        IEnumerable<Row> rows = _all;
+
+        if (term.Length > 0)
+        {
+            rows = rows.Where(r => r.Entry.MedicineName.Contains(term, StringComparison.OrdinalIgnoreCase));
+        }
+
+        _rows = rows.ToList();
     }
 
-    private async Task OpenMedicineDialog(Medicine medicine)
+    private Task OpenNewDialog() => OpenDialog(new Medicine(), isNew: true, usageCount: 0);
+
+    private Task OpenEditDialog(Row row)
+        => OpenDialog(row.Entry, isNew: false, usageCount: row.UsageCount ?? 0);
+
+    private async Task OpenDialog(Medicine entry, bool isNew, int usageCount)
     {
         var options = new DialogOptions
         {
@@ -89,7 +212,9 @@
         };
         var parameters = new DialogParameters<EditMedicineDialog>
         {
-            { x => x._Medicine, medicine }
+            { x => x.Entry, entry },
+            { x => x.IsNew, isNew },
+            { x => x.UsageCount, usageCount }
         };
 
         var dialog = await DialogService.ShowAsync<EditMedicineDialog>(
@@ -101,7 +226,81 @@
             return;
         }
 
-        await MedicineService.GetAllDataAsync();
-        Reload();
+        await ReloadTreatmentsAsync();
+        await LoadAsync();
+    }
+
+    private async Task OpenMergeDialog(Row row)
+    {
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true,
+            BackdropClick = false
+        };
+        var parameters = new DialogParameters<MergeMedicineDialog>
+        {
+            { x => x.Source, row.Entry },
+            { x => x.SourceUsageCount, row.UsageCount ?? 0 }
+        };
+
+        var dialog = await DialogService.ShowAsync<MergeMedicineDialog>(
+            string.Empty, parameters, options);
+        var result = await dialog.Result;
+
+        if (result is null || result.Canceled)
+        {
+            return;
+        }
+
+        await ReloadTreatmentsAsync();
+        await LoadAsync();
+    }
+
+    /// <summary>
+    /// Ein Merge haengt Behandlungen um. Ohne dieses Nachladen zeigen die
+    /// Behandlungstabellen im selben Circuit noch die verschwundene ID und
+    /// damit ein leeres Feld.
+    /// </summary>
+    private async Task ReloadTreatmentsAsync()
+    {
+        await CowTreatmentService.GetAllDataAsync();
+        await PCowTreatmentService.GetAllDataAsync();
+    }
+
+    private async Task Delete(Row row)
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var parameters = new DialogParameters<GenericDialog>
+        {
+            { x => x.HeaderText, "Löschen" },
+            { x => x.Description, $"Soll „{row.Entry.MedicineName}\" wirklich gelöscht werden?" },
+            { x => x.AcceptButtonText, "Löschen" },
+            { x => x.CancelButtonText, "Abbrechen" },
+            { x => x.ColorScheme, Color.Error }
+        };
+
+        var dialog = await DialogService.ShowAsync<GenericDialog>(string.Empty, parameters, options);
+        var result = await dialog.Result;
+
+        if (result is null || result.Canceled)
+        {
+            return;
+        }
+
+        if (!await MedicineService.RemoveByIdAsync(row.Entry.MedicineId))
+        {
+            // Der Service zaehlt vor dem Delete selbst nach. Ein false heisst
+            // hier fast immer: zwischen Seitenaufbau und Klick ist eine
+            // Behandlung dazugekommen.
+            Snackbar.Add(
+                $"„{row.Entry.MedicineName}\" wurde nicht gelöscht — der Eintrag wird inzwischen verwendet.",
+                Severity.Error);
+            await LoadAsync();
+            return;
+        }
+
+        Snackbar.Add("Medikament gelöscht.", Severity.Success);
+        await LoadAsync();
     }
 }

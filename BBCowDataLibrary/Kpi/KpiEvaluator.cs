@@ -184,10 +184,42 @@ public static class KpiEvaluator
 
         var value = average ? values.Average() : values.Sum();
 
+        // Seit die Dosiereinheit am Medikament haengt, koennen hier ml und
+        // Stueck zusammenfallen. Der Wert wird weiter berechnet - er ist ja
+        // angefordert - aber er bekommt keine Einheit angeheftet, die nur fuer
+        // einen Teil der Zeilen gilt, und die Kachel sagt, dass gemischt wurde.
+        // Ohne das waere "3 Tabletten + 20 ml = 23 ml" eine voellig plausibel
+        // aussehende Falschaussage.
+        var units = rows
+            .Where(r => r.Dosage.HasValue && !string.IsNullOrWhiteSpace(r.DosageUnit))
+            .Select(r => r.DosageUnit!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(u => u, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (units.Count > 1)
+        {
+            return new KpiResult
+            {
+                State = KpiResultState.Ok,
+                Display = $"{Format(value, definition.Decimals)} (gemischte Einheiten)",
+                Number = value,
+                Message = $"Die Behandlungen dieser Kennzahl verwenden {units.Count} verschiedene "
+                          + $"Dosiereinheiten ({string.Join(", ", units)}). "
+                          + (average ? "Der Durchschnitt" : "Die Summe")
+                          + " darüber ist nicht aussagekräftig — bitte nach Medikament gruppieren "
+                          + "oder auf ein Medikament filtern."
+            };
+        }
+
         return new KpiResult
         {
             State = KpiResultState.Ok,
-            Display = WithUnit(Format(value, definition.Decimals), definition.Unit),
+            // Ist am Medikament genau eine Einheit hinterlegt, gewinnt die -
+            // sie ist naeher an den Daten als das Textfeld der Definition, das
+            // jemand vor der Einfuehrung der Einheiten getippt hat.
+            Display = WithUnit(Format(value, definition.Decimals),
+                units.Count == 1 ? units[0] : definition.Unit),
             Number = value
         };
     }

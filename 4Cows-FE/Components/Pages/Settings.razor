@@ -71,6 +71,11 @@ else if (_tab == TabBaseData)
         case "Behandlungsgrund":
             <BaseDataTreatmentReason />
             break;
+        @* "Medikamente" ausdruecklich, nicht nur ueber default: sonst ist
+           default das stille Auffangbecken fuer jeden Tippfehler in
+           BaseDataTabs, und ein falsch geschriebener Reiter zeigt wortlos die
+           Medikamente. Der Rueckfall bleibt derselbe Zweig. *@
+        case "Medikamente":
         default:
             <BaseDataMedicine />
             break;

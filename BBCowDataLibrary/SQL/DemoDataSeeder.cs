@@ -27,9 +27,25 @@ public static class DemoDataSeeder
     /// <summary>Ohrmarken im Format des Platzhalters aus den Dialogen.</summary>
     private const string EarTagPrefix = "DE 08 1523 ";
 
-    private static readonly string[] MedicineNames =
+    /// <summary>
+    /// Beispielpraeparate mit Dosiereinheit und Standard-Verabreichungsart.
+    ///
+    /// Beides ist fuer die Demo entscheidend: ohne hinterlegte Werte zeigt der
+    /// Behandlungs-Dialog die Vorbelegung nicht, und die Mengenspalte faellt
+    /// ueberall auf den Standardwert zurueck. "Ubrolexin" und "Cobactan" sind
+    /// Trockensteller und darum intrazitzenal - damit zeigt die Demo auch, dass
+    /// die Viertel-Auswahl bei der Vorbelegung sofort erscheint.
+    ///
+    /// <c>Route</c> ist der Name einer Zeile aus <see cref="WhereHowNames"/>.
+    /// </summary>
+    private static readonly (string Name, string Unit, string Route)[] MedicineSeeds =
     {
-        "Ubrolexin", "Metacam", "Cobactan", "Vetrimoxin", "Novaminsulfon", "Resflor"
+        ("Ubrolexin", "Injektor", "IZ"),
+        ("Cobactan", "Injektor", "IZ"),
+        ("Metacam", "ml", "s.c."),
+        ("Vetrimoxin", "ml", "i.m."),
+        ("Novaminsulfon", "ml", "i.v."),
+        ("Resflor", "ml", "s.c.")
     };
 
     /// <summary>
@@ -80,8 +96,11 @@ public static class DemoDataSeeder
         // Reihenfolge zaehlt: die Behandlungen brauchen die IDs der drei
         // Nachschlagetabellen.
         var udders = await EnsureUddersAsync(context);
-        var medicineIds = await EnsureMedicinesAsync(context);
+        // Reihenfolge umgedreht: die Praeparate zeigen mit
+        // Default_WhereHow_ID auf eine "Wie / Wo"-Zeile, die es dafuer schon
+        // geben muss.
         var whereHows = await EnsureWhereHowsAsync(context);
+        var medicineIds = await EnsureMedicinesAsync(context, whereHows);
         var reasonIds = await EnsureTreatmentReasonsAsync(context);
 
         await SeedHerdAndTreatmentsAsync(context, udders, medicineIds, whereHows, reasonIds);
@@ -142,11 +161,24 @@ public static class DemoDataSeeder
         return byQuarters;
     }
 
-    private static async Task<List<int>> EnsureMedicinesAsync(DatabaseContext context)
+    /// <summary>
+    /// Legt die Beispielpraeparate an. Braucht die "Wie / Wo"-Zeilen, weil
+    /// Medicine.Default_WhereHow_ID auf eine davon zeigt - deshalb wird
+    /// <see cref="EnsureWhereHowsAsync"/> vorher aufgerufen.
+    /// </summary>
+    private static async Task<List<int>> EnsureMedicinesAsync(
+        DatabaseContext context, List<WhereHow> whereHows)
     {
         if (!await context.Medicines.AnyAsync())
         {
-            await context.Medicines.AddRangeAsync(MedicineNames.Select(n => new Medicine(0, n)));
+            var routeIds = whereHows.ToDictionary(
+                w => w.WhereHowName.Trim(), w => w.WhereHowId, StringComparer.OrdinalIgnoreCase);
+
+            await context.Medicines.AddRangeAsync(MedicineSeeds.Select(m => new Medicine(0, m.Name)
+            {
+                DosageUnit = m.Unit,
+                DefaultWhereHowId = routeIds.TryGetValue(m.Route, out var id) ? id : null
+            }));
             await context.SaveChangesAsync();
         }
 

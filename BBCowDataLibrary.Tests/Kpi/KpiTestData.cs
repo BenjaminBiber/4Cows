@@ -17,12 +17,14 @@ internal static class KpiTestData
         DateTime? date = null,
         double? dosage = null,
         string? label = null,
+        string? dosageUnit = null,
         Dictionary<string, IReadOnlyList<string>>? tags = null) => new()
     {
         CowId = cowId,
         CowLabel = label ?? cowId,
         Date = date,
         Dosage = dosage,
+        DosageUnit = dosageUnit,
         Tags = tags ?? new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal)
     };
 
@@ -70,6 +72,10 @@ internal sealed class FakeKpiLookups : IKpiLookups
 {
     public Dictionary<string, string> Collars { get; } = new(StringComparer.Ordinal);
     public Dictionary<int, string> Medicines { get; } = new();
+
+    /// <summary>Dosiereinheit je Medikament; fehlt ein Eintrag, gilt "keine".</summary>
+    public Dictionary<int, string> MedicineUnits { get; } = new();
+
     public Dictionary<int, string> WhereHows { get; } = new();
     public Dictionary<int, string> Udders { get; } = new();
 
@@ -82,6 +88,9 @@ internal sealed class FakeKpiLookups : IKpiLookups
     public string CollarLabel(string cowId) => Collars.TryGetValue(cowId, out var c) ? c : string.Empty;
 
     public string MedicineName(int medicineId) => Medicines.TryGetValue(medicineId, out var m) ? m : string.Empty;
+
+    public string MedicineDosageUnit(int medicineId)
+        => MedicineUnits.TryGetValue(medicineId, out var u) ? u : string.Empty;
 
     public string WhereHowName(int whereHowId) => WhereHows.TryGetValue(whereHowId, out var w) ? w : string.Empty;
 
