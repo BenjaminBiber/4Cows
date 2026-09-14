@@ -30,7 +30,7 @@
 }
 else
 {
-    <div class="mw-pie">
+    <div class="mw-pie @Class">
         @* aria-hidden: die Legende darunter sagt dasselbe in Worten, und
            zweimal vorgelesen ist eine Grafik keine Hilfe. *@
         <svg class="mw-pie__disc" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
@@ -70,6 +70,9 @@ else
     [Parameter] public IReadOnlyList<Item> Items { get; set; } = Array.Empty<Item>();
 
     [Parameter] public string EmptyText { get; set; } = "Keine Daten.";
+
+    /// <summary>Zusatzklasse, wie bei MeadowChartCard - z.B. .mw-pie--large.</summary>
+    [Parameter] public string? Class { get; set; }
 
     /// <summary>Ab hier sind die Stuecke nicht mehr auseinanderzuhalten.</summary>
     private const int MaxSlices = 6;

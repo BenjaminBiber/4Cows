@@ -54,41 +54,76 @@ else
 
         <div class="mw-cow-split">
             <div class="mw-cow-col mw-cow-col--charts mw-scroll">
-                <MeadowChartCard Title="@($"Behandlungen pro Monat · {ChartRange}")">
-                    <ChildContent>
-                        @* role="img" plus Zusammenfassung: ein Canvas ist fuer
-                           Screenreader eine leere Flaeche, und die Einzelwerte
-                           stehen ohnehin in den Tabellen der rechten Spalte. *@
-                        <canvas id="@ChartId" role="img" aria-label="@ChartSummary"></canvas>
-                    </ChildContent>
-                </MeadowChartCard>
+                @* Eine Karte fuer drei Auswertungen derselben Behandlungen:
+                   wann, womit, warum. Sie schliessen einander aus, keine
+                   davon braucht die andere daneben - und zusammen bekommen
+                   sie die Hoehe, die vorher auf drei Karten verteilt war.
 
-                @if (_chartError is not null)
-                {
-                    @* Direkt unter der betroffenen Karte und nicht am Ende der
-                       Spalte: darunter stehen zwei Karten, die gar kein JS
-                       brauchen - dort gelesen wirkte die Meldung, als gehoere
-                       sie zur Eutergrafik. *@
-                    <div class="mw-chart-error" role="status">
-                        Das Diagramm konnte nicht gezeichnet werden. Prüfe, ob die
-                        Chart.js-Bibliothek erreichbar ist.
+                   Knoepfe mit aria-pressed und KEIN role="tablist": ein
+                   echtes Tablist verspricht Pfeiltasten und eine wandernde
+                   tabindex-Verwaltung. Ohne beides ist die Rolle eine Luege,
+                   und mit beidem waere es eine Menge Fokusverwaltung fuer
+                   einen Umschalter mit drei Stellungen. Ein gedrueckter
+                   Knopf sagt dasselbe und funktioniert mit der Tastatur von
+                   selbst - dieselbe Wahl wie bei MeadowChip. *@
+                <div class="mw-card mw-card--chart">
+                    <div class="mw-tabs mw-tabs--card" role="group"
+                         aria-label="Auswertung wählen">
+                        @foreach (var view in ChartViews)
+                        {
+                            <button type="button"
+                                    class="mw-tab @(_chartView == view ? "is-active" : null)"
+                                    aria-pressed="@(_chartView == view ? "true" : "false")"
+                                    @onclick="() => SelectChartView(view)">
+                                @ChartViewLabel(view)
+                            </button>
+                        }
+
+                        @if (_chartView == ChartView.Months)
+                        {
+                            <span class="mw-tabs__note">@ChartRange</span>
+                        }
                     </div>
-                }
 
-                @* Zwei Karten statt der vier von vorher.
+                    @* Der Canvas haengt an einer Registry ueber seine ID
+                       (ChartHelper.js). Beim Zurueckschalten ist es ein NEUES
+                       Element, also muss neu gezeichnet werden - das erledigt
+                       SelectChartView, und renderChart raeumt die alte
+                       Instanz vorher weg. *@
+                    @if (_chartView == ChartView.Months)
+                    {
+                        <div class="mw-chart-canvas">
+                            @* role="img" plus Zusammenfassung: ein Canvas ist fuer
+                               Screenreader eine leere Flaeche, und die Einzelwerte
+                               stehen ohnehin in den Tabellen der rechten Spalte. *@
+                            <canvas id="@ChartId" role="img" aria-label="@ChartSummary"></canvas>
+                        </div>
 
-                   Die Klauen bleiben allein auf einer Karte, obwohl vier
+                        @if (_chartError is not null)
+                        {
+                            <div class="mw-chart-error" role="status">
+                                Das Diagramm konnte nicht gezeichnet werden. Prüfe, ob die
+                                Chart.js-Bibliothek erreichbar ist.
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="mw-cow-chartpanel">
+                            <MeadowPieChart Class="mw-pie--large"
+                                            Items="@(_chartView == ChartView.Medicines ? MedicineSlices : ReasonSlices)"
+                                            EmptyText="@(_chartView == ChartView.Medicines
+                                                         ? "Keine Medikamente erfasst."
+                                                         : "Kein Behandlungsgrund erfasst.")" />
+                        </div>
+                    }
+                </div>
+
+                @* Die Klauen bleiben allein auf einer Karte, obwohl vier
                    einzeilige Zellen auch neben etwas anderem Platz haetten:
                    sie sind als einzige Grafik der Spalte BEDIENBAR - jede
                    Zelle fuehrt in die Liste rechts. Zwischen zwei
-                   Verteilungen gequetscht liest sich das wie Zierat.
-
-                   Die drei schmalen Verteilungen teilen sich dafuer eine
-                   Karte - Euterviertel sind vier Zahlen, die Kuchen je ein
-                   Rad mit Legende. Die Zwischentitel sind bewusst KEINE
-                   Ueberschriften, sondern Spans wie .mw-card-title: die
-                   Gruppierung fuer Screenreader liefern die role="group" der
-                   Eutergrafik bzw. das ol der Kuchenlegenden. *@
+                   Verteilungen gequetscht liest sich das wie Zierat. *@
                 <MeadowPanelCard Title="Klauen">
                     <CowHoofLevels Hoofs="_profile.Hoofs"
                                    TotalTreatments="_profile.TotalClawTreatments"
@@ -96,23 +131,10 @@ else
                                    Selected="_claw" />
                 </MeadowPanelCard>
 
-                <MeadowPanelCard Title="Euterviertel, Medikamente & Gründe">
-                    <div class="mw-cow-duo mw-cow-duo--trio">
-                        <section class="mw-cow-duo__part">
-                            <span class="mw-cow-duo__title">Euterviertel</span>
-                            <CowUdderQuadrants Quarters="_profile.UdderQuarters"
-                                               WithQuarter="_profile.UdderTreatments"
-                                               Total="_profile.TotalCowTreatments" />
-                        </section>
-                        <section class="mw-cow-duo__part">
-                            <span class="mw-cow-duo__title">Medikamente</span>
-                            <MeadowPieChart Items="MedicineSlices" EmptyText="Keine Medikamente erfasst." />
-                        </section>
-                        <section class="mw-cow-duo__part">
-                            <span class="mw-cow-duo__title">Behandlungsgründe</span>
-                            <MeadowPieChart Items="ReasonSlices" EmptyText="Kein Behandlungsgrund erfasst." />
-                        </section>
-                    </div>
+                <MeadowPanelCard Title="Euterviertel">
+                    <CowUdderQuadrants Quarters="_profile.UdderQuarters"
+                                       WithQuarter="_profile.UdderTreatments"
+                                       Total="_profile.TotalCowTreatments" />
                 </MeadowPanelCard>
             </div>
 
@@ -202,6 +224,50 @@ else
     private CowDetailTab _tab = CowDetailTab.CowTreatments;
     private HoofPosition? _claw;
 
+    /// <summary>
+    /// Die drei Auswertungen der oberen Karte. Bewusst ein Feld und NICHT im
+    /// Query-String wie die Laschen rechts: dort liegt die Auswahl in der
+    /// Adresse, weil zwei KPI-Kacheln darauf zeigen. Hierher zeigt nichts,
+    /// und ein Umschalter, der den Zurueck-Knopf mit Diagrammwechseln
+    /// vollschreibt, waere ein schlechter Tausch.
+    /// </summary>
+    private enum ChartView
+    {
+        Months,
+        Medicines,
+        Reasons
+    }
+
+    private static readonly ChartView[] ChartViews =
+    {
+        ChartView.Months, ChartView.Medicines, ChartView.Reasons
+    };
+
+    private static string ChartViewLabel(ChartView view) => view switch
+    {
+        ChartView.Medicines => "Medikamente",
+        ChartView.Reasons => "Gründe",
+        _ => "Pro Monat"
+    };
+
+    private ChartView _chartView = ChartView.Months;
+
+    /// <summary>
+    /// Zurueck auf "Pro Monat" heisst: ein frisches canvas-Element im DOM.
+    /// Die alte Chart.js-Instanz zeigt auf das weggeworfene und muss ersetzt
+    /// werden - force, weil sich an den ZAHLEN nichts geaendert hat und der
+    /// Fingerabdruck in MarkChartDirty sonst abwinkt.
+    /// </summary>
+    private void SelectChartView(ChartView view)
+    {
+        _chartView = view;
+
+        if (view == ChartView.Months)
+        {
+            MarkChartDirty(force: true);
+        }
+    }
+
     private string? _loadedCowId;
     private string? _chartError;
     private int _chartPrint;
@@ -264,7 +330,12 @@ else
     /// </summary>
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!_chartDirty || _cow is null)
+        // Auch die Lasche pruefen, nicht nur den Auftrag: waehrend
+        // "Medikamente" oben steht, gibt es das canvas-Element gar nicht, und
+        // getElementById(...) waere null. Der Auftrag BLEIBT dabei stehen -
+        // SelectChartView setzt ihn beim Zurueckschalten ohnehin neu, aber
+        // eine Datenaenderung auf einer anderen Lasche soll nicht verpuffen.
+        if (!_chartDirty || _cow is null || _chartView != ChartView.Months)
         {
             return;
         }
@@ -499,9 +570,18 @@ else
             var muted = Pick(tokens, "muted", "#6c7b78");
             var border = Pick(tokens, "border", "#e6ecea");
 
+            // Zwei Linien auf EINER Achse, nicht zwei Achsen.
+            //
+            // Beide Reihen zaehlen dasselbe - Behandlungen - und liegen in
+            // derselben Groessenordnung. Zwei y-Skalen wuerden jede Linie auf
+            // ihr eigenes Maximum strecken: eine Kuhbehandlung staende dann
+            // genauso hoch wie fuenf Klauenbehandlungen, und jeder
+            // Schnittpunkt der beiden Linien waere ein Zufall der Skalierung
+            // statt einer Aussage. Eine gemeinsame Achse ist hier die einzige,
+            // die beide Linien vergleichbar macht.
             var config = new
             {
-                type = "bar",
+                type = "line",
                 data = new
                 {
                     labels = MeadowMonthAxis.TickLabels(ChartStart, _profile.Months.Count),
@@ -511,19 +591,28 @@ else
                         {
                             label = "Kuh",
                             data = _profile.Months.Select(m => m.CowCount).ToArray(),
+                            borderColor = primary,
                             backgroundColor = primary,
-                            borderRadius = 5,
-                            borderSkipped = "bottom",
-                            borderWidth = 0
+                            borderWidth = 2,
+                            pointRadius = 3,
+                            pointHoverRadius = 5,
+                            // Geradlinig und NICHT gerundet: zwischen zwei
+                            // Monaten gibt es keine Zwischenwerte, und eine
+                            // Kurve behauptete welche.
+                            tension = 0,
+                            fill = false
                         },
                         new
                         {
                             label = "Klaue",
                             data = _profile.Months.Select(m => m.ClawCount).ToArray(),
+                            borderColor = teal,
                             backgroundColor = teal,
-                            borderRadius = 5,
-                            borderSkipped = "bottom",
-                            borderWidth = 0
+                            borderWidth = 2,
+                            pointRadius = 3,
+                            pointHoverRadius = 5,
+                            tension = 0,
+                            fill = false
                         }
                     }
                 },
@@ -536,14 +625,12 @@ else
                     {
                         x = new
                         {
-                            stacked = true,
                             grid = new { display = false },
                             border = new { color = border },
                             ticks = new { color = muted, font = new { size = 10 } }
                         },
                         y = new
                         {
-                            stacked = true,
                             beginAtZero = true,
                             grid = new { color = border },
                             border = new { display = false },
@@ -555,7 +642,13 @@ else
                         legend = new
                         {
                             display = true,
-                            labels = new { color = muted, boxWidth = 12, font = new { size = 11 } }
+                            labels = new
+                            {
+                                color = muted,
+                                boxWidth = 12,
+                                font = new { size = 11 },
+                                usePointStyle = true
+                            }
                         }
                     }
                 }

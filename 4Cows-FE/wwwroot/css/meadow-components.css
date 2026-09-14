@@ -2548,6 +2548,10 @@ button.mw-nav-item {
   /* Fuenf Laschen in einer halben Bildschirmbreite. */
   .mw-cow-col--lists .mw-tab { padding: 9px 14px; font-size: 13px; }
 
+  /* Der Umschalter der oberen Karte steht statt eines Kartentitels - er darf
+     die Karte nicht so hoch machen wie eine Ueberschrift plus Laschen. */
+  .mw-cow-col .mw-tabs--card .mw-tab { padding: 5px 11px; font-size: 13px; }
+
   /* Kompakte Karten: die Polsterung von .mw-card ist auf ganze Seiten-
      breite gerechnet, hier stapeln sich drei davon uebereinander. */
   .mw-cow-col .mw-card {
@@ -2654,34 +2658,6 @@ button.mw-nav-item {
    zurueckholen. */
 .mw-card--panel { min-width: 0; }
 
-/* Mehrere schmale Verteilungen in einer Karte. align-items:start, damit die
-   kuerzere Spalte nicht auf die Hoehe der laengsten mitwaechst. */
-.mw-cow-duo {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 14px;
-  align-items: start;
-}
-/* Euterviertel, Medikamente und Gruende. Das Euter bekommt weniger: es ist
-   ein 2x2 aus vier zweistelligen Zahlen, die Kuchen tragen eine Legende. */
-.mw-cow-duo--trio {
-  grid-template-columns: minmax(0, .8fr) minmax(0, 1fr) minmax(0, 1fr);
-}
-.mw-cow-duo__part { min-width: 0; }
-
-/* Zwischentitel, bewusst keine Ueberschrift: .mw-card-title ist auch ein
-   span, und die Gruppierung fuer Screenreader liefern die role="group" der
-   Grafiken bzw. das ol der Kuchenlegenden. Kleiner und gedaempft, damit der
-   Kartentitel darueber der Kartentitel bleibt. */
-.mw-cow-duo__title {
-  display: block;
-  margin-bottom: 6px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: .06em;
-  text-transform: uppercase;
-  color: var(--mw-muted);
-}
 
 /* ── Heat-Rampe (Euterviertel) ────────────────────────────────── */
 /* Die Stufe setzt nur --mw-heat und die dazu lesbare Schriftfarbe; was
@@ -2790,6 +2766,38 @@ button.mw-nav-item {
   color: var(--mw-text);
 }
 
+/* ── Umschaltkarte (Verlauf / Medikamente / Gruende) ─────────── */
+/* Die Laschen stehen anstelle eines Kartentitels: die gedrueckte benennt,
+   was darunter steht. Deshalb sitzen sie auf dem Kartenrahmen wie ein
+   Kartenkopf und nicht als Leiste im Inhalt. */
+.mw-tabs--card {
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+/* Der Zeitraum gehoert zur Lasche "Pro Monat" und verschwindet mit ihr.
+   Rechts, damit er den Umschalter nicht auseinanderschiebt. */
+.mw-tabs__note {
+  margin-left: auto;
+  padding-left: 12px;
+  font-size: 11px;
+  color: var(--mw-muted);
+}
+
+/* Der Kuchen bekommt die Hoehe, die sonst das Diagramm hat, und steht darin
+   mittig statt oben zu kleben.
+
+   flex-basis auto und KEIN min-height:0 - anders als beim Canvas daneben.
+   Der Canvas darf schrumpfen, weil Chart.js ihn nachzeichnet; ein Kuchen hat
+   eine feste Hoehe aus Scheibe und Legende. Mit basis 0 zaehlte er gar nicht
+   in die Mindesthoehe der Karte, die Karte bliebe so hoch wie ihre Laschen,
+   und der Kuchen laege darueber. */
+.mw-cow-chartpanel {
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+}
+
 /* ── Kuchendiagramme (Medikamente / Gruende) ─────────────────── */
 /* Kreis links, Legende rechts. Bewusst kein Chart.js - die Begruendung steht
    im Kopf von MeadowPieChart.
@@ -2807,6 +2815,30 @@ button.mw-nav-item {
   height: 76px;
   flex-shrink: 0;
 }
+/* Auf der Umschaltkarte hat der Kuchen die Hoehe des Diagramms zur
+   Verfuegung, das dort sonst steht - dann darf er sie auch nutzen: grosse
+   Scheibe, Legende darunter statt daneben. Nebeneinander blieben in einer
+   300px hohen Karte zwei Drittel leer. */
+.mw-pie--large {
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+.mw-pie--large .mw-pie__disc { width: 132px; height: 132px; }
+/* Gedeckelt und mittig: ueber die ganze Kartenbreite gezogen stuenden
+   Beschriftung und Zahl so weit auseinander, dass die Zeile nicht mehr als
+   Paar zu lesen waere. */
+.mw-pie--large .mw-pie__legend {
+  flex: 0 1 auto;
+  width: 100%;
+  max-width: 280px;
+  gap: 6px;
+}
+.mw-pie--large .mw-pie__label,
+.mw-pie--large .mw-pie__value { font-size: 13px; }
+.mw-pie--large .mw-pie__swatch { width: 10px; height: 10px; }
 
 /* Ein Kreis mit Radius 8 und 16 Strichbreite fuellt die Scheibe von innen bis
    zum Rand - so wird aus einem Ring ein Kuchen, ohne einen einzigen Bogen zu
@@ -2903,9 +2935,9 @@ button.mw-nav-item {
   font-size: 20px;
   line-height: 1;
 }
-/* Die Fussnoten unter den Grafiken - zwei Zeilen davon waeren so hoch wie
+/* Die Fussnote unter der Eutergrafik - zwei Zeilen davon waeren so hoch wie
    eine halbe Zelle. */
-.mw-cow-duo .mw-hint { margin-top: 6px; font-size: 11px; line-height: 1.4; }
+.mw-udder-grid + .mw-hint { margin-top: 6px; font-size: 11px; line-height: 1.4; }
 
 /* ── Tab-Leiste mit fuenf Laschen ─────────────────────────────── */
 /* Umbrechen darf sie nicht: der Unterstrich der aktiven Lasche liegt auf
@@ -2983,10 +3015,6 @@ a.mw-row-card { text-decoration: none; }
      der es in der Basis schon ist. */
   .mw-cow-split,
   .mw-cow-col { display: flex; flex-direction: column; gap: 12px; }
-
-  /* Zwei Grafiken nebeneinander sind auf 360px keine zwei Grafiken. */
-  .mw-cow-duo,
-  .mw-cow-duo--trio { grid-template-columns: 1fr; gap: 16px; }
 
   /* Muss wiederholt werden: die unbedingte --cow-Regel oben steht SPAETER
      in der Datei als der Mobil-Block des Dashboards und erzwaenge sonst
