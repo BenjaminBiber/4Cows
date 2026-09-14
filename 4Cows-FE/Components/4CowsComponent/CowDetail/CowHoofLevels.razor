@@ -20,8 +20,12 @@
     zeichnete ein Tier, dessen schlimmste Klaue zweimal dran war, als vier
     kaum gefuellte Umrisse - und die Frage auf einer Detailseite lautet nie
     "wie steht sie zur Herde", sondern immer "welche ihrer vier Klauen ist das
-    Problem". Die Zeile unter dem Raster nennt den tatsaechlichen
-    Hoechstwert, damit die Relativitaet dasteht statt impliziert zu sein.
+    Problem".
+
+    Die Bezugsgroesse steht bewusst NICHT mehr unter dem Raster. Sie war eine
+    Zeile Kleingedrucktes fuer eine Zahl, die daneben in jeder Zelle steht:
+    die voll gefuellte Klaue IST der Hoechstwert, und ihre Zahl liest man
+    direkt ab.
 *@
 @if (TotalTreatments == 0)
 {
@@ -89,12 +93,6 @@ else
             </div>
         }
     </div>
-
-    @* Eine Zeile statt der frueheren Legende aus vier Farbfeldern: der Pegel
-       erklaert sich, die Bezugsgroesse nicht. *@
-    <p class="mw-claw-scale">
-        Voll = @Max @(Max == 1 ? "Behandlung" : "Behandlungen"), der Höchstwert dieser Kuh.
-    </p>
 }
 
 @code {

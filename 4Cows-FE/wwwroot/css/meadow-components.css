@@ -2773,15 +2773,6 @@ button.mw-nav-item {
   color: var(--mw-text);
 }
 
-/* Was "voll" bedeutet. Der Pegel selbst braucht keine Legende - eine
-   Fuellhoehe liest man ohne Schluessel -, die Bezugsgroesse schon. */
-.mw-claw-scale {
-  margin: 6px 0 0;
-  font-size: 11px;
-  line-height: 1.4;
-  color: var(--mw-muted);
-}
-
 /* ── Balkenlisten (Medikamente / Gruende) ─────────────────────── */
 /* Bewusst kein Chart.js: zwei bis acht Zeilen brauchen keine Achse, und die
    Zahl steht ohnehin an jeder Zeile. Dafuer bleibt die Liste lesbar, wenn
