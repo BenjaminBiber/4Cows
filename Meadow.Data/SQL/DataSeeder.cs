@@ -1,10 +1,10 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using BB_Cow.Class;
-using BB_Cow.Kpi;
+using Meadow.Shared.Models;
+using Meadow.Shared.Kpi;
 using Microsoft.EntityFrameworkCore;
 
-namespace BBCowDataLibrary.SQL;
+namespace Meadow.Data.Sql;
 
 public static class DataSeeder
 {

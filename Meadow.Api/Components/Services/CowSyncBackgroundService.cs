@@ -1,8 +1,8 @@
-using BB_Cow.Services;
-using BBCowDataLibrary.SQL;
+using Meadow.Data.Services;
+using Meadow.Data.Sql;
 using Microsoft.EntityFrameworkCore;
 
-namespace _4Cows_FE.Components.Services;
+namespace Meadow.Api.Components.Services;
 
 /// <summary>
 /// Periodically fetches cow data from XLink (HTTP GET + Regex) and syncs it into the database.

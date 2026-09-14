@@ -1,7 +1,7 @@
-using BB_Cow.Class;
-using BB_Cow.Kpi;
+using Meadow.Shared.Models;
+using Meadow.Shared.Kpi;
 
-namespace BBCowDataLibrary.Tests.Kpi;
+namespace Meadow.Data.Tests.Kpi;
 
 /// <summary>
 /// Tests for the row projection - the one place that knows the schema's traps. Every case here

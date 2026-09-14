@@ -2,11 +2,11 @@
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading.Tasks;
-using BB_Cow.Class;
-using BBCowDataLibrary.SQL;
+using Meadow.Shared.Models;
+using Meadow.Data.Sql;
 using Microsoft.EntityFrameworkCore;
 
-namespace BB_Cow.Services
+namespace Meadow.Data.Services
 {
     public class PClawTreatmentService
     {

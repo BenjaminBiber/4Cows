@@ -1,11 +1,11 @@
 @page "/Kuh/{CowId}"
 @implements IDisposable
 
-@using _4Cows_FE.Components._4CowsComponent.CowDetail
-@using _4Cows_FE.Components.Meadow
-@using _4Cows_FE.Components.Services
-@using BB_Cow.Class
-@using BB_Cow.Profile
+@using Meadow.Api.Components.Cows.CowDetail
+@using Meadow.Api.Components.Ui
+@using Meadow.Api.Components.Services
+@using Meadow.Shared.Models
+@using Meadow.Shared.Profile
 
 @inject NavigationManager Nav
 @inject IJSRuntime JS

@@ -1,8 +1,8 @@
-using BB_Cow.Class;
-using BB_Cow.Profile;
-using static BBCowDataLibrary.Tests.Profile.CowProfileTestData;
+using Meadow.Shared.Models;
+using Meadow.Shared.Profile;
+using static Meadow.Data.Tests.Profile.CowProfileTestData;
 
-namespace BBCowDataLibrary.Tests.Profile;
+namespace Meadow.Data.Tests.Profile;
 
 public class CowOverviewBuilderTests
 {
@@ -80,7 +80,7 @@ public class CowOverviewBuilderTests
     [Fact]
     public void A_calf_has_no_ear_tag_but_still_has_a_row()
     {
-        var calf = BB_Cow.Class.Cow.CreateCalf(203);
+        var calf = Meadow.Shared.Models.Cow.CreateCalf(203);
 
         var row = Assert.Single(CowOverviewBuilder.Build(
             new[] { calf },

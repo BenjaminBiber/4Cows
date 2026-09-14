@@ -1,7 +1,7 @@
 using System.Text.RegularExpressions;
-using BB_Cow.Class;
+using Meadow.Shared.Models;
 
-namespace BB_Cow.Services;
+namespace Meadow.Data.Services;
 
 public class XLinkService
 {

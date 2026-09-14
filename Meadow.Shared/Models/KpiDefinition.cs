@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace BB_Cow.Class;
+namespace Meadow.Shared.Models;
 
 /// <summary>
 /// How a KPI computes its value. Persisted as the KPI.Kind column.

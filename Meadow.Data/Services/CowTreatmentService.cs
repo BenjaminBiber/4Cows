@@ -4,10 +4,14 @@ using System.Collections.Immutable;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Threading.Tasks;
-using BB_Cow.Class;
-using BB_Cow.Services;
-using BBCowDataLibrary.SQL;
+using Meadow.Shared.Models;
+using Meadow.Data.Sql;
 using Microsoft.EntityFrameworkCore;
+
+// Diese Klasse hatte als einzige im Projekt gar keinen Namensraum. Sie bekommt hier
+// denselben wie ihre dreizehn Geschwister; ein Datei-Namensraum, damit der Rumpf nicht
+// eingerueckt werden muss und der Commit nachweisbar nur Namensraumzeilen aendert.
+namespace Meadow.Data.Services;
 
 public class CowTreatmentService
 {

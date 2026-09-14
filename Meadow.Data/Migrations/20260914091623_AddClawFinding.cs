@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace BBCowDataLibrary.Migrations
+namespace Meadow.Data.Migrations
 {
     /// <summary>
     /// Lagert die Klauenbefunde aus vier varchar(32)-Freitextspalten auf

@@ -1,0 +1,89 @@
+@using Meadow.Shared.Kpi
+@*
+    kpiCard / st.kpiTitle / st.kpiVal — ersetzt KPI_Component.razor.
+
+    Bleibt ein echtes <a href>: der Prototyp nutzt ein onClick-Div, aber die
+    Kacheln zeigen auf Routen, und ein Link ist tastaturerreichbar und
+    mit der mittleren Maustaste in einem neuen Tab oeffenbar.
+
+    Die dritte Zeile des Prototyps (st.kpiSub) ist jetzt da - als Delta zum
+    Vorzeitraum. Der frueher hier notierte Einwand ("die KPI-Tabelle hat kein
+    Untertitel-Feld, und dafuer sollte es keine Migration geben") bleibt
+    erfuellt: das Delta wird berechnet, nicht gespeichert.
+
+    Title kommt aus @Hint und traegt entweder den Fehlertext oder den Hinweis,
+    warum eine Kachel leer ist - beides war vorher unsichtbar, weil jede
+    Ursache als "--" endete.
+
+    Ohne Href bleibt das <a> OHNE href-Attribut (Blazor laesst null-Attribute
+    weg) und ist damit kein Link - nicht fokussierbar, kein Klickziel. Auf der
+    Kuh-Seite brauchen das die beiden Kacheln, die zwei Quellen addieren: keine
+    Tabelle zeigt "Kuh- UND Klauenbehandlungen zusammen", ein Link dorthin
+    wuerde also eine andere Menge zeigen als die Zahl auf der Kachel.
+    (Die Quelle "Kühe" war frueher derselbe Fall; sie zeigt seit /Kuehe auf die
+    Kuh-Uebersicht.)
+*@
+<a class="@CssClass" href="@(string.IsNullOrWhiteSpace(Href) ? null : Href)" title="@Hint">
+    <span class="mw-kpi__title">@Title</span>
+    <span class="mw-kpi__value">@Value</span>
+
+    @if (!string.IsNullOrWhiteSpace(Delta))
+    {
+        <span class="mw-kpi__delta">
+            @if (Arrow.Length > 0)
+            {
+                <span class="mw-kpi__delta-arrow" aria-hidden="true">@Arrow</span>
+            }
+            <span>@Delta</span>
+            <span class="mw-sr-only">gegenüber dem Vorzeitraum</span>
+        </span>
+    }
+</a>
+
+@code {
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public string Value { get; set; } = "";
+    [Parameter] public string Href { get; set; } = "";
+
+    /// <summary>
+    /// Die synthetische "KPI hinzufuegen"-Kachel, die KPIService bei weniger
+    /// als acht KPIs anhaengt (erkennbar an KPIId == int.MinValue).
+    /// </summary>
+    [Parameter] public bool IsAddTile { get; set; }
+
+    /// <summary>Fertig formatiert, z.B. "+12 %". Leer heisst: kein Vergleich.</summary>
+    [Parameter] public string? Delta { get; set; }
+
+    [Parameter] public KpiTrend Trend { get; set; }
+
+    /// <summary>Die KPI liess sich nicht auswerten - nicht dasselbe wie "kein Ergebnis".</summary>
+    [Parameter] public bool HasError { get; set; }
+
+    /// <summary>Tooltip: Fehlertext, oder warum die Kachel leer ist.</summary>
+    [Parameter] public string? Hint { get; set; }
+
+    /// <summary>
+    /// Zusatzklasse, wie bei MeadowChartCard. Gebraucht fuer .mw-kpi--text:
+    /// eine Kachel, deren Wert ein Wort ist ("Sohlengeschwür") und keine Zahl,
+    /// traegt die 40px Display-Schrift nicht.
+    /// </summary>
+    [Parameter] public string? Class { get; set; }
+
+    private string CssClass => (IsAddTile, HasError) switch
+    {
+        (true, _) => "mw-kpi mw-kpi--add",
+        (_, true) => "mw-kpi mw-kpi--error",
+        _ => "mw-kpi"
+    }
+    + (string.IsNullOrWhiteSpace(Href) ? " mw-kpi--static" : "")
+    + (string.IsNullOrWhiteSpace(Class) ? "" : " " + Class);
+
+    // Nur Richtung, keine Wertung: siehe den Kommentar zu .mw-kpi__delta.
+    private string Arrow => Trend switch
+    {
+        KpiTrend.Up => "▲",
+        KpiTrend.Down => "▼",
+        KpiTrend.Flat => "▬",
+        _ => ""
+    };
+}

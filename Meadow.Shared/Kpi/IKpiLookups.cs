@@ -1,6 +1,6 @@
-using BB_Cow.Class;
+using Meadow.Shared.Models;
 
-namespace BB_Cow.Kpi;
+namespace Meadow.Shared.Kpi;
 
 /// <summary>
 /// Everything <see cref="KpiSourceRegistry"/> needs to project rows: the four treatment tables plus

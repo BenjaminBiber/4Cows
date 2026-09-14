@@ -1,4 +1,4 @@
-namespace BB_Cow.Profile;
+namespace Meadow.Shared.Profile;
 
 /// <summary>
 /// Eine Zeile der Kuh-Uebersicht: ein Tier mit seinen Behandlungszaehlern.

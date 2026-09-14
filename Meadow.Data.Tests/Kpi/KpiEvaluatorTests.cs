@@ -1,8 +1,8 @@
-using BB_Cow.Class;
-using BB_Cow.Kpi;
-using static BBCowDataLibrary.Tests.Kpi.KpiTestData;
+using Meadow.Shared.Models;
+using Meadow.Shared.Kpi;
+using static Meadow.Data.Tests.Kpi.KpiTestData;
 
-namespace BBCowDataLibrary.Tests.Kpi;
+namespace Meadow.Data.Tests.Kpi;
 
 public class KpiEvaluatorTests
 {

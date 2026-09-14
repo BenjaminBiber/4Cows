@@ -1,7 +1,7 @@
-using BB_Cow.Class;
-using BB_Cow.Profile;
+using Meadow.Shared.Models;
+using Meadow.Shared.Profile;
 
-namespace BBCowDataLibrary.Tests.Profile;
+namespace Meadow.Data.Tests.Profile;
 
 /// <summary>
 /// Builders for the cow-profile tests. Like KpiTestData: no database, no EF, no DI - the whole

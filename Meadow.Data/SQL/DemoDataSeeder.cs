@@ -1,8 +1,8 @@
-using BB_Cow.Class;
-using BB_Cow.Services;
+using Meadow.Shared.Models;
+using Meadow.Data.Services;
 using Microsoft.EntityFrameworkCore;
 
-namespace BBCowDataLibrary.SQL;
+namespace Meadow.Data.Sql;
 
 /// <summary>
 /// Fachliche Beispieldaten fuer die oeffentliche Demo-Instanz (Demo:Enabled).

@@ -1,0 +1,258 @@
+@using Meadow.Api.Components.Cows.Dialogs
+@using Meadow.Api.Components.Cows.Dialogs.BaseData
+@using Meadow.Api.Components.Ui
+
+@inject ClawFindingService ClawFindingService
+@inject ClawTreatmentService ClawTreatmentService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<MeadowToolbar>
+    <Left>
+        <MeadowSearchBox Value="@_search" ValueChanged="OnSearchChanged"
+                         AriaLabel="Klauenbefunde durchsuchen" />
+    </Left>
+</MeadowToolbar>
+
+<MeadowTable TItem="Row" Items="_rows" Columns="_columns"
+             RowKey="@(r => r.Entry.ClawFindingId)"
+             Class="mw-table-wrap--dense" ShowMobileCards="false"
+             DefaultSortTitle="Bezeichnung"
+             PagerLabel="Einträge pro Seite"
+             EmptyText="Keine Klauenbefunde gefunden." />
+
+<div class="mw-table-foot">
+    <button type="button" class="mw-btn mw-btn--primary" @onclick="OpenNewDialog">
+        <MeadowIcon Name="MeadowIconName.Plus" Size="20" />
+        <span>Klauenbefund hinzufügen</span>
+    </button>
+</div>
+
+@code {
+    /// <summary>
+    /// Eintrag plus abgeleitete Werte. Der Zaehler liegt am Item statt in einem
+    /// Dictionary daneben, weil MeadowColumn.SortBy sonst bei jedem
+    /// Sortiervergleich nachschlagen muesste.
+    /// </summary>
+    private sealed record Row(ClawFinding Entry, int? UsageCount, bool IsDuplicate);
+
+    private List<Row> _all = new();
+    private List<Row> _rows = new();
+    private string _search = "";
+
+    private IReadOnlyList<MeadowColumn<Row>> _columns = Array.Empty<MeadowColumn<Row>>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        BuildColumns();
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        await ClawFindingService.GetAllDataAsync();
+
+        // Null heisst "nicht zaehlbar" (Datenbank weg). Dann bleibt der
+        // Papierkorb gesperrt, statt jede Zeile als unbenutzt auszuweisen.
+        var counts = await ClawFindingService.GetUsageCountsAsync();
+
+        var duplicates = ClawFindingService.Findings.Values
+            .GroupBy(f => f.ClawFindingName.Trim(), StringComparer.OrdinalIgnoreCase)
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        _all = ClawFindingService.Findings.Values
+            .Select(f => new Row(
+                f,
+                counts?.GetValueOrDefault(f.ClawFindingId) ?? (int?)null,
+                duplicates.Contains(f.ClawFindingName.Trim())))
+            .ToList();
+
+        ApplyFilter();
+    }
+
+    private void BuildColumns() => _columns = new List<MeadowColumn<Row>>
+    {
+        new()
+        {
+            Title = "ID",
+            Text = r => r.Entry.ClawFindingId.ToString(),
+            SortBy = r => r.Entry.ClawFindingId,
+            Style = MeadowCellStyle.Mono,
+            Width = "70px"
+        },
+        new()
+        {
+            Title = "Bezeichnung",
+            SortBy = r => r.Entry.ClawFindingName,
+            Style = MeadowCellStyle.Bold,
+            Template = row =>
+                @<text>
+                    <span>@row.Entry.ClawFindingName</span>
+                    @if (row.IsDuplicate)
+                    {
+                        <span class="mw-pill mw-pill--overdue"
+                              title="Diese Bezeichnung gibt es mehrfach. Über „Zusammenführen“ lassen sich beide Einträge vereinen.">
+                            doppelt
+                        </span>
+                    }
+                </text>
+        },
+        new()
+        {
+            Title = "Verwendungen",
+            Text = r => r.UsageCount?.ToString() ?? "–",
+            SortBy = r => r.UsageCount ?? -1,
+            Align = MeadowAlign.Right,
+            Width = "140px"
+        },
+        new()
+        {
+            IsActions = true,
+            Width = "144px",
+            Template = row =>
+                @<text>
+                    <MeadowIconButton Icon="MeadowIconName.Edit" Title="Klauenbefund ändern"
+                                      OnClick="() => OpenEditDialog(row)" />
+                    <MeadowIconButton Icon="MeadowIconName.ArrowRight"
+                                      Title="Mit einem anderen Klauenbefund zusammenführen"
+                                      OnClick="() => OpenMergeDialog(row)" />
+                    <MeadowIconButton Icon="MeadowIconName.Trash" Title="@DeleteTitle(row)"
+                                      Danger="true" Disabled="@(row.UsageCount is not 0)"
+                                      OnClick="() => Delete(row)" />
+                </text>
+        }
+    };
+
+    /// <summary>
+    /// Gezaehlt werden BEHANDLUNGEN, nicht Klauen: derselbe Befund an zwei
+    /// Klauen einer Behandlung ist eine Verwendung.
+    /// </summary>
+    private static string DeleteTitle(Row row) => row.UsageCount switch
+    {
+        null => "Verwendungen unbekannt — Löschen gesperrt",
+        0 => "Klauenbefund löschen",
+        1 => "Wird in 1 Behandlung verwendet",
+        var n => $"Wird in {n} Behandlungen verwendet"
+    };
+
+    private void OnSearchChanged(string value)
+    {
+        _search = value;
+        ApplyFilter();
+    }
+
+    private void ApplyFilter()
+    {
+        var term = _search.Trim();
+        _rows = term.Length == 0
+            ? _all.ToList()
+            : _all.Where(r => r.Entry.ClawFindingName
+                    .Contains(term, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+    }
+
+    private Task OpenNewDialog() => OpenDialog(new ClawFinding(), isNew: true, usageCount: 0);
+
+    private Task OpenEditDialog(Row row)
+        => OpenDialog(row.Entry, isNew: false, usageCount: row.UsageCount ?? 0);
+
+    private async Task OpenDialog(ClawFinding entry, bool isNew, int usageCount)
+    {
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true,
+            BackdropClick = false
+        };
+        var parameters = new DialogParameters<EditClawFindingDialog>
+        {
+            { x => x.Entry, entry },
+            { x => x.IsNew, isNew },
+            { x => x.UsageCount, usageCount }
+        };
+
+        var dialog = await DialogService.ShowAsync<EditClawFindingDialog>(
+            string.Empty, parameters, options);
+        var result = await dialog.Result;
+
+        if (result is null || result.Canceled)
+        {
+            return;
+        }
+
+        await ReloadTreatmentsAsync();
+        await LoadAsync();
+    }
+
+    private async Task OpenMergeDialog(Row row)
+    {
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true,
+            BackdropClick = false
+        };
+        var parameters = new DialogParameters<MergeClawFindingDialog>
+        {
+            { x => x.Source, row.Entry },
+            { x => x.SourceUsageCount, row.UsageCount ?? 0 }
+        };
+
+        var dialog = await DialogService.ShowAsync<MergeClawFindingDialog>(
+            string.Empty, parameters, options);
+        var result = await dialog.Result;
+
+        if (result is null || result.Canceled)
+        {
+            return;
+        }
+
+        await ReloadTreatmentsAsync();
+        await LoadAsync();
+    }
+
+    /// <summary>
+    /// Ein Merge haengt Klauen um. Ohne dieses Nachladen zeigen die
+    /// Klauen-Tabellen im selben Circuit noch die verschwundene ID und damit
+    /// einen leeren Befund.
+    /// </summary>
+    private Task ReloadTreatmentsAsync() => ClawTreatmentService.GetAllDataAsync();
+
+    private async Task Delete(Row row)
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var parameters = new DialogParameters<GenericDialog>
+        {
+            { x => x.HeaderText, "Löschen" },
+            { x => x.Description, $"Soll „{row.Entry.ClawFindingName}\" wirklich gelöscht werden?" },
+            { x => x.AcceptButtonText, "Löschen" },
+            { x => x.CancelButtonText, "Abbrechen" },
+            { x => x.ColorScheme, Color.Error }
+        };
+
+        var dialog = await DialogService.ShowAsync<GenericDialog>(string.Empty, parameters, options);
+        var result = await dialog.Result;
+
+        if (result is null || result.Canceled)
+        {
+            return;
+        }
+
+        if (!await ClawFindingService.RemoveByIdAsync(row.Entry.ClawFindingId))
+        {
+            // Der Service zaehlt vor dem Delete selbst nach. Ein false heisst
+            // hier fast immer: zwischen Seitenaufbau und Klick ist eine
+            // Behandlung dazugekommen.
+            Snackbar.Add(
+                $"„{row.Entry.ClawFindingName}\" wurde nicht gelöscht — der Eintrag wird inzwischen verwendet.",
+                Severity.Error);
+            await LoadAsync();
+            return;
+        }
+
+        Snackbar.Add("Klauenbefund gelöscht.", Severity.Success);
+        await LoadAsync();
+    }
+}

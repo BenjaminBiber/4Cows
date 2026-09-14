@@ -1,4 +1,4 @@
-namespace _4Cows_FE.Components.Services;
+namespace Meadow.Api.Components.Services;
 
 /// <summary>
 /// Zustand der App-Shell: Drawer und die beiden Mobile-Overlays.

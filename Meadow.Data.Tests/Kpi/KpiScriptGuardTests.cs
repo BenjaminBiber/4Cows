@@ -1,6 +1,6 @@
-using BB_Cow.Kpi;
+using Meadow.Shared.Kpi;
 
-namespace BBCowDataLibrary.Tests.Kpi;
+namespace Meadow.Data.Tests.Kpi;
 
 public class KpiScriptGuardTests
 {

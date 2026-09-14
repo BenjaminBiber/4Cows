@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace BB_Cow.Kpi;
+namespace Meadow.Shared.Kpi;
 
 /// <summary>
 /// Rejects a hand-written KPI script before it is executed.

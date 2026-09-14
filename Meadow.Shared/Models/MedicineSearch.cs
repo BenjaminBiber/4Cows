@@ -1,4 +1,4 @@
-namespace BB_Cow.Class;
+namespace Meadow.Shared.Models;
 
 /// <summary>
 /// Reihenfolge der Vorschlaege im Medikamenten-Autocomplete.

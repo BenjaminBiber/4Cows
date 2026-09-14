@@ -1,7 +1,7 @@
-using BB_Cow.Class;
-using BB_Cow.Kpi;
+using Meadow.Shared.Models;
+using Meadow.Shared.Kpi;
 
-namespace BBCowDataLibrary.Tests.Kpi;
+namespace Meadow.Data.Tests.Kpi;
 
 /// <summary>
 /// Builders for the evaluator tests. KpiRow is deliberately a plain record with no dependencies, so

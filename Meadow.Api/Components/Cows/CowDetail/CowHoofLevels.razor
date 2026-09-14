@@ -1,0 +1,120 @@
+@using Meadow.Api.Components.Ui
+@using Meadow.Shared.Models
+@using Meadow.Shared.Profile
+@*
+    Die vier Klauen als Pegel: jede fuellt sich von unten, so weit sie am
+    Hoechstwert dieser Kuh liegt.
+
+    Beantwortet die Frage, die eine Liste nicht beantwortet: ist immer
+    dieselbe Klaue betroffen? Und sie ist der Einstieg in die Antwort - jede
+    Zelle ist ein Link auf die Lasche "Klauen", gefiltert auf genau diese
+    Klaue.
+
+    In der Zelle steht deshalb nur noch Position und Anzahl. Befundtext und
+    Verband-/Klotz-Marken standen hier als Vorschau auf eine Liste, die jetzt
+    einen Klick entfernt ist - und sie machten aus vier Zellen vier Absaetze.
+
+    Frueher war der Pegel eine Farbrampe aus vier Blautoenen. Die war
+    nebeneinander nicht ablesbar - zwei benachbarte Stufen sehen gleich aus,
+    und bei drei behandelten Klauen steht man vor drei blauen Umrissen. Ein
+    Fuellstand ist eine LAENGE, und Laengen vergleicht das Auge ohne
+    Nachdenken. Die Farbe sagt jetzt nur noch "behandelt oder nicht" und
+    traegt damit keine Abstufung mehr, die jemand ohne Farbwahrnehmung
+    verpassen koennte.
+
+    Der Pegel bleibt der ZWEITE Kanal - jede Zelle nennt ihre Zahl.
+
+    Bezugsgroesse ist der Hoechstwert DIESER Kuh. Eine absolute Skala
+    zeichnete ein Tier, dessen schlimmste Klaue zweimal dran war, als vier
+    kaum gefuellte Umrisse - und die Frage auf einer Detailseite lautet nie
+    "wie steht sie zur Herde", sondern immer "welche ihrer vier Klauen ist das
+    Problem". Die voll gefuellte Klaue IST der Hoechstwert, ihre Zahl steht
+    daneben; eine Zeile Kleingedrucktes darunter braucht es dafuer nicht.
+*@
+@if (TotalTreatments == 0)
+{
+    @* Vier leere Umrisse beschreiben einen Pegel ohne Daten - das liest sich
+       als kaputtes Widget, nicht als leeres. *@
+    <div class="mw-empty">Für diese Kuh sind keine Klauenbehandlungen erfasst.</div>
+}
+else
+{
+    <div class="mw-part-grid" role="group" aria-label="Klauen nach Behandlungshäufigkeit">
+        @foreach (var hoof in Hoofs)
+        {
+            @* Echter Link und kein onclick: der Filter lebt in ?klaue=, also
+               funktionieren Zurueck-Knopf, Mittelklick und ein geteilter Link
+               von selbst - dasselbe Argument steht im Kopf von MeadowKpiTile.
+
+               Ohne Behandlungen bleibt das a OHNE href (Blazor laesst
+               null-Attribute weg) und ist damit kein Link: eine leere Liste
+               zu oeffnen ist kein Ziel. *@
+            <a class="mw-part-cell @(hoof.Position == Selected ? "is-active" : null)"
+               href="@Href(hoof)"
+               aria-current="@(hoof.Position == Selected ? "true" : null)">
+                @* Zwei deckungsgleiche Umrisse: der untere leer, der obere
+                   gefuellt und oben weggeschnitten. Beide tragen kein Title
+                   und sind damit aria-hidden - die Zahl daneben sagt dasselbe
+                   in Worten.
+
+                   Der Pegel steht im style und nicht in einer Klasse: er ist
+                   ein Messwert mit hundert moeglichen Stufen, keine
+                   Kategorie. *@
+                <span class="mw-level"
+                      style="@($"--mw-level: {Level(hoof.TreatmentCount)}%")">
+                    <Hoof />
+                    <span class="mw-level__fill"><Hoof /></span>
+                </span>
+
+                <span class="mw-part-cell__label">@HoofPositions.Label(hoof.Position)</span>
+
+                <span class="mw-part-cell__count">
+                    @hoof.TreatmentCount.ToString("N0")
+                    <span class="mw-sr-only">
+                        @(hoof.TreatmentCount == 1 ? "Behandlung" : "Behandlungen")
+                    </span>
+                </span>
+            </a>
+        }
+    </div>
+}
+
+@code {
+    /// <summary>Genau vier, in der Reihenfolge von HoofPositions.All.</summary>
+    [Parameter] public IReadOnlyList<CowProfileHoof> Hoofs { get; set; } = Array.Empty<CowProfileHoof>();
+
+    /// <summary>Anzahl der Klauenbehandlungen dieser Kuh - entscheidet ueber den Leerzustand.</summary>
+    [Parameter] public int TotalTreatments { get; set; }
+
+    /// <summary>Fuer die Adressen der vier Links. Die Cow_ID, nicht die Halsbandnummer.</summary>
+    [Parameter] public string CowId { get; set; } = "";
+
+    /// <summary>Die Klaue, auf die die Liste gerade gefiltert ist, oder null.</summary>
+    [Parameter] public HoofPosition? Selected { get; set; }
+
+    /// <summary>
+    /// Untergrenze fuer eine Klaue, die ueberhaupt behandelt wurde. Bei
+    /// "einmal von neun" waeren es sonst 11 Prozent, und im 30px hohen Umriss
+    /// ist das ein Streifen von vier Pixeln - nicht von "nie behandelt" zu
+    /// unterscheiden. CowUdderQuadrants nebenan haelt denselben Wert, damit
+    /// die beiden Karten dieselbe Skala zeigen.
+    /// </summary>
+    private const int MinLevel = 18;
+
+    private int Max => Hoofs.Count == 0 ? 0 : Hoofs.Max(h => h.TreatmentCount);
+
+    /// <summary>
+    /// Fuellstand in Prozent der Umrisshoehe. Ganzzahlig, damit der Wert ohne
+    /// Ruecksicht auf die Kultur in den style-Wert darf - "0,42%" waere ein
+    /// ungueltiger CSS-Wert und der Pegel fiele still auf null zurueck.
+    /// Dasselbe Thema wie MeadowPieChart.Num, dort mit InvariantCulture
+    /// geloest.
+    /// </summary>
+    private int Level(int count)
+        => count == 0 || Max == 0
+            ? 0
+            : Math.Max(MinLevel, (int)Math.Round(100.0 * count / Max));
+
+    private string? Href(CowProfileHoof hoof)
+        => hoof.TreatmentCount == 0 ? null : CowDetailPosition.ClawHref(CowId, hoof.Position);
+}

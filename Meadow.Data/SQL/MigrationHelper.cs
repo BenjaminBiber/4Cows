@@ -3,7 +3,7 @@ using System.Data;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
 
-namespace BBCowDataLibrary.SQL;
+namespace Meadow.Data.Sql;
 
 public static class MigrationHelper
 {

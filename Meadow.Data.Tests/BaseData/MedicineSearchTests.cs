@@ -1,6 +1,6 @@
-using BB_Cow.Class;
+using Meadow.Shared.Models;
 
-namespace BBCowDataLibrary.Tests.BaseData;
+namespace Meadow.Data.Tests.BaseData;
 
 /// <summary>
 /// Die Rangfolge des Medikamenten-Autocomplete. Sie zaehlt, weil das Feld nur

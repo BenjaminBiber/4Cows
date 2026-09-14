@@ -1,9 +1,9 @@
 using System.Collections.Immutable;
-using BB_Cow.Class;
-using BBCowDataLibrary.SQL;
+using Meadow.Shared.Models;
+using Meadow.Data.Sql;
 using Microsoft.EntityFrameworkCore;
 
-namespace BB_Cow.Services;
+namespace Meadow.Data.Services;
 
 /// <summary>
 /// Klauenbefunde. Aufgebaut wie <see cref="TreatmentReasonService"/>, mit dem

@@ -4,11 +4,7 @@
         <TargetFramework>net8.0</TargetFramework>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
-        <!-- Bleibt vorerst _4Cows-FE. Der Wurzel-Namensraum bestimmt, wie die
-             Razor-Komponenten heissen; ihn hier mitzuziehen wuerde die 87 .razor-Dateien
-             im selben Commit brechen wie die Pfadumbenennung, und dann liesse sich nicht
-             mehr pruefen, dass an den Dateien sonst nichts passiert ist. Eigener Commit. -->
-        <RootNamespace>_4Cows-FE</RootNamespace>
+        <RootNamespace>Meadow.Api</RootNamespace>
         <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
         <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
         <OutputType>Exe</OutputType>
