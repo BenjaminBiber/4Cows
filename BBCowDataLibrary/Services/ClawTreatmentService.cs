@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading.Tasks;
@@ -11,12 +11,10 @@ namespace BB_Cow.Services
     public class ClawTreatmentService
     {
         private ImmutableDictionary<int, ClawTreatment> _cachedTreatments = ImmutableDictionary<int, ClawTreatment>.Empty;
-        private ImmutableList<string> _cachedClawFindingList = ImmutableList<string>.Empty;
         private readonly IDbContextFactory<DatabaseContext> _contextFactory;
         private readonly DatabaseStatusService _databaseStatusService;
 
         public ImmutableDictionary<int, ClawTreatment> Treatments => _cachedTreatments;
-        public ImmutableList<string> ClawFindingList => _cachedClawFindingList;
 
         public ClawTreatmentService(IDbContextFactory<DatabaseContext> contextFactory, DatabaseStatusService databaseStatusService)
         {
@@ -31,7 +29,6 @@ namespace BB_Cow.Services
                 await using var context = await _contextFactory.CreateDbContextAsync();
                 var treatments = await context.ClawTreatments.AsNoTracking().ToListAsync();
                 _cachedTreatments = treatments.ToImmutableDictionary(t => t.ClawTreatmentId);
-                _cachedClawFindingList = treatments.SelectMany(t => new[] { t.ClawFindingLV, t.ClawFindingLH, t.ClawFindingRV, t.ClawFindingRH }).Distinct().ToImmutableList();
                 _databaseStatusService.ReportSuccess();
                 LoggerService.LogInformation(typeof(ClawTreatmentService), $"Loaded {_cachedTreatments.Count} claw treatments.");
             }
@@ -54,7 +51,6 @@ namespace BB_Cow.Services
                 if (isSuccess)
                 {
                     _cachedTreatments = _cachedTreatments.Add(clawTreatment.ClawTreatmentId, clawTreatment);
-                    _cachedClawFindingList = _cachedClawFindingList.AddRange(new[] { clawTreatment.ClawFindingLV, clawTreatment.ClawFindingLH, clawTreatment.ClawFindingRV, clawTreatment.ClawFindingRH }).Distinct().ToImmutableList();
                     LoggerService.LogInformation(typeof(ClawTreatmentService), "Inserted claw treatment: {@clawTreatment}.", clawTreatment);
                 }
 
@@ -116,9 +112,9 @@ namespace BB_Cow.Services
 
                 if (isSuccess)
                 {
-                    // Neu laden statt den Cache punktuell zu setzen: die
-                    // Befundliste wird aus allen vier Spalten aller
-                    // Behandlungen aufgebaut.
+                    // Neu laden statt den Cache punktuell zu setzen: Update
+                    // schreibt die ganze Zeile, und im Cache liegt noch die
+                    // Instanz von vor der Bearbeitung.
                     await GetAllDataAsync();
                     LoggerService.LogInformation(typeof(ClawTreatmentService),
                         "Updated claw treatment {Id}.", clawTreatment.ClawTreatmentId);

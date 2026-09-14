@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace BB_Cow.Class
@@ -18,10 +18,17 @@ namespace BB_Cow.Class
         [Column("Treatment_Date")]
         public DateTime TreatmentDate { get; set; }
 
-        [Required]
-        [StringLength(32)]
-        [Column("Claw_Finding_LV")]
-        public string ClawFindingLV { get; set; }
+        /// <summary>
+        /// Befund dieser Klaue, aufgeloest ueber ClawFindingService.
+        ///
+        /// <c>null</c> heisst "an dieser Klaue wurde nichts erfasst" - bis zur
+        /// Migration AddClawFinding stand dafuer der Leerstring in einer
+        /// varchar(32)-Spalte. Bewusst ohne Fremdschluessel: das Schema aus
+        /// 20251223183944_InitialCreate legt nirgends welche an, der Service
+        /// prueft beim Loeschen selbst nach.
+        /// </summary>
+        [Column("Claw_Finding_LV_ID")]
+        public int? ClawFindingLVId { get; set; }
 
         [Required]
         [Column("Bandage_LV")]
@@ -31,10 +38,8 @@ namespace BB_Cow.Class
         [Column("Block_LV")]
         public bool BlockLV { get; set; }
 
-        [Required]
-        [StringLength(32)]
-        [Column("Claw_Finding_LH")]
-        public string ClawFindingLH { get; set; }
+        [Column("Claw_Finding_LH_ID")]
+        public int? ClawFindingLHId { get; set; }
 
         [Required]
         [Column("Bandage_LH")]
@@ -44,10 +49,8 @@ namespace BB_Cow.Class
         [Column("Block_LH")]
         public bool BlockLH { get; set; }
 
-        [Required]
-        [StringLength(32)]
-        [Column("Claw_Finding_RV")]
-        public string ClawFindingRV { get; set; }
+        [Column("Claw_Finding_RV_ID")]
+        public int? ClawFindingRVId { get; set; }
 
         [Required]
         [Column("Bandage_RV")]
@@ -57,10 +60,8 @@ namespace BB_Cow.Class
         [Column("Block_RV")]
         public bool BlockRV { get; set; }
 
-        [Required]
-        [StringLength(32)]
-        [Column("Claw_Finding_RH")]
-        public string ClawFindingRH { get; set; }
+        [Column("Claw_Finding_RH_ID")]
+        public int? ClawFindingRHId { get; set; }
 
         [Required]
         [Column("Bandage_RH")]
@@ -74,23 +75,23 @@ namespace BB_Cow.Class
         [Column("IsBandageRemoved")]
         public bool IsBandageRemoved { get; set; }
 
-        public ClawTreatment() : this(0, string.Empty, DateTime.MinValue, string.Empty, false, false, string.Empty, false, false, string.Empty, false, false, string.Empty, false, false, false) { }
+        public ClawTreatment() : this(0, string.Empty, DateTime.MinValue, null, false, false, null, false, false, null, false, false, null, false, false, false) { }
 
-        public ClawTreatment(int clawTreatmentId, string earTagNumber, DateTime treatmentDate, string clawFindingLV, bool bandageLV, bool blockLV, string clawFindingLH, bool bandageLH, bool blockLH, string clawFindingRV, bool bandageRV, bool blockRV, string clawFindingRH, bool bandageRH, bool blockRH, bool isBandageRemoved)
+        public ClawTreatment(int clawTreatmentId, string earTagNumber, DateTime treatmentDate, int? clawFindingLV, bool bandageLV, bool blockLV, int? clawFindingLH, bool bandageLH, bool blockLH, int? clawFindingRV, bool bandageRV, bool blockRV, int? clawFindingRH, bool bandageRH, bool blockRH, bool isBandageRemoved)
         {
             ClawTreatmentId = clawTreatmentId;
             EarTagNumber = earTagNumber;
             TreatmentDate = treatmentDate;
-            ClawFindingLV = clawFindingLV;
+            ClawFindingLVId = clawFindingLV;
             BandageLV = bandageLV;
             BlockLV = blockLV;
-            ClawFindingLH = clawFindingLH;
+            ClawFindingLHId = clawFindingLH;
             BandageLH = bandageLH;
             BlockLH = blockLH;
-            ClawFindingRV = clawFindingRV;
+            ClawFindingRVId = clawFindingRV;
             BandageRV = bandageRV;
             BlockRV = blockRV;
-            ClawFindingRH = clawFindingRH;
+            ClawFindingRHId = clawFindingRH;
             BandageRH = bandageRH;
             BlockRH = blockRH;
             IsBandageRemoved = isBandageRemoved;

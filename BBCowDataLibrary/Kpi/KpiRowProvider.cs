@@ -18,6 +18,7 @@ public sealed class KpiRowProvider : IKpiLookups
     private readonly CowService _cows;
     private readonly MedicineService _medicines;
     private readonly WhereHowService _whereHows;
+    private readonly ClawFindingService _clawFindings;
     private readonly UdderService _udders;
 
     // CowTreatmentService sits in the global namespace while its nine siblings are BB_Cow.Services.
@@ -31,6 +32,7 @@ public sealed class KpiRowProvider : IKpiLookups
         CowService cows,
         MedicineService medicines,
         WhereHowService whereHows,
+        ClawFindingService clawFindings,
         UdderService udders,
         CowTreatmentService cowTreatments,
         ClawTreatmentService clawTreatments,
@@ -40,6 +42,7 @@ public sealed class KpiRowProvider : IKpiLookups
         _cows = cows;
         _medicines = medicines;
         _whereHows = whereHows;
+        _clawFindings = clawFindings;
         _udders = udders;
         _cowTreatments = cowTreatments;
         _clawTreatments = clawTreatments;
@@ -73,6 +76,8 @@ public sealed class KpiRowProvider : IKpiLookups
     public string MedicineDosageUnit(int medicineId) => _medicines.GetDosageUnit(medicineId, "");
 
     public string WhereHowName(int whereHowId) => _whereHows.GetWhereHowNameById(whereHowId);
+
+    public string ClawFindingName(int? clawFindingId) => _clawFindings.GetNameById(clawFindingId);
 
     /// <summary>
     /// Reuses WhereHowService.GetUdderString, which is what the tables already display, so a tile

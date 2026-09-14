@@ -3,11 +3,9 @@ using BB_Cow.Kpi;
 
 namespace BB_Cow.Profile;
 
-/// <summary>Ein Wert und wie oft er vorkommt. Immer absteigend sortiert.</summary>
-public sealed record CowProfileTally(string Key, int Count);
-
 /// <summary>
-/// Wie <see cref="CowProfileTally"/>, aber der Schluessel ist eine Lookup-ID.
+/// Eine Lookup-ID und wie oft sie vorkommt. Immer absteigend sortiert.
+///
 /// Namen loest die Seite auf - die Bibliothek kennt MedicineService nicht, und
 /// GetMedicineNameById liefert bei unbekannter ID das Literal "--", das hier
 /// nichts zu suchen haette.
@@ -30,7 +28,7 @@ public sealed record CowProfileHoof(
     int BandageCount,
     int OpenBandageCount,
     int BlockCount,
-    IReadOnlyList<CowProfileTally> Findings);
+    IReadOnlyList<CowProfileIdTally> Findings);
 
 /// <summary>
 /// Alles, was die Kuh-Seite ueber ein Tier rechnet - in einem Rutsch und ohne
@@ -88,8 +86,11 @@ public sealed record CowProfile
     /// <summary>Behandlungen ohne Grund sammeln sich unter <see cref="NoReasonId"/>.</summary>
     public required IReadOnlyList<CowProfileIdTally> Reasons { get; init; }
 
-    /// <summary>Klauenbefunde ueber alle vier Positionen zusammen.</summary>
-    public required IReadOnlyList<CowProfileTally> Findings { get; init; }
+    /// <summary>
+    /// Klauenbefunde ueber alle vier Positionen zusammen. Wie <see cref="Medicines"/>
+    /// nach Lookup-ID: den Namen loest die Seite ueber ClawFindingService auf.
+    /// </summary>
+    public required IReadOnlyList<CowProfileIdTally> Findings { get; init; }
 
     /// <summary>
     /// Behandlungen je Euterviertel. Eine Behandlung kann mehrere Viertel
@@ -117,5 +118,5 @@ public sealed record CowProfile
     public bool HasAnyTreatment => TotalTreatments > 0;
 
     /// <summary>Die haeufigste Position, oder null wenn es keine Klauenbehandlung gibt.</summary>
-    public CowProfileTally? TopFinding => Findings.Count > 0 ? Findings[0] : null;
+    public CowProfileIdTally? TopFinding => Findings.Count > 0 ? Findings[0] : null;
 }

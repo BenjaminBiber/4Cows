@@ -19,5 +19,6 @@ public sealed class DatabaseContext : DbContext
     public DbSet<Udder> Udders => Set<Udder>();
     public DbSet<WhereHow> WhereHows => Set<WhereHow>();
     public DbSet<TreatmentReason> TreatmentReasons => Set<TreatmentReason>();
+    public DbSet<ClawFinding> ClawFindings => Set<ClawFinding>();
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
 }

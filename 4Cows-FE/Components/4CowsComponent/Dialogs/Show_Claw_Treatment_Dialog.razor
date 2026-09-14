@@ -3,6 +3,7 @@
 
 @inject CowService cowService
 @inject SettingsService Settings
+@inject ClawFindingService ClawFindingService
 
 @*
     Aus 24 if/else-Zweigen mit Zustands-SVGs wird eine ClawSummary.
@@ -29,7 +30,8 @@
         </div>
     </Meta>
     <ChildContent>
-        <ClawSummary Treatment="Claw_Treatment" FallbackFinding="@Settings.ClawFindingFallback" />
+        <ClawSummary Treatment="Claw_Treatment" FallbackFinding="@Settings.ClawFindingFallback"
+                     FindingName="ClawFindingService.GetNameById" />
     </ChildContent>
     <Footer>
         <button type="button" class="mw-btn mw-btn--plain mw-btn--wide" @onclick="Close">

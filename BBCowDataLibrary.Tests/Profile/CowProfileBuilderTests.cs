@@ -213,17 +213,19 @@ public class CowProfileBuilderTests
     }
 
     [Fact]
-    public void Findings_are_grouped_case_insensitively()
+    public void Findings_are_counted_per_lookup_id()
     {
+        // Since the AddClawFinding migration a finding IS an id, so two spellings of the same
+        // finding can no longer drift apart here - that is now settled once, in Claw_Finding.
         var profile = Build(claw: new[]
         {
-            Claw(HoofPosition.LV, "Mortellaro"),
-            Claw(HoofPosition.RH, "mortellaro"),
-            Claw(HoofPosition.LH, "Sohlengeschwür")
+            Claw(HoofPosition.LV, Mortellaro),
+            Claw(HoofPosition.RH, Mortellaro),
+            Claw(HoofPosition.LH, Sohlengeschwuer)
         });
 
-        var top = Assert.IsType<CowProfileTally>(profile.TopFinding);
-        Assert.Equal("Mortellaro", top.Key);
+        var top = Assert.IsType<CowProfileIdTally>(profile.TopFinding);
+        Assert.Equal(Mortellaro, top.Id);
         Assert.Equal(2, top.Count);
         Assert.Equal(2, profile.Findings.Count);
     }
@@ -233,9 +235,9 @@ public class CowProfileBuilderTests
     {
         var profile = Build(claw: new[]
         {
-            Claw(HoofPosition.LV, "Mortellaro"),
-            Claw(HoofPosition.LV, finding: "", bandage: true),
-            Claw(HoofPosition.RV, "Pflegeschnitt")
+            Claw(HoofPosition.LV, Mortellaro),
+            Claw(HoofPosition.LV, finding: null, bandage: true),
+            Claw(HoofPosition.RV, Pflegeschnitt)
         });
 
         var lv = profile.Hoofs.Single(h => h.Position == HoofPosition.LV);

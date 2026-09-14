@@ -50,13 +50,18 @@ internal static class CowProfileTestData
             TreatmentReasonId = reasonId
         };
 
+    /// <summary>Befund-IDs aus Claw_Finding. Namen loest die Seite auf, nicht der Builder.</summary>
+    public const int Mortellaro = 1;
+    public const int Sohlengeschwuer = 2;
+    public const int Pflegeschnitt = 3;
+
     /// <summary>
     /// A claw treatment with one hoof filled in. Use <see cref="Claw(DateTime?, string, bool, int)"/>
     /// plus <c>With</c> for anything touching several hoofs.
     /// </summary>
     public static ClawTreatment Claw(
         HoofPosition position,
-        string finding = "Mortellaro",
+        int? finding = Mortellaro,
         bool bandage = false,
         bool block = false,
         DateTime? date = null,
@@ -81,11 +86,11 @@ internal static class CowProfileTestData
     public static ClawTreatment With(
         this ClawTreatment treatment,
         HoofPosition position,
-        string finding = "",
+        int? finding = null,
         bool bandage = false,
         bool block = false)
     {
-        treatment.SetFinding(position, finding);
+        treatment.SetFindingId(position, finding);
         treatment.SetBandage(position, bandage);
         treatment.SetBlock(position, block);
         return treatment;

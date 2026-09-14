@@ -50,7 +50,7 @@
                 <label class="mw-label mw-label--spaced" for="mw-finding">Befund</label>
                 <div class="mw-field">
                     <MudAutocomplete T="string" InputId="mw-finding" Variant="Variant.Text"
-                                     Value="@Treatment.GetFinding(position)"
+                                     Value="@DraftOf(position)"
                                      ValueChanged="@(v => SetFindingAsync(position, v))"
                                      SearchFunc="SearchFindings" CoerceValue="true"
                                      Placeholder="z.B. Mortellaro, Pflege…" />
@@ -80,6 +80,18 @@
     /// </summary>
     [Parameter] public IEnumerable<string> Findings { get; set; } = Array.Empty<string>();
 
+    /// <summary>
+    /// Die eingetippten Befundnamen je Klaue. Die Entitaet traegt seit der
+    /// Migration AddClawFinding nur noch IDs; aufgeloest - und ein unbekannter
+    /// Befund angelegt - wird erst beim Speichern.
+    ///
+    /// Der Aufrufer besitzt das Dictionary. Wuerde diese Komponente beim Tippen
+    /// selbst anlegen, bliebe nach jedem Abbrechen eine Zeile in Claw_Finding
+    /// zurueck.
+    /// </summary>
+    [Parameter] public IDictionary<HoofPosition, string> FindingDraft { get; set; }
+        = new Dictionary<HoofPosition, string>();
+
     [Parameter] public HoofPosition? Selected { get; set; }
     [Parameter] public EventCallback<HoofPosition?> SelectedChanged { get; set; }
 
@@ -104,7 +116,7 @@
 
         if (Mode == ClawSelectorMode.Findings)
         {
-            if (Treatment?.HasData(position) == true)
+            if (HasData(position))
             {
                 classes += " has-data";
             }
@@ -123,6 +135,20 @@
     }
 
     private static string ToggleClass(bool on) => on ? "mw-toggle is-on" : "mw-toggle";
+
+    private string DraftOf(HoofPosition position)
+        => FindingDraft.TryGetValue(position, out var name) ? name : string.Empty;
+
+    /// <summary>
+    /// Wurde an dieser Klaue etwas erfasst? Der Befund kommt aus dem Entwurf
+    /// und nicht aus ClawTreatment.HasData: der Entwurf ist waehrend der
+    /// Eingabe der aktuellere Stand, die Entitaet kennt die ID erst nach dem
+    /// Speichern.
+    /// </summary>
+    private bool HasData(HoofPosition position)
+        => !string.IsNullOrWhiteSpace(DraftOf(position))
+           || Treatment?.GetBandage(position) == true
+           || Treatment?.GetBlock(position) == true;
 
     private async Task ActivateAsync(HoofPosition position)
     {
@@ -146,7 +172,7 @@
 
     private async Task SetFindingAsync(HoofPosition position, string? value)
     {
-        Treatment?.SetFinding(position, value ?? string.Empty);
+        FindingDraft[position] = value?.Trim() ?? string.Empty;
         await OnChanged.InvokeAsync();
     }
 

@@ -3,6 +3,7 @@
 
 @inject CowService CowService
 @inject ClawTreatmentService ClawTreatmentService
+@inject ClawFindingService ClawFindingService
 @inject SettingsService Settings
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
@@ -78,7 +79,7 @@
         var fallback = Settings.ClawFindingFallback;
         _summaries = _all.ToDictionary(
             r => r.ClawTreatmentId,
-            r => ClawFindingSummary.Build(r, fallback));
+            r => ClawFindingSummary.Build(r, ClawFindingService.GetNameById, fallback));
         ApplyFilter();
     }
 

@@ -15,15 +15,26 @@ public static class ClawFindingSummary
 {
     private const int MaxFindingSegments = 3;
 
-    public static string Build(ClawTreatment treatment, string fallbackFinding)
+    /// <param name="findingName">
+    /// Loest eine Befund-ID auf, in aller Regel ClawFindingService.GetNameById.
+    /// Als Delegat und nicht als Service, damit die Meadow-Bausteine ohne
+    /// Service-Abhaengigkeit auskommen - dieselbe Regel wie bei ClawSelector.
+    /// Leeres Ergebnis heisst "an dieser Klaue nichts erfasst".
+    /// </param>
+    public static string Build(
+        ClawTreatment treatment, Func<int?, string> findingName, string fallbackFinding)
     {
         var segments = new List<string>();
 
-        // 1. Befunde sammeln, case-insensitiv nach Erstauftreten gruppieren.
+        // 1. Befunde sammeln, nach Erstauftreten gruppieren. Der Vergleich
+        //    bleibt case-insensitiv: seit der Nachschlagetabelle koennen sich
+        //    zwei Eintraege zwar nur noch in der Schreibweise unterscheiden,
+        //    wenn jemand sie dort so anlegt - dann sollen sie hier trotzdem
+        //    zusammenfallen.
         var groups = new List<(string Finding, List<HoofPosition> Positions)>();
         foreach (var position in HoofPositions.All)
         {
-            var finding = treatment.GetFinding(position)?.Trim();
+            var finding = findingName(treatment.GetFindingId(position))?.Trim();
             if (string.IsNullOrEmpty(finding))
             {
                 continue;

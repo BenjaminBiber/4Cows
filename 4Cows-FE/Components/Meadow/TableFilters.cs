@@ -177,6 +177,23 @@ public sealed class ClawTableFilter
     public const string BandageOption = KpiFlags.Bandage;
     public const string BlockOption = KpiFlags.Block;
 
+    /// <summary>
+    /// Ist <paramref name="name"/> einer der beiden Zustands-Chips?
+    ///
+    /// Die Basisdaten-Seite lehnt genau diese Bezeichnungen fuer einen Befund
+    /// ab: Befunde und die beiden Zustaende teilen sich hier und in
+    /// KpiDefinition.Filters denselben Wertebereich. Ein Befund namens
+    /// "Verband" waere im Filter von den bandagierten Klauen nicht mehr zu
+    /// unterscheiden, und eine gespeicherte KPI-Kachel wuerde still beides
+    /// zaehlen.
+    /// </summary>
+    public static bool IsReservedFindingName(string? name)
+    {
+        var trimmed = name?.Trim() ?? "";
+        return string.Equals(trimmed, BandageOption, StringComparison.OrdinalIgnoreCase)
+               || string.Equals(trimmed, BlockOption, StringComparison.OrdinalIgnoreCase);
+    }
+
     public string Search { get; set; } = "";
 
     /// <summary>

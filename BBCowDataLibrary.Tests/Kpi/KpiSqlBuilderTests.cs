@@ -184,8 +184,12 @@ public class KpiSqlBuilderTests
 
         var sql = Sql(definition);
 
-        Assert.Contains("TRIM(t.Claw_Finding_LV) = 'Mortellaro'", sql);
-        Assert.Contains("TRIM(t.Claw_Finding_RH) = 'Mortellaro'", sql);
+        // Filters store the display NAME, never the lookup id (see KpiDefinition.Filters), so the
+        // script joins Claw_Finding rather than comparing an id. One alias per claw.
+        Assert.Contains(
+            "LEFT JOIN Claw_Finding cf_LV ON t.Claw_Finding_LV_ID = cf_LV.Claw_Finding_ID", sql);
+        Assert.Contains("cf_LV.Claw_Finding_Name = 'Mortellaro'", sql);
+        Assert.Contains("cf_RH.Claw_Finding_Name = 'Mortellaro'", sql);
         // A removed bandage is not a bandage - same rule as Claw_Table.MatchesFinding.
         Assert.Contains("NOT t.IsBandageRemoved", sql);
         Assert.Contains(" OR ", sql);
@@ -217,8 +221,10 @@ public class KpiSqlBuilderTests
 
         var sql = Sql(definition);
 
+        // No _ID suffix and no join: the planned table's Claw_Finding_* columns are booleans.
         Assert.Contains("t.Claw_Finding_LV OR t.Claw_Finding_RH", sql);
         Assert.DoesNotContain("Claw_Finding_LH", sql);
+        Assert.DoesNotContain("Claw_Finding_ID", sql);
     }
 
     [Fact]

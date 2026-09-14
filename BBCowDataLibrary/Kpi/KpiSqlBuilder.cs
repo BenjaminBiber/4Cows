@@ -208,16 +208,24 @@ public static class KpiSqlBuilder
 
         foreach (var position in HoofPositions.All)
         {
-            var finding = $"TRIM({Alias}.Claw_Finding_{position})";
-            branches.Add(Branch(finding, new List<string>(conditions) { $"{finding} <> ''" }));
+            // Jeder Zweig bekommt nur den Join, den er selbst braucht - sonst stuenden in allen
+            // sechs Zweigen alle vier Nachschlage-Joins.
+            var branchJoins = new List<string>(joins);
+            var finding = ClawFindingName(branchJoins, position);
+
+            // IS NOT NULL statt des frueheren <> '': seit der Migration AddClawFinding heisst
+            // "an dieser Klaue nichts erfasst" eine leere Befund-ID, und der LEFT JOIN macht
+            // daraus einen NULL-Namen.
+            branches.Add(Branch(finding, branchJoins,
+                new List<string>(conditions) { $"{finding} IS NOT NULL" }));
         }
 
         branches.Add(Branch(
-            Literal(KpiFlags.Bandage),
+            Literal(KpiFlags.Bandage), joins,
             new List<string>(conditions) { BandageCondition() }));
 
         branches.Add(Branch(
-            Literal(KpiFlags.Block),
+            Literal(KpiFlags.Block), joins,
             new List<string>(conditions) { BlockCondition() }));
 
         var separator = $"{Environment.NewLine}          UNION{Environment.NewLine}          ";
@@ -233,15 +241,30 @@ public static class KpiSqlBuilder
 
         return Ranked(inner.ToString());
 
-        string Branch(string label, List<string> branchConditions)
+        string Branch(string label, List<string> branchJoins, List<string> branchConditions)
         {
             var branch = new StringBuilder();
             branch.Append("SELECT DISTINCT ").Append(table.IdColumn).Append(" AS id, ")
                 .Append(label).Append(" AS label FROM ").Append(table.Name).Append(' ').Append(Alias);
-            AppendJoins(branch, joins);
+            AppendJoins(branch, branchJoins);
             AppendWhere(branch, branchConditions);
             return branch.ToString();
         }
+    }
+
+    /// <summary>
+    /// Join auf die Nachschlagetabelle einer Klaue, und deren Name als Ausdruck. Vier Positionen,
+    /// vier Aliasse - eine Behandlung kann an jeder Klaue einen anderen Befund tragen.
+    ///
+    /// NUR Claw_Treatment traegt die _ID-Spalten. Planned_Claw_Treatment hat gleichnamige Spalten
+    /// OHNE Suffix, und die sind bool ("diese Klaue ist vorgesehen") - siehe den Zweig
+    /// KpiTagKeys.ClawPosition, der deshalb unveraendert auf den Spaltennamen zeigt.
+    /// </summary>
+    private static string ClawFindingName(List<string> joins, HoofPosition position)
+    {
+        Join(joins, $"LEFT JOIN Claw_Finding cf_{position} "
+                    + $"ON {Alias}.Claw_Finding_{position}_ID = cf_{position}.Claw_Finding_ID");
+        return $"cf_{position}.Claw_Finding_Name";
     }
 
     // ---- Filters -------------------------------------------------------
@@ -252,10 +275,12 @@ public static class KpiSqlBuilder
         switch (key)
         {
             case KpiTagKeys.ClawFinding:
-                return ClawFindingCondition(values);
+                return ClawFindingCondition(values, joins);
 
             case KpiTagKeys.ClawPosition:
             {
+                // Planned_Claw_Treatment: hier sind die Claw_Finding_*-Spalten bool und ohne
+                // _ID-Suffix, es gibt also nichts nachzuschlagen.
                 var positions = HoofPositions.All
                     .Where(p => values.Contains(p.ToString(), StringComparer.OrdinalIgnoreCase))
                     .Select(p => $"{Alias}.Claw_Finding_{p}")
@@ -276,7 +301,7 @@ public static class KpiSqlBuilder
     /// Findings and the two synthetic states in ONE condition, OR-ed - the same single group the
     /// claw table offers, so a tile and its drill-down cannot disagree.
     /// </summary>
-    private static string ClawFindingCondition(IReadOnlyList<string> values)
+    private static string ClawFindingCondition(IReadOnlyList<string> values, List<string> joins)
     {
         var parts = new List<string>();
 
@@ -287,7 +312,7 @@ public static class KpiSqlBuilder
 
         if (findings.Count > 0)
         {
-            parts.AddRange(HoofPositions.All.Select(p => InList($"TRIM({Alias}.Claw_Finding_{p})", findings)));
+            parts.AddRange(HoofPositions.All.Select(p => InList(ClawFindingName(joins, p), findings)));
         }
 
         if (values.Contains(KpiFlags.Bandage, StringComparer.OrdinalIgnoreCase))

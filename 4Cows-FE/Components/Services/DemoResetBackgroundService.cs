@@ -47,7 +47,12 @@ public sealed class DemoResetBackgroundService : BackgroundService
         "Cow",
         "Medicine",
         "WhereHow",
-        "Treatment_Reason"
+        "Treatment_Reason",
+        // Nach Claw_Treatment: die Behandlungen zeigen mit
+        // Claw_Finding_*_ID hierher, und AUTO_INCREMENT = 1 vergibt die IDs
+        // neu. Stuende diese Zeile vor Claw_Treatment, zeigten die
+        // Behandlungen fuer die Dauer des Resets auf geloeschte Befunde.
+        "Claw_Finding"
     };
 
     private readonly IDbContextFactory<DatabaseContext> _contextFactory;

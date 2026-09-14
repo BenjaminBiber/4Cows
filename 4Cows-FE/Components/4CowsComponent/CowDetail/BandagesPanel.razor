@@ -12,6 +12,7 @@
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject ClawTreatmentService clawTreatmentService
+@inject ClawFindingService clawFindingService
 
 <MeadowTable TItem="BandagedClaw" Items="_rows" Columns="_columns"
              RowKey="@(r => r.Key)"
@@ -52,7 +53,8 @@
     private IReadOnlyList<BandagedClaw> _rows = Array.Empty<BandagedClaw>();
     private List<MeadowColumn<BandagedClaw>> _columns = new();
 
-    protected override void OnParametersSet() => _rows = BandagedClaw.Project(Treatments);
+    protected override void OnParametersSet()
+        => _rows = BandagedClaw.Project(Treatments, clawFindingService.GetNameById);
 
     protected override void OnInitialized() => _columns = new()
     {

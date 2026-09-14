@@ -15,6 +15,7 @@
 @inject MeadowDataChanges Changes
 @inject ISnackbar Snackbar
 @inject ClawTreatmentService clawTreatmentService
+@inject ClawFindingService clawFindingService
 @inject CowService cowService
 @inject SettingsService Settings
 
@@ -163,7 +164,8 @@
         _all = clawTreatmentService.GetClawTreatments();
         _summaries = _all.ToDictionary(
             t => t.ClawTreatmentId,
-            t => ClawFindingSummary.Build(t, Settings.ClawFindingFallback));
+            t => ClawFindingSummary.Build(
+                t, clawFindingService.GetNameById, Settings.ClawFindingFallback));
         Apply();
     }
 
@@ -232,16 +234,19 @@
     // ---- Filter -------------------------------------------------------
 
     /// <summary>
-    /// Die tatsaechlich vorkommenden Befunde - ClawFindingList macht nur
-    /// Distinct() ohne Leer-Filter, sonst gaebe es leere Chips. Dazu die zwei
-    /// synthetischen Chips aus dem Design, die keine Befunde sind.
+    /// Die in den GELADENEN Zeilen tatsaechlich vorkommenden Befunde, nicht der
+    /// vollstaendige Stammdatenbestand - dieselbe Regel wie bei MedicineOptions
+    /// der Kuh-Tabelle. Ein Befund, den keine Behandlung traegt, waere hier ein
+    /// Chip, der garantiert nichts findet.
+    ///
+    /// Dazu die zwei synthetischen Chips aus dem Design, die keine Befunde sind.
     /// </summary>
     private IReadOnlyList<string> FindingOptions
     {
         get
         {
-            var findings = clawTreatmentService.ClawFindingList
-                .Select(f => f?.Trim() ?? "")
+            var findings = _all
+                .SelectMany(t => HoofPositions.All.Select(p => FindingName(t, p)))
                 .Where(f => f.Length > 0)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .OrderBy(f => f, StringComparer.CurrentCulture)
@@ -320,9 +325,16 @@
         // Gleichheit auf dem Befund, nicht Teilstring auf der
         // Zusammenfassung - sonst wuerde "Mortellaro" auch "Mortellaro (M2)"
         // und die Woerter Verband/Klotz mitfangen.
+        //
+        // Verglichen wird der NAME und nicht die ID: die Chips stehen so auch
+        // in gespeicherten KPI-Filtern und in der Drill-down-URL (siehe
+        // KpiDefinition.Filters).
         return HoofPositions.All.Any(p =>
-            string.Equals(r.GetFinding(p)?.Trim(), value, StringComparison.OrdinalIgnoreCase));
+            string.Equals(FindingName(r, p), value, StringComparison.OrdinalIgnoreCase));
     }
+
+    private string FindingName(ClawTreatment r, HoofPosition position)
+        => clawFindingService.GetNameById(r.GetFindingId(position)).Trim();
 
     private void OnSearchChanged(string value)
     {
@@ -491,7 +503,7 @@
             var column = 4;
             foreach (var position in new[] { HoofPosition.LV, HoofPosition.RV, HoofPosition.LH, HoofPosition.RH })
             {
-                sheet.Cells[row, column++].Value = t.GetFinding(position);
+                sheet.Cells[row, column++].Value = FindingName(t, position);
                 sheet.Cells[row, column++].Value = t.GetBandage(position) ? "Verband" : "Kein Verband";
                 sheet.Cells[row, column++].Value = t.GetBlock(position) ? "Klotz" : "Kein Klotz";
             }

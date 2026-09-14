@@ -80,12 +80,13 @@ public class KpiSourceRegistryTests
         // different set than the tile.
         var lookups = new FakeKpiLookups();
         lookups.Collars["cow1"] = "5";
+        lookups.ClawFindings[7] = "Mortellaro";
         lookups.ClawTreatmentList.Add(new ClawTreatment(
             1, "cow1", Date,
-            clawFindingLV: "Mortellaro", bandageLV: true, blockLV: false,
-            clawFindingLH: "", bandageLH: false, blockLH: false,
-            clawFindingRV: "", bandageRV: false, blockRV: true,
-            clawFindingRH: "", bandageRH: false, blockRH: false,
+            clawFindingLV: 7, bandageLV: true, blockLV: false,
+            clawFindingLH: null, bandageLH: false, blockLH: false,
+            clawFindingRV: null, bandageRV: false, blockRV: true,
+            clawFindingRH: null, bandageRH: false, blockRH: false,
             isBandageRemoved: false));
 
         var row = Assert.Single(Build(KpiSourceId.ClawTreatment, lookups));
@@ -102,12 +103,13 @@ public class KpiSourceRegistryTests
         // no such condition, so it survives.
         var lookups = new FakeKpiLookups();
         lookups.Collars["cow1"] = "5";
+        lookups.ClawFindings[7] = "Mortellaro";
         lookups.ClawTreatmentList.Add(new ClawTreatment(
             1, "cow1", Date,
-            clawFindingLV: "Mortellaro", bandageLV: true, blockLV: true,
-            clawFindingLH: "", bandageLH: false, blockLH: false,
-            clawFindingRV: "", bandageRV: false, blockRV: false,
-            clawFindingRH: "", bandageRH: false, blockRH: false,
+            clawFindingLV: 7, bandageLV: true, blockLV: true,
+            clawFindingLH: null, bandageLH: false, blockLH: false,
+            clawFindingRV: null, bandageRV: false, blockRV: false,
+            clawFindingRH: null, bandageRH: false, blockRH: false,
             isBandageRemoved: true));
 
         var row = Assert.Single(Build(KpiSourceId.ClawTreatment, lookups));
@@ -119,15 +121,18 @@ public class KpiSourceRegistryTests
     [Fact]
     public void The_same_finding_on_several_claws_counts_as_one_value()
     {
-        // Otherwise a single treatment would count four times in a Top-1 ranking.
+        // Otherwise a single treatment would count four times in a Top-1 ranking. Since the
+        // AddClawFinding migration two claws with the same finding carry the SAME id, so the
+        // de-duplication happens on the id and no longer on a case-folded string.
         var lookups = new FakeKpiLookups();
         lookups.Collars["cow1"] = "5";
+        lookups.ClawFindings[7] = "Mortellaro";
         lookups.ClawTreatmentList.Add(new ClawTreatment(
             1, "cow1", Date,
-            clawFindingLV: "Mortellaro", bandageLV: false, blockLV: false,
-            clawFindingLH: " mortellaro ", bandageLH: false, blockLH: false,
-            clawFindingRV: "", bandageRV: false, blockRV: false,
-            clawFindingRH: "", bandageRH: false, blockRH: false,
+            clawFindingLV: 7, bandageLV: false, blockLV: false,
+            clawFindingLH: 7, bandageLH: false, blockLH: false,
+            clawFindingRV: null, bandageRV: false, blockRV: false,
+            clawFindingRH: null, bandageRH: false, blockRH: false,
             isBandageRemoved: false));
 
         var row = Assert.Single(Build(KpiSourceId.ClawTreatment, lookups));

@@ -11,6 +11,7 @@
 @inject MeadowDialogLauncher Launcher
 @inject MeadowDataChanges Changes
 @inject ClawTreatmentService clawTreatmentService
+@inject ClawFindingService clawFindingService
 @inject CowService cowService
 
 <MeadowToolbar>
@@ -115,7 +116,9 @@
 
     private void Rebuild()
     {
-        _all = BandagedClaw.Project(clawTreatmentService.GetClawTreatmentsWithBandage()).ToList();
+        _all = BandagedClaw.Project(
+            clawTreatmentService.GetClawTreatmentsWithBandage(),
+            clawFindingService.GetNameById).ToList();
         Apply();
     }
 

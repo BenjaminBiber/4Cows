@@ -10,10 +10,8 @@ namespace BBCowDataLibrary.SQL;
 /// DemoResetBackgroundService.
 ///
 /// Bewusst am DatabaseContext geschrieben und nicht ueber die Services, so
-/// wie DataSeeder es auch tut. Ginge der Seeder ueber ClawTreatmentService,
-/// haengte dessen InsertDataAsync jeden rohen Befundwert an
-/// _cachedClawFindingList - die leeren Befunde unberuehrter Klauen landeten
-/// dann als Leereintraege in der Autocomplete-Liste. Die Caches werden
+/// wie DataSeeder es auch tut: die Services sind prozessweite Singletons mit
+/// Cache, und der Seeder laeuft ausserhalb jedes Circuits. Die Caches werden
 /// stattdessen nach dem Seeden komplett neu geladen.
 ///
 /// Alle Zufallswerte kommen aus einem fest geseedeten Random: derselbe
@@ -73,11 +71,9 @@ public static class DemoDataSeeder
 
     /// <summary>
     /// Befunde aus dem Vokabular, das die App selbst verwendet (Platzhalter
-    /// im ClawSelector, ClawFindingSummary, DataSeeder-Fallback). Die Spalten
-    /// Claw_Finding_* sind varchar(32) - laengere Formulierungen kippen den
-    /// Insert. Und weil ClawTreatmentService.ClawFindingList die
-    /// Autocomplete-Vorschlaege aus dem Bestand aufbaut, wird genau diese
-    /// Liste zum Vorschlagsvokabular der Demo.
+    /// im ClawSelector, ClawFindingSummary, DataSeeder-Fallback). Sie fuellen
+    /// die Nachschlagetabelle Claw_Finding und sind damit zugleich das
+    /// Vorschlagsvokabular der Demo.
     /// </summary>
     private static readonly string[] ClawFindings =
     {
@@ -102,8 +98,10 @@ public static class DemoDataSeeder
         var whereHows = await EnsureWhereHowsAsync(context);
         var medicineIds = await EnsureMedicinesAsync(context, whereHows);
         var reasonIds = await EnsureTreatmentReasonsAsync(context);
+        var findingIds = await EnsureClawFindingsAsync(context);
 
-        await SeedHerdAndTreatmentsAsync(context, udders, medicineIds, whereHows, reasonIds);
+        await SeedHerdAndTreatmentsAsync(
+            context, udders, medicineIds, whereHows, reasonIds, findingIds);
     }
 
     // ---- Nachschlagetabellen -------------------------------------------
@@ -213,6 +211,20 @@ public static class DemoDataSeeder
             .ToListAsync();
     }
 
+    private static async Task<List<int>> EnsureClawFindingsAsync(DatabaseContext context)
+    {
+        if (!await context.ClawFindings.AnyAsync())
+        {
+            await context.ClawFindings.AddRangeAsync(
+                ClawFindings.Select(n => new ClawFinding(0, n)));
+            await context.SaveChangesAsync();
+        }
+
+        return await context.ClawFindings.AsNoTracking()
+            .Select(f => f.ClawFindingId)
+            .ToListAsync();
+    }
+
     // ---- Bestand und Behandlungen --------------------------------------
 
     private static async Task SeedHerdAndTreatmentsAsync(
@@ -220,7 +232,8 @@ public static class DemoDataSeeder
         IReadOnlyDictionary<(bool, bool, bool, bool), int> udders,
         IReadOnlyList<int> medicineIds,
         IReadOnlyList<WhereHow> whereHows,
-        IReadOnlyList<int> reasonIds)
+        IReadOnlyList<int> reasonIds,
+        IReadOnlyList<int> findingIds)
     {
         if (await context.Cows.AnyAsync())
         {
@@ -246,7 +259,7 @@ public static class DemoDataSeeder
             BuildCowTreatments(random, today, active, medicineIds, whereHows, udders, reasonIds));
 
         await context.ClawTreatments.AddRangeAsync(
-            BuildClawTreatments(random, today, active));
+            BuildClawTreatments(random, today, active, findingIds));
 
         await context.PlannedCowTreatments.AddRangeAsync(
             BuildPlannedCowTreatments(random, today, active, medicineIds, whereHows, udders, reasonIds));
@@ -357,38 +370,36 @@ public static class DemoDataSeeder
     private static List<ClawTreatment> BuildClawTreatments(
         Random random,
         DateTime today,
-        IReadOnlyList<string> cowIds)
+        IReadOnlyList<string> cowIds,
+        IReadOnlyList<int> findingIds)
     {
         var treatments = new List<ClawTreatment>();
 
         foreach (var date in SpreadOverMonths(random, today, months: 14, total: 70))
         {
-            treatments.Add(BuildClawTreatment(random, cowIds, date, bandageOpen: false));
+            treatments.Add(BuildClawTreatment(random, cowIds, findingIds, date, bandageOpen: false));
         }
 
         for (var i = 0; i < 10; i++)
         {
             treatments.Add(BuildClawTreatment(
-                random, cowIds, today.AddDays(-(2 + random.Next(13))), bandageOpen: true));
+                random, cowIds, findingIds, today.AddDays(-(2 + random.Next(13))), bandageOpen: true));
         }
 
         return treatments;
     }
 
     private static ClawTreatment BuildClawTreatment(
-        Random random, IReadOnlyList<string> cowIds, DateTime date, bool bandageOpen)
+        Random random, IReadOnlyList<string> cowIds, IReadOnlyList<int> findingIds,
+        DateTime date, bool bandageOpen)
     {
+        // Die vier Befund-Spalten bleiben null - das heisst "an dieser Klaue
+        // wurde nichts erfasst", genau so speichert es auch der
+        // Hinzufuegen-Dialog.
         var treatment = new ClawTreatment
         {
             EarTagNumber = cowIds[random.Next(cowIds.Count)],
-            TreatmentDate = date,
-            // Die Spalten sind NOT NULL, aber Leerstring ist erlaubt und
-            // bedeutet "an dieser Klaue wurde nichts erfasst" - genau so
-            // speichert es auch der Hinzufuegen-Dialog.
-            ClawFindingLV = string.Empty,
-            ClawFindingRV = string.Empty,
-            ClawFindingLH = string.Empty,
-            ClawFindingRH = string.Empty
+            TreatmentDate = date
         };
 
         // Eine bis drei betroffene Klauen, der Rest bleibt leer.
@@ -401,7 +412,7 @@ public static class DemoDataSeeder
 
         foreach (var position in positions)
         {
-            treatment.SetFinding(position, ClawFindings[random.Next(ClawFindings.Length)]);
+            treatment.SetFindingId(position, findingIds[random.Next(findingIds.Count)]);
 
             if (random.Next(100) < 45)
             {

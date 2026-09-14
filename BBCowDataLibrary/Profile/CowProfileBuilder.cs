@@ -224,19 +224,19 @@ public static class CowProfileBuilder
                 Findings(claw, position)))
             .ToList();
 
-    private static IReadOnlyList<CowProfileTally> Findings(
+    private static IReadOnlyList<CowProfileIdTally> Findings(
         IReadOnlyList<ClawTreatment> claw, HoofPosition? position = null)
     {
         var positions = position is null ? HoofPositions.All : new[] { position.Value };
 
-        return TallyStrings(claw
-            .SelectMany(t => positions.Select(p => t.GetFinding(p)?.Trim()))
-            // Ein leerer Befund heisst "an dieser Klaue nichts erfasst". Der
+        return Tally(claw
+            .SelectMany(t => positions.Select(p => t.GetFindingId(p)))
+            // Keine Befund-ID heisst "an dieser Klaue nichts erfasst". Der
             // Anzeige-Ersatz aus AppSetting (Vorgabe "Pflege") gehoert NUR in
             // die Anzeige: kaeme er hier herein, hiesse der haeufigste
             // Klauenbefund jeder Kuh "Pflege".
-            .Where(f => !string.IsNullOrEmpty(f))
-            .Select(f => f!));
+            .Where(id => id is not null)
+            .Select(id => id!.Value));
     }
 
     // ---- Euterviertel ---------------------------------------------------
@@ -286,17 +286,4 @@ public static class CowProfileBuilder
             .ThenBy(t => t.Id)
             .ToList();
 
-    /// <summary>
-    /// Wie <see cref="Tally(System.Collections.Generic.IEnumerable{int})"/>,
-    /// aber ueber Text. Gruppiert ohne Ruecksicht auf Gross- und
-    /// Kleinschreibung, weil Klauenbefunde frei eingetippt werden -
-    /// "Mortellaro" und "mortellaro" sind derselbe Befund. Angezeigt wird die
-    /// erste vorkommende Schreibweise, wie in ClawFindingSummary.
-    /// </summary>
-    private static IReadOnlyList<CowProfileTally> TallyStrings(IEnumerable<string> values)
-        => values.GroupBy(v => v, StringComparer.OrdinalIgnoreCase)
-            .Select(g => new CowProfileTally(g.First(), g.Count()))
-            .OrderByDescending(t => t.Count)
-            .ThenBy(t => t.Key, StringComparer.CurrentCulture)
-            .ToList();
 }

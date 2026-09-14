@@ -65,11 +65,18 @@
     /// </summary>
     [Parameter] public string FallbackFinding { get; set; } = "";
 
+    /// <summary>
+    /// Loest eine Befund-ID auf, in aller Regel ClawFindingService.GetNameById.
+    /// Wird vom Aufrufer gesetzt, damit die Komponente keine
+    /// Service-Abhaengigkeit hat - dieselbe Regel wie bei ClawSelector.
+    /// </summary>
+    [Parameter] public Func<int?, string> FindingName { get; set; } = _ => string.Empty;
+
     private string Finding(HoofPosition position)
     {
         if (Treatment is not null)
         {
-            var finding = Treatment.GetFinding(position)?.Trim();
+            var finding = FindingName(Treatment.GetFindingId(position))?.Trim();
             if (!string.IsNullOrEmpty(finding))
             {
                 return finding;

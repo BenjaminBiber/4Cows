@@ -2,6 +2,7 @@
 
 @inject ISnackbar Snackbar
 @inject ClawTreatmentService clawTreatmentService
+@inject ClawFindingService clawFindingService
 @inject CowService cowService
 
 @*
@@ -49,7 +50,8 @@
 
         <ClawSelector Treatment="Claw_Treatment"
                       Mode="ClawSelectorMode.Findings"
-                      Findings="clawTreatmentService.ClawFindingList"
+                      Findings="clawFindingService.FindingNames"
+                      FindingDraft="_findingDraft"
                       @bind-Selected="_selected"
                       OnChanged="StateHasChanged" />
     </ChildContent>
@@ -73,6 +75,13 @@
     private HoofPosition? _selected;
 
     /// <summary>
+    /// Die eingetippten Befundnamen je Klaue. Die Entitaet traegt nur IDs;
+    /// aufgeloest wird erst in <see cref="Save"/>, damit ein Abbrechen keine
+    /// Zeile in Claw_Finding zuruecklaesst.
+    /// </summary>
+    private readonly Dictionary<HoofPosition, string> _findingDraft = new();
+
+    /// <summary>
     /// Eine bestehende Behandlung wird geaendert, nicht angelegt. Moeglich,
     /// seit ClawTreatmentService ein UpdateDataAsync hat - vorher haette
     /// "Bearbeiten" jedes Speichern zu einer zweiten Behandlung gemacht.
@@ -92,6 +101,12 @@
         NullDate = Claw_Treatment.TreatmentDate == default
             ? DateTime.Today
             : Claw_Treatment.TreatmentDate;
+
+        foreach (var position in HoofPositions.All)
+        {
+            _findingDraft[position] = clawFindingService.GetNameById(
+                Claw_Treatment.GetFindingId(position));
+        }
     }
 
     // Halsbandnummer und Kuh/Kalb befuellen sich gegenseitig - wie bisher.
@@ -129,16 +144,35 @@
             return;
         }
 
+        // Erst ALLE vier Befunde aufloesen, dann erst schreiben: scheitert das
+        // Anlegen eines neuen Befunds, bricht der Dialog ab, BEVOR die
+        // Behandlung gespeichert ist. Dieselbe Reihenfolge wie beim Medikament
+        // und bei Wie/Wo im Kuhbehandlungs-Dialog.
+        //
+        // "Pflege" wird NICHT in unberuehrte Klauen geschrieben. Ein leerer
+        // Befund bleibt leer (die Spalte NULL); angezeigt wird der pflegbare
+        // Standardwert aus den Einstellungen.
+        var findingIds = new Dictionary<HoofPosition, int?>();
+        foreach (var position in HoofPositions.All)
+        {
+            _findingDraft.TryGetValue(position, out var name);
+            var id = await clawFindingService.GetIdByNameAsync(name);
+
+            if (id == ClawFindingService.FailedId)
+            {
+                Snackbar.Add($"Befund „{name?.Trim()}\" konnte nicht angelegt werden.", Severity.Error);
+                return;
+            }
+
+            findingIds[position] = id;
+        }
+
         Claw_Treatment.TreatmentDate = NullDate.Value;
         Claw_Treatment.EarTagNumber = cowId;
 
-        // "Pflege" wird NICHT mehr in unberuehrte Klauen geschrieben. Leere
-        // Befunde bleiben leer; angezeigt wird der pflegbare Standardwert
-        // aus den Einstellungen. Die Spalten sind NOT NULL, aber Leerstring
-        // ist erlaubt - kein Schema-Eingriff.
         foreach (var position in HoofPositions.All)
         {
-            Claw_Treatment.SetFinding(position, Claw_Treatment.GetFinding(position)?.Trim() ?? "");
+            Claw_Treatment.SetFindingId(position, findingIds[position]);
         }
 
         var success = IsEdit

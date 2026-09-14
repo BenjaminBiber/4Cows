@@ -10,6 +10,7 @@
 *@
 @inject IDialogService DialogService
 @inject SettingsService Settings
+@inject ClawFindingService ClawFindingService
 
 <MeadowTable TItem="ClawTreatment" Items="Rows" Columns="_columns"
              RowKey="@(r => r.ClawTreatmentId)"
@@ -75,7 +76,7 @@
     /// gibt es keine Suche und meist unter zehn Zeilen.
     /// </summary>
     private string Summary(ClawTreatment r)
-        => ClawFindingSummary.Build(r, Settings.ClawFindingFallback);
+        => ClawFindingSummary.Build(r, ClawFindingService.GetNameById, Settings.ClawFindingFallback);
 
     private async Task OpenTreatment(ClawTreatment treatment)
     {

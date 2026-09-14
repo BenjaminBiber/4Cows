@@ -33,14 +33,20 @@ public sealed record BandagedClaw(
     /// Klauenbehandlungen EINER Kuh ungefiltert herein. So kann die Zeilenzahl
     /// hier nicht von der Kachel "offene Verbaende" abweichen.
     /// </summary>
-    public static IReadOnlyList<BandagedClaw> Project(IEnumerable<ClawTreatment> withBandage)
+    /// <param name="findingName">
+    /// Loest eine Befund-ID auf, in aller Regel ClawFindingService.GetNameById.
+    /// Leeres Ergebnis heisst "an dieser Klaue nichts erfasst" - die Tabelle
+    /// zeigt dafuer einen Gedankenstrich.
+    /// </param>
+    public static IReadOnlyList<BandagedClaw> Project(
+        IEnumerable<ClawTreatment> withBandage, Func<int?, string> findingName)
         => withBandage
             .SelectMany(t => t.OpenBandages()
                 .Select(p => new BandagedClaw(
                     t.ClawTreatmentId,
                     t.EarTagNumber,
                     p,
-                    t.GetFinding(p)?.Trim() ?? string.Empty,
+                    findingName(t.GetFindingId(p))?.Trim() ?? string.Empty,
                     t.GetBlock(p),
                     t.TreatmentDate)))
             .ToList();

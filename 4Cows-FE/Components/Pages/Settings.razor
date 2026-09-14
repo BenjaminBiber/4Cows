@@ -71,6 +71,9 @@ else if (_tab == TabBaseData)
         case "Behandlungsgrund":
             <BaseDataTreatmentReason />
             break;
+        case "Klauenbefund":
+            <BaseDataClawFinding />
+            break;
         @* "Medikamente" ausdruecklich, nicht nur ueber default: sonst ist
            default das stille Auffangbecken fuer jeden Tippfehler in
            BaseDataTabs, und ein falsch geschriebener Reiter zeigt wortlos die
@@ -115,7 +118,8 @@ else
 
     private static readonly string[] BaseDataTabs =
     {
-        "Kuh Behandlung", "Klauen Behandlung", "Kühe", "Medikamente", "Wie / Wo", "Behandlungsgrund"
+        "Kuh Behandlung", "Klauen Behandlung", "Kühe", "Medikamente", "Wie / Wo",
+        "Behandlungsgrund", "Klauenbefund"
     };
 
     private string _tab = TabKpi;

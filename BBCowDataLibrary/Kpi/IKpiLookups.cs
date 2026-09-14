@@ -33,6 +33,16 @@ public interface IKpiLookups
     string WhereHowName(int whereHowId);
 
     /// <summary>
+    /// Name des Klauenbefunds, oder LEER wenn keiner erfasst ist (id ist null)
+    /// oder die ID unbekannt ist.
+    ///
+    /// Leer und nicht "--": ClawFindingValues laesst leere Werte fallen, und
+    /// ein Platzhalter stuende sonst als eigener Befund im Ranking und in der
+    /// Filterauswahl.
+    /// </summary>
+    string ClawFindingName(int? clawFindingId);
+
+    /// <summary>
     /// The udder quarters as one label ("LV/ RH", "Alle 4"), and EMPTY for the all-false sentinel
     /// row. That empty string is what replaces the hardcoded "WHERE UDDER_ID != 16": a row with no
     /// quarter set simply has no group value, so Top-1 skips it without knowing any id.

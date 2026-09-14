@@ -155,7 +155,7 @@ public static class KpiSourceRegistry
                 CowLabel = collar,
                 Date = t.TreatmentDate,
                 Tags = Tags(
-                    (KpiTagKeys.ClawFinding, ClawFindingValues(t)),
+                    (KpiTagKeys.ClawFinding, ClawFindingValues(l, t)),
                     (KpiTagKeys.Cow, One(collar)))
             };
         }).ToList()
@@ -283,12 +283,14 @@ public static class KpiSourceRegistry
     /// been removed, a block regardless. Any divergence here shows up as a tile and its drill-down
     /// disagreeing.
     /// </summary>
-    private static IReadOnlyList<string> ClawFindingValues(ClawTreatment t)
+    private static IReadOnlyList<string> ClawFindingValues(IKpiLookups l, ClawTreatment t)
     {
         var values = HoofPositions.All
-            .Select(p => t.GetFinding(p)?.Trim() ?? "")
+            .Select(t.GetFindingId)
+            .Where(id => id is not null)
+            .Distinct()
+            .Select(l.ClawFindingName)
             .Where(f => f.Length > 0)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
         if (!t.IsBandageRemoved && HoofPositions.All.Any(t.GetBandage))
