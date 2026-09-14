@@ -1,3 +1,4 @@
+using OfficeOpenXml;
 using Meadow.Api.Components;
 using Meadow.Api.Components.Services;
 using Meadow.Shared.Kpi;
@@ -15,6 +16,21 @@ using Meadow.Api.Components.Ui;
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddEnvironmentVariables();
 LoggerService.InitializeLogger();
+
+// EPPlus 7 verlangt einen Lizenzkontext, bevor das erste ExcelPackage entsteht.
+// Er war nirgends gesetzt - "git grep LicenseContext" fand vor diesem Commit null
+// Treffer. Damit warf "new ExcelPackage()" im Klauen-Export beim ersten Kopffeld,
+// der catch-Block machte daraus einen roten Toast, und der in der README
+// beworbene Excel-Export hat mit dieser Paketversion nie funktioniert.
+//
+// NonCommercial ist die einzige Einstellung, die ohne gekauften Schluessel laeuft.
+// Das ist eine Lizenzentscheidung, keine technische: wer Meadow kommerziell
+// betreibt, setzt EPPlus__LicenseContext=Commercial und braucht dafuer einen
+// Schluessel von EPPlus Software.
+ExcelPackage.LicenseContext =
+    string.Equals(builder.Configuration["EPPlus:LicenseContext"], "Commercial", StringComparison.OrdinalIgnoreCase)
+        ? LicenseContext.Commercial
+        : LicenseContext.NonCommercial;
 var databaseSettings = new DatabaseConnectionSettings
 {
     Server = builder.Configuration["DB_SERVER"] ?? "127.0.0.1",
@@ -125,7 +141,6 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 app.UseHttpsRedirection();
-app.UseStaticFiles();
 
 // Nach UseStaticFiles, damit vorhandene Dateien normal ausgeliefert werden:
 // erst eine 404-Antwort wird hierher umgeleitet. Ohne das liefert eine
