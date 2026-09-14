@@ -39,6 +39,7 @@
 </MeadowToolbar>
 
 <MeadowTable TItem="CowOverviewRow" Items="_rows" Columns="_columns"
+             IsLoading="@(!_loaded)"
              RowKey="@(r => r.CowId)"
              DefaultSortTitle="Halsband"
              PagerLabel="Kühe pro Seite"
@@ -99,9 +100,15 @@
     private List<CowOverviewRow> _rows = new();
     private List<MeadowColumn<CowOverviewRow>> _columns = new();
 
+    /// <summary>Noch keine Daten - siehe MeadowTable.IsLoading.</summary>
+
+    private bool _loaded;
+
+
     protected override async Task OnInitializedAsync()
     {
         await Data.EnsureCowOverviewAsync();
+        _loaded = true;
         Rebuild();
         // Die Kachel der Quelle "Kühe" verlinkt seit /Kuehe hierher und bringt
         // ihre Filter im Query-String mit. ApplyTo mutiert das vorhandene

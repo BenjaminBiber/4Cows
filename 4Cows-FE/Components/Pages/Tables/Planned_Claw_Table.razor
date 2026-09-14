@@ -58,6 +58,7 @@
 </MeadowToolbar>
 
 <MeadowTable TItem="PlannedClawTreatment" Items="_rows" Columns="_columns"
+             IsLoading="@(!_loaded)"
              RowKey="@(r => r.PlannedClawTreatmentId)"
              DefaultSortTitle="Geplant für"
              PagerLabel="Behandlungen pro Seite"
@@ -107,9 +108,15 @@
     private readonly PlannedClawTableFilter _filter = new();
     private bool _filterOpen;
 
+    /// <summary>Noch keine Daten - siehe MeadowTable.IsLoading.</summary>
+
+    private bool _loaded;
+
+
     protected override async Task OnInitializedAsync()
     {
         await Data.EnsurePlannedClawAsync();
+        _loaded = true;
         // Eine KPI-Kachel verlinkt mit ihren Filtern im Query-String hierher.
         KpiDrillDown.ApplyTo(_filter, Nav);
         Reload();

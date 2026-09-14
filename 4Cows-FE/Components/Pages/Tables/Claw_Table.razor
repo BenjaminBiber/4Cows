@@ -71,6 +71,7 @@
 </MeadowToolbar>
 
 <MeadowTable TItem="ClawTreatment" Items="_rows" Columns="_columns"
+             IsLoading="@(!_loaded)"
              RowKey="@(r => r.ClawTreatmentId)"
              DefaultSortTitle="Datum" DefaultSortDescending="true"
              PagerLabel="Behandlungen pro Seite"
@@ -115,9 +116,15 @@
     // deshalb einmal pro Datenladen vorberechnet, nicht pro Tastendruck.
     private Dictionary<int, string> _summaries = new();
 
+    /// <summary>Noch keine Daten - siehe MeadowTable.IsLoading.</summary>
+
+    private bool _loaded;
+
+
     protected override async Task OnInitializedAsync()
     {
         await Data.EnsureClawTreatmentsAsync();
+        _loaded = true;
         // Eine KPI-Kachel verlinkt mit ihren Filtern im Query-String hierher. ApplyTo mutiert das
         // vorhandene _filter, also leuchtet die ganze Filter-UI von selbst auf.
         KpiDrillDown.ApplyTo(_filter, Nav);

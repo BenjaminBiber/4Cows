@@ -2965,9 +2965,14 @@ button.mw-nav-item {
    die trifft man mit dem Daumen sicherer als fuenf Laschen in einer
    Schiebeleiste, und sie zeigt alle fuenf auf einmal. Die Sichtbarkeit
    regelt .mw-only-mobile am Element. */
+.mw-tab-select { position: relative; display: block; }
 .mw-tab-select select {
+  /* appearance:none nimmt dem Feld den System-Look; den Pfeil zeichnet der
+     MeadowIcon daneben. Sonst sitzt hier ein Bedienelement, das als einziges
+     nach Betriebssystem aussieht statt nach Anwendung. */
+  appearance: none;
   width: 100%;
-  padding: 11px 12px;
+  padding: 11px 36px 11px 12px;
   border: 1px solid var(--mw-border);
   border-radius: var(--mw-r-lg);
   background: var(--mw-panel);
@@ -2975,6 +2980,24 @@ button.mw-nav-item {
   font-size: 14px;
   font-weight: 600;
   color: var(--mw-text);
+}
+/* Die Auswahlliste zeichnet das Betriebssystem. color-scheme sagt ihm, in
+   welchem Theme - ohne das nimmt es die Systemeinstellung und malt im hellen
+   Theme ein dunkles Menue (oder umgekehrt). Die beiden Farben setzt es aus
+   den option-Regeln, die es respektiert. */
+.mw-tab-select select { color-scheme: light; }
+:root[data-mw-theme="dark"] .mw-tab-select select { color-scheme: dark; }
+.mw-tab-select option {
+  background: var(--mw-panel);
+  color: var(--mw-text);
+}
+.mw-tab-select > svg {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--mw-muted);
+  pointer-events: none;
 }
 
 /* ── Aktiver Klauenfilter ─────────────────────────────────────── */

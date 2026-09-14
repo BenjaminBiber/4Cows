@@ -28,6 +28,7 @@
 </MeadowToolbar>
 
 <MeadowTable TItem="BandagedClaw" Items="_rows" Columns="_columns"
+             IsLoading="@(!_loaded)"
              RowKey="@(r => r.Key)"
              DefaultSortTitle="Tage" DefaultSortDescending="true"
              PagerLabel="Verbände pro Seite"
@@ -71,11 +72,17 @@
 
     private string OverdueLabel => "Nur überfällig";
 
+    /// <summary>Noch keine Daten - siehe MeadowTable.IsLoading.</summary>
+
+    private bool _loaded;
+
+
     protected override async Task OnInitializedAsync()
     {
         // OnInitialized war synchron und lud gar nichts - beim Direktaufruf
         // dieser Route war die Seite deshalb immer leer.
         await Data.EnsureClawTreatmentsAsync();
+        _loaded = true;
         Rebuild();
         BuildColumns();
 

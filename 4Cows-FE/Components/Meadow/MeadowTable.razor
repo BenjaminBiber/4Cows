@@ -50,7 +50,7 @@
                 </tr>
             </thead>
             <tbody>
-                @if (_view.Count == 0)
+                @if (_view.Count == 0 && !IsLoading)
                 {
                     <tr>
                         <td colspan="@Columns.Count" class="mw-empty">
@@ -100,7 +100,7 @@
         @* _sorted, nicht _view: die Kartenliste haengt an ihrem eigenen
            Stand und darf nicht davon abhaengen, wie der Desktop gerade
            blaettert. *@
-        @if (_sorted.Count == 0)
+        @if (_sorted.Count == 0 && !IsLoading)
         {
             <div class="mw-empty">
                 @EmptyText
@@ -181,6 +181,17 @@ else
 
     [Parameter] public string EmptyText { get; set; } = "Keine Einträge gefunden.";
     [Parameter] public RenderFragment? EmptyContent { get; set; }
+
+    /// <summary>
+    /// Die Seite hat ihre Daten noch nicht. Solange bleibt die Tabelle LEER
+    /// statt "Keine Eintraege gefunden" zu behaupten.
+    ///
+    /// Die Caches sind Singletons und nach dem ersten Aufruf warm, aber
+    /// GetAllDataAsync ist trotzdem ein await: Blazor rendert dazwischen, und
+    /// in diesem einen Durchgang steht die Seite mit null Zeilen da. Eine
+    /// leere Flaeche fuer 50ms sieht niemand - eine Fehlmeldung schon.
+    /// </summary>
+    [Parameter] public bool IsLoading { get; set; }
 
     [Parameter] public string? DefaultSortTitle { get; set; }
     [Parameter] public bool DefaultSortDescending { get; set; }

@@ -24,7 +24,18 @@
 
 <PageTitle>@HeaderTitle · Meadow</PageTitle>
 
-@if (_cow is null)
+@if (!_loaded)
+{
+    @* Nichts. Solange die Caches laden, ist NICHT bekannt, ob es das Tier
+       gibt - "Kuh nicht gefunden" waere dann keine Auskunft, sondern eine
+       Behauptung, die sich einen Wimpernschlag spaeter selbst widerruft.
+
+       Die Caches sind Singletons und nach dem ersten Aufruf warm, aber
+       EnsureCowProfileAsync bleibt ein await: Blazor rendert dazwischen, und
+       genau dieser eine Durchgang zeigte bisher die Fehlmeldung. Eine leere
+       Flaeche fuer 50ms sieht niemand. *@
+}
+else if (_cow is null)
 {
     @* Bewusst kein NavigateTo("nicht-gefunden"): das schriebe die Adresszeile
        um und der fehlerhafte Link waere weg. Hier stimmt die Route, nur das
@@ -171,6 +182,12 @@ else
                             </option>
                         }
                     </select>
+                    @* Der eigene Chevron statt des System-Pfeils, damit das
+                       Feld wie die uebrigen Bedienelemente aussieht - derselbe
+                       Aufbau wie .mw-select__trigger. Das Ausklappmenue selbst
+                       zeichnet weiterhin das Geraet: auf dem Telefon ist das
+                       genau richtig, und dort ist dieses Feld auch zuhause. *@
+                    <MeadowIcon Name="MeadowIconName.ChevronDown" Size="16" />
                 </label>
 
                 <div class="mw-tabs mw-tabs--scroll mw-only-desktop">
@@ -309,6 +326,9 @@ else
         }
     }
 
+    /// <summary>Noch keine Daten - siehe den Kommentar oben im Markup.</summary>
+    private bool _loaded;
+
     private string? _loadedCowId;
     private string? _chartError;
     private int _chartPrint;
@@ -336,6 +356,7 @@ else
         {
             _loadedCowId = CowId;
             await Data.EnsureCowProfileAsync();
+            _loaded = true;
             // Gezeichnet wird nicht hier, sondern in OnAfterRenderAsync -
             // siehe dort. Rebuild hat den Auftrag dafuer schon hinterlegt.
             Rebuild();
@@ -677,8 +698,14 @@ else
                             borderColor = primary,
                             backgroundColor = primary,
                             borderWidth = 2,
-                            pointRadius = 3,
-                            pointHoverRadius = 5,
+                            pointRadius = 3.5,
+                            pointHoverRadius = 6,
+                            // Zwei Punktformen, nicht nur zwei Farben: die
+                            // meisten Monate stehen beide Reihen auf null und
+                            // liegen dort exakt uebereinander. Eine Raute
+                            // schaut unter einem Kreis hervor, eine blaue
+                            // Linie unter einer tuerkisen nicht.
+                            pointStyle = "circle",
                             // Geradlinig und NICHT gerundet: zwischen zwei
                             // Monaten gibt es keine Zwischenwerte, und eine
                             // Kurve behauptete welche.
@@ -692,8 +719,9 @@ else
                             borderColor = teal,
                             backgroundColor = teal,
                             borderWidth = 2,
-                            pointRadius = 3,
-                            pointHoverRadius = 5,
+                            pointRadius = 4,
+                            pointHoverRadius = 6,
+                            pointStyle = "rectRot",
                             tension = 0,
                             fill = false
                         }
@@ -728,9 +756,15 @@ else
                             labels = new
                             {
                                 color = muted,
-                                boxWidth = 12,
-                                font = new { size = 11 },
-                                usePointStyle = true
+                                // usePointStyle uebernimmt die Punktform der
+                                // Reihe - damit steht in der Legende dasselbe
+                                // Zeichen wie im Diagramm. boxWidth muss dann
+                                // mit: sonst blaest Chart.js den Punkt auf die
+                                // Breite eines Farbkastens auf.
+                                usePointStyle = true,
+                                boxWidth = 8,
+                                boxHeight = 8,
+                                font = new { size = 11 }
                             }
                         }
                     }
