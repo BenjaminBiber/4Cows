@@ -10,7 +10,8 @@
 
     Aufbau: Hero, fuenf Feature-Baender, Mobil-Abschnitt, Abschluss-CTA,
     FAQ. Gestylt in wwwroot/css/meadow-landing.css, Einblenden beim
-    Scrollen ueber .mw-lp-rv und wwwroot/js/meadow-landing.js.
+    Scrollen ueber .mw-lp-rv, das dort ohne JavaScript per CSS-Scroll-
+    Timeline laeuft.
 *@
 
 <PageTitle>Meadow · Klauen- und Tiergesundheit dokumentieren</PageTitle>
@@ -71,11 +72,19 @@
             </p>
 
             <div class="mw-lp-hero__cta">
-                @* Echte <a>-Elemente statt Buttons mit NavigateTo: Blazor faengt den
-                   Klick ab und navigiert im Circuit, der Link bleibt aber
-                   tastaturerreichbar und mit der mittleren Maustaste in einem neuen
-                   Tab oeffenbar. Und die Zurueck-Taste fuehrt danach hierher. *@
-                <a class="mw-btn mw-btn--primary mw-btn--wide" href="@MeadowRoutes.Dashboard">
+                @* Echte <a>-Elemente statt Buttons mit NavigateTo: tastaturerreichbar,
+                   mit der mittleren Maustaste in einem neuen Tab oeffenbar, und die
+                   Zurueck-Taste fuehrt danach hierher.
+
+                   target="_top" ist hier keine Kosmetik, sondern Bedingung fuer die
+                   Skript-Auswahl in App.razor: blazor.web.js faengt einen Klick nur
+                   ab, wenn target fehlt oder "_self" ist. Ohne das Attribut wuerde
+                   der interaktive Router in den Circuit navigieren, App.razor nicht
+                   neu rendern - und das Dashboard stuende ohne MudBlazor und Chart.js
+                   da. "_top" ist in einem ungeframten Dokument dasselbe Fenster: kein
+                   neuer Tab, keine Screenreader-Ansage. *@
+                <a class="mw-btn mw-btn--primary mw-btn--wide" target="_top"
+                   href="@MeadowRoutes.Dashboard">
                     Demo starten
                     <MeadowIcon Name="MeadowIconName.ArrowRight" Size="17" />
                 </a>
@@ -206,7 +215,9 @@
                 nichts kaputtgehen.
             </p>
             <div class="mw-lp-cta__actions">
-                <a class="mw-btn mw-btn--wide mw-lp-btn--white" href="@MeadowRoutes.Dashboard">
+                @* target="_top" erzwingt einen Dokumentwechsel - siehe Hero-CTA oben. *@
+                <a class="mw-btn mw-btn--wide mw-lp-btn--white" target="_top"
+                   href="@MeadowRoutes.Dashboard">
                     Zur Demo
                     <MeadowIcon Name="MeadowIconName.ArrowRight" Size="17" />
                 </a>

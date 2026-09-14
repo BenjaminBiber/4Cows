@@ -379,7 +379,17 @@
 .mw-lp-mob {
   padding-block: clamp(64px, 9vw, 116px);
   background: var(--mw-canvas);
-  overflow: hidden;
+  /* clip und NICHT hidden: overflow:hidden macht ein Element zum
+     Scroll-Container, und view() misst immer gegen den naechsten
+     Scroll-Container. Mit hidden haengen die Reveals in diesem
+     Abschnitt an einer Sektion, die sich nie bewegt - sie stuenden
+     dauerhaft auf Endzustand, also ganz ohne Einblenden. clip kappt
+     genauso, richtet aber keinen Scrollport ein, also faellt view()
+     wieder auf das Dokument durch. (Der IntersectionObserver vorher
+     hatte das Problem nicht: der nahm immer den Viewport als Root.)
+     Kein Block-Formatting-Context mehr - unkritisch, weil das
+     padding-block oben Randkollaps ohnehin verhindert. */
+  overflow: clip;
 }
 .mw-lp-mob__grid {
   display: grid;
@@ -453,7 +463,8 @@
   padding-block: clamp(56px, 8vw, 96px) 0;
   background: linear-gradient(115deg, var(--mw-navy), var(--mw-primary-dark));
   color: #fff;
-  overflow: hidden;
+  /* clip statt hidden - siehe .mw-lp-mob. */
+  overflow: clip;
 }
 .mw-lp-cta__grid {
   display: grid;
@@ -636,100 +647,118 @@
     scroll-behavior: smooth;
   }
 
-  /* Der Vorhang haengt am data-Attribut, das meadow-landing.js als
-     erstes auf <html> setzt. Ohne das Skript ist nie etwas versteckt. */
-  :root[data-mw-lp-reveal] .mw-lp-rv {
-    opacity: 0;
-    transform: translateY(30px);
-    transition: opacity .7s var(--mw-ease), transform .7s var(--mw-ease);
-  }
-  :root[data-mw-lp-reveal] .mw-lp-rv--l { transform: translateX(-42px); }
-  :root[data-mw-lp-reveal] .mw-lp-rv--r { transform: translateX(42px); }
+  /* ── Scroll-Reveal, ohne JavaScript ──────────────────────────
+     Getrieben von View-Progress-Timelines: der Fortschritt jeder
+     Animation haengt an der Position ihres Elements im Dokument-Scroll.
 
-  /* Freigeschaltet wird per data-mw-in, NICHT per Klasse: class steht im
-     Blazor-Render-Tree, und ein Re-Render - etwa nach einem Klick auf
-     #funktionen, der durch den Router laeuft - wuerde eine dort
-     hinzugefuegte Klasse wieder wegdiffen. Ein Attribut, das Blazor nie
-     gerendert hat, bleibt unangetastet. */
-  :root[data-mw-lp-reveal] .mw-lp-rv[data-mw-in] {
-    opacity: 1;
-    transform: none;
+     Der @supports-Riegel ist die eigentliche Absicherung und nicht nur
+     Hoeflichkeit gegenueber alten Browsern. Vorher versteckte diese
+     Datei Elemente, sobald meadow-landing.js ein Attribut auf <html>
+     gesetzt hatte, und ein Wachhund-Timer musste raten, ob der
+     IntersectionObserver ueberhaupt antwortet - tat er das nicht
+     (Hintergrund-Rendering, Screenshot-Werkzeuge, aggressives
+     Throttling), blieb die halbe Seite unsichtbar. Jetzt ist
+     "versteckt" nur dort ueberhaupt formulierbar, wo die Animation
+     auch ablaeuft. Eine leere Seite unterhalb des Heros ist damit
+     strukturell ausgeschlossen statt durch einen Timer abgefangen.
+
+     Es wird ausserdem nichts mehr ins DOM geschrieben. Der frueher
+     noetige Umweg ueber ein data-Attribut - eine Klasse haette Blazor
+     beim naechsten Re-Render gegen das Markup zurueckgediffed und die
+     schon eingeblendeten Baender wieder ausgeblendet - entfaellt
+     ersatzlos. */
+  @supports (animation-timeline: view()) {
+
+    /* Alle Bereiche zaehlen in PIXELN ab "entry 0px" - dem Moment, in dem
+       die Oberkante des Elements unten in den Viewport kommt. Bewusst
+       nicht in Prozent: Prozente von "entry" zaehlen relativ zur
+       ELEMENTHOEHE, und damit waere ein 200px hoher Ueberschriftenblock
+       nach 80px Scroll fertig eingeblendet, waehrend er noch am unteren
+       Rand klebt, ein 600px hohes Feature-Band aber erst nach 330px.
+       Mit Pixeln laeuft jedes Element ueber dieselbe Strecke.
+
+       "entry 40px entry 340px" heisst also: beginnt, sobald 40px des
+       Elements sichtbar sind, ist 300px Scroll spaeter fertig - dann
+       steht seine Oberkante 340px ueber dem unteren Rand. Hier wird zum
+       Feintunen gedreht. */
+    .mw-lp { --mw-lp-rv-range: entry 40px entry 340px; }
+
+    /* Jedes Reveal-Element stellt seine Timeline unter einem Namen auch
+       den Kindern zur Verfuegung. Der Name muss nicht eindeutig sein:
+       ein Kind sucht ihn an seinen Vorfahren und findet deshalb immer
+       seine eigene Reihe, obwohl alle fuenf Baender ihn tragen. */
+    .mw-lp-rv {
+      view-timeline-name: --mw-lp-rv;
+
+      /* animation-delay wirkt auf einer Scroll-Timeline nicht - gestaffelt
+         wird ueber versetzte animation-range-Bereiche. */
+      animation: mwLpRvUp auto both;
+      animation-timeline: view();
+      animation-range: var(--mw-lp-rv-range);
+    }
+    .mw-lp-rv--l { animation-name: mwLpRvLeft; }
+    .mw-lp-rv--r { animation-name: mwLpRvRight; }
+
+    /* ── Feature-Baender: Spalten getrennt statt Reihe als Block ──
+       Die Reihe selbst bewegt sich nicht, sie ist nur der Ausloeser -
+       sonst kaeme zur Bewegung der Spalten noch die des Elternelements
+       dazu und beide Mockups liefen diagonal ein. Text kommt von unten,
+       das Mockup von der Aussenseite. Dass die Kinder an --mw-lp-rv
+       haengen und nicht an view(), ist der Punkt: sie folgen der Reihe
+       statt jedes fuer sich an der eigenen Bildschirmposition zu
+       starten. */
+    .mw-lp-row.mw-lp-rv,
+    .mw-lp-faq__list.mw-lp-rv { animation-name: none; }
+
+    .mw-lp-row.mw-lp-rv .mw-lp-feat {
+      animation: mwLpRvFeat auto both;
+      animation-timeline: --mw-lp-rv;
+      animation-range: var(--mw-lp-rv-range);
+    }
+    .mw-lp-row.mw-lp-rv .mw-lp-shot {
+      /* Aus der Richtung, in der das Mockup steht: rechte Spalte von
+         rechts, gespiegelte Reihe von links. Etwas spaeter als der Text,
+         wie frueher die .12s Verzoegerung. */
+      animation: mwLpRvShotR auto both;
+      animation-timeline: --mw-lp-rv;
+      animation-range: entry 110px entry 450px;
+    }
+    .mw-lp-row--rev.mw-lp-rv .mw-lp-shot { animation-name: mwLpRvShotL; }
+
+    .mw-lp-rv .mw-lp-feat__icon {
+      animation: mwLpIconPop auto both;
+      animation-timeline: --mw-lp-rv;
+      animation-range: entry 90px entry 330px;
+    }
+
+    /* Bullets laufen gestaffelt ein, sobald ihre Reihe hereinkommt. */
+    .mw-lp-rv :is(.mw-lp-feat__bullets, .mw-lp-mob__list) li {
+      animation: mwLpRvNudge auto both;
+      animation-timeline: --mw-lp-rv;
+    }
+    .mw-lp-rv :is(.mw-lp-feat__bullets, .mw-lp-mob__list) li:nth-child(1) { animation-range: entry 300px entry 520px; }
+    .mw-lp-rv :is(.mw-lp-feat__bullets, .mw-lp-mob__list) li:nth-child(2) { animation-range: entry 345px entry 565px; }
+    .mw-lp-rv :is(.mw-lp-feat__bullets, .mw-lp-mob__list) li:nth-child(3) { animation-range: entry 390px entry 610px; }
+    .mw-lp-rv :is(.mw-lp-feat__bullets, .mw-lp-mob__list) li:nth-child(4) { animation-range: entry 435px entry 655px; }
+
+    /* ── FAQ: Eintraege einzeln gestaffelt ──
+       Auch hier traegt die Liste nur die Timeline; die Karten kommen
+       nacheinander. */
+    .mw-lp-faq__list.mw-lp-rv .mw-lp-faq__item {
+      animation: mwLpRvItem auto both;
+      animation-timeline: --mw-lp-rv;
+    }
+    .mw-lp-faq__list.mw-lp-rv .mw-lp-faq__item:nth-child(1) { animation-range: entry  30px entry 260px; }
+    .mw-lp-faq__list.mw-lp-rv .mw-lp-faq__item:nth-child(2) { animation-range: entry  80px entry 310px; }
+    .mw-lp-faq__list.mw-lp-rv .mw-lp-faq__item:nth-child(3) { animation-range: entry 130px entry 360px; }
+    .mw-lp-faq__list.mw-lp-rv .mw-lp-faq__item:nth-child(4) { animation-range: entry 180px entry 410px; }
+    .mw-lp-faq__list.mw-lp-rv .mw-lp-faq__item:nth-child(5) { animation-range: entry 230px entry 460px; }
+    .mw-lp-faq__list.mw-lp-rv .mw-lp-faq__item:nth-child(6) { animation-range: entry 280px entry 510px; }
   }
 
-  /* Bullets laufen gestaffelt ein, sobald ihre Reihe sichtbar wird. */
-  :root[data-mw-lp-reveal] .mw-lp-rv :is(.mw-lp-feat__bullets, .mw-lp-mob__list) li {
-    opacity: 0;
-    transform: translateX(-12px);
-    transition: opacity .45s var(--mw-ease), transform .45s var(--mw-ease);
-  }
-  :root[data-mw-lp-reveal] .mw-lp-rv[data-mw-in] :is(.mw-lp-feat__bullets, .mw-lp-mob__list) li {
-    opacity: 1;
-    transform: none;
-  }
-  :root[data-mw-lp-reveal] .mw-lp-rv[data-mw-in] :is(.mw-lp-feat__bullets, .mw-lp-mob__list) li:nth-child(1) { transition-delay: .42s; }
-  :root[data-mw-lp-reveal] .mw-lp-rv[data-mw-in] :is(.mw-lp-feat__bullets, .mw-lp-mob__list) li:nth-child(2) { transition-delay: .52s; }
-  :root[data-mw-lp-reveal] .mw-lp-rv[data-mw-in] :is(.mw-lp-feat__bullets, .mw-lp-mob__list) li:nth-child(3) { transition-delay: .62s; }
-  :root[data-mw-lp-reveal] .mw-lp-rv[data-mw-in] :is(.mw-lp-feat__bullets, .mw-lp-mob__list) li:nth-child(4) { transition-delay: .72s; }
-
-  :root[data-mw-lp-reveal] .mw-lp-rv[data-mw-in] .mw-lp-feat__icon {
-    animation: mwLpIconPop .55s var(--mw-ease) .2s both;
-  }
-
-  /* ── Feature-Baender: Spalten getrennt statt Reihe als Block ──
-     Die Reihe selbst bewegt sich nicht mehr, sie ist nur noch der
-     Ausloeser - sonst kaeme zur Bewegung der Spalten noch die des
-     Elternelements dazu und beide Mockups liefen diagonal ein. Text
-     kommt von unten, das Mockup von der Aussenseite. */
-  :root[data-mw-lp-reveal] .mw-lp-row.mw-lp-rv {
-    opacity: 1;
-    transform: none;
-  }
-  :root[data-mw-lp-reveal] .mw-lp-row.mw-lp-rv .mw-lp-feat {
-    opacity: 0;
-    transform: translateY(24px);
-    transition: opacity .7s var(--mw-ease), transform .7s var(--mw-ease);
-  }
-  :root[data-mw-lp-reveal] .mw-lp-row.mw-lp-rv .mw-lp-shot {
-    opacity: 0;
-    /* Aus der Richtung, in der das Mockup steht: rechte Spalte von
-       rechts, gespiegelte Reihe von links. */
-    transform: translateX(44px) scale(.97);
-    transition: opacity .8s var(--mw-ease) .12s, transform .8s var(--mw-ease) .12s;
-  }
-  :root[data-mw-lp-reveal] .mw-lp-row--rev.mw-lp-rv .mw-lp-shot {
-    transform: translateX(-44px) scale(.97);
-  }
-  :root[data-mw-lp-reveal] .mw-lp-row.mw-lp-rv[data-mw-in] .mw-lp-feat,
-  :root[data-mw-lp-reveal] .mw-lp-row.mw-lp-rv[data-mw-in] .mw-lp-shot {
-    opacity: 1;
-    transform: none;
-  }
-
-  /* ── FAQ: Eintraege einzeln gestaffelt ──
-     Auch hier traegt die Liste nur den Ausloeser; die Karten kommen
-     nacheinander. */
-  :root[data-mw-lp-reveal] .mw-lp-faq__list.mw-lp-rv {
-    opacity: 1;
-    transform: none;
-  }
-  :root[data-mw-lp-reveal] .mw-lp-faq__list.mw-lp-rv .mw-lp-faq__item {
-    opacity: 0;
-    transform: translateY(18px);
-    transition: opacity .5s var(--mw-ease), transform .5s var(--mw-ease);
-  }
-  :root[data-mw-lp-reveal] .mw-lp-faq__list.mw-lp-rv[data-mw-in] .mw-lp-faq__item {
-    opacity: 1;
-    transform: none;
-  }
-  :root[data-mw-lp-reveal] .mw-lp-faq__list.mw-lp-rv[data-mw-in] .mw-lp-faq__item:nth-child(1) { transition-delay: .05s; }
-  :root[data-mw-lp-reveal] .mw-lp-faq__list.mw-lp-rv[data-mw-in] .mw-lp-faq__item:nth-child(2) { transition-delay: .12s; }
-  :root[data-mw-lp-reveal] .mw-lp-faq__list.mw-lp-rv[data-mw-in] .mw-lp-faq__item:nth-child(3) { transition-delay: .19s; }
-  :root[data-mw-lp-reveal] .mw-lp-faq__list.mw-lp-rv[data-mw-in] .mw-lp-faq__item:nth-child(4) { transition-delay: .26s; }
-  :root[data-mw-lp-reveal] .mw-lp-faq__list.mw-lp-rv[data-mw-in] .mw-lp-faq__item:nth-child(5) { transition-delay: .33s; }
-  :root[data-mw-lp-reveal] .mw-lp-faq__list.mw-lp-rv[data-mw-in] .mw-lp-faq__item:nth-child(6) { transition-delay: .4s; }
-
-  /* Hero: laeuft ohne Beobachter direkt beim Laden und braucht das
-     data-Attribut deshalb nicht - die Animation endet sichtbar. */
+  /* Hero: zeitgesteuert und nicht scrollgesteuert, weil er beim Laden
+     schon im Bild steht - es gibt nichts, in das er hineinscrollen
+     koennte. Endet sichtbar, braucht also keinen @supports-Riegel. */
   .mw-lp-hero .mw-lp-eyebrow { animation: mwLpFadeUp .6s var(--mw-ease) .05s both; }
   .mw-lp-hero__title         { animation: mwLpFadeUp .7s var(--mw-ease) .18s both; }
   .mw-lp-hero__lead          { animation: mwLpFadeUp .7s var(--mw-ease) .32s both; }
@@ -772,6 +801,21 @@
   0%, 100% { transform: translateY(0); }
   50%      { transform: translateY(-12px); }
 }
+
+/* Reveal-Keyframes. Bewusst ohne to-Block: das fehlende 100% ergaenzt der
+   Browser aus dem berechneten Stil des Elements, also genau der Zustand,
+   in dem es ohne Animation stehen wuerde. Zusammen mit "both" heisst das,
+   dass jedes Element vor der Animation auf dem from-Wert steht und danach
+   auf seinem eigenen - ein falsch getippter Endwert kann hier also gar
+   nichts mehr verstecken. */
+@keyframes mwLpRvUp    { from { opacity: 0; transform: translateY(30px); } }
+@keyframes mwLpRvLeft  { from { opacity: 0; transform: translateX(-42px); } }
+@keyframes mwLpRvRight { from { opacity: 0; transform: translateX(42px); } }
+@keyframes mwLpRvFeat  { from { opacity: 0; transform: translateY(24px); } }
+@keyframes mwLpRvShotR { from { opacity: 0; transform: translateX(44px) scale(.97); } }
+@keyframes mwLpRvShotL { from { opacity: 0; transform: translateX(-44px) scale(.97); } }
+@keyframes mwLpRvNudge { from { opacity: 0; transform: translateX(-12px); } }
+@keyframes mwLpRvItem  { from { opacity: 0; transform: translateY(18px); } }
 
 /* Eine Media Query, wie in meadow-components.css: derselbe Breakpoint,
    an dem die App auf die mobile Kopfhoehe wechselt. Agrisos zweiter

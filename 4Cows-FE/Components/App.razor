@@ -75,20 +75,48 @@
 </div>
 
 <script src="_framework/blazor.web.js"></script>
-<script src="_content/MudBlazor/MudBlazor.min.js"></script>
-<script src="js/meadow.js"></script>
-<script src="js/download.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="js/ChartHelper.js"></script>
-<script src="_content/Blazor.AceEditorJs/BlazorAceEditor.min.js"></script>
+@* Nur das Framework selbst laeuft auf jeder Seite. Alles Weitere
+   gehoert zur App-Shell und wird auf der Landing-Page nicht gebraucht:
+   sie zeigt keinen Dialog, kein Diagramm, keinen Editor und keinen
+   Download-Knopf. Das spart dort sechs Anfragen - darunter der
+   jsdelivr-Aufruf fuer Chart.js, der auf einer Seite, die "laeuft im
+   eigenen Betriebsnetz, ohne Cloud" verspricht, ohnehin schlecht steht.
 
-@* Scroll-Reveal der Landing-Page. Wie das Stylesheet nur im
-   Demo-Modus - ohne Demo gibt es die Seite nicht. Am Ende von <body>,
-   damit das prerenderte Markup schon steht, wenn es laeuft. *@
-@if (Demo.Enabled)
+   Der Preis dafuer steht in LandingLayout.razor und MeadowLanding.razor:
+   die Verweise von dort in die App muessen das Dokument neu laden
+   (target="_top"), sonst taeten die Skripte dem Dashboard nach einer
+   vom Router abgefangenen Navigation fehlen. *@
+@if (!IsLanding)
 {
-    <script src="js/meadow-landing.js"></script>
+    <script src="_content/MudBlazor/MudBlazor.min.js"></script>
+    <script src="js/meadow.js"></script>
+    <script src="js/download.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="js/ChartHelper.js"></script>
+    <script src="_content/Blazor.AceEditorJs/BlazorAceEditor.min.js"></script>
 }
 </body>
 
 </html>
+
+@code {
+    /// <summary>
+    /// Der Request, der diese Seite rendert. Steht als Cascading-Parameter
+    /// zur Verfuegung, weil MapRazorComponents&lt;App&gt;() die
+    /// Wurzelkomponente statisch rendert.
+    /// </summary>
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    /// <summary>
+    /// Ob dieser Request die Landing-Page ausliefert. Entschieden am Pfad
+    /// und nicht am gerenderten Inhalt, weil die Skript-Auswahl beim
+    /// Zusammenbauen des Dokuments feststehen muss - Pages/Home.razor
+    /// entscheidet ueber dieselbe Bedingung.
+    ///
+    /// Das CSS bleibt bewusst unbedingt: navigiert man aus der App zurueck
+    /// auf "/", rendert diese Komponente nicht neu, und ein dann fehlendes
+    /// meadow-landing.css waere eine ungestylte Seite.
+    /// </summary>
+    private bool IsLanding => Demo.Enabled && HttpContext.Request.Path == "/";
+}

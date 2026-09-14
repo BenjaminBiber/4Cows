@@ -45,8 +45,12 @@
             <a class="mw-lp__link" href="#faq">FAQ</a>
         </nav>
 
+        @* target="_top" statt eines abgefangenen Klicks: App.razor laedt die
+           App-Skripte auf dieser Seite nicht mit, das Dashboard braucht also
+           einen echten Dokumentwechsel. Begruendung am Hero-CTA in
+           MeadowLanding.razor. *@
         <a class="mw-btn mw-btn--primary mw-btn--sm mw-lp__bar-cta"
-           href="@MeadowRoutes.Dashboard">
+           target="_top" href="@MeadowRoutes.Dashboard">
             Demo öffnen
         </a>
     </header>
