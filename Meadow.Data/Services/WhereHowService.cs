@@ -9,6 +9,19 @@ namespace Meadow.Data.Services;
 
 public class WhereHowService : IWhereHowService
 {
+    /// <summary>
+    /// Klammert den Suchen-sonst-Anlegen-Lauf von
+    /// <see cref="GetWhereHowIDByName"/>. Warum ueberhaupt, und wie weit das
+    /// traegt - naemlich genau einen Prozess -, steht an
+    /// MedicineService.MedicineGate.
+    ///
+    /// Diese Tabelle ist das Beispiel, an dem sich das ablesen laesst: sie
+    /// enthaelt heute jeden ihrer sechs Namen ZWEIMAL. Deshalb kann hier auch
+    /// kein UNIQUE-Index stehen - er liesse sich auf dem Bestand gar nicht
+    /// anlegen.
+    /// </summary>
+    private static readonly SemaphoreSlim WhereHowGate = new(1, 1);
+
     private ImmutableDictionary<int, WhereHow> _cachedWhereHows = ImmutableDictionary<int, WhereHow>.Empty;
     private readonly IDbContextFactory<DatabaseContext> _contextFactory;
     private readonly DatabaseStatusService _databaseStatusService;
@@ -261,28 +274,44 @@ public class WhereHowService : IWhereHowService
         /// </summary>
         public async Task<int> GetWhereHowIDByName(string name, bool showDialog = true)
         {
-            var id =  _cachedWhereHows.Values.Any(x => x.WhereHowName.ToLower().Trim() == name.ToLower().Trim())
-                ? _cachedWhereHows.Values.FirstOrDefault(x => x.WhereHowName.ToLower().Trim() == name.ToLower().Trim())
-                    .WhereHowId
-                : int.MinValue;
-
-            if (id == int.MinValue)
+            await WhereHowGate.WaitAsync();
+            try
             {
-                var newWhereHow = new WhereHow()
+                // Ein kalter Cache meldet "kennt keiner" und wuerde einen
+                // laengst vorhandenen Eintrag ein zweites Mal anlegen; siehe
+                // MedicineService.GetMedicineIdByName.
+                if (_cachedWhereHows.IsEmpty)
                 {
-                    // Getrimmt gespeichert, weil der Vergleich oben ohnehin
-                    // trimmt: sonst landet "IZ " als eigene Zeile in der Liste,
-                    // die von "IZ" nicht zu unterscheiden ist.
-                    WhereHowName = name.Trim(),
-                    ShowDialog = showDialog
-                };
-                await InsertDataAsync(newWhereHow);
-                id = (_cachedWhereHows.Values
-                        .FirstOrDefault(x => x.WhereHowName.ToLower().Trim() == name.ToLower().Trim()) ?? new WhereHow())
-                    .WhereHowId;
-            }
+                    await GetAllDataAsync();
+                }
 
-            return id;
+                var id =  _cachedWhereHows.Values.Any(x => x.WhereHowName.ToLower().Trim() == name.ToLower().Trim())
+                    ? _cachedWhereHows.Values.FirstOrDefault(x => x.WhereHowName.ToLower().Trim() == name.ToLower().Trim())
+                        .WhereHowId
+                    : int.MinValue;
+
+                if (id == int.MinValue)
+                {
+                    var newWhereHow = new WhereHow()
+                    {
+                        // Getrimmt gespeichert, weil der Vergleich oben ohnehin
+                        // trimmt: sonst landet "IZ " als eigene Zeile in der Liste,
+                        // die von "IZ" nicht zu unterscheiden ist.
+                        WhereHowName = name.Trim(),
+                        ShowDialog = showDialog
+                    };
+                    await InsertDataAsync(newWhereHow);
+                    id = (_cachedWhereHows.Values
+                            .FirstOrDefault(x => x.WhereHowName.ToLower().Trim() == name.ToLower().Trim()) ?? new WhereHow())
+                        .WhereHowId;
+                }
+
+                return id;
+            }
+            finally
+            {
+                WhereHowGate.Release();
+            }
         }
 
         // Braucht zwei Caches. Der zweite kommt weiter ueber den Dienst herein -

@@ -7,6 +7,9 @@ namespace Meadow.Api.Endpoints;
 /// <summary>Rumpf von POST /claw-findings/{findingId}/merge.</summary>
 public sealed record ClawFindingMergeRequest(int TargetId, string? SurvivingName);
 
+/// <summary>Rumpf von POST /claw-findings/by-name.</summary>
+public sealed record ClawFindingByNameRequest(string? Name);
+
 public static class ClawFindingEndpoints
 {
     public static RouteGroupBuilder MapClawFindingEndpoints(this RouteGroupBuilder api)
@@ -38,6 +41,27 @@ public static class ClawFindingEndpoints
                 ? Results.Created($"/api/claw-findings/{finding.ClawFindingId}", finding)
                 : EndpointCommon.WriteFailed($"Der Klauenbefund {finding.ClawFindingName} konnte nicht angelegt werden.");
         }).BumpsOnWrite(DataScope.ClawFindings).WithName("ClawFindingCreate");
+
+        // Suchen, sonst anlegen; die Begruendung fuer den eigenen Endpunkt
+        // steht bei /medicines/by-name.
+        //
+        // Als einziger der vier faengt dieser den leeren Namen NICHT vorher
+        // ab, sondern reicht ihn durch. GetIdByNameAsync unterscheidet hier -
+        // anders als bei Medikament, Wie/Wo und Behandlungsgrund - zwei
+        // Faelle: null heisst "keine Eingabe" und ist regulaer (im
+        // Klauenbehandlungs-Dialog bleiben Befundfelder oft leer), erst
+        // ClawFinding.FailedId heisst "ging schief". Die Begruendung dafuer
+        // steht am Modell.
+        //
+        // Deshalb ist {"id":null} hier eine 200 und keine 400: ein
+        // Klauenbefundfeld leer zu lassen ist kein Fehler des Aufrufers.
+        api.MapPost("/claw-findings/by-name", async (ClawFindingByNameRequest body, IClawFindingService svc) =>
+        {
+            var id = await svc.GetIdByNameAsync(body.Name);
+            return id == ClawFinding.FailedId
+                ? EndpointCommon.UpsertFailed("Den Klauenbefund", body.Name?.Trim() ?? string.Empty)
+                : Results.Ok(new { id });
+        }).BumpsOnWrite(DataScope.ClawFindings).WithName("ClawFindingByName");
 
         api.MapPut("/claw-findings/{findingId:int}", async (int findingId, ClawFinding finding, IClawFindingService svc) =>
         {

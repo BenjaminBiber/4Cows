@@ -23,6 +23,14 @@ public class ClawFindingService : IClawFindingService
     // Der Fehlerwert von GetIdByNameAsync heisst ClawFinding.FailedId und
     // steht am Modell - die Begruendung dafuer steht dort.
 
+    /// <summary>
+    /// Klammert den Suchen-sonst-Anlegen-Lauf von
+    /// <see cref="GetIdByNameAsync"/>. Warum ueberhaupt, und wie weit das
+    /// traegt - naemlich genau einen Prozess -, steht an
+    /// MedicineService.MedicineGate.
+    /// </summary>
+    private static readonly SemaphoreSlim FindingGate = new(1, 1);
+
     private ImmutableDictionary<int, ClawFinding> _cachedFindings =
         ImmutableDictionary<int, ClawFinding>.Empty;
 
@@ -371,19 +379,35 @@ public class ClawFindingService : IClawFindingService
             trimmed = trimmed[..ClawFinding.NameMaxLength];
         }
 
-        var existing = Find(trimmed);
-        if (existing is not null)
+        await FindingGate.WaitAsync();
+        try
         {
-            return existing.ClawFindingId;
-        }
+            // Ein kalter Cache meldet "kennt keiner" und wuerde einen laengst
+            // vorhandenen Befund ein zweites Mal anlegen; siehe
+            // MedicineService.GetMedicineIdByName.
+            if (_cachedFindings.IsEmpty)
+            {
+                await GetAllDataAsync();
+            }
 
-        if (!await InsertDataAsync(new ClawFinding(0, trimmed)))
+            var existing = Find(trimmed);
+            if (existing is not null)
+            {
+                return existing.ClawFindingId;
+            }
+
+            if (!await InsertDataAsync(new ClawFinding(0, trimmed)))
+            {
+                return ClawFinding.FailedId;
+            }
+
+            // InsertDataAsync hat den Cache neu geladen.
+            return Find(trimmed)?.ClawFindingId ?? ClawFinding.FailedId;
+        }
+        finally
         {
-            return ClawFinding.FailedId;
+            FindingGate.Release();
         }
-
-        // InsertDataAsync hat den Cache neu geladen.
-        return Find(trimmed)?.ClawFindingId ?? ClawFinding.FailedId;
     }
 
     private ClawFinding? Find(string trimmedName)

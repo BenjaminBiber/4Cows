@@ -10,6 +10,17 @@ namespace Meadow.Api.Endpoints;
 /// </summary>
 public sealed record WhereHowMergeRequest(int TargetId);
 
+/// <summary>
+/// Rumpf von POST /where-hows/by-name.
+///
+/// showDialog ist NULLABLE und nicht bool: fehlt das Feld, soll der Default
+/// des Dienstes gelten (true), und ein nicht gesetztes bool waere hier
+/// stillschweigend false. Der Unterschied ist keine Kleinigkeit - der
+/// Kommentar an WhereHowService.GetWhereHowIDByName beschreibt, was ein
+/// falsch geratener Wert anrichtet.
+/// </summary>
+public sealed record WhereHowByNameRequest(string? Name, bool? ShowDialog);
+
 public static class WhereHowEndpoints
 {
     public static RouteGroupBuilder MapWhereHowEndpoints(this RouteGroupBuilder api)
@@ -41,6 +52,27 @@ public static class WhereHowEndpoints
                 ? Results.Created($"/api/where-hows/{whereHow.WhereHowId}", whereHow)
                 : EndpointCommon.WriteFailed($"Wie/Wo {whereHow.WhereHowName} konnte nicht angelegt werden.");
         }).BumpsOnWrite(DataScope.WhereHows).WithName("WhereHowCreate");
+
+        // Suchen, sonst anlegen; die Begruendung fuer den eigenen Endpunkt
+        // steht bei /medicines/by-name.
+        //
+        // Der leere Name wird hier abgefangen und nicht im Dienst:
+        // GetWhereHowIDByName ruft name.ToLower() ohne Pruefung auf und liefe
+        // bei null in eine NullReferenceException, aus der eine nackte 500
+        // ohne Rumpf wuerde. Die Signatur des Dienstes bleibt unangetastet.
+        api.MapPost("/where-hows/by-name", async (WhereHowByNameRequest body, IWhereHowService svc) =>
+        {
+            var name = body.Name?.Trim();
+            if (string.IsNullOrEmpty(name))
+            {
+                return EndpointCommon.Invalid("name", "Ein Wie/Wo ohne Namen ist keines.");
+            }
+
+            var id = await svc.GetWhereHowIDByName(name, body.ShowDialog ?? true);
+            return id == int.MinValue
+                ? EndpointCommon.UpsertFailed("Das Wie/Wo", name)
+                : Results.Ok(new { id });
+        }).BumpsOnWrite(DataScope.WhereHows).WithName("WhereHowByName");
 
         api.MapPut("/where-hows/{whereHowId:int}", async (int whereHowId, WhereHow whereHow, IWhereHowService svc) =>
         {

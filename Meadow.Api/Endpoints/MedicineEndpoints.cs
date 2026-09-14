@@ -10,6 +10,9 @@ namespace Meadow.Api.Endpoints;
 /// </summary>
 public sealed record MedicineMergeRequest(int TargetId, string? SurvivingName);
 
+/// <summary>Rumpf von POST /medicines/by-name.</summary>
+public sealed record MedicineByNameRequest(string? Name);
+
 public static class MedicineEndpoints
 {
     public static RouteGroupBuilder MapMedicineEndpoints(this RouteGroupBuilder api)
@@ -46,6 +49,31 @@ public static class MedicineEndpoints
                 ? Results.Created($"/api/medicines/{medicine.MedicineId}", medicine)
                 : EndpointCommon.WriteFailed($"Das Praeparat {medicine.MedicineName} konnte nicht angelegt werden.");
         }).BumpsOnWrite(DataScope.Medicines).WithName("MedicineCreate");
+
+        // Suchen, sonst anlegen - der Weg, den der Behandlungs-Dialog nebenbei
+        // geht: wer ein Praeparat tippt, das es noch nicht gibt, legt es beim
+        // Speichern mit an. Als eigener Endpunkt, weil der Client sonst erst
+        // die ganze Liste holen und selbst vergleichen muesste, und zwar mit
+        // GENAU derselben Trim-und-Kleinschreibung wie der Dienst.
+        //
+        // Der Zaehler steigt auch dann, wenn nichts angelegt wurde, sondern
+        // nur gefunden: BumpsOnWrite sieht den Statuscode, nicht die Absicht.
+        // Die Richtung stimmt (zu hoch statt zu niedrig), und zu hoch heisst
+        // nach dem Kommentar in DataVersionEndpointFilter nur, dass ein Client
+        // einmal unnoetig nachlaedt.
+        api.MapPost("/medicines/by-name", async (MedicineByNameRequest body, IMedicineService svc) =>
+        {
+            var name = body.Name?.Trim();
+            if (string.IsNullOrEmpty(name))
+            {
+                return EndpointCommon.Invalid("name", "Ein Praeparat ohne Namen ist keines.");
+            }
+
+            var id = await svc.GetMedicineIdByName(name);
+            return id == int.MinValue
+                ? EndpointCommon.UpsertFailed("Das Praeparat", name)
+                : Results.Ok(new { id });
+        }).BumpsOnWrite(DataScope.Medicines).WithName("MedicineByName");
 
         api.MapPut("/medicines/{medicineId:int}", async (int medicineId, Medicine medicine, IMedicineService svc) =>
         {

@@ -10,6 +10,35 @@ namespace Meadow.Data.Services;
 
 public class MedicineService : IMedicineService
 {
+    /// <summary>
+    /// Klammert den gesamten Suchen-sonst-Anlegen-Lauf von
+    /// <see cref="GetMedicineIdByName"/>.
+    ///
+    /// Ohne die Sperre ist das ein Check-then-Insert ohne Absicherung: zwei
+    /// gleichzeitige Aufrufe mit demselben, neuen Namen sehen beide einen
+    /// Cache ohne Treffer und legen beide eine Zeile an. Mit einem Tablet fiel
+    /// das nicht auf - dort gab es genau einen Bediener zur Zeit. Hinter HTTP
+    /// ist Gleichzeitigkeit der Normalfall.
+    ///
+    /// REICHWEITE: GENAU EIN PROZESS. Das hier ist ein Objekt im Speicher
+    /// dieser Anwendung, kein Datenbankschloss. Solange Meadow als EIN
+    /// Container laeuft - so ist es heute -, deckt es jede Anfrage ab. Stehen
+    /// zwei Instanzen hinter einem Load Balancer, hat jede ihren eigenen
+    /// Semaphor und der Schutz ist weg; dann braucht es eine Sperre in der
+    /// Datenbank (SELECT ... FOR UPDATE) oder einen UNIQUE-Index. Der Index
+    /// setzt voraus, dass die vorhandenen Duplikate vorher aufgeraeumt sind -
+    /// die Merge-Oberflaeche auf den Basisdaten-Seiten ist genau dafuer da.
+    ///
+    /// static, weil er die TABELLE schuetzt und nicht die Instanz. Der Dienst
+    /// ist als Singleton registriert; static traegt auch dann noch, wenn ihn
+    /// jemand ein zweites Mal baut.
+    ///
+    /// Die vier Geschwister (WhereHowService, TreatmentReasonService,
+    /// ClawFindingService, UdderService) haben denselben Semaphor aus
+    /// demselben Grund; dort steht nur noch, was sich unterscheidet.
+    /// </summary>
+    private static readonly SemaphoreSlim MedicineGate = new(1, 1);
+
     private ImmutableDictionary<int, Medicine> _cachedMedicines = ImmutableDictionary<int, Medicine>.Empty;
     private readonly IDbContextFactory<DatabaseContext> _contextFactory;
     private readonly DatabaseStatusService _databaseStatusService;
@@ -309,25 +338,46 @@ public class MedicineService : IMedicineService
             return int.MinValue;
         }
 
-        var id =  _cachedMedicines.Values.FirstOrDefault(m => m.MedicineName.Trim().ToLower() == medicineName.Trim().ToLower())?.MedicineId ?? -1;
-        if(id  == -1)
+        await MedicineGate.WaitAsync();
+        try
         {
-            var newMedicine = new Medicine(0, medicineName.Trim());
-            if (!await InsertDataAsync(newMedicine))
+            // Ein kalter Cache meldet "kennt keiner" und wuerde eine laengst
+            // vorhandene Zeile ein zweites Mal anlegen. Im API-Betrieb waermt
+            // ihn niemand vor - dieselbe Begruendung steht ausfuehrlich an
+            // EndpointCommon.FindAsync. Nur wenn er leer ist, also hoechstens
+            // einmal nach dem Start; ein gefuellter Cache kostet nichts.
+            if (_cachedMedicines.IsEmpty)
             {
-                // Vorher fiel der Code hier auf FirstOrDefault durch und gab
-                // ueber den default-KeyValuePair 0 zurueck. Die Dialoge pruefen
-                // auf int.MinValue, liessen die 0 also durch und schrieben eine
-                // Behandlung mit Medicine_ID 0. Ein Name laenger als die Spalte
-                // laesst das Insert scheitern und macht den Weg erreichbar.
-                return int.MinValue;
+                await GetAllDataAsync();
             }
 
-            id = _cachedMedicines.Values
-                .FirstOrDefault(m => m.MedicineName.Trim().ToLower() == medicineName.Trim().ToLower())
-                ?.MedicineId ?? int.MinValue;
-        }
+            var id =  _cachedMedicines.Values.FirstOrDefault(m => m.MedicineName.Trim().ToLower() == medicineName.Trim().ToLower())?.MedicineId ?? -1;
+            if(id  == -1)
+            {
+                var newMedicine = new Medicine(0, medicineName.Trim());
+                if (!await InsertDataAsync(newMedicine))
+                {
+                    // Vorher fiel der Code hier auf FirstOrDefault durch und gab
+                    // ueber den default-KeyValuePair 0 zurueck. Die Dialoge pruefen
+                    // auf int.MinValue, liessen die 0 also durch und schrieben eine
+                    // Behandlung mit Medicine_ID 0. Ein Name laenger als die Spalte
+                    // laesst das Insert scheitern und macht den Weg erreichbar.
+                    return int.MinValue;
+                }
 
-        return id;
+                id = _cachedMedicines.Values
+                    .FirstOrDefault(m => m.MedicineName.Trim().ToLower() == medicineName.Trim().ToLower())
+                    ?.MedicineId ?? int.MinValue;
+            }
+
+            return id;
+        }
+        finally
+        {
+            // Auch auf dem return int.MinValue oben und auf jeder Ausnahme:
+            // ein nicht freigegebener Semaphor legt jeden weiteren Aufruf
+            // dieser Methode fuer die Lebensdauer des Prozesses still.
+            MedicineGate.Release();
+        }
     }
 }

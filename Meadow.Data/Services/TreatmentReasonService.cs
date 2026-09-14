@@ -20,6 +20,14 @@ public class TreatmentReasonService : ITreatmentReasonService
     /// </summary>
     public const string NoReasonText = "–";
 
+    /// <summary>
+    /// Klammert den Suchen-sonst-Anlegen-Lauf von
+    /// <see cref="GetIdByNameAsync"/>. Warum ueberhaupt, und wie weit das
+    /// traegt - naemlich genau einen Prozess -, steht an
+    /// MedicineService.MedicineGate.
+    /// </summary>
+    private static readonly SemaphoreSlim ReasonGate = new(1, 1);
+
     private ImmutableDictionary<int, TreatmentReason> _cachedReasons =
         ImmutableDictionary<int, TreatmentReason>.Empty;
 
@@ -293,23 +301,39 @@ public class TreatmentReasonService : ITreatmentReasonService
             return int.MinValue;
         }
 
-        var existing = _cachedReasons.Values.FirstOrDefault(r =>
-            string.Equals(r.TreatmentReasonName.Trim(), trimmed, StringComparison.OrdinalIgnoreCase));
-
-        if (existing is not null)
+        await ReasonGate.WaitAsync();
+        try
         {
-            return existing.TreatmentReasonId;
-        }
+            // Ein kalter Cache meldet "kennt keiner" und wuerde einen laengst
+            // vorhandenen Grund ein zweites Mal anlegen; siehe
+            // MedicineService.GetMedicineIdByName.
+            if (_cachedReasons.IsEmpty)
+            {
+                await GetAllDataAsync();
+            }
 
-        if (!await InsertDataAsync(new TreatmentReason(0, trimmed)))
+            var existing = _cachedReasons.Values.FirstOrDefault(r =>
+                string.Equals(r.TreatmentReasonName.Trim(), trimmed, StringComparison.OrdinalIgnoreCase));
+
+            if (existing is not null)
+            {
+                return existing.TreatmentReasonId;
+            }
+
+            if (!await InsertDataAsync(new TreatmentReason(0, trimmed)))
+            {
+                return int.MinValue;
+            }
+
+            // InsertDataAsync hat den Cache neu geladen.
+            return _cachedReasons.Values.FirstOrDefault(r =>
+                string.Equals(r.TreatmentReasonName.Trim(), trimmed, StringComparison.OrdinalIgnoreCase))
+                ?.TreatmentReasonId ?? int.MinValue;
+        }
+        finally
         {
-            return int.MinValue;
+            ReasonGate.Release();
         }
-
-        // InsertDataAsync hat den Cache neu geladen.
-        return _cachedReasons.Values.FirstOrDefault(r =>
-            string.Equals(r.TreatmentReasonName.Trim(), trimmed, StringComparison.OrdinalIgnoreCase))
-            ?.TreatmentReasonId ?? int.MinValue;
     }
 
     /// <summary>

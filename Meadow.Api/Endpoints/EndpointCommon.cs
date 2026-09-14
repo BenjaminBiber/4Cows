@@ -87,6 +87,27 @@ internal static class EndpointCommon
             detail: $"{what} Der Grund steht nur im Serverprotokoll - die Dienste geben ihn nicht zurueck.",
             statusCode: StatusCodes.Status500InternalServerError);
 
+    /// <summary>
+    /// Antwort der fuenf Upsert-Endpunkte (/by-name, /by-quarters), wenn der
+    /// Dienst seinen Fehlerwert geliefert hat.
+    ///
+    /// Die vier Dienste melden Scheitern nicht als false, sondern als SENTINEL
+    /// im Rueckgabewert: int.MinValue bei Medikament, Wie/Wo und
+    /// Behandlungsgrund, ClawFinding.FailedId (derselbe Wert) beim
+    /// Klauenbefund. Diese Zahl darf keinesfalls als Id in den Rumpf.
+    ///
+    /// Ein Client, der sie fuer eine Id haelt, schreibt damit eine Behandlung
+    /// - und -2147483648 ist keine Zahl, die beim Lesen auffaellt: sie sieht
+    /// aus wie irgendein Schluessel, bis irgendwann jemand nach dem Namen
+    /// dahinter sucht und keinen findet. Deshalb hier eine 500 statt
+    /// {"id":-2147483648}.
+    /// </summary>
+    internal static IResult UpsertFailed(string resource, string name)
+        => Results.Problem(
+            title: "Anlegen fehlgeschlagen",
+            detail: $"{resource} \"{name}\" liess sich weder finden noch anlegen. Der Grund steht nur im Serverprotokoll - der Dienst gibt ihn nicht zurueck.",
+            statusCode: StatusCodes.Status500InternalServerError);
+
     internal static IResult Invalid(string field, string message)
         => Results.ValidationProblem(new Dictionary<string, string[]> { [field] = [message] });
 }
