@@ -1,7 +1,7 @@
 # Lokale Entwicklungs-Datenbank für 4Cows.
 #
 # Zieht nur MariaDB (+ Adminer als Web-UI) hoch. Die App selbst läuft beim
-# Entwickeln lokal per `dotnet run --project 4Cows-FE`.
+# Entwickeln lokal per `dotnet run --project Meadow.Api`.
 #
 # Die Werte hier entsprechen exakt den Defaults in Program.cs
 # (DB_SERVER=127.0.0.1, DB_User=root, DB_Password=admin, DB_DB=4cows_v2, DB_PORT=3306),

@@ -21,7 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\BBCowDataLibrary\BBCowDataLibrary.csproj" />
+    <ProjectReference Include="..\Meadow.Data\Meadow.Data.csproj" />
     <ProjectReference Include="..\Meadow.Shared\Meadow.Shared.csproj" />
   </ItemGroup>
 
