@@ -23,3 +23,16 @@
 **/values.dev.yaml
 LICENSE
 README.md
+# Zwei vollstaendige Arbeitskopien dieses Repos, 203 MB. "COPY . ." zoege sie
+# sonst in den Build-Kontext und in einen Layer - unbemerkt, weil das Image
+# trotzdem baut. Gemessen mit "du -sh .claude" am 14.09.2026.
+**/.claude
+
+# Gehoeren in kein Laufzeit-Image.
+**/.github
+docs
+**/TestResults
+
+# Reste eines Builds, dessen -o-Pfad seine Trenner verloren hat. "**/bin" und
+# "**/obj" treffen sie nicht.
+**/Users*
