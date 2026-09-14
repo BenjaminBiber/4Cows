@@ -48,7 +48,12 @@ public class CowService
 
                 if (isSuccess)
                 {
-                    _cachedCows = _cachedCows.Add(cow.CowId, cow);
+                    // SetItem statt Add. Hier ist Add ungefaehrlich, weil Cow_ID ein vom
+                    // Client vergebener String ist (Cow.CreateCalf wuerfelt eine GUID) und
+                    // nicht von der Datenbank kommt. Einheitlich trotzdem, damit beim
+                    // naechsten Cache-Schreiber niemand erst pruefen muss, welche der
+                    // beiden Varianten hier warum steht.
+                    _cachedCows = _cachedCows.SetItem(cow.CowId, cow);
                     LoggerService.LogInformation(typeof(CowService), "Inserted cow: {@cow}.", cow);
                 }
 

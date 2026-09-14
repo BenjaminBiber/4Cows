@@ -50,7 +50,18 @@ namespace BB_Cow.Services
 
                 if (isSuccess)
                 {
-                    _cachedTreatments = _cachedTreatments.Add(clawTreatment.ClawTreatmentId, clawTreatment);
+                    // SetItem statt Add. Der Schluessel ist die Identity, die EF beim
+                    // SaveChangesAsync in die uebergebene Instanz zurueckschreibt. Liegt dieser
+                    // Dienst hinter HTTP, passiert das nicht mehr von selbst: dann stuende hier
+                    // zweimal die 0, und ImmutableDictionary.Add wirft bei gleichem Schluessel
+                    // mit abweichendem Wert. Der ERSTE Insert saehe dabei gut aus, der zweite
+                    // riss die Anwendung auf.
+                    //
+                    // Das hier behebt nur den Absturz, nicht den Fehler: mit Id 0 ersetzte der
+                    // zweite Eintrag still den ersten. Dass die erzeugte Id ueberhaupt ankommt,
+                    // muss die HTTP-Implementierung leisten - sie liest sie aus der Antwort und
+                    // schreibt sie in die uebergebene Instanz, genau wie EF es hier tut.
+                    _cachedTreatments = _cachedTreatments.SetItem(clawTreatment.ClawTreatmentId, clawTreatment);
                     LoggerService.LogInformation(typeof(ClawTreatmentService), "Inserted claw treatment: {@clawTreatment}.", clawTreatment);
                 }
 
@@ -80,7 +91,9 @@ namespace BB_Cow.Services
 
                 if (treatmentResult != null)
                 {
-                    _cachedTreatments = _cachedTreatments.Add(id, treatmentResult);
+                    // SetItem statt Add: zwei gleichzeitige Aufrufe mit derselben Id kommen
+                    // beide am ContainsKey oben vorbei, und der zweite Add wirft dann.
+                    _cachedTreatments = _cachedTreatments.SetItem(id, treatmentResult);
                 }
 
                 return treatmentResult ?? new ClawTreatment();
