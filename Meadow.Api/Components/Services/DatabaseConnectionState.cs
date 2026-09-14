@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Meadow.Data.Services;
+using Meadow.Shared.Services;
 using Meadow.Data.Sql;
 using Microsoft.EntityFrameworkCore;
 

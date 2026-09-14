@@ -3,12 +3,13 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Threading.Tasks;
 using Meadow.Shared.Models;
+using Meadow.Shared.Services;
 using Meadow.Data.Sql;
 using Microsoft.EntityFrameworkCore;
 
 namespace Meadow.Data.Services
 {
-    public class PCowTreatmentService
+    public class PCowTreatmentService : IPCowTreatmentService
     {
         private ImmutableDictionary<int, PlannedCowTreatment> _cachedTreatments = ImmutableDictionary<int, PlannedCowTreatment>.Empty;
         private ImmutableList<string> _cachedMedicineList = ImmutableList<string>.Empty;

@@ -1,11 +1,13 @@
 using System.Collections.Immutable;
+using Meadow.Shared.Lookups;
 using Meadow.Shared.Models;
+using Meadow.Shared.Services;
 using Meadow.Data.Sql;
 using Microsoft.EntityFrameworkCore;
 
 namespace Meadow.Data.Services;
 
-public class CowService
+public class CowService : ICowService
 {
     // Keyed by the stable Cow_ID (never the ear tag): a calf has no ear tag but always has a Cow_ID.
     private ImmutableDictionary<string, Cow> _cachedCows = ImmutableDictionary<string, Cow>.Empty;
@@ -94,60 +96,26 @@ public class CowService
             }
         }
 
-        public Cow GetById(string cowId)
-        {
-            return _cachedCows.ContainsKey(cowId) ? _cachedCows[cowId] : null;
-        }
+        // Ab hier nur noch Weiterleitungen: die Rumpfe stehen in CowLookups,
+        // damit es jede dieser Regeln genau einmal gibt - der EF-Dienst und der
+        // spaetere HTTP-Dienst koennen sich sonst darueber uneinig werden, was
+        // "Kalb" heisst. Die erklaerenden Kommentare sind mit den Rumpfen
+        // umgezogen.
+        public Cow GetById(string cowId) => CowLookups.GetById(_cachedCows, cowId);
 
-        // Finds a cow by its ear tag FIELD (not the Cow_ID key). Needed because a promoted calf
-        // keeps its GUID Cow_ID while gaining an ear tag, so ear-tag lookups can't go through the key.
-        public Cow GetByEarTagNumber(string earTagNumber)
-        {
-            if (string.IsNullOrWhiteSpace(earTagNumber))
-            {
-                return null;
-            }
-            return _cachedCows.Values.FirstOrDefault(c => c.EarTagNumber == earTagNumber);
-        }
+        public Cow GetByEarTagNumber(string earTagNumber) => CowLookups.GetByEarTagNumber(_cachedCows, earTagNumber);
 
         public string GetEarTagNumberByCollarNumber(int collarNumber, bool searchContainsLeavage = true)
-        {
-            if(searchContainsLeavage)
-            {
-                return _cachedCows.Values.FirstOrDefault(c => c.CollarNumber == collarNumber)?.EarTagNumber ?? String.Empty;
-            }
-            else
-            {
-                return _cachedCows.Values.FirstOrDefault(c => c.CollarNumber == collarNumber && !c.IsGone)?.EarTagNumber ?? String.Empty;
-            }
-        }
+            => CowLookups.GetEarTagNumberByCollarNumber(_cachedCows, collarNumber, searchContainsLeavage);
 
-        // Resolves a collar number to the cow's stable Cow_ID. Works for calves (no ear tag) too,
-        // which is why treatment dialogs use this instead of GetEarTagNumberByCollarNumber.
         public string GetCowIdByCollarNumber(int collarNumber, bool includeGone = false)
-        {
-            var match = includeGone
-                ? _cachedCows.Values.FirstOrDefault(c => c.CollarNumber == collarNumber)
-                : _cachedCows.Values.FirstOrDefault(c => c.CollarNumber == collarNumber && !c.IsGone);
-            return match?.CowId ?? String.Empty;
-        }
+            => CowLookups.GetCowIdByCollarNumber(_cachedCows, collarNumber, includeGone);
 
-        public int GetCollarNumberByCowId(string cowId)
-        {
-            return !string.IsNullOrEmpty(cowId) && _cachedCows.ContainsKey(cowId) ? _cachedCows[cowId].CollarNumber : int.MinValue;
-        }
+        public int GetCollarNumberByCowId(string cowId) => CowLookups.GetCollarNumberByCowId(_cachedCows, cowId);
 
-        // The non-gone calf (no ear tag) that carries this collar number, if any.
-        public Cow GetCalfByCollarNumber(int collarNumber)
-        {
-            return _cachedCows.Values.FirstOrDefault(c => c.IsCalv && !c.IsGone
-                && string.IsNullOrWhiteSpace(c.EarTagNumber) && c.CollarNumber == collarNumber);
-        }
+        public Cow GetCalfByCollarNumber(int collarNumber) => CowLookups.GetCalfByCollarNumber(_cachedCows, collarNumber);
 
-        public bool IsCollarInUse(int collarNumber)
-        {
-            return _cachedCows.Values.Any(c => !c.IsGone && c.CollarNumber == collarNumber);
-        }
+        public bool IsCollarInUse(int collarNumber) => CowLookups.IsCollarInUse(_cachedCows, collarNumber);
 
         public async Task<bool> UpdateCollarNumberAsync(string cowId, int newCollarNumber)
         {
@@ -245,74 +213,14 @@ public class CowService
             }
         }
 
-        // Autocomplete search for the treatment dialogs. Matches on collar number, ear tag OR Cow_ID,
-        // and returns Cow_IDs (the value the treatment stores). Excludes cows that left the farm.
+        // Task.FromResult bleibt hier, nicht in CowLookups: die Rechnung ist
+        // synchron, aber die Signatur dieser Methode darf sich nicht aendern.
         public Task<IEnumerable<string>> SearchCows(string value, CancellationToken token)
-        {
-            IEnumerable<Cow> query = _cachedCows.Values.Where(c => !c.IsGone);
-            if (!string.IsNullOrEmpty(value))
-            {
-                query = query.Where(c =>
-                    (c.EarTagNumber != null && c.EarTagNumber.Contains(value, StringComparison.InvariantCultureIgnoreCase))
-                    || c.CollarNumber.ToString().Contains(value)
-                    || c.CowId.Contains(value, StringComparison.InvariantCultureIgnoreCase));
-            }
+            => Task.FromResult(CowLookups.SearchCows(_cachedCows, value));
 
-            return Task.FromResult(query.OrderBy(c => c.CollarNumber).Select(c => c.CowId));
-        }
+        public string GetEarTagDisplay(string cowId) => CowLookups.GetEarTagDisplay(_cachedCows, cowId);
 
-        // Ear-tag-only display for a Cow_ID: the real ear tag for identified cows, "Kalb" for a
-        // calf (or an unknown/removed cow). Used by the "Ohrmarkennummer" table columns so a calf's
-        // raw Cow_ID (a GUID) is never shown.
-        public string GetEarTagDisplay(string cowId)
-        {
-            if (!string.IsNullOrEmpty(cowId) && _cachedCows.TryGetValue(cowId, out var cow)
-                && !string.IsNullOrWhiteSpace(cow.EarTagNumber))
-            {
-                return cow.EarTagNumber;
-            }
-            return "Kalb";
-        }
+        public string GetDisplayLabel(string? cowId) => CowLookups.GetDisplayLabel(_cachedCows, cowId);
 
-        // Ohrmarken-Label fuer einen Cow_ID in den Behandlungsdialogen. Die Halsbandnummer steht
-        // direkt daneben in ihrem eigenen Feld und wird hier deshalb nicht wiederholt. Ein Kalb
-        // hat keine Ohrenmarkennummer, dort bleibt die Halsbandnummer als einziges Merkmal.
-        public string GetDisplayLabel(string? cowId)
-        {
-            if (string.IsNullOrEmpty(cowId) || !_cachedCows.ContainsKey(cowId))
-            {
-                return cowId ?? string.Empty;
-            }
-
-            var cow = _cachedCows[cowId];
-            if (cow.IsCalv || string.IsNullOrWhiteSpace(cow.EarTagNumber))
-            {
-                return $"Kalb ({cow.CollarNumber})";
-            }
-
-            return cow.EarTagNumber;
-        }
-
-        public bool FilterFuncCow(string cowId, string searchString)
-        {
-            if (!Cows.ContainsKey(cowId))
-            {
-                return false;
-            }
-            var cow = Cows[cowId];
-            if (string.IsNullOrWhiteSpace(searchString))
-                return true;
-            var search = searchString.ToLower();
-            var collar = cow.CollarNumber.ToString().ToLower();
-            var earTag = cow.EarTagNumber?.ToLower() ?? string.Empty;
-            if (searchString.Length < 3 && search == collar)
-            {
-                return true;
-            }
-            if ((searchString.Length >= 3 && earTag.Contains(search)) || collar == search)
-            {
-                return true;
-            }
-            return false;
-        }
+        public bool FilterFuncCow(string cowId, string searchString) => CowLookups.FilterFuncCow(_cachedCows, cowId, searchString);
 }

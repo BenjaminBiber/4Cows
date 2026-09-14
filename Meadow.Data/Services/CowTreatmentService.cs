@@ -4,7 +4,9 @@ using System.Collections.Immutable;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Threading.Tasks;
+using Meadow.Shared.Lookups;
 using Meadow.Shared.Models;
+using Meadow.Shared.Services;
 using Meadow.Data.Sql;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,7 +15,7 @@ using Microsoft.EntityFrameworkCore;
 // eingerueckt werden muss und der Commit nachweisbar nur Namensraumzeilen aendert.
 namespace Meadow.Data.Services;
 
-public class CowTreatmentService
+public class CowTreatmentService : ICowTreatmentService
 {
     private ImmutableDictionary<int, CowTreatment> _cachedTreatments = ImmutableDictionary<int, CowTreatment>.Empty;
     private ImmutableList<int> _cachedDistinctWhereHows = ImmutableList<int>.Empty;
@@ -22,8 +24,10 @@ public class CowTreatmentService
 
     public ImmutableDictionary<int, CowTreatment> Treatments => _cachedTreatments;
     public ImmutableList<int> DistinctWhereHows => _cachedDistinctWhereHows;
-    private readonly WhereHowService _whereHowService;
-    public CowTreatmentService(WhereHowService whereHowService, IDbContextFactory<DatabaseContext> contextFactory, DatabaseStatusService databaseStatusService)
+    // Auf die Naht verbreitert, nicht entfernt: dieser Dienst braucht die
+    // Wie/Wo-Namen weiterhin, nur nicht mehr die EF-Implementierung davon.
+    private readonly IWhereHowService _whereHowService;
+    public CowTreatmentService(IWhereHowService whereHowService, IDbContextFactory<DatabaseContext> contextFactory, DatabaseStatusService databaseStatusService)
     {
         _whereHowService = whereHowService;
         _contextFactory = contextFactory;
@@ -150,77 +154,29 @@ public class CowTreatmentService
         }
     }
     
+    // Ab hier nur noch Weiterleitungen; die Rumpfe stehen in
+    // CowTreatmentLookups. DateTime.Now wird dort zum Parameter, damit die
+    // Rechnung nicht an der Uhr des Servers haengt - diese Signaturen bleiben
+    // unveraendert.
     public int[] GetCowTreatmentChartData(int? year = null)
-    {
-        var currentYear = year.HasValue ? year.Value :  DateTime.Now.Year;
-        var months = Enumerable.Range(1, 12);
-
-        var groupedData = _cachedTreatments.Values
-            .Where(obj => obj.AdministrationDate.Year == currentYear) 
-            .GroupBy(obj => obj.AdministrationDate.Month)
-            .ToDictionary(g => g.Key, g => g.Count());
-
-        return months
-            .Select(month => groupedData.ContainsKey(month) ? groupedData[month] : 0)
-            .ToArray();
-    }
+        => CowTreatmentLookups.GetCowTreatmentChartData(_cachedTreatments.Values, DateTime.Now, year);
 
     public int[] GetCowTreatmentMedicineChartData(int medicine, int? year = null)
-    {
-        var currentYear = DateTime.Now.Year;
-        if (year.HasValue)
-        {
-            currentYear = year.Value;
-        }
-        
-        var months = Enumerable.Range(1, 12);
+        => CowTreatmentLookups.GetCowTreatmentMedicineChartData(_cachedTreatments.Values, DateTime.Now, medicine, year);
 
-        return months
-            .Select(month => _cachedTreatments.Values
-                .Count(obj => obj.AdministrationDate.Year == currentYear && 
-                              obj.AdministrationDate.Month == month &&
-                              obj.MedicineId == medicine))
-            .ToArray();
-    }
-    
-    /// <summary>
-    /// Vorschlaege fuer das Medikamenten-Autocomplete.
-    ///
-    /// Ueber <see cref="MedicineSearch.Rank"/> statt alphabetisch ueber die
-    /// ganze Liste: Treffer am Wortanfang stehen damit vor Treffern irgendwo
-    /// in der Mitte. Tippt jemand "Met", steht Metacam vor einem Praeparat,
-    /// das "Metamizol" nur im hinteren Teil des Namens fuehrt.
-    /// </summary>
-    public async Task<IEnumerable<string>> SearchCowTreatmentMedicaments(string value, CancellationToken token, MedicineService medicineService)
+    // Bleibt async, obwohl nichts erwartet wird: das ist der heutige Zustand
+    // und keine Aufraeumarbeit dieses Schrittes. Der Dienst-Parameter ist auf
+    // die Naht verbreitert; herausgeholt wird daraus nur der Cache.
+    public async Task<IEnumerable<string>> SearchCowTreatmentMedicaments(string value, CancellationToken token, IMedicineService medicineService)
     {
-        return MedicineSearch.Rank(medicineService.Medicines.Values, value);
+        return CowTreatmentLookups.SearchCowTreatmentMedicaments(medicineService.Medicines.Values, value);
     }
 
     public async Task<IEnumerable<string>> SearchCowTreatmentWhereHow(string value, CancellationToken token)
     {
-        if (string.IsNullOrEmpty(value) || !_whereHowService.WhereHowNames.Any())
-        {
-            return _whereHowService.WhereHowNames;
-        }
-
-        if(!string.IsNullOrEmpty(value) && !_whereHowService.WhereHowNames.Any(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase)))
-        {
-            return new List<string>() { value.Trim() };
-        }
-        
-        return _whereHowService.WhereHowNames.Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
+        return CowTreatmentLookups.SearchCowTreatmentWhereHow(_whereHowService.WhereHowNames, value);
     }
 
     public int GetMinYear()
-    {
-        // Min() auf einer leeren Sequenz wirft. Erreichbar ueber
-        // ChartDateDialog, also genau im Zustand direkt nach der
-        // Erstinstallation - dort riss die Jahresauswahl den Circuit ab.
-        if (_cachedTreatments.IsEmpty)
-        {
-            return DateTime.Now.Year;
-        }
-
-        return _cachedTreatments.Values.Min(t => t.AdministrationDate).Year;
-    }
+        => CowTreatmentLookups.GetMinYear(_cachedTreatments.Values, DateTime.Now);
 }

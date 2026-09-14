@@ -1,11 +1,13 @@
 using System.Collections.Immutable;
+using Meadow.Shared.Lookups;
 using Meadow.Shared.Models;
+using Meadow.Shared.Services;
 using Meadow.Data.Sql;
 using Microsoft.EntityFrameworkCore;
 
 namespace Meadow.Data.Services;
 
-public class UdderService
+public class UdderService : IUdderService
 {
     private ImmutableDictionary<int, Udder> _cachedUdder = ImmutableDictionary<int, Udder>.Empty;
     private readonly IDbContextFactory<DatabaseContext> _contextFactory;
@@ -119,22 +121,9 @@ public class UdderService
             .FirstOrDefault(x => !x.QuarterLV && !x.QuarterLH && !x.QuarterRH && !x.QuarterRV) ?? new Udder()).UdderId;
     }
 
-    /// <summary>
-    /// Ob die ID fuer mindestens ein Viertel steht.
-    ///
-    /// Unbekannte IDs zaehlen als keines - und dazu gehoert int.MinValue,
-    /// also "im Dialog noch nichts gewaehlt". Genau das unterscheidet
-    /// "noch nichts gewaehlt" von der Zeile fuer "kein bestimmtes Viertel"
-    /// nicht, und muss es auch nicht: beides ist keine Viertel-Angabe.
-    /// </summary>
-    public bool HasAnyQuarter(int id)
-    {
-        var udder = GetById(id);
-        return udder.QuarterLV || udder.QuarterRV || udder.QuarterLH || udder.QuarterRH;
-    }
+    // Weiterleitungen; die Rumpfe stehen in UdderLookups, damit es die Regel
+    // "unbekannte ID heisst keine Viertel" genau einmal gibt.
+    public bool HasAnyQuarter(int id) => UdderLookups.HasAnyQuarter(_cachedUdder, id);
 
-    public Udder GetById(int id)
-    {
-        return _cachedUdder.ContainsKey(id) ? _cachedUdder[id] : new Udder();
-    }
+    public Udder GetById(int id) => UdderLookups.GetById(_cachedUdder, id);
 }

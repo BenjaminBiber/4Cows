@@ -2,13 +2,15 @@ using System;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading.Tasks;
+using Meadow.Shared.Lookups;
 using Meadow.Shared.Models;
+using Meadow.Shared.Services;
 using Meadow.Data.Sql;
 using Microsoft.EntityFrameworkCore;
 
 namespace Meadow.Data.Services
 {
-    public class ClawTreatmentService
+    public class ClawTreatmentService : IClawTreatmentService
     {
         private ImmutableDictionary<int, ClawTreatment> _cachedTreatments = ImmutableDictionary<int, ClawTreatment>.Empty;
         private readonly IDbContextFactory<DatabaseContext> _contextFactory;
@@ -252,30 +254,18 @@ namespace Meadow.Data.Services
             }
         }
         
+        // Ab hier nur noch Weiterleitungen; die Rumpfe stehen in
+        // ClawTreatmentLookups. DateTime.Now wird dort zum Parameter, damit die
+        // Rechnung nicht an der Uhr des Servers haengt - diese Signatur bleibt
+        // unveraendert.
         public int[] GetClawTreatmentChartData(int? year = null)
-        {
-            var currentYear = year.HasValue ? year.Value : DateTime.Now.Year;
-            var months = Enumerable.Range(1, 12);
-
-            var groupedData = _cachedTreatments.Values
-                .Where(obj => obj.TreatmentDate.Year == currentYear)
-                .GroupBy(obj => obj.TreatmentDate.Month)
-                .ToDictionary(g => g.Key, g => g.Count());
-
-            return months
-                .Select(month => groupedData.ContainsKey(month) ? groupedData[month] : 0)
-                .ToArray();
-        }
+            => ClawTreatmentLookups.GetClawTreatmentChartData(_cachedTreatments.Values, DateTime.Now, year);
 
         public List<ClawTreatment> GetClawTreatments()
-        {
-            return Treatments.Values.ToList();
-        }
+            => ClawTreatmentLookups.GetClawTreatments(Treatments.Values);
 
         public List<ClawTreatment> GetClawTreatmentsWithBandage()
-        {
-            return Treatments.Values.Where(x => (x.BandageLH || x.BandageLV || x.BandageRV || x.BandageRH) && !x.IsBandageRemoved).OrderBy(x => x.TreatmentDate).ToList();
-        }
+            => ClawTreatmentLookups.GetClawTreatmentsWithBandage(Treatments.Values);
 
     }
 }

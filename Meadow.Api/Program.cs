@@ -1,6 +1,9 @@
 using Meadow.Api.Components;
 using Meadow.Api.Components.Services;
 using Meadow.Shared.Kpi;
+// DatabaseStatusService liegt seit der Interface-Naht in Meadow.Shared.Services.
+// Die Registrierungen unten bleiben bewusst auf den konkreten Typen.
+using Meadow.Shared.Services;
 using Meadow.Data.Services;
 using Meadow.Data.Services;
 using Meadow.Data.Sql;

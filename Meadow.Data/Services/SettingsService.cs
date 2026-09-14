@@ -1,5 +1,7 @@
 using System.Collections.Immutable;
+using Meadow.Shared.Lookups;
 using Meadow.Shared.Models;
+using Meadow.Shared.Services;
 using Meadow.Data.Sql;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,7 +11,7 @@ namespace Meadow.Data.Services;
 /// Pflegbare Standardwerte. Gleiche Bauweise wie die uebrigen Services:
 /// Singleton mit prozessweitem, unveraenderlichem Cache.
 /// </summary>
-public class SettingsService
+public class SettingsService : ISettingsService
 {
     private ImmutableDictionary<string, string> _cached = ImmutableDictionary<string, string>.Empty;
     private readonly IDbContextFactory<DatabaseContext> _contextFactory;
@@ -42,21 +44,23 @@ public class SettingsService
         }
     }
 
+    // Weiterleitungen; die Rumpfe stehen in SettingsLookups. Auch die beiden
+    // abgeleiteten Werte: ihr Rueckfallwert ist je ein Literal, und zwei
+    // Kopien von "Pflege" oder "ml" waeren genau die Drift, die die Naht
+    // verhindern soll.
     public string Get(string key, string fallback = "")
-        => _cached.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value)
-            ? value
-            : fallback;
+        => SettingsLookups.Get(_cached, key, fallback);
 
     /// <summary>Anzeigetext fuer Klauen ohne erfassten Befund.</summary>
     public string ClawFindingFallback
-        => Get(AppSetting.ClawFindingFallbackKey, "Pflege");
+        => SettingsLookups.ClawFindingFallback(_cached);
 
     /// <summary>
     /// Einheit fuer Mengen, deren Medikament keine Dosiereinheit hinterlegt
     /// hat. War vorher eine Konstante in Cow_Table.
     /// </summary>
     public string DefaultDosageUnit
-        => Get(AppSetting.DefaultDosageUnitKey, "ml");
+        => SettingsLookups.DefaultDosageUnit(_cached);
 
     public async Task<bool> SetAsync(string key, string value)
     {
