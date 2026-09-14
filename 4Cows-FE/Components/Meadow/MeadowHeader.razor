@@ -6,6 +6,18 @@
         <MeadowIcon Name="MeadowIconName.Menu" Size="22" />
     </button>
 
+    @* Ein echtes a und kein history.back(): siehe LayoutState.PageBackHref.
+       Der Chevron ist derselbe wie ueberall, nur gedreht - ein eigener
+       Pfeil-Pfad waere ein zweites Icon fuer dieselbe Geste, genau wie beim
+       Zurueck-Knopf des Tabellen-Pagers. *@
+    @if (BackHref is not null)
+    {
+        <a class="mw-icon-btn mw-icon-btn--text mw-icon-btn--back" href="@BackHref"
+           title="@BackTitle" aria-label="@BackTitle">
+            <MeadowIcon Name="MeadowIconName.ChevronDown" Size="20" />
+        </a>
+    }
+
     @*
         Der Titel ist zweimal im Markup, CSS zeigt eine Variante.
 
@@ -85,6 +97,12 @@
 
     /// <summary>Statusmarken neben dem Kennzeichen, z.B. "Kalb" oder "Abgang".</summary>
     [Parameter] public IReadOnlyList<PageTag> Tags { get; set; } = Array.Empty<PageTag>();
+
+    /// <summary>Ziel des Zurueck-Pfeils, oder null fuer keinen Pfeil.</summary>
+    [Parameter] public string? BackHref { get; set; }
+
+    /// <summary>Wohin der Pfeil fuehrt - als Tooltip und fuer Screenreader.</summary>
+    [Parameter] public string BackTitle { get; set; } = "Zurück zur Übersicht";
 
     [Parameter] public bool HasSiblings { get; set; }
     [Parameter] public bool IsDark { get; set; }

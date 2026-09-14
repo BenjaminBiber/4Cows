@@ -147,7 +147,33 @@ else
             </div>
 
             <div class="mw-cow-col mw-cow-col--lists">
-                <div class="mw-tabs mw-tabs--scroll">
+                @* Mobil ein Auswahlfeld statt fuenf Laschen: auf 375px sind
+                   die fuenf eine Leiste, die man seitwaerts schieben muss,
+                   und was hinter dem Rand liegt, findet man nur durch
+                   Probieren. Ein select oeffnet die native Liste des
+                   Geraets, zeigt alle fuenf samt Zahl und braucht eine Zeile.
+
+                   Beide Varianten stehen im Markup, CSS zeigt eine - wie beim
+                   Titel in MeadowHeader: Blazor Server prerendert ohne
+                   Viewport-Wissen, jede JS-Weiche rendert beim ersten Frame
+                   die falsche und klappt dann um.
+
+                   Das select ist zwangslaeufig ein onchange und kein Link.
+                   Die Adresse stimmt trotzdem: NavigateTo geht auf dieselbe
+                   TabHref wie die Lasche daneben. *@
+                <label class="mw-tab-select mw-only-mobile">
+                    <span class="mw-sr-only">Liste wählen</span>
+                    <select @onchange="OnTabPicked">
+                        @foreach (var tab in CowDetailTabs.All)
+                        {
+                            <option value="@CowDetailTabs.ToSlug(tab)" selected="@(_tab == tab)">
+                                @CowDetailTabs.Label(tab) (@Count(tab))
+                            </option>
+                        }
+                    </select>
+                </label>
+
+                <div class="mw-tabs mw-tabs--scroll mw-only-desktop">
                     @foreach (var tab in CowDetailTabs.All)
                     {
                         @* Echte Links, keine Knoepfe: die Auswahl lebt in ?tab=, also ist
@@ -324,7 +350,7 @@ else
         // Aenderung in der Basisdatenpflege gar nicht hier vorbeikommt. Der
         // zweite Aufruf kostet nichts: SetPageHeading meldet nur, wenn sich
         // wirklich etwas geaendert hat.
-        Layout.SetPageHeading(HeaderTitle, HeaderEarTag, HeaderTags);
+        Layout.SetPageHeading(HeaderTitle, HeaderEarTag, HeaderTags, MeadowRoutes.Cows);
     }
 
     public void Dispose()
@@ -381,7 +407,7 @@ else
         // Wer das Tier ist, steht im Kopf der Anwendung und nicht auf der
         // Seite. LayoutState meldet nur, wenn sich wirklich etwas geaendert
         // hat - der Aufruf bei jedem Neuaufbau kostet also nichts.
-        Layout.SetPageHeading(HeaderTitle, HeaderEarTag, HeaderTags);
+        Layout.SetPageHeading(HeaderTitle, HeaderEarTag, HeaderTags, MeadowRoutes.Cows);
 
         MarkChartDirty();
     }
@@ -555,6 +581,14 @@ else
     /// </summary>
     private string TabHref(CowDetailTab tab)
         => $"{MeadowRoutes.CowDetailFor(CowId)}?tab={CowDetailTabs.ToSlug(tab)}";
+
+    /// <summary>
+    /// Das mobile Auswahlfeld. Geht ueber TabHref auf dieselbe Adresse wie
+    /// die Lasche am Desktop - damit landet die Auswahl im Verlauf und der
+    /// Zurueck-Knopf tut, was er soll.
+    /// </summary>
+    private void OnTabPicked(ChangeEventArgs args)
+        => Nav.NavigateTo(TabHref(CowDetailTabs.Parse(args.Value?.ToString())));
 
     // ---- Diagramm -------------------------------------------------------
 

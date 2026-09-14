@@ -42,6 +42,16 @@ public sealed class LayoutState
     /// <summary>Statusmarken neben dem Titel, z.B. "Kalb" oder "Abgang".</summary>
     public IReadOnlyList<PageTag> PageTags { get; private set; } = Array.Empty<PageTag>();
 
+    /// <summary>
+    /// Ziel des Zurueck-Pfeils links vom Titel, oder null fuer keinen Pfeil.
+    ///
+    /// Eine Adresse und nicht history.back(): eine Detailseite erreicht man
+    /// auch ueber einen geteilten Link oder ein Lesezeichen, und "zurueck"
+    /// waere dann die Seite davor im Browserverlauf - also irgendetwas. Der
+    /// Pfeil fuehrt immer dorthin, wo das Ding in einer Liste steht.
+    /// </summary>
+    public string? PageBackHref { get; private set; }
+
     public event Action? Changed;
 
     /// <summary>
@@ -52,7 +62,8 @@ public sealed class LayoutState
     public void SetPageHeading(
         string? title,
         string? subtitle = null,
-        IReadOnlyList<PageTag>? tags = null)
+        IReadOnlyList<PageTag>? tags = null,
+        string? backHref = null)
     {
         tags ??= Array.Empty<PageTag>();
 
@@ -62,6 +73,7 @@ public sealed class LayoutState
         // dasselbe Schild traegt.
         if (PageTitleOverride == title
             && PageSubtitle == subtitle
+            && PageBackHref == backHref
             && PageTags.SequenceEqual(tags))
         {
             return;
@@ -70,6 +82,7 @@ public sealed class LayoutState
         PageTitleOverride = title;
         PageSubtitle = subtitle;
         PageTags = tags;
+        PageBackHref = backHref;
         Changed?.Invoke();
     }
 

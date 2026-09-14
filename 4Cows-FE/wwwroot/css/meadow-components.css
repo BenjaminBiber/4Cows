@@ -165,6 +165,12 @@
 }
 .mw-icon-btn--text { color: var(--mw-text); }
 
+/* Der Zurueck-Pfeil im Seitenkopf ist ein a und kein button - deshalb die
+   Reset-Werte, die ein button von sich aus mitbringt. Der Chevron ist
+   derselbe wie ueberall, nur gedreht; genauso macht es .mw-pager__btn--prev. */
+a.mw-icon-btn { text-decoration: none; }
+.mw-icon-btn--back svg { transform: rotate(90deg); }
+
 .mw-icon-btn-sm {
   display: inline-flex;
   align-items: center;
@@ -2546,20 +2552,20 @@ button.mw-nav-item {
   }
 
   /* Fuenf Laschen in einer halben Bildschirmbreite. */
-  .mw-cow-col--lists .mw-tab { padding: 9px 14px; font-size: 13px; }
+  .mw-cow-col--lists .mw-tab { padding: 8px 12px; font-size: 12.5px; }
 
   /* Der Umschalter der oberen Karte steht statt eines Kartentitels - er darf
      die Karte nicht so hoch machen wie eine Ueberschrift plus Laschen. */
-  .mw-cow-col .mw-tabs--card .mw-tab { padding: 5px 11px; font-size: 13px; }
+  .mw-cow-col .mw-tabs--card .mw-tab { padding: 4px 10px; font-size: 12.5px; }
 
   /* Kompakte Karten: die Polsterung von .mw-card ist auf ganze Seiten-
      breite gerechnet, hier stapeln sich drei davon uebereinander. */
   .mw-cow-col .mw-card {
-    padding: 10px 14px;
+    padding: 9px 12px;
     border-radius: var(--mw-r-2xl);
   }
   .mw-cow-col .mw-card__head { margin-bottom: 6px; }
-  .mw-cow-col .mw-card-title { font-size: 15px; }
+  .mw-cow-col .mw-card-title { font-size: 14px; }
 
   /* Das Diagramm ist der Puffer der Spalte: es nimmt, was die drei Karten
      uebrig lassen, und gibt als erstes wieder ab. Zwoelf Balken brauchen
@@ -2633,19 +2639,19 @@ button.mw-nav-item {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: baseline;
-  gap: 2px 8px;
-  padding: 8px 12px;
+  gap: 4px 8px;
+  padding: 13px 14px;
   border-radius: var(--mw-r-lg);
 }
-.mw-kpi-grid--cow .mw-kpi__title { grid-column: 1 / -1; font-size: 11px; }
-.mw-kpi-grid--cow .mw-kpi__value { font-size: 24px; }
-.mw-kpi-grid--cow .mw-kpi__delta { font-size: 11px; }
+.mw-kpi-grid--cow .mw-kpi__title { grid-column: 1 / -1; font-size: 12px; }
+.mw-kpi-grid--cow .mw-kpi__value { font-size: 32px; }
+.mw-kpi-grid--cow .mw-kpi__delta { font-size: 12px; }
 
 /* Kacheln, deren Wert ein Wort ist und keine Zahl. Die Groesse steht in der
    --cow-Regel und nicht hier: die Klasse kommt nur auf dieser Seite vor,
    und dort setzt sie ohnehin jede Regel dieses Abschnitts. */
 .mw-kpi--text .mw-kpi__value { overflow-wrap: anywhere; }
-.mw-kpi-grid--cow .mw-kpi--text .mw-kpi__value { font-size: 15px; line-height: 1.25; }
+.mw-kpi-grid--cow .mw-kpi--text .mw-kpi__value { font-size: 19px; line-height: 1.2; }
 
 /* ── Karten der Auswertungsspalte ─────────────────────────────── */
 /* Wie .mw-card--chart, aber ohne Canvas - fuer Klauen, Kuchendiagramme und
@@ -2727,7 +2733,7 @@ button.mw-nav-item {
   grid-template-columns: 1fr 1fr;
   gap: 6px;
 }
-.mw-part-grid .mw-level { width: 34px; height: 34px; }
+.mw-part-grid .mw-level { width: 30px; height: 30px; }
 
 /* Bei den Klauen IST die Zelle der Link auf die gefilterte Liste; beim Euter
    ist sie ein div - Kuhbehandlungen lassen sich nicht nach Viertel filtern.
@@ -2740,7 +2746,7 @@ button.mw-nav-item {
   align-items: center;
   gap: 9px;
   min-width: 0;
-  padding: 7px 10px;
+  padding: 6px 9px;
   background: var(--mw-tint);
   border: 1px solid var(--mw-border);
   border-radius: var(--mw-r-2xl);
@@ -2771,7 +2777,7 @@ button.mw-nav-item {
 /* Umbrechen statt kuerzen. Nebeneinander bleiben einer Zelle rund 90px fuer
    die Beschriftung, und "Rechts Hinten" braucht in einer Zeile 110 - mit
    Ellipse stuende dort "Rechts Hin...". Ueber zwei Zeilen bleibt die Zelle
-   sogar gleich hoch: zwei Zeilen sind niedriger als der 34px-Umriss daneben. */
+   sogar gleich hoch: zwei Zeilen sind niedriger als der 30px-Umriss daneben. */
 .mw-part-cell__label {
   flex: 1;
   min-width: 0;
@@ -2953,6 +2959,23 @@ button.mw-nav-item {
   scrollbar-width: thin;
 }
 .mw-tabs--scroll .mw-tab { flex: 0 0 auto; white-space: nowrap; }
+
+/* ── Listenauswahl (mobil statt der fuenf Laschen) ────────────── */
+/* Ein natives select, damit das Geraet seine eigene Auswahlliste oeffnet -
+   die trifft man mit dem Daumen sicherer als fuenf Laschen in einer
+   Schiebeleiste, und sie zeigt alle fuenf auf einmal. Die Sichtbarkeit
+   regelt .mw-only-mobile am Element. */
+.mw-tab-select select {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-lg);
+  background: var(--mw-panel);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--mw-text);
+}
 
 /* ── Aktiver Klauenfilter ─────────────────────────────────────── */
 /* Steht zwischen Laschen und Tabelle, weil die Liste darunter sonst
