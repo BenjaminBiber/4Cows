@@ -1,13 +1,13 @@
 @using Meadow.Api.Components.Ui
 
 @inject ISnackbar Snackbar
-@inject CowTreatmentService cowTreatmentService
-@inject CowService cowService
-@inject MedicineService medicineService
-@inject WhereHowService WhereHowService
-@inject UdderService UdderService
-@inject TreatmentReasonService TreatmentReasonService
-@inject SettingsService SettingsService
+@inject ICowTreatmentService cowTreatmentService
+@inject ICowService cowService
+@inject IMedicineService medicineService
+@inject IWhereHowService WhereHowService
+@inject IUdderService UdderService
+@inject ITreatmentReasonService TreatmentReasonService
+@inject ISettingsService SettingsService
 
 <MeadowDialog Title="Kuh Behandlung hinzufügen" Size="MeadowDialogSize.Cow">
     <ChildContent>

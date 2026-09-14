@@ -25,9 +25,9 @@ public class XLinkService : IXLinkService
     // and avoids socket exhaustion; the ReportTable is fetched at most daily/on demand.
     private static readonly HttpClient HttpClient = new();
 
-    private readonly CowService _cowService;
+    private readonly ICowService _cowService;
 
-    public XLinkService(CowService cowService)
+    public XLinkService(ICowService cowService)
     {
         _cowService = cowService;
     }

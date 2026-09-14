@@ -11,8 +11,8 @@
 *@
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
-@inject ClawTreatmentService clawTreatmentService
-@inject ClawFindingService clawFindingService
+@inject IClawTreatmentService clawTreatmentService
+@inject IClawFindingService clawFindingService
 
 <MeadowTable TItem="BandagedClaw" Items="_rows" Columns="_columns"
              RowKey="@(r => r.Key)"

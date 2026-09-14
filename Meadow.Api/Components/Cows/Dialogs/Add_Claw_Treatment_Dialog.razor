@@ -1,9 +1,9 @@
 @using Meadow.Api.Components.Ui
 
 @inject ISnackbar Snackbar
-@inject ClawTreatmentService clawTreatmentService
-@inject ClawFindingService clawFindingService
-@inject CowService cowService
+@inject IClawTreatmentService clawTreatmentService
+@inject IClawFindingService clawFindingService
+@inject ICowService cowService
 
 @*
     Aus vier if/else-Zweigen mit je drei duplizierten Eingaben (und dem

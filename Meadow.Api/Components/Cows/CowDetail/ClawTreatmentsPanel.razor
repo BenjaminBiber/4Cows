@@ -9,8 +9,8 @@
     Aenderungsmodus (ClawTreatmentId != 0).
 *@
 @inject IDialogService DialogService
-@inject SettingsService Settings
-@inject ClawFindingService ClawFindingService
+@inject ISettingsService Settings
+@inject IClawFindingService ClawFindingService
 
 <MeadowTable TItem="ClawTreatment" Items="Rows" Columns="_columns"
              RowKey="@(r => r.ClawTreatmentId)"

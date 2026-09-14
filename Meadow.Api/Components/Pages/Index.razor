@@ -13,10 +13,10 @@
 @inject MeadowDialogLauncher Launcher
 @inject MeadowDataChanges Changes
 @inject ThemeState Theme
-@inject CowTreatmentService cowTreatmentService
-@inject ClawTreatmentService clawTreatmentService
-@inject MedicineService medicineService
-@inject KPIService KPIService
+@inject ICowTreatmentService cowTreatmentService
+@inject IClawTreatmentService clawTreatmentService
+@inject IMedicineService medicineService
+@inject IKPIService KPIService
 @inject DatabaseConnectionState DatabaseConnectionState
 
 <MeadowOfflineGate Visible="@(!DatabaseConnectionState.IsConnected)" />
