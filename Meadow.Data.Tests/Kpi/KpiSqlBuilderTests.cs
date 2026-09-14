@@ -1,7 +1,7 @@
-using BB_Cow.Class;
-using BB_Cow.Kpi;
+using Meadow.Shared.Models;
+using Meadow.Shared.Kpi;
 
-namespace BBCowDataLibrary.Tests.Kpi;
+namespace Meadow.Data.Tests.Kpi;
 
 /// <summary>
 /// The generated script is what an author refines by hand in the expert mode, so it has to be

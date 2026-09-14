@@ -1,4 +1,4 @@
-namespace BB_Cow.Class;
+namespace Meadow.Shared.Models;
 
 /// <summary>
 /// Die vier Klauenpositionen. Bisher waren das im ganzen Projekt Magic

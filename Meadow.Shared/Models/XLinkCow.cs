@@ -1,4 +1,4 @@
-namespace BB_Cow.Class;
+namespace Meadow.Shared.Models;
 
 public class XLinkCow
 {

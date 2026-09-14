@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace BB_Cow.Class;
+namespace Meadow.Shared.Models;
 
 [Table("WhereHow")]
 public class WhereHow

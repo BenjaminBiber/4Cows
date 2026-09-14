@@ -1,4 +1,4 @@
-namespace _4Cows_FE.Components.Services;
+namespace Meadow.Api.Components.Services;
 
 /// <summary>
 /// Welche Datenart sich geaendert hat. Eine Seite laedt nur nach, wenn es

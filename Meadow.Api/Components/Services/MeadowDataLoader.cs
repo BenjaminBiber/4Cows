@@ -1,6 +1,6 @@
-using BB_Cow.Services;
+using Meadow.Data.Services;
 
-namespace _4Cows_FE.Components.Services;
+namespace Meadow.Api.Components.Services;
 
 /// <summary>
 /// Ein Ort, an dem steht, welche Caches eine Seite braucht.

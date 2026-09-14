@@ -1,13 +1,13 @@
-using BB_Cow.Class;
-using BB_Cow.Kpi;
+using Meadow.Shared.Models;
+using Meadow.Shared.Kpi;
 
-namespace BB_Cow.Profile;
+namespace Meadow.Shared.Profile;
 
 /// <summary>
 /// Baut aus den vier Behandlungslisten das Profil einer Kuh.
 ///
 /// Statisch, ohne DI, ohne EF, ohne async - wie KpiEvaluator. Das ist kein
-/// Stilentscheid: BBCowDataLibrary.Tests referenziert nur diese Bibliothek,
+/// Stilentscheid: Meadow.Data.Tests referenziert nur diese Bibliothek,
 /// alles was in 4Cows-FE liegt waere nicht testbar. Und der Stichtag ist ein
 /// Parameter statt DateTime.Today im Rumpf, damit Tests eine feste Gegenwart
 /// setzen koennen (siehe KpiTestData.Now).

@@ -1,7 +1,7 @@
-using BB_Cow.Class;
+using Meadow.Shared.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace BBCowDataLibrary.SQL;
+namespace Meadow.Data.Sql;
 
 public sealed class DatabaseContext : DbContext
 {

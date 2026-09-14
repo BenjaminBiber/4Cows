@@ -2,7 +2,7 @@
 
 #nullable disable
 
-namespace BBCowDataLibrary.Migrations
+namespace Meadow.Data.Migrations
 {
     /// <inheritdoc />
     public partial class AddAppSetting : Migration

@@ -1,0 +1,207 @@
+@using Meadow.Api.Components.Ui
+
+@inject ClawFindingService ClawFindingService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<MeadowDialog Title="@(IsNew ? "Klauenbefund anlegen" : "Klauenbefund ändern")" Size="MeadowDialogSize.Info">
+    <ChildContent>
+        @* MudForm wie im Behandlungsgrund-Dialog: die Required-Validierung samt
+           RequiredError haengt daran, und meadow-mud.css toent die Fehlerzeile
+           schon. *@
+        <MudForm @ref="_form" @bind-IsValid="@_success">
+            <label class="mw-label" for="mw-finding-name">Bezeichnung</label>
+            <div class="mw-field">
+                <MudTextField T="string" InputId="mw-finding-name" Variant="Variant.Text"
+                              Required="true" @bind-Value="_name"
+                              MaxLength="ClawFinding.NameMaxLength"
+                              RequiredError="Bezeichnung muss ausgefüllt werden!" />
+            </div>
+        </MudForm>
+        <p class="mw-hint">
+            Befunde entstehen sonst nebenbei beim Erfassen einer Klauenbehandlung.
+            Umbenennen auf einen bestehenden Befund führt beide zusammen.
+        </p>
+    </ChildContent>
+    <Footer>
+        <button type="button" class="mw-btn mw-btn--plain mw-btn--wide" @onclick="Cancel">
+            Abbrechen
+        </button>
+        <button type="button" class="mw-btn mw-btn--primary mw-btn--wide" @onclick="Save">
+            Speichern
+        </button>
+    </Footer>
+</MeadowDialog>
+
+@code {
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public ClawFinding Entry { get; set; } = new();
+    [Parameter] public bool IsNew { get; set; }
+
+    /// <summary>
+    /// Verwendungen des bearbeiteten Eintrags - steht nur im Text der
+    /// Merge-Rueckfrage, damit dort steht, wie viele Behandlungen umgehaengt
+    /// werden.
+    /// </summary>
+    [Parameter] public int UsageCount { get; set; }
+
+    private MudForm? _form;
+    private bool _success;
+
+    private string _name = "";
+
+    protected override void OnInitialized()
+    {
+        // Auf einer Kopie arbeiten, nicht auf Entry: das ist die Instanz aus
+        // dem Service-Cache. Direktes Binden wuerde den Cache schon beim Tippen
+        // aendern, und ein Abbrechen liesse den halben Namen in der Tabelle
+        // stehen, bis irgendwer neu laedt.
+        _name = Entry.ClawFindingName;
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Save()
+    {
+        if (_form is not null)
+        {
+            await _form.Validate();
+        }
+
+        if (!_success)
+        {
+            return;
+        }
+
+        var name = _name.Trim();
+        if (name.Length == 0)
+        {
+            Snackbar.Add("Bezeichnung ist leer.", Severity.Error);
+            return;
+        }
+
+        // "Verband" und "Klotz" stehen in der Klauen-Tabelle und in
+        // KPI-Filtern als Chips neben den Befundnamen - siehe
+        // ClawTableFilter.IsReservedFindingName.
+        if (ClawTableFilter.IsReservedFindingName(name))
+        {
+            Snackbar.Add(
+                $"„{name}\" ist als Bezeichnung vergeben — der Filter zeigt darunter die Klauen mit Verband bzw. Klotz.",
+                Severity.Error);
+            return;
+        }
+
+        // Sich selbst ausnehmen: sonst meldet eine reine
+        // Gross-/Kleinschreibungsaenderung ("mortellaro" -> "Mortellaro") eine
+        // Kollision mit dem Eintrag, der gerade bearbeitet wird.
+        var clash = ClawFindingService.Findings.Values.FirstOrDefault(f =>
+            f.ClawFindingId != Entry.ClawFindingId
+            && string.Equals(f.ClawFindingName.Trim(), name, StringComparison.OrdinalIgnoreCase));
+
+        if (clash is not null)
+        {
+            await SaveIntoExisting(clash);
+            return;
+        }
+
+        await SaveOwn(name);
+    }
+
+    /// <summary>
+    /// Der Name ist schon vergeben. Beim Bearbeiten wird zusammengefuehrt -
+    /// beim Anlegen gibt es nichts zusammenzufuehren, das ist schlicht ein
+    /// Eingabefehler.
+    /// </summary>
+    private async Task SaveIntoExisting(ClawFinding clash)
+    {
+        if (IsNew)
+        {
+            Snackbar.Add($"„{clash.ClawFindingName}\" gibt es bereits.", Severity.Error);
+            return;
+        }
+
+        // Ein- und Mehrzahl auseinanderhalten: "in 1 Behandlungen verwendet"
+        // steht sonst genau dann da, wenn der haeufigste Fall eintritt.
+        var usage = UsageCount == 1 ? "1 Behandlung" : $"{UsageCount} Behandlungen";
+        var moved = UsageCount == 1 ? "Die Behandlung wird" : "Die Behandlungen werden";
+
+        var description = UsageCount == 0
+            ? $"„{Entry.ClawFindingName}\" mit „{clash.ClawFindingName}\" zusammenführen? "
+              + "Der Eintrag verschwindet danach."
+            : $"„{Entry.ClawFindingName}\" wird in {usage} verwendet. "
+              + $"Mit „{clash.ClawFindingName}\" zusammenführen? {moved} "
+              + "umgehängt, der Eintrag verschwindet danach.";
+
+        if (!await Confirm("Zusammenführen", description, "Zusammenführen", Color.Warning))
+        {
+            return;
+        }
+
+        if (!await ClawFindingService.MergeAsync(Entry.ClawFindingId, clash.ClawFindingId))
+        {
+            Snackbar.Add("Zusammenführen fehlgeschlagen.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add($"Mit „{clash.ClawFindingName}\" zusammengeführt.", Severity.Success);
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+
+    private async Task SaveOwn(string name)
+    {
+        var draft = new ClawFinding(Entry.ClawFindingId, name);
+
+        if (IsNew)
+        {
+            if (!await Confirm("Anlegen", $"„{name}\" als Klauenbefund anlegen?", "Anlegen", Color.Warning))
+            {
+                return;
+            }
+
+            if (!await ClawFindingService.InsertDataAsync(draft))
+            {
+                Snackbar.Add("Anlegen fehlgeschlagen.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add("Klauenbefund angelegt.", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(true));
+            return;
+        }
+
+        // Nichts geaendert: keine Rueckfrage, kein Schreibvorgang, kein Reload
+        // auf der Seite dahinter.
+        if (name == Entry.ClawFindingName)
+        {
+            MudDialog.Cancel();
+            return;
+        }
+
+        if (!await ClawFindingService.UpdateDataAsync(draft))
+        {
+            Snackbar.Add("Ändern fehlgeschlagen.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add("Klauenbefund geändert.", Severity.Success);
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+
+    private async Task<bool> Confirm(string header, string description, string accept, Color scheme)
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var parameters = new DialogParameters<GenericDialog>
+        {
+            { x => x.HeaderText, header },
+            { x => x.Description, description },
+            { x => x.AcceptButtonText, accept },
+            { x => x.CancelButtonText, "Abbrechen" },
+            { x => x.ColorScheme, scheme }
+        };
+
+        var dialog = await DialogService.ShowAsync<GenericDialog>(string.Empty, parameters, options);
+        var result = await dialog.Result;
+        return result is not null && !result.Canceled;
+    }
+}

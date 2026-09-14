@@ -1,12 +1,12 @@
 using System.Collections.Immutable;
 using System.Data.Common;
-using BB_Cow.Class;
-using BB_Cow.Kpi;
-using BB_Cow.Services;
-using BBCowDataLibrary.SQL;
+using Meadow.Shared.Models;
+using Meadow.Shared.Kpi;
+using Meadow.Data.Services;
+using Meadow.Data.Sql;
 using Microsoft.EntityFrameworkCore;
 
-namespace BB_KPI.Services;
+namespace Meadow.Data.Services;
 
 public class KPIService
 {

@@ -1,0 +1,53 @@
+using Meadow.Shared.Models;
+
+namespace Meadow.Api.Components.Ui;
+
+/// <summary>
+/// Eine Zeile der Verbaende-Tabelle: ein Verband an einer Klaue.
+///
+/// Das Design zeichnet eine Zeile pro Klaue, die Datenbank kennt aber nur
+/// ein gemeinsames IsBandageRemoved pro Behandlung. Deshalb ist das eine
+/// reine Projektion - und deshalb muss die Entfernen-Bestaetigung die
+/// Geschwister-Klauen derselben Behandlung benennen.
+/// </summary>
+public sealed record BandagedClaw(
+    int TreatmentId,
+    string CowId,
+    HoofPosition Position,
+    string Finding,
+    bool HasBlock,
+    DateTime Since)
+{
+    public string Key => $"{TreatmentId}:{Position}";
+
+    public int Days => (DateTime.Today - Since.Date).Days;
+
+    public bool IsOverdue => Days >= 7;
+
+    /// <summary>"LV · Vorne links"</summary>
+    public string HoofText => $"{Position} · {HoofPositions.SideLabel(Position)}";
+
+    /// <summary>
+    /// Ueber OpenBandages und nicht ueber GetBandage: der Aufrufer filtert
+    /// heute schon auf !IsBandageRemoved, aber die Kuh-Seite reicht die
+    /// Klauenbehandlungen EINER Kuh ungefiltert herein. So kann die Zeilenzahl
+    /// hier nicht von der Kachel "offene Verbaende" abweichen.
+    /// </summary>
+    /// <param name="findingName">
+    /// Loest eine Befund-ID auf, in aller Regel ClawFindingService.GetNameById.
+    /// Leeres Ergebnis heisst "an dieser Klaue nichts erfasst" - die Tabelle
+    /// zeigt dafuer einen Gedankenstrich.
+    /// </param>
+    public static IReadOnlyList<BandagedClaw> Project(
+        IEnumerable<ClawTreatment> withBandage, Func<int?, string> findingName)
+        => withBandage
+            .SelectMany(t => t.OpenBandages()
+                .Select(p => new BandagedClaw(
+                    t.ClawTreatmentId,
+                    t.EarTagNumber,
+                    p,
+                    findingName(t.GetFindingId(p))?.Trim() ?? string.Empty,
+                    t.GetBlock(p),
+                    t.TreatmentDate)))
+            .ToList();
+}

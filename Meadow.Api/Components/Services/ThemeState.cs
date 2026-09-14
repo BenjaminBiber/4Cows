@@ -1,6 +1,6 @@
 using Microsoft.JSInterop;
 
-namespace _4Cows_FE.Components.Services;
+namespace Meadow.Api.Components.Services;
 
 /// <summary>
 /// Dark Mode. Die Wahl liegt in localStorage; gesetzt wird sie als

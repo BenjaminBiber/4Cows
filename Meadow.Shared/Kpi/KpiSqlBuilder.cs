@@ -1,7 +1,7 @@
 using System.Text;
-using BB_Cow.Class;
+using Meadow.Shared.Models;
 
-namespace BB_Cow.Kpi;
+namespace Meadow.Shared.Kpi;
 
 /// <summary>
 /// The generated script plus everything about the definition it could NOT express.

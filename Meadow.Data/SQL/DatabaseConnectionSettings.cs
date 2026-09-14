@@ -1,4 +1,4 @@
-namespace BBCowDataLibrary.SQL;
+namespace Meadow.Data.Sql;
 
 public sealed class DatabaseConnectionSettings
 {

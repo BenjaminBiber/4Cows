@@ -1,4 +1,4 @@
-namespace BB_Cow.Kpi;
+namespace Meadow.Shared.Kpi;
 
 /// <summary>
 /// Why a KPI shows what it shows.

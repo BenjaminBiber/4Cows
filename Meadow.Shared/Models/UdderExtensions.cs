@@ -1,4 +1,4 @@
-namespace BB_Cow.Class;
+namespace Meadow.Shared.Models;
 
 /// <summary>
 /// Positionsbasierter Zugriff auf die vier Booleans von Udder

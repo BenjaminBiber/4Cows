@@ -1,7 +1,7 @@
-using BB_Cow.Class;
-using BB_Cow.Kpi;
+using Meadow.Shared.Models;
+using Meadow.Shared.Kpi;
 
-namespace BB_Cow.Profile;
+namespace Meadow.Shared.Profile;
 
 /// <summary>
 /// Eine Lookup-ID und wie oft sie vorkommt. Immer absteigend sortiert.

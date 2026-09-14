@@ -1,6 +1,6 @@
 using MySqlConnector;
 
-namespace BBCowDataLibrary.SQL;
+namespace Meadow.Data.Sql;
 
 public static class ConnectionStringFactory
 {

@@ -1,10 +1,10 @@
 using System;
 using System.Threading.Tasks;
-using BB_Cow.Services;
-using BBCowDataLibrary.SQL;
+using Meadow.Data.Services;
+using Meadow.Data.Sql;
 using Microsoft.EntityFrameworkCore;
 
-namespace _4Cows_FE.Components.Services;
+namespace Meadow.Api.Components.Services;
 
 public sealed class DatabaseConnectionState : IDisposable
 {

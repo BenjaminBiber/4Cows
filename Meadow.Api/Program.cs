@@ -1,15 +1,14 @@
-using _4Cows_FE.Components;
-using _4Cows_FE.Components.Services;
-using BB_Cow;
-using BB_Cow.Kpi;
-using BB_Cow.Services;
-using BB_KPI.Services;
-using BBCowDataLibrary.SQL;
+using Meadow.Api.Components;
+using Meadow.Api.Components.Services;
+using Meadow.Shared.Kpi;
+using Meadow.Data.Services;
+using Meadow.Data.Services;
+using Meadow.Data.Sql;
 using Microsoft.AspNetCore.Hosting.StaticWebAssets;
 using Microsoft.EntityFrameworkCore;
 using MudBlazor;
 using MudBlazor.Services;
-using _4Cows_FE.Components.Meadow;
+using Meadow.Api.Components.Ui;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddEnvironmentVariables();

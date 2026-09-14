@@ -1,6 +1,6 @@
-using BB_Cow.Class;
+using Meadow.Shared.Models;
 
-namespace BB_Cow.Kpi;
+namespace Meadow.Shared.Kpi;
 
 /// <summary>One shipped default KPI, before it becomes a database row.</summary>
 public sealed record KpiSeed(string Title, int SortOrder, KpiDefinition Definition);

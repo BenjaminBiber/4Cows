@@ -1,6 +1,6 @@
 using System;
 
-namespace BB_Cow.Services;
+namespace Meadow.Data.Services;
 
 public class DatabaseStatusService
 {

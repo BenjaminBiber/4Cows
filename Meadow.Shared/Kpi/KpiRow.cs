@@ -1,6 +1,6 @@
-using BB_Cow.Class;
+using Meadow.Shared.Models;
 
-namespace BB_Cow.Kpi;
+namespace Meadow.Shared.Kpi;
 
 /// <summary>
 /// One row of any KPI source, projected into a single uniform shape.

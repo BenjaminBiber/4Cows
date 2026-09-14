@@ -1,6 +1,6 @@
-using _4Cows_FE.Components.Meadow;
+using Meadow.Api.Components.Ui;
 
-namespace _4Cows_FE.Components.Services;
+namespace Meadow.Api.Components.Services;
 
 /// <summary>
 /// Demo-Modus. Steuert, ob "/" die Marketing-Seite zeigt (true) oder wie

@@ -1,7 +1,7 @@
-using BB_Cow.Class;
-using BB_Cow.Services;
+using Meadow.Shared.Models;
+using Meadow.Data.Services;
 
-namespace BB_Cow.Kpi;
+namespace Meadow.Shared.Kpi;
 
 /// <summary>
 /// Connects the pure evaluator to the running application: implements <see cref="IKpiLookups"/> on
@@ -21,8 +21,9 @@ public sealed class KpiRowProvider : IKpiLookups
     private readonly ClawFindingService _clawFindings;
     private readonly UdderService _udders;
 
-    // CowTreatmentService sits in the global namespace while its nine siblings are BB_Cow.Services.
-    // Nothing to fix here, but that is why there is no using for it.
+    // CowTreatmentService lag als einzige Klasse im globalen Namensraum, waehrend ihre
+    // Geschwister in BB_Cow.Services lagen - deshalb stand hier frueher kein using dafuer.
+    // Mit der Umbenennung auf Meadow hat sie denselben Namensraum wie die anderen bekommen.
     private readonly CowTreatmentService _cowTreatments;
     private readonly ClawTreatmentService _clawTreatments;
     private readonly PCowTreatmentService _plannedCowTreatments;

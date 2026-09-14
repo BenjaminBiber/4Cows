@@ -1,9 +1,9 @@
-using BB_Cow.Class;
-using BB_Cow.Kpi;
-using BB_Cow.Profile;
-using static BBCowDataLibrary.Tests.Profile.CowProfileTestData;
+using Meadow.Shared.Models;
+using Meadow.Shared.Kpi;
+using Meadow.Shared.Profile;
+using static Meadow.Data.Tests.Profile.CowProfileTestData;
 
-namespace BBCowDataLibrary.Tests.Profile;
+namespace Meadow.Data.Tests.Profile;
 
 public class CowProfileBuilderTests
 {

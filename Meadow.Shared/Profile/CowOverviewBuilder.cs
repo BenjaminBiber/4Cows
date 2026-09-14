@@ -1,6 +1,6 @@
-using BB_Cow.Class;
+using Meadow.Shared.Models;
 
-namespace BB_Cow.Profile;
+namespace Meadow.Shared.Profile;
 
 /// <summary>
 /// Baut die Zeilen der Kuh-Uebersicht in einem Durchlauf je Behandlungsart.
