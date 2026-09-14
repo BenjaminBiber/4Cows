@@ -2815,37 +2815,57 @@ button.mw-nav-item {
   height: 76px;
   flex-shrink: 0;
 }
-/* Auf der Umschaltkarte hat der Kuchen die Hoehe des Diagramms zur
-   Verfuegung, das dort sonst steht - dann darf er sie auch nutzen: grosse
-   Scheibe, Legende darunter statt daneben. Nebeneinander blieben in einer
-   300px hohen Karte zwei Drittel leer. */
+/* Auf der Umschaltkarte steht der Kuchen anstelle des Diagramms und hat
+   dessen Platz: eine halbe Spaltenbreite und rund 300px Hoehe. Die Scheibe
+   waechst deshalb mit dem Fenster statt auf einer festen Groesse
+   stehenzubleiben, und die Legende bleibt daneben - untereinander bliebe
+   neben der Scheibe die halbe Karte leer.
+
+   Die Obergrenze ist kein Geschmack: hoeher als die Karte darf die Scheibe
+   nicht werden, sonst schiebt sie die Spalte ins Scrollen. */
 .mw-pie--large {
   flex: 1;
   min-width: 0;
-  flex-direction: column;
-  align-items: center;
-  gap: 14px;
+  /* Kein Umbruch: untereinander waere der Kuchen fast doppelt so hoch wie
+     die Karte und schoebe die ganze Spalte ins Scrollen. Wird es eng,
+     schrumpfen Scheibe und Legende - sie brauchen nicht untereinander. */
+  flex-wrap: nowrap;
+  justify-content: center;
+  gap: 24px;
 }
-.mw-pie--large .mw-pie__disc { width: 132px; height: 132px; }
-/* Gedeckelt und mittig: ueber die ganze Kartenbreite gezogen stuenden
-   Beschriftung und Zahl so weit auseinander, dass die Zeile nicht mehr als
-   Paar zu lesen waere. */
+/* Zwei Deckel, und beide sind noetig: die Hoehe begrenzt die Karte, die
+   Breite die halbe Spalte. Ohne den Breitenanteil passte eine 267px-Scheibe
+   auf einem 1512er Schirm, auf einem 1280er aber nicht mehr neben die
+   Legende. */
+.mw-pie--large .mw-pie__disc {
+  width: clamp(150px, min(31vh, 40%), 300px);
+  height: auto;
+  aspect-ratio: 1;
+}
+/* Gedeckelt: ueber die ganze Kartenbreite gezogen stuenden Beschriftung und
+   Zahl so weit auseinander, dass die Zeile nicht mehr als Paar zu lesen
+   waere. */
 .mw-pie--large .mw-pie__legend {
-  flex: 0 1 auto;
-  width: 100%;
-  max-width: 280px;
-  gap: 6px;
+  flex: 0 1 280px;
+  gap: 8px;
 }
 .mw-pie--large .mw-pie__label,
-.mw-pie--large .mw-pie__value { font-size: 13px; }
-.mw-pie--large .mw-pie__swatch { width: 10px; height: 10px; }
+.mw-pie--large .mw-pie__value { font-size: 14px; }
+.mw-pie--large .mw-pie__swatch { width: 11px; height: 11px; }
 
-/* Ein Kreis mit Radius 8 und 16 Strichbreite fuellt die Scheibe von innen bis
-   zum Rand - so wird aus einem Ring ein Kuchen, ohne einen einzigen Bogen zu
-   rechnen. Laenge und Versatz je Stueck kommen aus MeadowPieChart. */
+/* Die Form jedes Stuecks kommt als Pfad aus MeadowPieChart.
+
+   Der Strich ist die Trennfuge und liegt in der Kartenfarbe AUF der Kante.
+   non-scaling-stroke haelt ihn bei 2px, egal wie gross die Scheibe gerade
+   ist - eine Luecke im Winkel waere bei einer 300px-Scheibe ein Spalt und
+   bei einer 76px-Scheibe ein Haarriss. linejoin:round, damit die spitze
+   Ecke im Mittelpunkt bei einem schmalen Keil nicht als Dorn hinausschiesst. */
 .mw-pie__slice {
-  fill: none;
-  stroke: var(--mw-slice, var(--mw-series-other));
+  fill: var(--mw-slice, var(--mw-series-other));
+  stroke: var(--mw-panel);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
 }
 
 .mw-pie__legend {
@@ -3058,6 +3078,13 @@ a.mw-row-card { text-decoration: none; }
   .mw-pie__legend { gap: 6px; }
   .mw-pie__label { white-space: normal; font-size: 13px; }
   .mw-pie__value { font-size: 13px; }
+
+  /* Auf 375px ist neben einer brauchbaren Scheibe keine Legende mehr - also
+     darunter. vh statt vw als Deckel, damit ein liegendes Telefon nicht eine
+     Scheibe bekommt, die hoeher ist als sein Bildschirm. */
+  .mw-pie--large { gap: 16px; flex-direction: column; align-items: center; }
+  .mw-pie--large .mw-pie__disc { width: min(62vw, 34vh); }
+  .mw-pie--large .mw-pie__legend { flex: 0 1 auto; width: 100%; max-width: 300px; }
 
   /* Fuenf Laschen passen auf 328px nur mit schmalerem Innenabstand -
      load-bearing, nicht Politur. */

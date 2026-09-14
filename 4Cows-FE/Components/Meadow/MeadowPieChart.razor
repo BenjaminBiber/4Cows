@@ -1,6 +1,6 @@
 @using System.Globalization
 @*
-    Ein Kuchendiagramm: Kreis links, Legende rechts.
+    Ein Kuchendiagramm: Scheibe und Legende.
 
     Bewusst KEIN Chart.js, obwohl auf der Kuh-Seite schon eines laeuft. Das
     kommt vom CDN und ist im Hofnetz nicht garantiert erreichbar - genau der
@@ -8,11 +8,21 @@
     fuer einen Screenreader ausserdem eine leere Flaeche, waehrend die Legende
     hier eine echte Liste bleibt: durchsuchbar, kopierbar, vorlesbar.
 
-    Gezeichnet wird mit stroke-dasharray auf EINEM Kreis je Stueck, dazu
-    pathLength="100": damit ist der Umfang per Definition 100 Einheiten und
-    ein Stueck genau so lang wie sein Prozentanteil. Kein Bogenrechnen - und
-    kein Sonderfall bei hundert Prozent, den ein path mit A-Bogen braeuchte
-    (ein Bogen ueber 360 Grad endet dort, wo er anfaengt, und zeichnet nichts).
+    Jedes Stueck ist ein echter Tortenpfad: vom Mittelpunkt zur Kante, ein
+    A-Bogen ueber den Anteil, und zurueck.
+
+    Der erste Versuch war ein Kreis je Stueck mit stroke-dasharray und
+    stroke-width gleich dem Durchmesser - ein bekannter Trick, der ohne
+    Bogenrechnen auskommt. Er sieht aber falsch aus, sobald Fugen dazukommen:
+    die Fuge ist dann eine LUECKE IM WINKEL, klafft am Rand weit auf und
+    laeuft zur Mitte hin zusammen, und der Strich liegt auf dem halben Radius
+    statt auf der Kante - die Stuecke wirken auseinandergesprengt und die
+    Scheibe nicht mehr rund. Ein Pfad ist ein paar Zeilen Trigonometrie mehr
+    und dafuer genau die Form, die gemeint ist.
+
+    Die Fuge ist jetzt ein Strich in der Kartenfarbe AUF der Kante
+    (vector-effect: non-scaling-stroke im CSS): ueberall gleich breit, egal
+    wie gross die Scheibe gerade ist.
 
     Ein Kuchen zeigt Anteile auf einen Blick. Zwei aehnlich grosse Stuecke
     unterscheidet er NICHT - deshalb steht in der Legende neben jedem Stueck
@@ -31,19 +41,13 @@
 else
 {
     <div class="mw-pie @Class">
-        @* aria-hidden: die Legende darunter sagt dasselbe in Worten, und
-           zweimal vorgelesen ist eine Grafik keine Hilfe. *@
-        <svg class="mw-pie__disc" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
-            @* -90 Grad, damit das erste Stueck oben beginnt und nicht rechts. *@
-            <g transform="rotate(-90 16 16)">
-                @foreach (var segment in Segments)
-                {
-                    <circle class="mw-pie__slice @segment.Slot"
-                            cx="16" cy="16" r="8" stroke-width="16" pathLength="100"
-                            stroke-dasharray="@(Num(segment.Dash)) 100"
-                            stroke-dashoffset="@Num(-segment.Offset)"></circle>
-                }
-            </g>
+        @* aria-hidden: die Legende sagt dasselbe in Worten, und zweimal
+           vorgelesen ist eine Grafik keine Hilfe. *@
+        <svg class="mw-pie__disc" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+            @foreach (var segment in Segments)
+            {
+                <path class="mw-pie__slice @segment.Slot" d="@segment.Path"></path>
+            }
         </svg>
 
         <ol class="mw-pie__legend">
@@ -77,21 +81,13 @@ else
     /// <summary>Ab hier sind die Stuecke nicht mehr auseinanderzuhalten.</summary>
     private const int MaxSlices = 6;
 
-    /// <summary>
-    /// Trennfuge zwischen zwei Stuecken, in Prozent des Umfangs. Bei 76px
-    /// Durchmesser sind das knapp zwei Pixel - genug, damit zwei benachbarte
-    /// Farben eine Kante haben und nicht ineinanderlaufen.
-    /// </summary>
-    private const double Gap = .8;
+    // Mittelpunkt und Radius im viewBox 0 0 100 100. 48 statt 50, damit der
+    // Fugenstrich auf der Aussenkante nicht am Rand des viewBox abgeschnitten
+    // wird.
+    private const double Centre = 50;
+    private const double Radius = 48;
 
-    /// <summary>
-    /// Damit ein Stueck von einem Prozent nicht vollstaendig in der Fuge
-    /// verschwindet und dann wie "gar nicht vorhanden" aussieht. Dieselbe
-    /// Ueberlegung wie die Mindestbreite der frueheren Balken.
-    /// </summary>
-    private const double MinDash = .6;
-
-    private sealed record Segment(string Label, int Count, double Dash, double Offset, string Slot);
+    private sealed record Segment(string Label, int Count, string Path, string Slot);
 
     private List<Segment> Segments { get; set; } = new();
 
@@ -132,17 +128,18 @@ else
             var item = shown[index];
             var share = 100.0 * item.Count / total;
 
-            // Ein einzelnes Stueck bekommt keine Fuge: die klaffte sonst als
-            // Schlitz im geschlossenen Kreis.
-            var dash = shown.Count == 1 ? share : Math.Max(share - Gap, MinDash);
-
             // Die Sammelzeile traegt bewusst KEINE Kategoriefarbe, sondern das
             // gedaempfte Grau: sie ist kein Eintrag, sondern der Rest.
             var slot = hasOther && index == shown.Count - 1
                 ? "mw-slice-other"
                 : $"mw-slice-{index + 1}";
 
-            segments.Add(new Segment(item.Label, item.Count, dash, cursor, slot));
+            // Kein Mindestanteil: ein Stueck ist genau so gross wie sein
+            // Anteil. Eins von vierzig ist dann ein schmaler Keil - und
+            // genau das stimmt auch. Gefunden wird es ueber die Legende.
+            var path = shown.Count == 1 ? FullCircle() : Wedge(cursor, cursor + share);
+
+            segments.Add(new Segment(item.Label, item.Count, path, slot));
             cursor += share;
         }
 
@@ -150,9 +147,48 @@ else
     }
 
     /// <summary>
+    /// Ein Tortenstueck von Prozent <paramref name="from"/> bis
+    /// <paramref name="to"/>: Mittelpunkt, Kante, Bogen, zurueck.
+    /// </summary>
+    private static string Wedge(double from, double to)
+    {
+        var (x0, y0) = Point(from);
+        var (x1, y1) = Point(to);
+
+        // Ueber einem halben Kreis muss der A-Bogen den LANGEN Weg nehmen -
+        // sonst zeichnet er die Gegenseite und das groesste Stueck wird zum
+        // kleinsten.
+        var large = to - from > 50 ? 1 : 0;
+
+        return $"M {Num(Centre)} {Num(Centre)} L {Num(x0)} {Num(y0)} "
+             + $"A {Num(Radius)} {Num(Radius)} 0 {large} 1 {Num(x1)} {Num(y1)} Z";
+    }
+
+    /// <summary>
+    /// Der Sonderfall "ein Stueck ist alles": ein Bogen ueber volle 360 Grad
+    /// endet dort, wo er anfaengt, und zeichnet nichts. Zwei Halbkreise tun
+    /// es.
+    /// </summary>
+    private static string FullCircle()
+        => $"M {Num(Centre)} {Num(Centre - Radius)} "
+         + $"A {Num(Radius)} {Num(Radius)} 0 1 1 {Num(Centre)} {Num(Centre + Radius)} "
+         + $"A {Num(Radius)} {Num(Radius)} 0 1 1 {Num(Centre)} {Num(Centre - Radius)} Z";
+
+    /// <summary>
+    /// Punkt auf der Kante zum Anteil <paramref name="percent"/>. Die
+    /// Vierteldrehung steckt im Winkel und nicht in einem transform: so
+    /// beginnt das erste Stueck oben und nicht rechts.
+    /// </summary>
+    private static (double X, double Y) Point(double percent)
+    {
+        var angle = percent / 100.0 * 2 * Math.PI - Math.PI / 2;
+        return (Centre + Radius * Math.Cos(angle), Centre + Radius * Math.Sin(angle));
+    }
+
+    /// <summary>
     /// InvariantCulture ist Pflicht und keine Vorsicht: Program.cs legt keine
-    /// Kultur fest, auf einem de-Host waere "12,5" ein ungueltiger
-    /// SVG-Attributwert und das Stueck fiele still aus. Dasselbe Muster wie
+    /// Kultur fest, auf einem de-Host waere "12,5" ein ungueltiger Wert in
+    /// einem Pfad und das Stueck fiele still aus. Dasselbe Muster wie
     /// --mw-pager-slot in MeadowTablePager.
     /// </summary>
     private static string Num(double value)
