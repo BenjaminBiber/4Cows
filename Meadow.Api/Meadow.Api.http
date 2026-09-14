@@ -1,0 +1,205 @@
+###############################################################################
+# Meadow.Api - alle Endpunkte zum Durchspielen
+#
+# Start (nie "dotnet run", der Prozess stirbt bei stdin-EOF; nie Port 5107,
+# der gehoert Benjamins eigener Instanz):
+#
+#   dotnet publish Meadow.Api/Meadow.Api.csproj -c Debug -o "$env:TEMP/meadow-api"
+#   $env:ASPNETCORE_URLS="http://localhost:5108"; & "$env:TEMP/meadow-api/Meadow.Api.exe"
+#
+# Datenbank pruefen:
+#   docker exec 4cows-dev-db mariadb -uroot -padmin 4cows_v2 -e "SELECT COUNT(*) FROM Cow;"
+###############################################################################
+
+@host = http://localhost:5108
+@api = {{host}}/api
+
+### Zustand. Antwortet IMMER 200, auch ohne Datenbank - der Zustand steht im Rumpf.
+GET {{api}}/health
+
+### Der Zaehler, an dem ein Client Aenderungen erkennt. Boot-Id + zwoelf Bereiche.
+GET {{api}}/version
+
+### Fuer den Datenbank-Dialog. Enthaelt absichtlich WEDER DB_User NOCH DB_Password.
+GET {{api}}/system/info
+
+### Dasselbe typisiert, mit echtem CanConnectAsync.
+GET {{api}}/config
+
+### Die sieben Nachschlagetabellen in EINEM Aufruf. Ohne den kostet ein
+### Seitenwechsel im Client sieben Anfragen statt einer.
+GET {{api}}/bootstrap
+
+###############################################################################
+# Die zwoelf Sammlungen
+###############################################################################
+
+### 40
+GET {{api}}/cows
+### 6
+GET {{api}}/medicines
+### 12  - Achtung: sechs Namen, jeder doppelt. Siehe Commit "Let only one caller..."
+GET {{api}}/where-hows
+### 6
+GET {{api}}/treatment-reasons
+### 7
+GET {{api}}/claw-findings
+### 7
+GET {{api}}/udders
+### 121
+GET {{api}}/cow-treatments
+### 80
+GET {{api}}/claw-treatments
+### 15
+GET {{api}}/planned-cow-treatments
+### 15
+GET {{api}}/planned-claw-treatments
+### 2
+GET {{api}}/settings
+### 7
+GET {{api}}/kpis
+
+###############################################################################
+# ZWEI INSERTS HINTEREINANDER - der Kernfall dieser Phase
+#
+# Beide muessen 201 liefern, beide eine Id > 0, und die Ids muessen VERSCHIEDEN
+# sein. Vor dem Umbau stand hier zweimal die 0: EF schreibt die Identity in die
+# uebergebene Instanz zurueck, ueber HTTP kam sie nicht mit, und
+# ImmutableDictionary.Add warf beim zweiten Mal.
+###############################################################################
+
+### 1/2
+POST {{api}}/claw-treatments
+Content-Type: application/json
+
+{ "earTagNumber": "HTTP-1", "treatmentDate": "2026-09-14T00:00:00" }
+
+### 2/2 - andere Id als oben
+POST {{api}}/claw-treatments
+Content-Type: application/json
+
+{ "earTagNumber": "HTTP-2", "treatmentDate": "2026-09-14T00:00:00" }
+
+### Stapel: drei Zeilen, Antwort in Anfragereihenfolge mit aufsteigenden Ids
+POST {{api}}/cow-treatments/batch
+Content-Type: application/json
+
+[
+  { "earTagNumber": "HTTP-B1", "medicineId": 1, "administrationDate": "2026-09-14T00:00:00", "medicineDosage": 1.5, "whereHowId": 1, "udderId": 1 },
+  { "earTagNumber": "HTTP-B2", "medicineId": 1, "administrationDate": "2026-09-14T00:00:00", "medicineDosage": 2.5, "whereHowId": 1, "udderId": 1 },
+  { "earTagNumber": "HTTP-B3", "medicineId": 1, "administrationDate": "2026-09-14T00:00:00", "medicineDosage": 3.5, "whereHowId": 1, "udderId": 1 }
+]
+
+### Der Udder-Sentinel. new Udder() setzt UdderId auf int.MinValue, und
+### DefaultIgnoreCondition = Never schreibt ihn mit - er steht also wirklich auf
+### der Leitung. Die Antwort muss eine Id > 0 tragen, und
+### SELECT MIN(UDDER_ID) FROM Udder darf nie -2147483648 sein.
+POST {{api}}/udders
+Content-Type: application/json
+
+{ "udderId": -2147483648, "quarterLV": true, "quarterLH": false, "quarterRV": false, "quarterRH": true }
+
+###############################################################################
+# Upserts - fuenfmal derselbe Name muss fuenfmal dieselbe Id liefern
+###############################################################################
+
+### wiederholt aufrufen: immer dieselbe Id
+POST {{api}}/medicines/by-name
+Content-Type: application/json
+
+{ "name": "Metacam" }
+
+###
+POST {{api}}/where-hows/by-name
+Content-Type: application/json
+
+{ "name": "IZ", "showDialog": true }
+
+###
+POST {{api}}/treatment-reasons/by-name
+Content-Type: application/json
+
+{ "name": "Mastitis" }
+
+###
+POST {{api}}/claw-findings/by-name
+Content-Type: application/json
+
+{ "name": "Mortellaro" }
+
+### alle vier false ist die "kein Viertel"-Zeile
+POST {{api}}/udders/by-quarters
+Content-Type: application/json
+
+{ "quarterLV": false, "quarterLH": false, "quarterRV": false, "quarterRH": false }
+
+###############################################################################
+# Kennzahlen
+###############################################################################
+
+### Der Wert einer GESPEICHERTEN Kennzahl. Rumpf leer - das Skript kommt aus der
+### Datenbankzeile, nie aus der Anfrage.
+POST {{api}}/kpi/1/value
+
+### Alle Kacheln. Waermt vorher die neun Caches; ohne das liefert jede
+### Builder-Kennzahl eine voellig plausible 0.
+GET {{api}}/kpi/dashboard
+
+### Beim SPEICHERN abgelehnt (400). Vorher lief der Guard nur beim Ausfuehren,
+### ein boesartiges Skript haette also in der Datenbank gelegen und gewartet.
+POST {{api}}/kpis
+Content-Type: application/json
+
+{ "title": "Boese", "url": "/x", "script": "DROP TABLE Cow", "sortOrder": 99, "kind": 0 }
+
+### Der einzige Endpunkt, der SQL aus dem Rumpf ausfuehrt. Doppelt verriegelt:
+### 403 im Demo-Betrieb, und 403 solange Kpi:AllowScriptValidation nicht gesetzt
+### ist. Zum Ausprobieren mit
+###   Demo__Enabled=false Kpi__AllowScriptValidation=true
+### starten.
+POST {{api}}/kpi/validate
+Content-Type: application/json
+
+{ "script": "SELECT CAST(COUNT(*) AS CHAR) AS value FROM Cow" }
+
+### wird abgelehnt - mehrere Anweisungen
+POST {{api}}/kpi/validate
+Content-Type: application/json
+
+{ "script": "SELECT 1; DELETE FROM Cow" }
+
+###############################################################################
+# XLink und Export
+###############################################################################
+
+### 202 in wenigen Millisekunden. Synchron wuerde der Aufruf am Timeout des
+### Aufrufers scheitern: bis zu 1000 sequenzielle Seitenabrufe a 100 s.
+### 409 wenn schon einer laeuft, 403 im Demo-Betrieb.
+POST {{api}}/xlink/refresh
+
+###
+GET {{api}}/xlink/status
+
+### Die Ids der gerade SICHTBAREN Zeilen, nicht der Filter - sonst gaebe es zwei
+### Wahrheiten darueber, was "die aktuelle Ansicht" ist. Antwort ist eine echte
+### .xlsx; das ist zugleich der Nachweis, dass der EPPlus-Lizenzkontext sitzt.
+POST {{api}}/claw-treatments/export
+Content-Type: application/json
+
+{ "ids": [1, 2, 3, 4, 5] }
+
+###############################################################################
+# Randfaelle
+###############################################################################
+
+### 404 mit LEEREM Rumpf - kein HTML. Unter /api ist die 404-Seite abgeschaltet.
+GET {{api}}/gibtsnicht
+
+### 404 als ProblemDetails
+GET {{api}}/medicines/999999
+
+### 409 wenn das Medikament noch von Behandlungen benutzt wird
+DELETE {{api}}/medicines/1
+
+### Gegenprobe: KEIN /api - hier kommt die deutsche 404-Seite als HTML
+GET {{host}}/tippfehler
