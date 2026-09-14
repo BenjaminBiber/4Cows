@@ -31,16 +31,45 @@ public sealed class LayoutState
     /// </summary>
     public string? PageTitleOverride { get; private set; }
 
+    /// <summary>
+    /// Zweite Zeile des Kopfs, gleich neben dem Titel: die Ohrmarke der
+    /// gezeigten Kuh. Sie stand frueher in einer eigenen Kachel ueber der
+    /// Seite; die kostete eine Zeile Hoehe fuer eine Angabe, die neben den
+    /// Titel passt.
+    /// </summary>
+    public string? PageSubtitle { get; private set; }
+
+    /// <summary>Statusmarken neben dem Titel, z.B. "Kalb" oder "Abgang".</summary>
+    public IReadOnlyList<PageTag> PageTags { get; private set; } = Array.Empty<PageTag>();
+
     public event Action? Changed;
 
-    public void SetPageTitle(string? title)
+    /// <summary>
+    /// Setzt Titel, Ohrmarke und Statusmarken in einem Zug - und meldet auch
+    /// nur EINE Aenderung. Drei Setter hiessen drei Ereignisse und damit drei
+    /// Renderdurchlaeufe des Layouts fuer denselben Seitenwechsel.
+    /// </summary>
+    public void SetPageHeading(
+        string? title,
+        string? subtitle = null,
+        IReadOnlyList<PageTag>? tags = null)
     {
-        if (PageTitleOverride == title)
+        tags ??= Array.Empty<PageTag>();
+
+        // SequenceEqual und nicht ==: PageTag ist ein record (Wertgleichheit),
+        // die Liste darum herum aber nicht. Ohne den Vergleich meldete jedes
+        // Neuaufbauen der Kuh-Seite eine Aenderung, obwohl dieselbe Kuh
+        // dasselbe Schild traegt.
+        if (PageTitleOverride == title
+            && PageSubtitle == subtitle
+            && PageTags.SequenceEqual(tags))
         {
             return;
         }
 
         PageTitleOverride = title;
+        PageSubtitle = subtitle;
+        PageTags = tags;
         Changed?.Invoke();
     }
 
@@ -86,4 +115,21 @@ public sealed class LayoutState
         PageMenu,
         AddMenu
     }
+}
+
+/// <summary>
+/// Eine Statusmarke neben dem Seitentitel.
+///
+/// Ton statt CSS-Klasse: der Zustand der Shell soll nicht wissen, wie ein
+/// Abgang aussieht - das entscheidet MeadowHeader.
+/// </summary>
+public sealed record PageTag(string Text, PageTagTone Tone = PageTagTone.Info);
+
+public enum PageTagTone
+{
+    /// <summary>Neutrale Einordnung, z.B. "Kalb".</summary>
+    Info,
+
+    /// <summary>Das Tier ist nicht mehr im Bestand.</summary>
+    Removed
 }

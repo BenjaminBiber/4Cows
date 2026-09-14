@@ -22,6 +22,8 @@
 
 <div class="mw-shell">
     <MeadowHeader PageTitle="@Title"
+                  Subtitle="@Layout.PageSubtitle"
+                  Tags="@Layout.PageTags"
                   HasSiblings="@_hasSiblings"
                   IsDark="@Theme.IsDark"
                   OnMenu="@Layout.ToggleDrawer"
@@ -57,7 +59,7 @@
     /// Route.
     ///
     /// Bewusst eine Eigenschaft und kein in ReadRoute berechnetes Feld. Die
-    /// Kuh-Seite ruft SetPageTitle in OnParametersSetAsync auf, also NACH
+    /// Kuh-Seite ruft SetPageHeading beim Aufbauen ihrer Daten auf, also NACH
     /// ReadRoute; ein Feld haette den alten Wert dann schon uebernommen, und
     /// das StateHasChanged aus dem Changed-Ereignis rendere ihn nur noch
     /// einmal.
@@ -95,9 +97,10 @@
     private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
     {
         // VOR ReadRoute: sonst traegt die neue Seite fuer einen Moment den
-        // Titel der alten. Die Kuh-Seite setzt ihren gleich danach in
-        // OnParametersSetAsync wieder.
-        Layout.SetPageTitle(null);
+        // Titel der alten - und auf einer Nicht-Kuh-Seite stuende sonst noch
+        // die Ohrmarke des zuletzt geoeffneten Tiers im Kopf. Die Kuh-Seite
+        // setzt ihren Kopf gleich danach wieder.
+        Layout.SetPageHeading(null);
         ReadRoute();
         // Jede Navigation schliesst Drawer und Mobile-Menues (Prototyp: go()).
         Layout.CloseAll();

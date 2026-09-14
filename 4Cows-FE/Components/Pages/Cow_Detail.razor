@@ -10,7 +10,6 @@
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @inject MeadowDataLoader Data
-@inject MeadowDialogLauncher Launcher
 @inject MeadowDataChanges Changes
 @inject LayoutState Layout
 @inject ThemeState Theme
@@ -42,18 +41,16 @@ else
 
        Die Seite ist dabei auf die Fensterhoehe festgenagelt (.mw-cow-page)
        und scrollt NICHT mehr als Ganzes - gescrollt wird innerhalb einer
-       Spalte. Nur so bleiben die vier Aktionsknoepfe im Kopf und die Zeile,
-       die man gerade sucht, gleichzeitig sichtbar; vorher lag zwischen
-       beiden eine ganze Bildschirmhoehe Diagramme.
+       Spalte. Vorher lag zwischen der Kopfzeile und der Zeile, die man
+       gerade suchte, eine ganze Bildschirmhoehe Diagramme.
+
+       Wer das Tier ist, steht nicht mehr auf der Seite, sondern im Kopf der
+       Anwendung: Halsbandnummer als Seitentitel, Ohrmarke und Status daneben
+       (LayoutState.SetPageHeading). Die Kachel dafuer kostete eine ganze
+       Zeile Hoehe fuer zwei Angaben.
 
        Mobil bleibt alles ein Stapel - siehe den Mobil-Block im CSS. *@
     <div class="mw-cow-page">
-        <CowHeaderCard Cow="_cow" Collar="@Collar" EarTag="@EarTag"
-                       OnAddCowTreatment="AddCowTreatment"
-                       OnAddClawTreatment="AddClawTreatment"
-                       OnPlanCowTreatment="PlanCowTreatment"
-                       OnPlanClawTreatment="PlanClawTreatment" />
-
         <CowKpiTiles Profile="_profile" Collar="@Collar" TopMedicineName="@TopMedicineName" />
 
         <div class="mw-cow-split">
@@ -210,16 +207,17 @@ else
         _loadedCowId = CowId;
         await Data.EnsureCowProfileAsync();
         Rebuild();
-        Layout.SetPageTitle(HeaderTitle);
-        // Gezeichnet wird nicht hier, sondern in OnAfterRenderAsync - siehe
-        // dort. Rebuild hat den Auftrag dafuer schon hinterlegt.
+        // Der Seitenkopf wird in Rebuild gesetzt, nicht hier: aendert die
+        // Basisdatenpflege den Abgang-Status, laeuft nur Rebuild erneut.
+        // Gezeichnet wird ebenfalls nicht hier, sondern in OnAfterRenderAsync
+        // - siehe dort. Rebuild hat den Auftrag dafuer schon hinterlegt.
     }
 
     public void Dispose()
     {
         Changes.Changed -= OnDataChanged;
         Theme.Changed -= OnThemeChanged;
-        Layout.SetPageTitle(null);
+        Layout.SetPageHeading(null);
     }
 
     /// <summary>
@@ -261,6 +259,11 @@ else
                 UdderService.Udder,
                 DateTime.Today);
 
+        // Wer das Tier ist, steht im Kopf der Anwendung und nicht auf der
+        // Seite. LayoutState meldet nur, wenn sich wirklich etwas geaendert
+        // hat - der Aufruf bei jedem Neuaufbau kostet also nichts.
+        Layout.SetPageHeading(HeaderTitle, HeaderEarTag, HeaderTags);
+
         MarkChartDirty();
     }
 
@@ -297,11 +300,49 @@ else
         }
     }
 
-    // Ueber den Service: bei einem Kalb steht dort "Kalb", und die rohe
-    // Cow_ID darf nie in die Anzeige - die ist dann eine GUID.
-    private string EarTag => cowService.GetEarTagDisplay(CowId);
-
     private string HeaderTitle => _cow is null ? "Kuh" : $"Kuh {Collar}";
+
+    /// <summary>
+    /// Die Ohrmarke neben dem Seitentitel, oder null.
+    ///
+    /// Gefragt wird das Feld und nicht GetEarTagDisplay: das liefert fuer ein
+    /// Tier ohne Ohrmarke den Platzhalter "Kalb", und der stuende neben der
+    /// Statusmarke ein zweites Mal da. Die rohe Cow_ID darf nie in die
+    /// Anzeige - die ist bei einem Kalb eine GUID.
+    /// </summary>
+    private string? HeaderEarTag => string.IsNullOrWhiteSpace(_cow?.EarTagNumber)
+        ? null
+        : cowService.GetEarTagDisplay(CowId);
+
+    /// <summary>
+    /// "Kalb" und "Abgang" als Marken neben der Ohrmarke. Beide standen
+    /// vorher in der Kopfkachel; sie hier wegzulassen hiesse, dass einem
+    /// abgegangenen Tier die Seite nirgends mehr ansieht, dass es abgegangen
+    /// ist.
+    /// </summary>
+    private IReadOnlyList<PageTag> HeaderTags
+    {
+        get
+        {
+            if (_cow is null)
+            {
+                return Array.Empty<PageTag>();
+            }
+
+            var tags = new List<PageTag>(2);
+
+            if (_cow.IsCalv)
+            {
+                tags.Add(new PageTag("Kalb"));
+            }
+            if (_cow.IsGone)
+            {
+                tags.Add(new PageTag("Abgang", PageTagTone.Removed));
+            }
+
+            return tags;
+        }
+    }
 
     /// <summary>
     /// Name des haeufigsten Medikaments, oder null. "--" wird uebersprungen:
@@ -487,19 +528,4 @@ else
         => tokens.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value)
             ? value
             : fallback;
-
-    // ---- Aktionen -------------------------------------------------------
-    //
-    // Ueber den Launcher wie ueberall: er meldet das Speichern, OnDataChanged
-    // laedt nach. Vorbelegt wird mit der Cow_ID, nicht mit der
-    // Halsbandnummer - die ist bei einem abgegangenen Tier nicht mehr
-    // aufloesbar und bei einer neu vergebenen sogar falsch.
-
-    private Task AddCowTreatment() => Launcher.OpenCowTreatmentAsync(CowId);
-
-    private Task AddClawTreatment() => Launcher.OpenClawTreatmentAsync(CowId);
-
-    private Task PlanCowTreatment() => Launcher.OpenPlannedCowTreatmentAsync(CowId);
-
-    private Task PlanClawTreatment() => Launcher.OpenPlannedClawTreatmentAsync(CowId);
 }

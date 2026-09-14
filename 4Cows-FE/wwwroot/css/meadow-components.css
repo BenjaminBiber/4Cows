@@ -68,6 +68,38 @@
   z-index: var(--mw-z-header);
 }
 
+/* Titel und Kennzeichen als eine Gruppe: mobil ist .mw-header
+   justify-content: space-between, und ein viertes direktes Kind wuerde die
+   Ohrmarke vom Titel weg an den rechten Rand schieben. */
+.mw-header__heading {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* Ohrmarke und Statusmarken. Die Ohrmarke kuerzt sich, wenn es eng wird;
+   die Marken nicht - "Abgang" halb abgeschnitten waere schlimmer als gar
+   nicht da. */
+.mw-header__meta {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+.mw-header__eartag {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mw-font-mono);
+  font-size: 13px;
+  color: var(--mw-muted);
+}
+/* Die Marke sitzt auf der Grundlinie der Ohrmarke daneben und nicht auf der
+   ihres eigenen Textes - sonst haengt sie sichtbar zu tief. */
+.mw-header__meta .mw-tag { align-self: center; flex-shrink: 0; }
+
 /* Der Seitentitel ist ein <h1> - Routes.razor fokussiert nach der Navigation
    per FocusOnNavigate Selector="h1", und ohne Ueberschrift bliebe der Fokus
    auf dem angeklickten Nav-Item haengen. Darin sitzt ein Button, der auf
@@ -484,6 +516,13 @@
   }
   .mw-header__title { font-size: 20px; }
   .mw-header__actions { margin-left: 0; }
+
+  /* Passt die Ohrmarke neben den Titel, bleibt sie dort; sonst rutscht sie
+     mitsamt den Statusmarken in eine zweite Zeile, statt sich abschneiden zu
+     lassen - bei "Kuh 149 · DE 08 1523 1245 · Abgang" fehlten auf 375px
+     sonst die letzten beiden Ziffern. Der Kopf ist mobil height:auto und
+     waechst dafuer um eine Zeile. */
+  .mw-header__heading { flex-wrap: wrap; gap: 2px 10px; }
 
   /* Inhalt: schmaleres Padding */
   .mw-content { padding: var(--mw-content-pad-m); }
@@ -2555,45 +2594,6 @@ button.mw-nav-item {
   .mw-cow-col .mw-chart-error { margin-top: 0; }
 }
 
-/* ── Kopfkarte ────────────────────────────────────────────────── */
-/* Eine Zeile: Nummer, Ohrmarke und Status auf einer Grundlinie, Aktionen
-   rechts. Untereinander war die Karte so hoch wie eine KPI-Kachel. */
-.mw-cow-head {
-  display: flex;
-  gap: 14px;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  padding: 9px 16px;
-  background: var(--mw-panel);
-  border: 1px solid var(--mw-border);
-  border-radius: var(--mw-r-2xl);
-  box-shadow: var(--mw-shadow-card);
-}
-.mw-cow-head__id {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  flex-wrap: wrap;
-  min-width: 0;
-}
-.mw-cow-head__collar {
-  font-family: var(--mw-font-display);
-  font-weight: 800;
-  font-size: 24px;
-  line-height: 1.1;
-  color: var(--mw-text);
-}
-.mw-cow-head__tag {
-  font-family: var(--mw-font-mono);
-  font-size: 13px;
-  color: var(--mw-muted);
-}
-
-/* Bewusst OHNE .mw-only-desktop: der FAB oeffnet ueber das Add-Menue nur
-   LEERE Dialoge, diese vier sind also mobil der einzige Weg zu einer schon
-   auf dieses Tier eingestellten Behandlung. */
-.mw-cow-head__actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
 /* ── KPI-Reihe ────────────────────────────────────────────────── */
 /* Sechs Kacheln, und sie sollen so flach sein wie moeglich: der Platz, den
@@ -2933,11 +2933,6 @@ a.mw-row-card { text-decoration: none; }
      flach bleiben, hier darf die Zahl wieder lesbar gross sein. */
   .mw-kpi-grid--cow .mw-kpi__value { font-size: 28px; }
   .mw-kpi-grid--cow .mw-kpi--text .mw-kpi__value { font-size: 17px; }
-
-  .mw-cow-head { padding: 12px 16px; }
-  .mw-cow-head__collar { font-size: 26px; }
-  .mw-cow-head__actions { width: 100%; }
-  .mw-cow-head__actions .mw-btn { flex: 1 1 46%; justify-content: center; }
 
   /* Die Legende unter dem Diagramm frisst mobil ein Sechstel der 150px aus
      --mw-bars-h. Nur hier und nicht an .mw-chart-canvas selbst: auf dem

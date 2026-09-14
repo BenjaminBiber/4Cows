@@ -1,3 +1,4 @@
+@using _4Cows_FE.Components.Services
 @* st.header / st.mHeader — rein praesentational, aller Zustand kommt vom Layout. *@
 <header class="mw-header">
     <button type="button" class="mw-icon-btn mw-icon-btn--text"
@@ -17,22 +18,47 @@
         prerendert ohne Viewport-Wissen, jede JS-gestuetzte Weiche wuerde beim
         ersten Frame die falsche Variante rendern und dann umklappen.
     *@
-    @* aria-label, weil beide Titel-Varianten im DOM stehen: ohne das liest
-       ein Screenreader die Ueberschrift doppelt vor. *@
-    <h1 class="mw-header__title" tabindex="-1" aria-label="@PageTitle">
-        <span class="mw-title-btn__label mw-only-desktop">@PageTitle</span>
+    @*
+        Titel und Kennzeichen stecken in einer gemeinsamen Gruppe, damit sie
+        mobil zusammenbleiben: .mw-header ist dort justify-content:
+        space-between, und als vierter direkter Nachbar wuerde die Ohrmarke
+        vom Titel weggeschoben.
+    *@
+    <div class="mw-header__heading">
+        @* aria-label, weil beide Titel-Varianten im DOM stehen: ohne das liest
+           ein Screenreader die Ueberschrift doppelt vor. *@
+        <h1 class="mw-header__title" tabindex="-1" aria-label="@PageTitle">
+            <span class="mw-title-btn__label mw-only-desktop">@PageTitle</span>
 
-        <button type="button" class="mw-title-btn mw-only-mobile" @onclick="OnTitle"
-                aria-haspopup="@(HasSiblings ? "true" : null)"
-                aria-label="@(HasSiblings ? $"{PageTitle} – Ansicht wechseln" : null)">
-            <span class="mw-title-btn__label">@PageTitle</span>
-            @if (HasSiblings)
-            {
-                <MeadowIcon Name="MeadowIconName.ChevronDown" Size="17"
-                            Class="mw-title-btn__chevron" />
-            }
-        </button>
-    </h1>
+            <button type="button" class="mw-title-btn mw-only-mobile" @onclick="OnTitle"
+                    aria-haspopup="@(HasSiblings ? "true" : null)"
+                    aria-label="@(HasSiblings ? $"{PageTitle} – Ansicht wechseln" : null)">
+                <span class="mw-title-btn__label">@PageTitle</span>
+                @if (HasSiblings)
+                {
+                    <MeadowIcon Name="MeadowIconName.ChevronDown" Size="17"
+                                Class="mw-title-btn__chevron" />
+                }
+            </button>
+        </h1>
+
+        @* Bewusst AUSSERHALB des h1: dessen aria-label deckt den Inhalt zu,
+           und in der Ueberschrift stuende die Ohrmarke damit zwar auf dem
+           Schirm, waere fuer einen Screenreader aber nicht vorhanden. *@
+        @if (Subtitle is not null || Tags.Count > 0)
+        {
+            <div class="mw-header__meta">
+                @if (Subtitle is not null)
+                {
+                    <span class="mw-header__eartag">@Subtitle</span>
+                }
+                @foreach (var tag in Tags)
+                {
+                    <span class="mw-tag @ToneClass(tag.Tone)">@tag.Text</span>
+                }
+            </div>
+        }
+    </div>
 
     <div class="mw-header__actions">
         <button type="button" class="mw-icon-btn mw-only-desktop"
@@ -53,10 +79,22 @@
 
 @code {
     [Parameter] public string PageTitle { get; set; } = "";
+
+    /// <summary>Kennzeichen neben dem Titel - auf der Kuh-Seite die Ohrmarke.</summary>
+    [Parameter] public string? Subtitle { get; set; }
+
+    /// <summary>Statusmarken neben dem Kennzeichen, z.B. "Kalb" oder "Abgang".</summary>
+    [Parameter] public IReadOnlyList<PageTag> Tags { get; set; } = Array.Empty<PageTag>();
+
     [Parameter] public bool HasSiblings { get; set; }
     [Parameter] public bool IsDark { get; set; }
     [Parameter] public EventCallback OnMenu { get; set; }
     [Parameter] public EventCallback OnTitle { get; set; }
     [Parameter] public EventCallback OnInfo { get; set; }
     [Parameter] public EventCallback OnToggleTheme { get; set; }
+
+    // Der Ton ist Zustand, die Klasse Darstellung - die Uebersetzung gehoert
+    // deshalb hierher und nicht in LayoutState.
+    private static string ToneClass(PageTagTone tone)
+        => tone == PageTagTone.Removed ? "mw-tag--removed" : "mw-tag--bandage";
 }
