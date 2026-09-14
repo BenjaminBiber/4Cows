@@ -70,11 +70,17 @@
 
 /* Titel und Kennzeichen als eine Gruppe: mobil ist .mw-header
    justify-content: space-between, und ein viertes direktes Kind wuerde die
-   Ohrmarke vom Titel weg an den rechten Rand schieben. */
+   Ohrmarke vom Titel weg an den rechten Rand schieben.
+
+   Untereinander und nicht nebeneinander: die Ohrmarke gehoert zur Nummer
+   darueber, sie steht nicht neben ihr. Nebeneinander konkurrierten ausserdem
+   zwei verschieden gewichtete Angaben um dieselbe Zeile, und auf schmalen
+   Schirmen musste die Ohrmarke gekuerzt werden. */
 .mw-header__heading {
   display: flex;
-  align-items: baseline;
-  gap: 12px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
   min-width: 0;
 }
 
@@ -104,12 +110,16 @@
    per FocusOnNavigate Selector="h1", und ohne Ueberschrift bliebe der Fokus
    auf dem angeklickten Nav-Item haengen. Darin sitzt ein Button, der auf
    Desktop inert ist und mobil das Seitenmenue oeffnet. */
+/* line-height eng gefuehrt: der Kopf ist am Desktop auf 60px festgenagelt
+   (--mw-header-h), und darin muessen Titel und Ohrmarke untereinander
+   Platz finden. */
 .mw-header__title {
   min-width: 0;
   margin: 0;
   font-family: var(--mw-font-display);
   font-weight: 700;
   font-size: 24px;
+  line-height: 1.15;
   letter-spacing: -.01em;
   color: var(--mw-text);
 }
@@ -523,12 +533,14 @@ a.mw-icon-btn { text-decoration: none; }
   .mw-header__title { font-size: 20px; }
   .mw-header__actions { margin-left: 0; }
 
-  /* Passt die Ohrmarke neben den Titel, bleibt sie dort; sonst rutscht sie
-     mitsamt den Statusmarken in eine zweite Zeile, statt sich abschneiden zu
-     lassen - bei "Kuh 149 · DE 08 1523 1245 · Abgang" fehlten auf 375px
-     sonst die letzten beiden Ziffern. Der Kopf ist mobil height:auto und
-     waechst dafuer um eine Zeile. */
-  .mw-header__heading { flex-wrap: wrap; gap: 2px 10px; }
+  /* Die Ohrmarke steht ohnehin unter der Nummer (siehe oben); mobil bekommt
+     sie dafuer etwas mehr Luft, weil der Kopf hier height:auto ist.
+
+     Zentriert, weil der Titel mobil selbst mittig zwischen Zurueck-Pfeil und
+     Aktionen steht: linksbuendig haengen die beiden Zeilen an einer Kante,
+     die sonst nirgends im Kopf vorkommt, und die laengere Ohrmarke zieht die
+     Gruppe optisch schief. */
+  .mw-header__heading { gap: 2px; align-items: center; text-align: center; }
 
   /* Inhalt: schmaleres Padding */
   .mw-content { padding: var(--mw-content-pad-m); }

@@ -169,10 +169,20 @@ public static class MeadowRoutes
     /// Verbände fehlte in zweien davon - man kam ueber die Tabbar auf die
     /// Seite, aber nicht per Dropdown wieder weg.
     /// </summary>
-    public static IReadOnlyList<string> SiblingsFor(string route) => GroupFor(route) switch
+    public static IReadOnlyList<string> SiblingsFor(string route) => BaseOf(route) switch
     {
-        NavGroup.Cow => CowGroup,
-        NavGroup.Claw => ClawGroup,
-        _ => Array.Empty<string>()
+        // Die Kuh-Seite gehoert zwar zur Kuh-Gruppe, ist aber keine ihrer
+        // Listen, sondern EIN Tier daraus. Ein Dropdown mit "Kühe / Kuh
+        // Behandlungen / Geplante" am Titel "Kuh 103" verspricht ein
+        // Umschalten zwischen Gleichrangigen - es gibt hier aber nur einen
+        // Weg heraus, und der steht als Zurueck-Pfeil daneben.
+        CowDetail => Array.Empty<string>(),
+
+        _ => GroupFor(route) switch
+        {
+            NavGroup.Cow => CowGroup,
+            NavGroup.Claw => ClawGroup,
+            _ => Array.Empty<string>()
+        }
     };
 }
