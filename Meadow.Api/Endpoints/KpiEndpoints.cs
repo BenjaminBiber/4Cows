@@ -1,4 +1,5 @@
 using Meadow.Api.Infrastructure;
+using Meadow.Shared.Kpi;
 using Meadow.Shared.Models;
 using Meadow.Shared.Services;
 
@@ -30,6 +31,21 @@ public static class KpiEndpoints
 
         api.MapPost("/kpis", async (KPI kpi, IKPIService svc) =>
         {
+            // KpiScriptGuard lief bisher nur beim AUSFUEHREN. Ueber die Oberflaeche
+            // reichte das, weil dort nichts anderes gespeichert werden konnte.
+            // Ueber HTTP ist das Speichern eine eigene Tuer: ein abgelehntes Skript
+            // laege sonst in der Datenbank und wartete darauf, dass jemand die
+            // Kachel anschaut. Abgelehnt wird, was mehr als ein Statement ist,
+            // nicht mit SELECT oder WITH beginnt, oder in eine Datei schreibt.
+            var rejection = KpiScriptGuard.Reject(kpi.Script);
+            if (rejection is not null)
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["script"] = [rejection]
+                });
+            }
+
             var ok = await svc.InsertDataAsync(kpi);
             return ok
                 ? Results.Created($"/api/kpis/{kpi.KPIId}", kpi)
@@ -41,6 +57,15 @@ public static class KpiEndpoints
             if (!await EndpointCommon.ExistsAsync(() => svc.KPIs, kpiId, svc.GetAllDataAsync))
             {
                 return EndpointCommon.NotFound("Kennzahl", kpiId);
+            }
+
+            var rejection = KpiScriptGuard.Reject(kpi.Script);
+            if (rejection is not null)
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["script"] = [rejection]
+                });
             }
 
             kpi.KPIId = kpiId;

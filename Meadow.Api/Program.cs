@@ -211,6 +211,10 @@ api.MapPlannedCowTreatmentEndpoints();
 api.MapPlannedClawTreatmentEndpoints();
 api.MapSettingsEndpoints();
 api.MapKpiEndpoints();
+api.MapKpiEvaluationEndpoints();
+api.MapClawExportEndpoints();
+
+
 api.MapXLinkEndpoints();
 
 app.MapRazorComponents<App>()
