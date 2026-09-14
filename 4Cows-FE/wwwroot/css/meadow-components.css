@@ -2788,9 +2788,6 @@ button.mw-nav-item {
   color: var(--mw-text);
 }
 
-/* Die Fussnote unter der Eutergrafik - zwei Zeilen davon waeren so hoch wie
-   eine halbe Zelle. */
-.mw-part-grid + .mw-hint { margin-top: 6px; font-size: 11px; line-height: 1.4; }
 
 /* ── Umschaltkarte (Verlauf / Medikamente / Gruende) ─────────── */
 /* Die Laschen stehen anstelle eines Kartentitels: die gedrueckte benennt,

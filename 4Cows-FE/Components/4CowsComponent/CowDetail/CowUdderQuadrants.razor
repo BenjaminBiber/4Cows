@@ -19,6 +19,13 @@
     Die Zelle traegt bewusst KEINEN Link, anders als die Klaue daneben: die
     Kuhbehandlungen sind nicht nach Viertel filterbar - eine Behandlung kann
     mehrere treffen, und Udder haengt an der Behandlung und nicht umgekehrt.
+
+    Genau deshalb summieren sich die vier Zahlen hoeher als die Zahl der
+    Kuhbehandlungen: die Udder-Zeile traegt vier Booleans, und eine Behandlung
+    kann mehrere davon setzen. Unter dem Raster stand dazu eine Fussnote
+    ("2 von 5 Behandlungen mit Viertelangabe. Mehrfachnennung moeglich.") -
+    entfernt, weil die Kachel ohne Kleingedrucktes auskommen soll. Wer die
+    Summe nachrechnet und sich wundert, findet die Begruendung hier.
 *@
 @if (Total == 0)
 {
@@ -26,11 +33,6 @@
 }
 else if (WithQuarter == 0)
 {
-    @* Nur der eine Satz. Darunter stand bis zuletzt "4 von 4 Behandlungen
-       ohne Angabe eines Viertels" - die Rechnung zu einer Aussage, die schon
-       dasteht. Die Fussnote unter dem Raster bleibt: die erklaert, warum sich
-       vier Zahlen auf mehr summieren als es Behandlungen gibt, und das
-       rechnet sonst jemand nach. *@
     <div class="mw-empty">Keine Behandlung mit Viertelangabe.</div>
 }
 else
@@ -62,14 +64,6 @@ else
             </div>
         }
     </div>
-
-    @* Eine Behandlung kann mehrere Viertel treffen - die Udder-Zeile traegt
-       vier Booleans. Die vier Zahlen summieren sich deshalb hoeher als die
-       Zahl der Behandlungen, und das muss dastehen: sonst rechnet jemand nach
-       und findet einen Fehler, der keiner ist. *@
-    <p class="mw-hint">
-        @WithQuarter von @Total Behandlungen mit Viertelangabe. Mehrfachnennung möglich.
-    </p>
 }
 
 @code {
