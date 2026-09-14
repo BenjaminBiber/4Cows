@@ -1,46 +1,64 @@
 @using _4Cows_FE.Components.Meadow
 @using BB_Cow.Profile
 @*
-    Die vier Klauen, eingefaerbt nach Behandlungshaeufigkeit.
+    Die vier Klauen als Pegel: jede fuellt sich von unten, so weit sie am
+    Hoechstwert dieser Kuh liegt.
 
     Beantwortet die Frage, die eine Liste nicht beantwortet: ist immer
-    dieselbe Klaue betroffen? Die Farbe ist dabei der ZWEITE Kanal - jede
-    Zelle nennt ihre Zahl -, damit die Aussage auch ohne Farbwahrnehmung und
-    in beiden Themes ankommt.
+    dieselbe Klaue betroffen?
 
-    Die Einfaerbung ist relativ zum Hoechstwert DIESER Kuh. Eine absolute
-    Skala zeichnete ein Tier, dessen schlimmste Klaue zweimal dran war, als
-    vier ununterscheidbar blasse Zellen - und die Frage auf einer
-    Detailseite lautet nie "wie steht sie zur Herde", sondern immer "welche
-    ihrer vier Klauen ist das Problem". Die Legende nennt den tatsaechlichen
+    Frueher war das eine Farbrampe aus vier Blautoenen. Die war nebeneinander
+    nicht ablesbar - zwei benachbarte Stufen sehen gleich aus, und bei drei
+    behandelten Klauen steht man vor drei blauen Umrissen. Ein Fuellstand ist
+    eine LAENGE, und Laengen vergleicht das Auge ohne Nachdenken. Die Farbe
+    sagt jetzt nur noch "behandelt oder nicht" und traegt damit keine
+    Abstufung mehr, die jemand ohne Farbwahrnehmung verpassen koennte.
+
+    Der Pegel bleibt der ZWEITE Kanal - jede Zelle nennt ihre Zahl.
+
+    Bezugsgroesse ist der Hoechstwert DIESER Kuh. Eine absolute Skala
+    zeichnete ein Tier, dessen schlimmste Klaue zweimal dran war, als vier
+    kaum gefuellte Umrisse - und die Frage auf einer Detailseite lautet nie
+    "wie steht sie zur Herde", sondern immer "welche ihrer vier Klauen ist das
+    Problem". Die Zeile unter dem Raster nennt den tatsaechlichen
     Hoechstwert, damit die Relativitaet dasteht statt impliziert zu sein.
 *@
 @if (TotalTreatments == 0)
 {
-    @* Vier graue Hufe unter einer Legende "selten (1) ... haeufig (0)"
-       beschreiben eine Skala ohne Daten - das liest sich als kaputtes
-       Widget, nicht als leeres. *@
+    @* Vier leere Umrisse unter einer Skala "Hoechstwert 0" beschreiben einen
+       Pegel ohne Daten - das liest sich als kaputtes Widget, nicht als
+       leeres. *@
     <div class="mw-empty">Für diese Kuh sind keine Klauenbehandlungen erfasst.</div>
 }
 else
 {
-    <div class="mw-heat-grid" role="group" aria-label="Klauen nach Behandlungshäufigkeit">
+    <div class="mw-claw-grid" role="group" aria-label="Klauen nach Behandlungshäufigkeit">
         @foreach (var hoof in Hoofs)
         {
             <div class="mw-show-cell">
                 <div class="mw-show-cell__row">
-                    @* Der Huf traegt kein Title und ist damit aria-hidden:
-                       die Zahl daneben sagt dasselbe in Worten. *@
-                    <span class="mw-hoof-thumb mw-heat-@Step(hoof.TreatmentCount)"><Hoof /></span>
+                    @* Zwei deckungsgleiche Umrisse: der untere leer, der obere
+                       gefuellt und oben weggeschnitten. Beide tragen kein
+                       Title und sind damit aria-hidden - die Zahl daneben sagt
+                       dasselbe in Worten.
+
+                       Der Pegel steht im style und nicht in einer Klasse: er
+                       ist ein Messwert mit hundert moeglichen Stufen, keine
+                       Kategorie. *@
+                    <span class="mw-hoof-thumb mw-hoof-level"
+                          style="@($"--mw-hoof-level: {Level(hoof.TreatmentCount)}%")">
+                        <Hoof />
+                        <span class="mw-hoof-level__fill"><Hoof /></span>
+                    </span>
 
                     <div class="mw-show-cell__body">
                         @* Bezeichnung und Zahl auf EINER Grundlinie. Unter-
                            einander kostete jede Zelle rund 20px mehr, und
                            vier davon sind auf einer hoehenbegrenzten Seite
                            ein Drittel der Karte. *@
-                        <div class="mw-heat-cell__head">
+                        <div class="mw-claw-cell__head">
                             <span class="mw-show-cell__title">@HoofPositions.Label(hoof.Position)</span>
-                            <span class="mw-heat-cell__count">
+                            <span class="mw-claw-cell__count">
                                 @hoof.TreatmentCount.ToString("N0")
                                 <span class="mw-sr-only">
                                     @(hoof.TreatmentCount == 1 ? "Behandlung" : "Behandlungen")
@@ -72,17 +90,10 @@ else
         }
     </div>
 
-    <p class="mw-heat-legend">
-        <span>selten (1)</span>
-        <span class="mw-heat-legend__swatch mw-heat-1" aria-hidden="true"></span>
-        <span class="mw-heat-legend__swatch mw-heat-2" aria-hidden="true"></span>
-        <span class="mw-heat-legend__swatch mw-heat-3" aria-hidden="true"></span>
-        <span class="mw-heat-legend__swatch mw-heat-4" aria-hidden="true"></span>
-        <span>häufig (@Max)</span>
-        <span class="mw-sr-only">
-            Die Einfärbung ist relativ zum höchsten Wert dieser Kuh; die genaue Zahl
-            steht in jeder Zelle.
-        </span>
+    @* Eine Zeile statt der frueheren Legende aus vier Farbfeldern: der Pegel
+       erklaert sich, die Bezugsgroesse nicht. *@
+    <p class="mw-claw-scale">
+        Voll = @Max @(Max == 1 ? "Behandlung" : "Behandlungen"), der Höchstwert dieser Kuh.
     </p>
 }
 
@@ -101,13 +112,30 @@ else
     /// </summary>
     [Parameter] public string FallbackFinding { get; set; } = "";
 
-    private const int Steps = 4;
+    /// <summary>
+    /// Untergrenze fuer eine Klaue, die ueberhaupt behandelt wurde. Bei
+    /// "einmal von neun" waeren es sonst 11 Prozent, und im 34px hohen Umriss
+    /// ist das ein Streifen von vier Pixeln - nicht von "nie behandelt" zu
+    /// unterscheiden. Dieselbe Ueberlegung wie das min-width der
+    /// Balkenlisten.
+    /// </summary>
+    private const int MinLevel = 18;
+
     private const int MaxSegments = 3;
 
     private int Max => Hoofs.Count == 0 ? 0 : Hoofs.Max(h => h.TreatmentCount);
 
-    private int Step(int count)
-        => count == 0 || Max == 0 ? 0 : (int)Math.Ceiling((double)Steps * count / Max);
+    /// <summary>
+    /// Fuellstand in Prozent der Umrisshoehe. Ganzzahlig, damit der Wert ohne
+    /// Ruecksicht auf die Kultur in den style-Wert darf - "0,42%" waere ein
+    /// ungueltiger CSS-Wert und der Pegel fiele still auf null zurueck.
+    /// Dasselbe Thema wie MeadowBarList.Share, dort mit InvariantCulture
+    /// geloest.
+    /// </summary>
+    private int Level(int count)
+        => count == 0 || Max == 0
+            ? 0
+            : Math.Max(MinLevel, (int)Math.Round(100.0 * count / Max));
 
     /// <summary>
     /// Die Befunde dieser Klaue, haeufigster zuerst. Gekappt wie in
