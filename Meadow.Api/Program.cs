@@ -5,7 +5,6 @@ using Meadow.Shared.Kpi;
 // Die Registrierungen unten bleiben bewusst auf den konkreten Typen.
 using Meadow.Shared.Services;
 using Meadow.Data.Services;
-using Meadow.Data.Services;
 using Meadow.Data.Sql;
 using Microsoft.AspNetCore.Hosting.StaticWebAssets;
 using Microsoft.EntityFrameworkCore;
