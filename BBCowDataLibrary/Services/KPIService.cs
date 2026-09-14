@@ -55,7 +55,10 @@ public class KPIService
 
             if (isSuccess)
             {
-                _cachedKPIs = _cachedKPIs.Add(KPI.KPIId, KPI);
+                // SetItem statt Add - derselbe Fall wie in ClawTreatmentService: der
+                // Schluessel ist die Identity, die EF zurueckschreibt. Ueber HTTP kommt
+                // sie nicht mit, und Add wirft dann beim zweiten Insert.
+                _cachedKPIs = _cachedKPIs.SetItem(KPI.KPIId, KPI);
                 LoggerService.LogInformation(typeof(KPIService), "Inserted KPI: {@KPI}.", KPI);
             }
 

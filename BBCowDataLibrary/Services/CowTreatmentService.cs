@@ -110,7 +110,9 @@ public class CowTreatmentService
 
             if (treatmentResult != null)
             {
-                _cachedTreatments = _cachedTreatments.Add(id, treatmentResult);
+                // SetItem statt Add: zwei gleichzeitige Aufrufe mit derselben Id kommen
+                // beide am ContainsKey oben vorbei, und der zweite Add wirft dann.
+                _cachedTreatments = _cachedTreatments.SetItem(id, treatmentResult);
             }
 
             return treatmentResult ?? new CowTreatment();

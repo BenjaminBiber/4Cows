@@ -50,7 +50,10 @@ namespace BB_Cow.Services
 
                 if (isSuccess)
                 {
-                    _cachedTreatments = _cachedTreatments.Add(clawTreatment.PlannedClawTreatmentId, clawTreatment);
+                    // SetItem statt Add - derselbe Fall wie in ClawTreatmentService: der
+                    // Schluessel ist die Identity, die EF zurueckschreibt. Ueber HTTP kommt
+                    // sie nicht mit, und Add wirft dann beim zweiten Insert.
+                    _cachedTreatments = _cachedTreatments.SetItem(clawTreatment.PlannedClawTreatmentId, clawTreatment);
                     LoggerService.LogInformation(typeof(PClawTreatmentService), "Data inserted successfully: {@clawTreatment}", clawTreatment);
                 }
 
