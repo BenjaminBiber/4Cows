@@ -7,8 +7,8 @@
 *@
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
-@inject PClawTreatmentService pClawTreatmentService
-@inject ClawTreatmentService clawTreatmentService
+@inject IPClawTreatmentService pClawTreatmentService
+@inject IClawTreatmentService clawTreatmentService
 
 <MeadowTable TItem="PlannedClawTreatment" Items="Rows" Columns="_columns"
              RowKey="@(r => r.PlannedClawTreatmentId)"

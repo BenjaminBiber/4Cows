@@ -1,3 +1,4 @@
+using Meadow.Shared.Services;
 using Meadow.Data.Services;
 using Meadow.Data.Services;
 using Meadow.Data.Sql;
@@ -58,30 +59,30 @@ public sealed class DemoResetBackgroundService : BackgroundService
     private readonly IDbContextFactory<DatabaseContext> _contextFactory;
     private readonly DemoSettings _demo;
 
-    private readonly SettingsService _settings;
-    private readonly CowService _cows;
-    private readonly MedicineService _medicines;
-    private readonly WhereHowService _whereHows;
-    private readonly UdderService _udders;
-    private readonly CowTreatmentService _cowTreatments;
-    private readonly ClawTreatmentService _clawTreatments;
-    private readonly PCowTreatmentService _plannedCow;
-    private readonly PClawTreatmentService _plannedClaw;
-    private readonly KPIService _kpis;
+    private readonly ISettingsService _settings;
+    private readonly ICowService _cows;
+    private readonly IMedicineService _medicines;
+    private readonly IWhereHowService _whereHows;
+    private readonly IUdderService _udders;
+    private readonly ICowTreatmentService _cowTreatments;
+    private readonly IClawTreatmentService _clawTreatments;
+    private readonly IPCowTreatmentService _plannedCow;
+    private readonly IPClawTreatmentService _plannedClaw;
+    private readonly IKPIService _kpis;
 
     public DemoResetBackgroundService(
         IDbContextFactory<DatabaseContext> contextFactory,
         DemoSettings demo,
-        SettingsService settings,
-        CowService cows,
-        MedicineService medicines,
-        WhereHowService whereHows,
-        UdderService udders,
-        CowTreatmentService cowTreatments,
-        ClawTreatmentService clawTreatments,
-        PCowTreatmentService plannedCow,
-        PClawTreatmentService plannedClaw,
-        KPIService kpis)
+        ISettingsService settings,
+        ICowService cows,
+        IMedicineService medicines,
+        IWhereHowService whereHows,
+        IUdderService udders,
+        ICowTreatmentService cowTreatments,
+        IClawTreatmentService clawTreatments,
+        IPCowTreatmentService plannedCow,
+        IPClawTreatmentService plannedClaw,
+        IKPIService kpis)
     {
         _contextFactory = contextFactory;
         _demo = demo;

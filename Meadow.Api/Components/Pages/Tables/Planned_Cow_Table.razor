@@ -12,13 +12,13 @@
 @inject MeadowDataLoader Data
 @inject MeadowDialogLauncher Launcher
 @inject MeadowDataChanges Changes
-@inject PCowTreatmentService pCowTreatmentService
-@inject MedicineService medicineService
-@inject CowService cowService
-@inject WhereHowService WhereHowService
-@inject UdderService UdderService
-@inject TreatmentReasonService TreatmentReasonService
-@inject SettingsService SettingsService
+@inject IPCowTreatmentService pCowTreatmentService
+@inject IMedicineService medicineService
+@inject ICowService cowService
+@inject IWhereHowService WhereHowService
+@inject IUdderService UdderService
+@inject ITreatmentReasonService TreatmentReasonService
+@inject ISettingsService SettingsService
 
 @* Dieselbe Filterleiste wie Cow_Table/Claw_Table - bisher hatte diese Seite
    nur ein Suchfeld. Der Zeitraum zeigt hier in die ZUKUNFT: geplante

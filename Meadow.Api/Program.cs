@@ -58,23 +58,23 @@ builder.Services.AddMudServices(cfg =>
 builder.Services.AddSingleton<DatabaseStatusService>();
 builder.Services.AddDbContextFactory<DatabaseContext>(options =>
     options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
-builder.Services.AddSingleton<ClawTreatmentService>();
-builder.Services.AddSingleton<CowTreatmentService>();
-builder.Services.AddSingleton<PClawTreatmentService>();
-builder.Services.AddSingleton<PCowTreatmentService>();
-builder.Services.AddSingleton<MedicineService>();
-builder.Services.AddSingleton<CowService>();
-builder.Services.AddSingleton<WhereHowService>();
-builder.Services.AddSingleton<TreatmentReasonService>();
-builder.Services.AddSingleton<ClawFindingService>();
-builder.Services.AddSingleton<UdderService>();
+builder.Services.AddSingleton<IClawTreatmentService, ClawTreatmentService>();
+builder.Services.AddSingleton<ICowTreatmentService, CowTreatmentService>();
+builder.Services.AddSingleton<IPClawTreatmentService, PClawTreatmentService>();
+builder.Services.AddSingleton<IPCowTreatmentService, PCowTreatmentService>();
+builder.Services.AddSingleton<IMedicineService, MedicineService>();
+builder.Services.AddSingleton<ICowService, CowService>();
+builder.Services.AddSingleton<IWhereHowService, WhereHowService>();
+builder.Services.AddSingleton<ITreatmentReasonService, TreatmentReasonService>();
+builder.Services.AddSingleton<IClawFindingService, ClawFindingService>();
+builder.Services.AddSingleton<IUdderService, UdderService>();
 // Projects KPI rows out of the caches of the eight services above; KPIService depends on it.
 // Deliberately holds no cache of its own - see the comment on the class.
 builder.Services.AddSingleton<KpiRowProvider>();
-builder.Services.AddSingleton<KPIService>();
-builder.Services.AddSingleton<SettingsService>();
+builder.Services.AddSingleton<IKPIService, KPIService>();
+builder.Services.AddSingleton<ISettingsService, SettingsService>();
 builder.Services.AddSingleton<DatabaseConnectionState>();
-builder.Services.AddSingleton<XLinkService>();
+builder.Services.AddSingleton<IXLinkService, XLinkService>();
 builder.Services.AddSingleton(demoSettings);
 
 // Shell-Zustand ist Scoped, also einer pro Circuit. Als Singleton wuerde der

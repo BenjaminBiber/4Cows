@@ -6,11 +6,11 @@
     Spalten wie in Cow_Table, aber ohne Halsband und Ohrmarke - beides steht
     im Kopf der Seite und waere hier in jeder Zeile dieselbe Angabe.
 *@
-@inject MedicineService medicineService
-@inject WhereHowService WhereHowService
-@inject UdderService UdderService
-@inject TreatmentReasonService TreatmentReasonService
-@inject SettingsService SettingsService
+@inject IMedicineService medicineService
+@inject IWhereHowService WhereHowService
+@inject IUdderService UdderService
+@inject ITreatmentReasonService TreatmentReasonService
+@inject ISettingsService SettingsService
 
 <MeadowTable TItem="CowTreatment" Items="Rows" Columns="_columns"
              RowKey="@(r => r.CowTreatmentId)"

@@ -1,3 +1,4 @@
+using Meadow.Shared.Services;
 using Meadow.Shared.Models;
 using Meadow.Data.Services;
 using MudBlazor;
@@ -90,7 +91,7 @@ public static class MedicationRows
     /// Wie/Wo-Feld.
     /// </summary>
     public static void ApplyWhereHow(
-        MedicationEntry entry, string? value, WhereHowService whereHowService)
+        MedicationEntry entry, string? value, IWhereHowService whereHowService)
     {
         entry.WhereHowName = value ?? "";
         var text = entry.WhereHowName.Trim();
@@ -124,9 +125,9 @@ public static class MedicationRows
     public static void ApplyMedicine(
         MedicationEntry entry,
         string? medicineName,
-        MedicineService medicineService,
-        WhereHowService whereHowService,
-        SettingsService settingsService)
+        IMedicineService medicineService,
+        IWhereHowService whereHowService,
+        ISettingsService settingsService)
     {
         entry.MedicineName = medicineName;
         entry.DosageUnit = ResolveUnit(medicineName, medicineService, settingsService);
@@ -165,7 +166,7 @@ public static class MedicationRows
     /// schlechter als die konfigurierte Einheit zu zeigen.
     /// </summary>
     public static string ResolveUnit(
-        string? medicineName, MedicineService medicineService, SettingsService settingsService)
+        string? medicineName, IMedicineService medicineService, ISettingsService settingsService)
     {
         var medicine = FindMedicine(medicineName, medicineService);
 
@@ -174,7 +175,7 @@ public static class MedicationRows
             : medicine!.DosageUnit!.Trim();
     }
 
-    private static Medicine? FindMedicine(string? medicineName, MedicineService medicineService)
+    private static Medicine? FindMedicine(string? medicineName, IMedicineService medicineService)
     {
         if (string.IsNullOrWhiteSpace(medicineName))
         {
@@ -200,9 +201,9 @@ public static class MedicationRows
     /// </summary>
     public static async Task<List<ResolvedMedication>?> ResolveAsync(
         IReadOnlyList<MedicationEntry> rows,
-        MedicineService medicineService,
-        WhereHowService whereHowService,
-        UdderService udderService,
+        IMedicineService medicineService,
+        IWhereHowService whereHowService,
+        IUdderService udderService,
         ISnackbar snackbar)
     {
         if (rows.Count == 0)

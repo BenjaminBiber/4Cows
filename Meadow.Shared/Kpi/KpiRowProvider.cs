@@ -1,5 +1,5 @@
 using Meadow.Shared.Models;
-using Meadow.Data.Services;
+using Meadow.Shared.Services;
 
 namespace Meadow.Shared.Kpi;
 
@@ -15,30 +15,30 @@ namespace Meadow.Shared.Kpi;
 /// </summary>
 public sealed class KpiRowProvider : IKpiLookups
 {
-    private readonly CowService _cows;
-    private readonly MedicineService _medicines;
-    private readonly WhereHowService _whereHows;
-    private readonly ClawFindingService _clawFindings;
-    private readonly UdderService _udders;
+    private readonly ICowService _cows;
+    private readonly IMedicineService _medicines;
+    private readonly IWhereHowService _whereHows;
+    private readonly IClawFindingService _clawFindings;
+    private readonly IUdderService _udders;
 
     // CowTreatmentService lag als einzige Klasse im globalen Namensraum, waehrend ihre
     // Geschwister in BB_Cow.Services lagen - deshalb stand hier frueher kein using dafuer.
     // Mit der Umbenennung auf Meadow hat sie denselben Namensraum wie die anderen bekommen.
-    private readonly CowTreatmentService _cowTreatments;
-    private readonly ClawTreatmentService _clawTreatments;
-    private readonly PCowTreatmentService _plannedCowTreatments;
-    private readonly PClawTreatmentService _plannedClawTreatments;
+    private readonly ICowTreatmentService _cowTreatments;
+    private readonly IClawTreatmentService _clawTreatments;
+    private readonly IPCowTreatmentService _plannedCowTreatments;
+    private readonly IPClawTreatmentService _plannedClawTreatments;
 
     public KpiRowProvider(
-        CowService cows,
-        MedicineService medicines,
-        WhereHowService whereHows,
-        ClawFindingService clawFindings,
-        UdderService udders,
-        CowTreatmentService cowTreatments,
-        ClawTreatmentService clawTreatments,
-        PCowTreatmentService plannedCowTreatments,
-        PClawTreatmentService plannedClawTreatments)
+        ICowService cows,
+        IMedicineService medicines,
+        IWhereHowService whereHows,
+        IClawFindingService clawFindings,
+        IUdderService udders,
+        ICowTreatmentService cowTreatments,
+        IClawTreatmentService clawTreatments,
+        IPCowTreatmentService plannedCowTreatments,
+        IPClawTreatmentService plannedClawTreatments)
     {
         _cows = cows;
         _medicines = medicines;

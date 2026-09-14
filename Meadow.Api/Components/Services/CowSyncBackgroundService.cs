@@ -1,3 +1,4 @@
+using Meadow.Shared.Services;
 using Meadow.Data.Services;
 using Meadow.Data.Sql;
 using Microsoft.EntityFrameworkCore;
@@ -10,11 +11,11 @@ namespace Meadow.Api.Components.Services;
 /// </summary>
 public class CowSyncBackgroundService : BackgroundService
 {
-    private readonly XLinkService _xLinkService;
+    private readonly IXLinkService _xLinkService;
     private readonly IDbContextFactory<DatabaseContext> _contextFactory;
     private readonly TimeSpan _interval;
 
-    public CowSyncBackgroundService(XLinkService xLinkService, IDbContextFactory<DatabaseContext> contextFactory)
+    public CowSyncBackgroundService(IXLinkService xLinkService, IDbContextFactory<DatabaseContext> contextFactory)
     {
         _xLinkService = xLinkService;
         _contextFactory = contextFactory;
