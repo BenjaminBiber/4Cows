@@ -3,12 +3,13 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Threading.Tasks;
 using Meadow.Shared.Models;
+using Meadow.Shared.Services;
 using Meadow.Data.Sql;
 using Microsoft.EntityFrameworkCore;
 
 namespace Meadow.Data.Services
 {
-    public class PClawTreatmentService
+    public class PClawTreatmentService : IPClawTreatmentService
     {
         private ImmutableDictionary<int, PlannedClawTreatment> _cachedTreatments = ImmutableDictionary<int, PlannedClawTreatment>.Empty;
         private readonly IDbContextFactory<DatabaseContext> _contextFactory;

@@ -158,7 +158,7 @@
             _findingDraft.TryGetValue(position, out var name);
             var id = await clawFindingService.GetIdByNameAsync(name);
 
-            if (id == ClawFindingService.FailedId)
+            if (id == ClawFinding.FailedId)
             {
                 Snackbar.Add($"Befund „{name?.Trim()}\" konnte nicht angelegt werden.", Severity.Error);
                 return;

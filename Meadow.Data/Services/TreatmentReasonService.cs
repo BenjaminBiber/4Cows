@@ -1,5 +1,7 @@
 using System.Collections.Immutable;
+using Meadow.Shared.Lookups;
 using Meadow.Shared.Models;
+using Meadow.Shared.Services;
 using Meadow.Data.Sql;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,7 +12,7 @@ namespace Meadow.Data.Services;
 /// mit prozessweitem Cache, Eintraege entstehen ueberwiegend nebenbei im
 /// Behandlungs-Dialog, gepflegt wird ueber die Basisdaten-Seite.
 /// </summary>
-public class TreatmentReasonService
+public class TreatmentReasonService : ITreatmentReasonService
 {
     /// <summary>
     /// Anzeigetext, wenn kein Grund gesetzt oder die ID unbekannt ist. Steht
@@ -27,7 +29,7 @@ public class TreatmentReasonService
     public ImmutableDictionary<int, TreatmentReason> Reasons => _cachedReasons;
 
     public List<string> ReasonNames =>
-        _cachedReasons.Values.Select(r => r.TreatmentReasonName).Distinct().ToList();
+        TreatmentReasonLookups.ReasonNames(_cachedReasons.Values);
 
     public TreatmentReasonService(
         IDbContextFactory<DatabaseContext> contextFactory,
@@ -265,18 +267,15 @@ public class TreatmentReasonService
         }
     }
 
-    /// <summary>Anzeigename. NoReasonText bei null und bei unbekannter ID.</summary>
+    /// <summary>
+    /// Anzeigename. NoReasonText bei null und bei unbekannter ID.
+    ///
+    /// Rumpf in TreatmentReasonLookups; NoReasonText geht als Parameter
+    /// hinein, damit die Konstante genau hier bleibt - sie hat ausserhalb
+    /// dieser Klasse keine Aufrufstelle.
+    /// </summary>
     public string GetNameById(int? id)
-    {
-        if (id is not int value)
-        {
-            return NoReasonText;
-        }
-
-        return _cachedReasons.TryGetValue(value, out var reason)
-            ? reason.TreatmentReasonName
-            : NoReasonText;
-    }
+        => TreatmentReasonLookups.GetNameById(_cachedReasons, id, NoReasonText);
 
     /// <summary>
     /// Sucht den Grund zum Namen und legt ihn an, wenn es ihn nicht gibt.
@@ -314,25 +313,9 @@ public class TreatmentReasonService
     }
 
     /// <summary>
-    /// Vorschlaege fuer das Autocomplete. Nach dem Muster von
-    /// CowTreatmentService.SearchCowTreatmentWhereHow: eine Eingabe ohne
-    /// Treffer liefert die Eingabe selbst zurueck, damit sie uebernommen und
-    /// beim Speichern angelegt werden kann.
+    /// Vorschlaege fuer das Autocomplete. Rumpf in TreatmentReasonLookups; das
+    /// Task.FromResult bleibt hier, weil sich diese Signatur nicht aendern darf.
     /// </summary>
     public Task<IEnumerable<string>> SearchAsync(string value, CancellationToken token)
-    {
-        var names = ReasonNames.OrderBy(n => n, StringComparer.CurrentCulture).ToList();
-
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return Task.FromResult<IEnumerable<string>>(names);
-        }
-
-        var hits = names
-            .Where(n => n.Contains(value, StringComparison.InvariantCultureIgnoreCase))
-            .ToList();
-
-        return Task.FromResult<IEnumerable<string>>(
-            hits.Count > 0 ? hits : new List<string> { value.Trim() });
-    }
+        => Task.FromResult(TreatmentReasonLookups.Search(ReasonNames, value));
 }

@@ -1,12 +1,14 @@
 using System.Collections.Immutable;
+using Meadow.Shared.Lookups;
 using Meadow.Shared.Models;
+using Meadow.Shared.Services;
 using Meadow.Data.Sql;
 using Microsoft.EntityFrameworkCore;
 
 namespace Meadow.Data.Services;
 
 
-public class MedicineService
+public class MedicineService : IMedicineService
 {
     private ImmutableDictionary<int, Medicine> _cachedMedicines = ImmutableDictionary<int, Medicine>.Empty;
     private readonly IDbContextFactory<DatabaseContext> _contextFactory;
@@ -288,37 +290,17 @@ public class MedicineService
         }
     }
 
-    public Medicine? GetById(int medicineId)
-    {
-        return _cachedMedicines.GetValueOrDefault(medicineId);
-    }
+    // Ab hier nur noch Weiterleitungen; die Rumpfe stehen in MedicineLookups,
+    // damit es das "--" bei Fehltreffer genau einmal gibt.
+    public Medicine? GetById(int medicineId) => MedicineLookups.GetById(_cachedMedicines, medicineId);
 
-    public string GetMedicineNameById(int medicineId)
-    {
-        return _cachedMedicines.ContainsKey(medicineId) ? _cachedMedicines[medicineId].MedicineName : "--";
-    }
+    public string GetMedicineNameById(int medicineId) => MedicineLookups.GetMedicineNameById(_cachedMedicines, medicineId);
 
-    /// <summary>
-    /// Einheit des Medikaments, oder <paramref name="fallback"/>, wenn keine
-    /// hinterlegt ist. Der Rueckfallwert bleibt Sache des Aufrufers: die
-    /// Tabellen haben bisher fest "ml" angezeigt, und das soll fuer Zeilen ohne
-    /// Einheit unveraendert so bleiben.
-    /// </summary>
-    public string GetDosageUnit(int medicineId, string fallback)
-    {
-        var unit = GetById(medicineId)?.DosageUnit;
-        return string.IsNullOrWhiteSpace(unit) ? fallback : unit;
-    }
+    public string GetDosageUnit(int medicineId, string fallback) => MedicineLookups.GetDosageUnit(_cachedMedicines, medicineId, fallback);
 
-    public List<string> GetMedicineNames()
-    {
-        return _cachedMedicines.Values.Select(m => m.MedicineName).ToList();
-    }
+    public List<string> GetMedicineNames() => MedicineLookups.GetMedicineNames(_cachedMedicines.Values);
 
-    public List<string> GetMedicineNamesByIds(List<int> medicineIds)
-    {
-        return _cachedMedicines.Where(m => medicineIds.Contains(m.Key)).Select(m => m.Value.MedicineName).ToList();
-    }
+    public List<string> GetMedicineNamesByIds(List<int> medicineIds) => MedicineLookups.GetMedicineNamesByIds(_cachedMedicines, medicineIds);
 
     public async Task<int> GetMedicineIdByName(string medicineName)
     {

@@ -25,6 +25,24 @@ public class ClawFinding
     /// </summary>
     public const int NameMaxLength = 64;
 
+    /// <summary>
+    /// Ergebnis von ClawFindingService.GetIdByNameAsync, wenn der Befund nicht
+    /// angelegt werden konnte. <c>null</c> ist dort KEIN Fehler, sondern der
+    /// regulaere Fall "keine Eingabe" - deshalb braucht das Scheitern einen
+    /// eigenen Wert, wie in TreatmentReasonService.
+    ///
+    /// Steht am MODELL und nicht am Dienst, obwohl sie sein Ergebnis
+    /// beschreibt: sobald die Komponenten den Dienst als IClawFindingService
+    /// einspritzen, bindet der einfache Name ClawFindingService im
+    /// Klauenbehandlungs-Dialog an das FELD, nicht mehr an den Typ (heute
+    /// traegt die "Color Color"-Regel das, weil Feld und Typ gleich heissen).
+    /// Eine Konstante ist kein Schnittstellen-Member, der Zugriff waere dann
+    /// CS1061 - und zwar erst im naechsten Commit, wo niemand mehr danach
+    /// sucht. Am Modell steht sie allen Implementierungen der Naht
+    /// gleichermassen zur Verfuegung.
+    /// </summary>
+    public const int FailedId = int.MinValue;
+
     [Key]
     [Column("Claw_Finding_ID")]
     public int ClawFindingId { get; set; }

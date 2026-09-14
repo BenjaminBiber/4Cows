@@ -1,18 +1,20 @@
 using System.Collections.Immutable;
+using Meadow.Shared.Lookups;
 using Meadow.Shared.Models;
+using Meadow.Shared.Services;
 using Meadow.Data.Sql;
 using Microsoft.EntityFrameworkCore;
 
 namespace Meadow.Data.Services;
 
-public class WhereHowService
+public class WhereHowService : IWhereHowService
 {
     private ImmutableDictionary<int, WhereHow> _cachedWhereHows = ImmutableDictionary<int, WhereHow>.Empty;
     private readonly IDbContextFactory<DatabaseContext> _contextFactory;
     private readonly DatabaseStatusService _databaseStatusService;
     public ImmutableDictionary<int, WhereHow> WhereHows => _cachedWhereHows;
 
-    public List<string> WhereHowNames => _cachedWhereHows.Values.Select(x => x.WhereHowName).Distinct().ToList();
+    public List<string> WhereHowNames => WhereHowLookups.WhereHowNames(_cachedWhereHows.Values);
 
         public WhereHowService(IDbContextFactory<DatabaseContext> contextFactory, DatabaseStatusService databaseStatusService)
         {
@@ -239,31 +241,14 @@ public class WhereHowService
             }
         }
 
-        public WhereHow GetById(int whereHowID)
-        {
-            return _cachedWhereHows.ContainsKey(whereHowID) ? _cachedWhereHows[whereHowID] : new WhereHow();
-        }
+        // Weiterleitungen; die Rumpfe stehen in WhereHowLookups, damit der
+        // Leerstring bei Fehltreffer - auf den GetWhereHowNamesByIds filtert -
+        // nur an einer Stelle festgelegt ist.
+        public WhereHow GetById(int whereHowID) => WhereHowLookups.GetById(_cachedWhereHows, whereHowID);
 
-        public string GetWhereHowNameById(int id)
-        {
-            return _cachedWhereHows.ContainsKey(id) ? _cachedWhereHows[id].WhereHowName : String.Empty;
-        }
+        public string GetWhereHowNameById(int id) => WhereHowLookups.GetWhereHowNameById(_cachedWhereHows, id);
         
-        public List<string> GetWhereHowNamesByIds(List<int> Ids)
-        {
-            var returnList = new List<string>();
-
-            foreach (var id in Ids)
-            {
-                var returnId = GetWhereHowNameById(id);
-                if (!string.IsNullOrEmpty(returnId) && !returnList.Contains(returnId))
-                {
-                    returnList.Add(returnId);
-                }
-            }
-
-            return returnList;
-        }
+        public List<string> GetWhereHowNamesByIds(List<int> Ids) => WhereHowLookups.GetWhereHowNamesByIds(_cachedWhereHows, Ids);
 
         /// <summary>
         /// Sucht den Eintrag zum Namen und legt ihn an, wenn es ihn nicht gibt.
@@ -300,36 +285,11 @@ public class WhereHowService
             return id;
         }
 
-        public string GetFullWhereHowName(int whereHow_id,UdderService udderService, int? udder_id = null)
-        {
-            var whereHow = GetById(whereHow_id);
-            if (!udder_id.HasValue)
-            {
-                return whereHow.WhereHowName;
-            }
-            else
-            {
-                var udder = udderService.GetById(udder_id.Value);
-                return $"{whereHow.WhereHowName} {GetUdderString(udder)}";
-            }
-        }
+        // Braucht zwei Caches. Der zweite kommt weiter ueber den Dienst herein -
+        // der Parameter ist auf die Naht verbreitert, nicht entfernt, sonst
+        // aendert sich jede Aufrufstelle.
+        public string GetFullWhereHowName(int whereHow_id,IUdderService udderService, int? udder_id = null)
+            => WhereHowLookups.GetFullWhereHowName(_cachedWhereHows, udderService.Udder, whereHow_id, udder_id);
 
-        public string GetUdderString(Udder udder)
-        {
-            if (udder.QuarterLH && udder.QuarterLV && udder.QuarterRV && udder.QuarterRH)
-            {
-                return "(Alle 4)";
-            }else if (!udder.QuarterLH && !udder.QuarterLV && !udder.QuarterRV && !udder.QuarterRH)
-            {
-                return "";
-            }
-
-            List<string> results = new List<string>();
-            results.Add(udder.QuarterLV ? "LV" : "");
-            results.Add(udder.QuarterLH ? "LH" : "");
-            results.Add(udder.QuarterRV ? "RV" : "");
-            results.Add(udder.QuarterRH ? "RH" : "");
-            return $"({String.Join("/ ", results.Where(x => !string.IsNullOrEmpty(x)))})";
-
-        }
+        public string GetUdderString(Udder udder) => WhereHowLookups.GetUdderString(udder);
 }

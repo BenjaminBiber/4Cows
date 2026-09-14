@@ -2,13 +2,14 @@ using System.Collections.Immutable;
 using System.Data.Common;
 using Meadow.Shared.Models;
 using Meadow.Shared.Kpi;
+using Meadow.Shared.Services;
 using Meadow.Data.Services;
 using Meadow.Data.Sql;
 using Microsoft.EntityFrameworkCore;
 
 namespace Meadow.Data.Services;
 
-public class KPIService
+public class KPIService : IKPIService
 {
     private ImmutableDictionary<int, KPI> _cachedKPIs = ImmutableDictionary<int, KPI>.Empty;
     private readonly IDbContextFactory<DatabaseContext> _contextFactory;

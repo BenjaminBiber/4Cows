@@ -1,9 +1,10 @@
 using System.Text.RegularExpressions;
 using Meadow.Shared.Models;
+using Meadow.Shared.Services;
 
 namespace Meadow.Data.Services;
 
-public class XLinkService
+public class XLinkService : IXLinkService
 {
     // Matches a single data row of the XLink ReportTable: two adjacent
     // <td ...><nobr>VALUE</nobr></td> cells (col 1 = collar number, col 2 = life number).

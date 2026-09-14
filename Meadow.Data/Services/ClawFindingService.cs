@@ -1,5 +1,7 @@
 using System.Collections.Immutable;
+using Meadow.Shared.Lookups;
 using Meadow.Shared.Models;
+using Meadow.Shared.Services;
 using Meadow.Data.Sql;
 using Microsoft.EntityFrameworkCore;
 
@@ -16,15 +18,10 @@ namespace Meadow.Data.Services;
 /// dem Bestand (ClawTreatmentService.ClawFindingList). Diese Tabelle ersetzt
 /// beides.
 /// </summary>
-public class ClawFindingService
+public class ClawFindingService : IClawFindingService
 {
-    /// <summary>
-    /// Ergebnis von <see cref="GetIdByNameAsync"/>, wenn der Befund nicht
-    /// angelegt werden konnte. <c>null</c> ist dort KEIN Fehler, sondern der
-    /// regulaere Fall "keine Eingabe" - deshalb braucht das Scheitern einen
-    /// eigenen Wert, wie in TreatmentReasonService.
-    /// </summary>
-    public const int FailedId = int.MinValue;
+    // Der Fehlerwert von GetIdByNameAsync heisst ClawFinding.FailedId und
+    // steht am Modell - die Begruendung dafuer steht dort.
 
     private ImmutableDictionary<int, ClawFinding> _cachedFindings =
         ImmutableDictionary<int, ClawFinding>.Empty;
@@ -35,7 +32,7 @@ public class ClawFindingService
     public ImmutableDictionary<int, ClawFinding> Findings => _cachedFindings;
 
     public List<string> FindingNames =>
-        _cachedFindings.Values.Select(f => f.ClawFindingName).Distinct().ToList();
+        ClawFindingLookups.FindingNames(_cachedFindings.Values);
 
     public ClawFindingService(
         IDbContextFactory<DatabaseContext> contextFactory,
@@ -65,25 +62,10 @@ public class ClawFindingService
     }
 
     /// <summary>
-    /// Anzeigename. Leerstring bei <c>null</c> UND bei unbekannter ID - nicht
-    /// der Gedankenstrich der uebrigen Nachschlagedienste.
-    ///
-    /// Leer heisst in der ganzen Klauen-Anzeige "an dieser Klaue nichts
-    /// erfasst": ClawFindingSummary, CowProfileBuilder und ClawSummary haengen
-    /// daran. Ein Platzhalterzeichen hier wuerde als echter Befund gezaehlt und
-    /// stuende als haeufigster Klauenbefund auf der Kachel.
+    /// Anzeigename, Leerstring bei null und bei unbekannter ID. Rumpf und
+    /// Begruendung stehen in ClawFindingLookups.
     /// </summary>
-    public string GetNameById(int? id)
-    {
-        if (id is not int value)
-        {
-            return string.Empty;
-        }
-
-        return _cachedFindings.TryGetValue(value, out var finding)
-            ? finding.ClawFindingName
-            : string.Empty;
-    }
+    public string GetNameById(int? id) => ClawFindingLookups.GetNameById(_cachedFindings, id);
 
     /// <summary>
     /// Wie viele BEHANDLUNGEN jeden Befund benutzen. Derselbe Befund an zwei
@@ -369,7 +351,7 @@ public class ClawFindingService
     /// Sucht den Befund zum Namen und legt ihn an, wenn es ihn nicht gibt.
     ///
     /// <c>null</c> bei leerer Eingabe - das ist der regulaere Fall "an dieser
-    /// Klaue wurde nichts erfasst", kein Fehler. <see cref="FailedId"/>, wenn
+    /// Klaue wurde nichts erfasst", kein Fehler. <see cref="ClawFinding.FailedId"/>, wenn
     /// das Anlegen scheitert; der Aufrufer bricht dann ab, BEVOR er die
     /// Behandlung schreibt.
     ///
@@ -397,11 +379,11 @@ public class ClawFindingService
 
         if (!await InsertDataAsync(new ClawFinding(0, trimmed)))
         {
-            return FailedId;
+            return ClawFinding.FailedId;
         }
 
         // InsertDataAsync hat den Cache neu geladen.
-        return Find(trimmed)?.ClawFindingId ?? FailedId;
+        return Find(trimmed)?.ClawFindingId ?? ClawFinding.FailedId;
     }
 
     private ClawFinding? Find(string trimmedName)
@@ -409,25 +391,9 @@ public class ClawFindingService
             string.Equals(f.ClawFindingName.Trim(), trimmedName, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
-    /// Vorschlaege fuer das Autocomplete. Nach dem Muster von
-    /// TreatmentReasonService.SearchAsync: eine Eingabe ohne Treffer liefert
-    /// die Eingabe selbst zurueck, damit sie uebernommen und beim Speichern
-    /// angelegt werden kann.
+    /// Vorschlaege fuer das Autocomplete. Rumpf in ClawFindingLookups; das
+    /// Task.FromResult bleibt hier, weil sich diese Signatur nicht aendern darf.
     /// </summary>
     public Task<IEnumerable<string>> SearchAsync(string value, CancellationToken token)
-    {
-        var names = FindingNames.OrderBy(n => n, StringComparer.CurrentCulture).ToList();
-
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return Task.FromResult<IEnumerable<string>>(names);
-        }
-
-        var hits = names
-            .Where(n => n.Contains(value, StringComparison.InvariantCultureIgnoreCase))
-            .ToList();
-
-        return Task.FromResult<IEnumerable<string>>(
-            hits.Count > 0 ? hits : new List<string> { value.Trim() });
-    }
+        => Task.FromResult(ClawFindingLookups.Search(FindingNames, value));
 }
