@@ -1,3 +1,7 @@
+using Microsoft.AspNetCore.Diagnostics;
+using Meadow.Api.Endpoints;
+using Meadow.Api.Infrastructure;
+using Meadow.Shared;
 using OfficeOpenXml;
 using Meadow.Api.Components;
 using Meadow.Api.Components.Services;
@@ -70,6 +74,15 @@ builder.Services.AddMudServices(cfg =>
     cfg.SnackbarConfiguration.ShowTransitionDuration = 180;
     cfg.SnackbarConfiguration.PreventDuplicates = false;
 });
+// Der Zaehler, an dem ein Client erkennt, ob sich etwas geaendert hat. Muss ein
+// Singleton sein - ein Zaehler pro Anfrage zaehlt nichts.
+builder.Services.AddSingleton<IDataVersion, DataVersion>();
+
+// Ein JSON-Vertrag fuer beide Seiten. Die Begruendung der Einstellungen steht
+// in Meadow.Shared/MeadowJson.cs; die wichtigste ist DefaultIgnoreCondition.
+builder.Services.ConfigureHttpJsonOptions(o => MeadowJson.Apply(o.SerializerOptions));
+builder.Services.AddProblemDetails();
+
 builder.Services.AddSingleton<DatabaseStatusService>();
 builder.Services.AddDbContextFactory<DatabaseContext>(options =>
     options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
@@ -148,7 +161,40 @@ app.UseHttpsRedirection();
 // Routes.razor greift nur bei App-interner Navigation.
 app.UseStatusCodePagesWithReExecute("/nicht-gefunden");
 
+// ... aber nicht fuer /api. Sonst wird aus einem API-404 eine 200 mit der
+// deutschen HTML-Seite im Rumpf, und ein Client, der IsSuccessStatusCode
+// prueft, meldet einen Parser-Fehler statt "Endpunkt gibt es nicht".
+//
+// Ueber das Feature und nicht per UseWhen: UseWhen baut einen eigenen Zweig,
+// und die Wiederausfuehrung findet darin die Blazor-Endpunkte nicht mehr - die
+// 404-Seite kam dann mit leerem Rumpf zurueck. Hier bleibt die Middleware im
+// Hauptstrang und wird nur fuer diese eine Anfrage abgeschaltet.
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/api"))
+    {
+        var feature = context.Features.Get<IStatusCodePagesFeature>();
+        if (feature is not null)
+        {
+            feature.Enabled = false;
+        }
+    }
+
+    await next();
+});
+
+// Vor allem anderen, damit auch Fehlerantworten den Header tragen.
+app.UseMiddleware<DataVersionHeaderMiddleware>();
+
 app.UseAntiforgery();
+
+// Die API haengt unter /api und ist von der Antiforgery-Pruefung ausgenommen:
+// sie ist zustandslos, kennt keine Cookies und wird spaeter vom
+// WebAssembly-Client mit reinem JSON aufgerufen. Ohne DisableAntiforgery
+// beantwortet ein POST ohne Token eine 400 mit leerem Rumpf - das sieht wie
+// ein Bindungsfehler aus.
+var api = app.MapGroup("/api").DisableAntiforgery();
+api.MapInfrastructureEndpoints();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
