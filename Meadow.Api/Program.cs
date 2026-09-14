@@ -195,6 +195,18 @@ app.UseAntiforgery();
 // ein Bindungsfehler aus.
 var api = app.MapGroup("/api").DisableAntiforgery();
 api.MapInfrastructureEndpoints();
+api.MapCowEndpoints();
+api.MapMedicineEndpoints();
+api.MapWhereHowEndpoints();
+api.MapTreatmentReasonEndpoints();
+api.MapClawFindingEndpoints();
+api.MapUdderEndpoints();
+api.MapCowTreatmentEndpoints();
+api.MapClawTreatmentEndpoints();
+api.MapPlannedCowTreatmentEndpoints();
+api.MapPlannedClawTreatmentEndpoints();
+api.MapSettingsEndpoints();
+api.MapKpiEndpoints();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
