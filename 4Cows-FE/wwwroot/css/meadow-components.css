@@ -2667,7 +2667,11 @@ button.mw-nav-item {
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
   gap: 8px;
-  align-items: start;
+  /* Gleich hoch, auch wenn eine Karte weniger Inhalt hat: zwei Karten
+     nebeneinander mit unterschiedlich tiefer Unterkante sehen aus, als waere
+     eine davon halb geladen. Der Inhalt bleibt oben stehen - die kuerzere
+     Karte bekommt unten Luft. */
+  align-items: stretch;
 }
 
 /* ── Pegel: ein Umriss, der sich von unten fuellt ─────────────── */
