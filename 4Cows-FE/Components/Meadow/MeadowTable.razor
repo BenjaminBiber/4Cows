@@ -1,4 +1,6 @@
 @typeparam TItem
+@using Microsoft.AspNetCore.Components.Web
+@inject NavigationManager Nav
 
 @*
     st.tableWrap / st.th / st.td / st.tr / st.emptyRow / st.mCard
@@ -61,9 +63,14 @@
                 }
                 else
                 {
-                    @foreach (var item in _view)
-                    {
-                        <tr @key="Key(item)">
+                    @* Die Zellen einmal beschrieben, zweimal verwendet: eine
+                       Zeile mit Klickziel und eine ohne. Ein @onclick an
+                       JEDER Zeile waere bequemer, schickte auf Blazor Server
+                       aber bei jedem Klick in jede Tabelle eine Nachricht
+                       ueber den Circuit - auch dort, wo die Zeile gar kein
+                       Ziel hat. *@
+                    RenderFragment<TItem> cells = item =>
+                        @<text>
                             @foreach (var column in Columns)
                             {
                                 <td class="@column.CellClass" style="@column.CellStyle"
@@ -78,7 +85,19 @@
                                     }
                                 </td>
                             }
-                        </tr>
+                        </text>;
+
+                    @foreach (var item in _view)
+                    {
+                        if (RowHref is null)
+                        {
+                            <tr @key="Key(item)">@cells(item)</tr>
+                        }
+                        else
+                        {
+                            <tr @key="Key(item)" class="mw-table__row--link"
+                                @onclick="args => OpenRow(args, item)">@cells(item)</tr>
+                        }
                     }
                 }
             </tbody>
@@ -171,6 +190,22 @@ else
 
     /// <summary>Stabiler Schluessel fuer @key. Ohne das nimmt Blazor das Item selbst.</summary>
     [Parameter] public Func<TItem, object>? RowKey { get; set; }
+
+    /// <summary>
+    /// Wohin ein Klick auf die ZEILE fuehrt, oder null fuer nicht klickbare
+    /// Zeilen.
+    ///
+    /// Das ersetzt den echten Link in der Zelle NICHT, es liegt darueber:
+    /// die Maus bekommt die ganze Zeile als Flaeche, Tastatur, Mittelklick
+    /// und "in neuem Tab oeffnen" laufen weiter ueber das a-href in der
+    /// Zelle. Ein tabindex an der Zeile waere ein zweiter Halt fuer dasselbe
+    /// Ziel, ein Zeilenklick ALLEIN waere mit der Tastatur nicht erreichbar.
+    ///
+    /// Deshalb gehoert er nur an Tabellen, die auch einen Zellenlink haben,
+    /// und nur an solche ohne Knoepfe in den Zellen - sonst klickt man beim
+    /// Zielen daneben die Zeile statt des Knopfs.
+    /// </summary>
+    [Parameter] public Func<TItem, string>? RowHref { get; set; }
 
     [Parameter] public RenderFragment<TItem>? MobileCard { get; set; }
     [Parameter] public bool ShowMobileCards { get; set; } = true;
@@ -296,6 +331,26 @@ else
     private void LoadMore()
         // Kein Rebuild(): sortiert hat sich nichts, nur der Ausschnitt waechst.
         => _mobileTake = Math.Min(_mobileTake + MobileBatchSize, _sorted.Count);
+
+    /// <summary>
+    /// Der Zeilenklick. Mit Strg, Cmd oder Umschalt passiert bewusst NICHTS:
+    /// diese Tasten heissen "in neuem Tab" bzw. "in neuem Fenster", und das
+    /// kann eine Blazor-Navigation nicht - sie wuerde die Absicht still in
+    /// ein Oeffnen am selben Ort verdrehen. Wer das will, trifft den Link in
+    /// der Zelle, der es von sich aus kann.
+    ///
+    /// Die mittlere Maustaste kommt hier gar nicht an: sie loest auxclick
+    /// aus, nicht click.
+    /// </summary>
+    private void OpenRow(MouseEventArgs args, TItem item)
+    {
+        if (RowHref is null || args.CtrlKey || args.MetaKey || args.ShiftKey)
+        {
+            return;
+        }
+
+        Nav.NavigateTo(RowHref(item));
+    }
 
     private object Key(TItem item) => RowKey?.Invoke(item) ?? item!;
 

@@ -1281,6 +1281,10 @@ a.mw-icon-btn { text-decoration: none; }
 }
 .mw-table tbody tr:last-child td { border-bottom: 0; }
 .mw-table tbody tr { transition: background var(--mw-t-fast); }
+/* Zeilen mit Klickziel (MeadowTable.RowHref). Nur der Zeiger - das
+   Aufleuchten beim Ueberfahren haben ohnehin alle Zeilen, und genau deshalb
+   braucht es hier ein zweites Zeichen dafuer, dass hier etwas passiert. */
+.mw-table__row--link { cursor: pointer; }
 @media (hover: hover) {
   .mw-table tbody tr:hover { background: var(--mw-tint); }
 }

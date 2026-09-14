@@ -39,6 +39,7 @@
 </MeadowToolbar>
 
 <MeadowTable TItem="CowOverviewRow" Items="_rows" Columns="_columns"
+             RowHref="@(r => MeadowRoutes.CowDetailFor(r.CowId))"
              IsLoading="@(!_loaded)"
              RowKey="@(r => r.CowId)"
              DefaultSortTitle="Halsband"
@@ -139,10 +140,12 @@
             // und ein int hat dorthin keine Methodengruppen-Konvertierung.
             SortBy = r => CollarSortKey(r),
             Style = MeadowCellStyle.Bold,
-            // Die Zelle ist der Link, nicht die Zeile: ein echtes <a href> ist
-            // tastaturerreichbar und mit der mittleren Maustaste zu oeffnen,
-            // und MeadowTable bleibt unangetastet. Text bleibt gesetzt, damit
-            // Suche und Sortierung unveraendert weiterlesen.
+            // Der Link in der Zelle bleibt, obwohl inzwischen die ganze Zeile
+            // klickbar ist (RowHref oben): er ist der tastaturerreichbare und
+            // mit der mittleren Maustaste oeffenbare Weg zum selben Ziel -
+            // der Zeilenklick ist nur die groessere Flaeche fuer die Maus.
+            // Text bleibt gesetzt, damit Suche und Sortierung unveraendert
+            // weiterlesen.
             Template = row =>@<a class="mw-cell-link" href="@MeadowRoutes.CowDetailFor(row.CowId)">@Collar(row)</a>
         },
         new MeadowColumn<CowOverviewRow>
