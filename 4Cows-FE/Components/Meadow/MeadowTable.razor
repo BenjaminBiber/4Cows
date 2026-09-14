@@ -91,11 +91,11 @@
                     {
                         if (RowHref is null)
                         {
-                            <tr @key="Key(item)">@cells(item)</tr>
+                            <tr @key="Key(item)" class="@RowClass?.Invoke(item)">@cells(item)</tr>
                         }
                         else
                         {
-                            <tr @key="Key(item)" class="mw-table__row--link"
+                            <tr @key="Key(item)" class="@LinkRowClass(item)"
                                 @onclick="args => OpenRow(args, item)">@cells(item)</tr>
                         }
                     }
@@ -206,6 +206,13 @@ else
     /// Zielen daneben die Zeile statt des Knopfs.
     /// </summary>
     [Parameter] public Func<TItem, string>? RowHref { get; set; }
+
+    /// <summary>
+    /// Zusaetzliche Klasse je Zeile, etwa um eine markierte Zeile
+    /// hervorzuheben. Null - der Regelfall - laesst das class-Attribut ganz
+    /// weg, damit Tabellen ohne Auswahl unveraendert rendern.
+    /// </summary>
+    [Parameter] public Func<TItem, string?>? RowClass { get; set; }
 
     [Parameter] public RenderFragment<TItem>? MobileCard { get; set; }
     [Parameter] public bool ShowMobileCards { get; set; } = true;
@@ -353,6 +360,14 @@ else
     }
 
     private object Key(TItem item) => RowKey?.Invoke(item) ?? item!;
+
+    private string LinkRowClass(TItem item)
+    {
+        var extra = RowClass?.Invoke(item);
+        return string.IsNullOrEmpty(extra)
+            ? "mw-table__row--link"
+            : $"mw-table__row--link {extra}";
+    }
 
     private void ToggleSort(MeadowColumn<TItem> column)
     {

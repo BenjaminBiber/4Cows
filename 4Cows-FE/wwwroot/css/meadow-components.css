@@ -1523,6 +1523,91 @@ a.mw-icon-btn { text-decoration: none; }
 .mw-row-card__actions { display: flex; gap: 8px; margin-top: 12px; }
 .mw-row-card__actions > * { flex: 1; }
 
+/* ============================================================
+   MEHRFACHAUSWAHL   (Verbaende-Tabelle)
+
+   Die Kaestchen sind native input[type=checkbox] wie in .mw-check:
+   accent-color reicht, damit sie die Markenfarbe tragen - kein
+   Nachbau, keine MudCheckBox.
+   ============================================================ */
+.mw-row-check {
+  width: 17px;
+  height: 17px;
+  flex: none;
+  margin: 0;
+  accent-color: var(--mw-primary);
+  cursor: pointer;
+}
+
+/* .mw-row-card__top verteilt seine Kinder mit space-between. Ohne das
+   hier stuenden Kaestchen, Titel und Tage-Chip zu dritt auseinander-
+   geschoben statt Kaestchen und Titel links beieinander. */
+.mw-row-card__top > .mw-row-check + .mw-row-card__title { margin-right: auto; }
+
+/* Auf die Zellen und nicht auf die Zeile: der tr:hover-Grund liegt
+   ebenfalls auf den td, eine Zeilenfarbe waere davon verdeckt. */
+.mw-table__row--selected > td { background: var(--mw-soft); }
+
+.mw-row-card--selected {
+  background: var(--mw-soft);
+  border-color: var(--mw-primary);
+}
+
+.mw-selbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  background: var(--mw-soft);
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-2xl);
+}
+.mw-selbar__count { font-size: 14px; color: var(--mw-text); }
+.mw-selbar__hint { color: var(--mw-muted); }
+.mw-selbar__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+@media (max-width: 1023.98px) {
+  /* Mobil steht die Leiste ueber einer langen Kartenliste - ohne sticky
+     waere sie nach dem dritten Abhaken aus dem Bild.
+
+     Oben und nicht unten: die Tabbar traegt einen FAB, der 26px in den
+     Inhalt ragt (z-Ebene 1091). Eine untere Leiste laege genau darunter
+     und haette sich mit ihm um die Mitte gestritten. */
+  .mw-selbar {
+    position: sticky;
+    top: 0;
+    z-index: var(--mw-z-header);
+    box-shadow: var(--mw-shadow-card);
+  }
+
+  /* Ein Deckel, kein Schmuck: sticky haftet an der Polsterkante von
+     .mw-content, nicht an dessen Aussenkante. Ueber der Leiste blieben
+     sonst --mw-content-pad-m offen, durch die die Karten sichtbar
+     durchwandern.
+
+     Als eigenes Kaestchen und nicht als box-shadow der Leiste: der
+     Schatten haette deren abgerundete Ecken geerbt und in den beiden
+     oberen Zwickeln weiter Karte durchblitzen lassen. */
+  .mw-selbar::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    top: calc(-1 * (var(--mw-content-pad-m) + 2px));
+    right: -4px;
+    left: -4px;
+
+    /* Reicht um den Eckradius WEITER als bis zur Leistenkante hinab und
+       liegt hinter ihr: in den beiden oberen Rundungen deckt die Leiste
+       ihre eigene Hintergrundflaeche nicht ab, und dort blitzte sonst
+       weiter die Karte durch. */
+    height: calc(var(--mw-content-pad-m) + 2px + var(--mw-r-2xl));
+    background: var(--mw-bg);
+  }
+}
+
 /* ── Kachel mit beschrifteten Feldern ─────────────────────────
    Aufsatz auf .mw-row-card fuer Zeilen, die mobil mehr als drei
    Werte zeigen muessen: Kopf mit Titel und Datum, darunter ein

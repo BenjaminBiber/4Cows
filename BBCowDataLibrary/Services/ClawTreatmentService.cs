@@ -161,6 +161,63 @@ namespace BB_Cow.Services
             }
         }
 
+        /// <summary>
+        /// Legt IsBandageRemoved fuer mehrere Behandlungen auf einmal um.
+        ///
+        /// Ein einziges UPDATE statt RemoveBandageAsync in einer Schleife: das
+        /// waeren N Kontexte und N Runden zur Datenbank, und ein Fehler in der
+        /// Mitte hinterliesse einen halb entfernten Stapel. So gilt entweder
+        /// alles oder nichts.
+        /// </summary>
+        /// <returns>Zahl der betroffenen Behandlungen, 0 im Fehlerfall.</returns>
+        public async Task<int> RemoveBandagesAsync(IReadOnlyCollection<int> ids)
+        {
+            if (ids.Count == 0)
+            {
+                return 0;
+            }
+
+            try
+            {
+                await using var context = await _contextFactory.CreateDbContextAsync();
+                var affectedRows = await context.ClawTreatments
+                    .Where(t => ids.Contains(t.ClawTreatmentId))
+                    .ExecuteUpdateAsync(setters => setters.SetProperty(t => t.IsBandageRemoved, true));
+
+                _databaseStatusService.ReportSuccess();
+
+                if (affectedRows > 0)
+                {
+                    // Nur die Behandlungen nachziehen, die der Cache auch kennt -
+                    // ids kann IDs enthalten, die inzwischen woanders geloescht
+                    // wurden, und SetItems wuerde die sonst wieder anlegen.
+                    var updated = ids
+                        .Where(id => _cachedTreatments.ContainsKey(id))
+                        .Select(id => _cachedTreatments[id])
+                        .ToList();
+
+                    foreach (var treatment in updated)
+                    {
+                        treatment.IsBandageRemoved = true;
+                    }
+
+                    _cachedTreatments = _cachedTreatments.SetItems(
+                        updated.Select(t => new KeyValuePair<int, ClawTreatment>(t.ClawTreatmentId, t)));
+
+                    LoggerService.LogInformation(typeof(ClawTreatmentService),
+                        $"Removed bandages from {affectedRows} claw treatments.");
+                }
+
+                return affectedRows;
+            }
+            catch (Exception ex)
+            {
+                _databaseStatusService.ReportFailure();
+                LoggerService.LogError(typeof(ClawTreatmentService), "Failed to update bandage flags, with {@Message}", ex, ex.Message);
+                return 0;
+            }
+        }
+
         public async Task DeleteDataAsync(int id)
         {
             try
