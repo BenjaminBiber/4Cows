@@ -2683,23 +2683,6 @@ button.mw-nav-item {
   color: var(--mw-muted);
 }
 
-/* Rasterelemente haben min-width:auto und reichen die Breite ihres Inhalts
-   nach oben durch. Ohne das sprengt ein langer Befund die Karte, statt
-   umzubrechen. */
-.mw-claw-grid > * { min-width: 0; }
-
-/* Und weil "Weiße-Linie-Defekt" auch in einer halben Zelle nicht als Ganzes
-   passt, darf es notfalls mitten im Wort brechen. Nur hier: im
-   Anzeige-Dialog steht derselbe Befund in einer viel breiteren Spalte.
-
-   Der engere Zeilenabstand ist dort load-bearing, wo eine Kuh drei Befunde
-   an einer Klaue hat: die Zeile bricht dann um, und 1.5 mal 13px kosten in
-   vier Zellen zusammen mehr als das ganze Diagramm daneben hoch ist. */
-.mw-claw-grid .mw-show-cell__finding {
-  overflow-wrap: anywhere;
-  line-height: 1.35;
-}
-
 /* ── Heat-Rampe (Euterviertel) ────────────────────────────────── */
 /* Die Stufe setzt nur --mw-heat und die dazu lesbare Schriftfarbe; was
    daraus wird, entscheidet der Verbraucher. Uebrig ist davon nur noch das
@@ -2741,29 +2724,63 @@ button.mw-nav-item {
 /* NICHT .mw-show-grid wiederverwenden: das faellt mobil auf eine Spalte
    zurueck. Hier IST das 2x2 die Aussage - vorne/hinten und links/rechts
    stehen an ihrem Platz am Tier. Vier Klauen untereinander waeren eine
-   Liste, keine Karte. Die Zelle selbst bleibt .mw-show-cell. */
+   Liste, keine Karte. */
 .mw-claw-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 6px;
 }
-.mw-claw-grid .mw-show-cell { padding: 7px 9px; }
-.mw-claw-grid .mw-show-cell__row { gap: 8px; }
-.mw-claw-grid .mw-show-cell__title { font-size: 13px; }
-.mw-claw-grid .mw-show-cell__tags { gap: 4px; margin-top: 4px; }
 
-/* Kleiner als die 38px vorher: der Umriss steht neben drei Textzeilen und
-   gibt die Hoehe der Zelle nicht vor - die Breite, die er freigibt, geht an
-   den Befundtext, der sonst umbricht. */
-.mw-claw-grid .mw-hoof-thumb { width: 32px; height: 32px; }
+/* Die Zelle IST der Link auf die gefilterte Liste. Eigene Klasse und nicht
+   mehr .mw-show-cell: die traegt die Geometrie einer mehrzeiligen
+   Anzeigezelle, hier steht alles auf EINER Zeile.
 
-/* Bezeichnung und Zahl auf einer Grundlinie statt untereinander - siehe
-   den Kommentar in CowHoofLevels. */
-.mw-claw-cell__head {
+   min-width:0, weil ein Rasterelement sonst die Breite seines Inhalts nach
+   oben durchreicht - "Rechts Hinten" wuerde die Karte sprengen statt zu
+   kuerzen. */
+.mw-claw-cell {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  padding: 7px 10px;
+  background: var(--mw-tint);
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-2xl);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color var(--mw-t), background var(--mw-t);
+}
+.mw-claw-grid .mw-hoof-thumb { width: 34px; height: 34px; }
+
+/* Der Attributwaehler und nicht die Klasse: eine Klaue ohne Behandlung
+   rendert ein a OHNE href (siehe CowHoofLevels). Sie soll auch nicht so
+   aussehen, als koenne man sie anfassen. */
+.mw-claw-cell[href] { cursor: pointer; }
+@media (hover: hover) {
+  .mw-claw-cell[href]:hover {
+    background: var(--mw-panel);
+    border-color: var(--mw-primary);
+  }
+}
+/* Die Klaue, auf die die Liste rechts gerade gefiltert ist. Der Innenschatten
+   ist der zweite Rahmenstrich: ein 2px-border liesse die Zelle um einen Pixel
+   wachsen und die Reihe daneben mitspringen. */
+.mw-claw-cell.is-active {
+  background: var(--mw-panel);
+  border-color: var(--mw-primary);
+  box-shadow: inset 0 0 0 1px var(--mw-primary);
+}
+
+.mw-claw-cell__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--mw-text);
 }
 .mw-claw-cell__count {
   font-family: var(--mw-font-display);
@@ -2884,6 +2901,36 @@ button.mw-nav-item {
 }
 .mw-tabs--scroll .mw-tab { flex: 0 0 auto; white-space: nowrap; }
 
+/* ── Aktiver Klauenfilter ─────────────────────────────────────── */
+/* Steht zwischen Laschen und Tabelle, weil die Liste darunter sonst
+   unerklaerlich kurz waere - besonders fuer jemanden, der ueber einen
+   geteilten Link hereinkommt und die Klauen-Karte gar nicht angeklickt hat.
+   Das Aufheben ist ein echter Link auf die Lasche ohne ?klaue=. */
+.mw-cow-filter {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 7px 12px;
+  border: 1px solid var(--mw-border);
+  border-left: 3px solid var(--mw-primary);
+  border-radius: var(--mw-r-lg);
+  background: var(--mw-tint);
+  font-size: 13px;
+  color: var(--mw-muted);
+}
+.mw-cow-filter strong { color: var(--mw-text); }
+.mw-cow-filter__clear {
+  flex-shrink: 0;
+  font-weight: 600;
+  color: var(--mw-primary);
+  text-decoration: none;
+}
+@media (hover: hover) {
+  .mw-cow-filter__clear:hover { text-decoration: underline; }
+}
+
 /* Die Anzahl hinter dem Tabnamen. Kein .mw-badge: das ist ein gefuellter
    Zaehler fuer den Filterknopf, hier soll die Zahl der Beschriftung
    nachgeordnet bleiben. */
@@ -2947,9 +2994,13 @@ a.mw-row-card { text-decoration: none; }
      Dashboard stehen drei Diagramme ohne Legende. */
   .mw-cow-page .mw-chart-canvas { height: 190px; }
 
-  .mw-claw-grid { gap: 10px; }
-  .mw-claw-grid .mw-show-cell { padding: 10px; }
+  /* Am Daumen sind die vier Zellen Tippziele: 40px Huf plus 11px Polsterung
+     ergeben 64px Hoehe, deutlich ueber den 44px, unter denen man daneben
+     tippt. */
+  .mw-claw-grid { gap: 8px; }
+  .mw-claw-cell { padding: 11px 12px; gap: 11px; }
   .mw-claw-grid .mw-hoof-thumb { width: 40px; height: 40px; }
+  .mw-claw-cell__label { font-size: 14px; }
   .mw-claw-cell__count { font-size: 20px; }
 
   .mw-udder-cell { padding: 14px 6px; }

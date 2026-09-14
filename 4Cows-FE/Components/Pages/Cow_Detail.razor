@@ -21,7 +21,6 @@
 @inject MedicineService medicineService
 @inject TreatmentReasonService TreatmentReasonService
 @inject UdderService UdderService
-@inject SettingsService Settings
 
 <PageTitle>@HeaderTitle · Meadow</PageTitle>
 
@@ -78,11 +77,11 @@ else
 
                 @* Zwei Karten statt der vier von vorher.
 
-                   Die Klauen bleiben allein auf einer Karte und bekommen die
-                   ganze Spaltenbreite: die Zelle traegt neben dem Huf einen
-                   Befundtext, und "Ballenhornfaeule · Mortellaro (M2)" auf
-                   zwei Zeilen kostet mehr Hoehe, als eine zweite Grafik
-                   daneben einsparen wuerde.
+                   Die Klauen bleiben allein auf einer Karte, obwohl vier
+                   einzeilige Zellen auch neben etwas anderem Platz haetten:
+                   sie sind als einzige Grafik der Spalte BEDIENBAR - jede
+                   Zelle fuehrt in die Liste rechts. Zwischen zwei
+                   Verteilungen gequetscht liest sich das wie Zierat.
 
                    Die drei schmalen Verteilungen teilen sich dafuer eine
                    Karte - Euterviertel sind vier Zahlen, die Balkenlisten
@@ -93,7 +92,8 @@ else
                 <MeadowPanelCard Title="Klauen">
                     <CowHoofLevels Hoofs="_profile.Hoofs"
                                    TotalTreatments="_profile.TotalClawTreatments"
-                                   FallbackFinding="@Settings.ClawFindingFallback" />
+                                   CowId="@CowId"
+                                   Selected="_claw" />
                 </MeadowPanelCard>
 
                 <MeadowPanelCard Title="Euterviertel, Medikamente & Gründe">
@@ -133,6 +133,21 @@ else
                     }
                 </div>
 
+                @* Der Klauenfilter kommt von einem Klick auf die Klauen-Karte
+                   nebenan. Er muss hier stehen und nicht nur dort: wer ueber
+                   einen geteilten Link hereinkommt, sieht sonst eine
+                   unerklaerlich kurze Liste. Aufgehoben wird er mit dem
+                   gewoehnlichen Laschen-Link - der traegt kein ?klaue=. *@
+                @if (_tab == CowDetailTab.ClawTreatments && _claw is { } filtered)
+                {
+                    <div class="mw-cow-filter">
+                        <span>Nur <strong>@HoofPositions.Label(filtered)</strong></span>
+                        <a class="mw-cow-filter__clear" href="@TabHref(CowDetailTab.ClawTreatments)">
+                            Alle Klauen zeigen
+                        </a>
+                    </div>
+                }
+
                 @switch (_tab)
                 {
                     case CowDetailTab.CowTreatments:
@@ -140,7 +155,7 @@ else
                         break;
 
                     case CowDetailTab.ClawTreatments:
-                        <ClawTreatmentsPanel Rows="_profile.ClawTreatments" OnChanged="ReloadAsync" />
+                        <ClawTreatmentsPanel Rows="ClawRows" OnChanged="ReloadAsync" />
                         break;
 
                     case CowDetailTab.PlannedCow:
@@ -170,6 +185,14 @@ else
     [SupplyParameterFromQuery(Name = "tab")]
     public string? TabSlug { get; set; }
 
+    /// <summary>
+    /// Die Klaue, auf die die Lasche "Klauen" gefiltert ist. Ebenfalls im
+    /// Query-String, damit das 2x2 der Klauen aus echten Links bestehen kann
+    /// - siehe CowDetailClaw.
+    /// </summary>
+    [SupplyParameterFromQuery(Name = "klaue")]
+    public string? ClawSlug { get; set; }
+
     // Eigene Canvas-ID: ChartHelper.js fuehrt eine modulweite Registry ueber
     // die ID, "CowChart" waere der Eintrag des Dashboards.
     private const string ChartId = "CowProfileChart";
@@ -177,6 +200,7 @@ else
     private Cow? _cow;
     private CowProfile _profile = CowProfileBuilder.Empty("", DateTime.Today);
     private CowDetailTab _tab = CowDetailTab.CowTreatments;
+    private HoofPosition? _claw;
 
     private string? _loadedCowId;
     private string? _chartError;
@@ -198,19 +222,27 @@ else
     protected override async Task OnParametersSetAsync()
     {
         _tab = CowDetailTabs.Parse(TabSlug);
+        _claw = CowDetailClaw.Parse(ClawSlug);
 
-        if (_loadedCowId == CowId)
+        if (_loadedCowId != CowId)
         {
-            return;
+            _loadedCowId = CowId;
+            await Data.EnsureCowProfileAsync();
+            // Gezeichnet wird nicht hier, sondern in OnAfterRenderAsync -
+            // siehe dort. Rebuild hat den Auftrag dafuer schon hinterlegt.
+            Rebuild();
         }
 
-        _loadedCowId = CowId;
-        await Data.EnsureCowProfileAsync();
-        Rebuild();
-        // Der Seitenkopf wird in Rebuild gesetzt, nicht hier: aendert die
-        // Basisdatenpflege den Abgang-Status, laeuft nur Rebuild erneut.
-        // Gezeichnet wird ebenfalls nicht hier, sondern in OnAfterRenderAsync
-        // - siehe dort. Rebuild hat den Auftrag dafuer schon hinterlegt.
+        // MainLayout loescht den Seitenkopf bei JEDER Navigation, und ein
+        // Laschenwechsel ist eine: /Kuh/X?tab=kuh -> ?tab=klauen kommt hier
+        // an, faellt am Waechter oben durch und liesse den Kopf sonst als
+        // blosses "Kuh" ohne Nummer und Ohrmarke zurueck.
+        //
+        // Rebuild setzt denselben Kopf noch einmal - das muss es, weil eine
+        // Aenderung in der Basisdatenpflege gar nicht hier vorbeikommt. Der
+        // zweite Aufruf kostet nichts: SetPageHeading meldet nur, wenn sich
+        // wirklich etwas geaendert hat.
+        Layout.SetPageHeading(HeaderTitle, HeaderEarTag, HeaderTags);
     }
 
     public void Dispose()
@@ -369,15 +401,37 @@ else
             r.Count))
         .ToList();
 
+    /// <summary>
+    /// Die Klauenbehandlungen der Lasche, gefiltert wie in ?klaue= verlangt.
+    ///
+    /// HasData ist dasselbe Praedikat, mit dem CowProfileBuilder.Hoofs seine
+    /// TreatmentCount zaehlt. Das ist kein Zufall, sondern die Bedingung
+    /// dafuer, dass die Zahl auf der angeklickten Klaue und die Zeilenzahl in
+    /// der Liste dieselbe Menge beschreiben.
+    /// </summary>
+    private IReadOnlyList<ClawTreatment> ClawRows => _claw is { } position
+        ? _profile.ClawTreatments.Where(t => t.HasData(position)).ToList()
+        : _profile.ClawTreatments;
+
+    /// <summary>
+    /// Die Zahl an der Lasche. Bei "Klauen" die GEFILTERTE - eine Lasche, die
+    /// sieben sagt und vier Zeilen zeigt, liest sich als Fehler.
+    /// </summary>
     private int Count(CowDetailTab tab) => tab switch
     {
         CowDetailTab.CowTreatments => _profile.CowTreatments.Count,
-        CowDetailTab.ClawTreatments => _profile.ClawTreatments.Count,
+        CowDetailTab.ClawTreatments => ClawRows.Count,
         CowDetailTab.PlannedCow => _profile.PlannedCowTreatments.Count,
         CowDetailTab.PlannedClaw => _profile.PlannedClawTreatments.Count,
         _ => _profile.OpenBandages
     };
 
+    /// <summary>
+    /// Adresse einer Lasche, immer OHNE ?klaue=: der Klauenfilter gilt nur
+    /// fuer die eine Lasche, und ihn beim Wechsel mitzuschleppen hiesse, ihn
+    /// auf der naechsten still weiterlaufen zu lassen. Derselbe Link hebt
+    /// deshalb auch den Filter auf.
+    /// </summary>
     private string TabHref(CowDetailTab tab)
         => $"{MeadowRoutes.CowDetailFor(CowId)}?tab={CowDetailTabs.ToSlug(tab)}";
 
