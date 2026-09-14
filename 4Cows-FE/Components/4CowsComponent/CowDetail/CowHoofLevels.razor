@@ -96,8 +96,7 @@ else
     /// Untergrenze fuer eine Klaue, die ueberhaupt behandelt wurde. Bei
     /// "einmal von neun" waeren es sonst 11 Prozent, und im 34px hohen Umriss
     /// ist das ein Streifen von vier Pixeln - nicht von "nie behandelt" zu
-    /// unterscheiden. Dieselbe Ueberlegung wie das min-width der
-    /// Balkenlisten.
+    /// unterscheiden. Dieselbe Ueberlegung wie MeadowPieChart.MinDash.
     /// </summary>
     private const int MinLevel = 18;
 
@@ -107,7 +106,7 @@ else
     /// Fuellstand in Prozent der Umrisshoehe. Ganzzahlig, damit der Wert ohne
     /// Ruecksicht auf die Kultur in den style-Wert darf - "0,42%" waere ein
     /// ungueltiger CSS-Wert und der Pegel fiele still auf null zurueck.
-    /// Dasselbe Thema wie MeadowBarList.Share, dort mit InvariantCulture
+    /// Dasselbe Thema wie MeadowPieChart.Num, dort mit InvariantCulture
     /// geloest.
     /// </summary>
     private int Level(int count)

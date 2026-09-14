@@ -84,11 +84,11 @@ else
                    Verteilungen gequetscht liest sich das wie Zierat.
 
                    Die drei schmalen Verteilungen teilen sich dafuer eine
-                   Karte - Euterviertel sind vier Zahlen, die Balkenlisten
-                   zwei bis acht Zeilen. Die Zwischentitel sind bewusst KEINE
+                   Karte - Euterviertel sind vier Zahlen, die Kuchen je ein
+                   Rad mit Legende. Die Zwischentitel sind bewusst KEINE
                    Ueberschriften, sondern Spans wie .mw-card-title: die
                    Gruppierung fuer Screenreader liefern die role="group" der
-                   Eutergrafik bzw. das ol der Balkenlisten. *@
+                   Eutergrafik bzw. das ol der Kuchenlegenden. *@
                 <MeadowPanelCard Title="Klauen">
                     <CowHoofLevels Hoofs="_profile.Hoofs"
                                    TotalTreatments="_profile.TotalClawTreatments"
@@ -106,11 +106,11 @@ else
                         </section>
                         <section class="mw-cow-duo__part">
                             <span class="mw-cow-duo__title">Medikamente</span>
-                            <MeadowBarList Items="MedicineBars" EmptyText="Keine Medikamente erfasst." />
+                            <MeadowPieChart Items="MedicineSlices" EmptyText="Keine Medikamente erfasst." />
                         </section>
                         <section class="mw-cow-duo__part">
                             <span class="mw-cow-duo__title">Behandlungsgründe</span>
-                            <MeadowBarList Items="ReasonBars" Teal="true" EmptyText="Kein Behandlungsgrund erfasst." />
+                            <MeadowPieChart Items="ReasonSlices" EmptyText="Kein Behandlungsgrund erfasst." />
                         </section>
                     </div>
                 </MeadowPanelCard>
@@ -385,18 +385,19 @@ else
         .Select(m => medicineService.GetMedicineNameById(m.Id))
         .FirstOrDefault(n => !string.IsNullOrEmpty(n) && n != "--");
 
-    private IReadOnlyList<MeadowBarList.Item> MedicineBars => _profile.Medicines
-        .Select(m => new MeadowBarList.Item(medicineService.GetMedicineNameById(m.Id), m.Count))
+    private IReadOnlyList<MeadowPieChart.Item> MedicineSlices => _profile.Medicines
+        .Select(m => new MeadowPieChart.Item(medicineService.GetMedicineNameById(m.Id), m.Count))
         .Where(i => !string.IsNullOrEmpty(i.Label) && i.Label != "--")
         .ToList();
 
     /// <summary>
-    /// Behandlungen ohne Grund bekommen eine eigene Zeile statt zu
-    /// verschwinden - sonst summierten sich die Balken auf weniger als die
-    /// Kachel "Behandlungen gesamt" zeigt, und das sieht nach Fehler aus.
+    /// Behandlungen ohne Grund bekommen ein eigenes Stueck statt zu
+    /// verschwinden - sonst summierte sich der Kuchen auf weniger als die
+    /// Kachel "Behandlungen gesamt" zeigt, und ein Teil ohne Ganzes sieht nach
+    /// Fehler aus.
     /// </summary>
-    private IReadOnlyList<MeadowBarList.Item> ReasonBars => _profile.Reasons
-        .Select(r => new MeadowBarList.Item(
+    private IReadOnlyList<MeadowPieChart.Item> ReasonSlices => _profile.Reasons
+        .Select(r => new MeadowPieChart.Item(
             r.Id == CowProfile.NoReasonId ? "Ohne Angabe" : TreatmentReasonService.GetNameById(r.Id),
             r.Count))
         .ToList();
@@ -483,7 +484,7 @@ else
     /// im Hofnetz nicht garantiert erreichbar - schlaegt der Aufruf fehl,
     /// soll die Seite ohne Diagramm weiterlaufen. Ein unbehandelter
     /// Interop-Fehler risse sonst den ganzen Circuit ab, samt Heatmap,
-    /// Balkenlisten und Tabellen, die gar kein JS brauchen.
+    /// Kuchendiagramme und Tabellen, die gar kein JS brauchen.
     /// </summary>
     private async Task RenderChartAsync()
     {

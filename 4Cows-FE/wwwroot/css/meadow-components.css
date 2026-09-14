@@ -2452,7 +2452,7 @@ button.mw-nav-item {
 
 /* ============================================================
    KUH-SEITE   (Seitengeruest, Kopfkarte, KPI-Reihe, Klauen-Heatmap,
-                Balkenlisten, Euterviertel, Zellen-Links)
+                Kuchendiagramme, Euterviertel, Zellen-Links)
 
    Steht bewusst am ENDE der Datei. Drei Regeln hier gewinnen ueber die
    Quellreihenfolge und nicht ueber die Spezifitaet: die Heat-Klassen
@@ -2644,7 +2644,7 @@ button.mw-nav-item {
 .mw-kpi-grid--cow .mw-kpi--text .mw-kpi__value { font-size: 15px; line-height: 1.25; }
 
 /* ── Karten der Auswertungsspalte ─────────────────────────────── */
-/* Wie .mw-card--chart, aber ohne Canvas - fuer Heatmap, Balkenlisten und
+/* Wie .mw-card--chart, aber ohne Canvas - fuer Klauen, Kuchendiagramme und
    Euterviertel, die reines DOM sind.
 
    Nur min-width und KEIN flex: die Karte stand frueher in einer Reihe
@@ -2663,7 +2663,7 @@ button.mw-nav-item {
   align-items: start;
 }
 /* Euterviertel, Medikamente und Gruende. Das Euter bekommt weniger: es ist
-   ein 2x2 aus vier zweistelligen Zahlen, die Balkenlisten tragen Text. */
+   ein 2x2 aus vier zweistelligen Zahlen, die Kuchen tragen eine Legende. */
 .mw-cow-duo--trio {
   grid-template-columns: minmax(0, .8fr) minmax(0, 1fr) minmax(0, 1fr);
 }
@@ -2671,7 +2671,7 @@ button.mw-nav-item {
 
 /* Zwischentitel, bewusst keine Ueberschrift: .mw-card-title ist auch ein
    span, und die Gruppierung fuer Screenreader liefern die role="group" der
-   Grafiken bzw. das ol der Balkenlisten. Kleiner und gedaempft, damit der
+   Grafiken bzw. das ol der Kuchenlegenden. Kleiner und gedaempft, damit der
    Kartentitel darueber der Kartentitel bleibt. */
 .mw-cow-duo__title {
   display: block;
@@ -2790,66 +2790,83 @@ button.mw-nav-item {
   color: var(--mw-text);
 }
 
-/* ── Balkenlisten (Medikamente / Gruende) ─────────────────────── */
-/* Bewusst kein Chart.js: zwei bis acht Zeilen brauchen keine Achse, und die
-   Zahl steht ohnehin an jeder Zeile. Dafuer bleibt die Liste lesbar, wenn
-   das CDN im Hofnetz nicht erreichbar ist - genau der Fall, den
-   .mw-chart-error nebenan behandelt -, sie ist durchsuchbar, und ein
-   Screenreader liest sie ohne Zusatzarbeit vor. */
-.mw-barlist {
-  display: grid;
-  grid-template-columns: minmax(0, 9.5rem) 1fr auto;
+/* ── Kuchendiagramme (Medikamente / Gruende) ─────────────────── */
+/* Kreis links, Legende rechts. Bewusst kein Chart.js - die Begruendung steht
+   im Kopf von MeadowPieChart.
+
+   flex-wrap, damit die Legende unter den Kreis rutscht statt sich auf
+   Ellipsen zusammenzuquetschen, wenn die Spalte schmal wird. */
+.mw-pie {
+  display: flex;
   align-items: center;
-  gap: 8px 10px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.mw-pie__disc {
+  width: 76px;
+  height: 76px;
+  flex-shrink: 0;
+}
+
+/* Ein Kreis mit Radius 8 und 16 Strichbreite fuellt die Scheibe von innen bis
+   zum Rand - so wird aus einem Ring ein Kuchen, ohne einen einzigen Bogen zu
+   rechnen. Laenge und Versatz je Stueck kommen aus MeadowPieChart. */
+.mw-pie__slice {
+  fill: none;
+  stroke: var(--mw-slice, var(--mw-series-other));
+}
+
+.mw-pie__legend {
+  flex: 1 1 120px;
+  min-width: 0;
+  display: grid;
+  gap: 4px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
-/* Eine Zeile ohne eigene Box, damit alle drei Spalten ueber die Zeilen
-   hinweg fluchten. Nimmt dem li nur den Kasten, nicht die Semantik. */
-.mw-barlist__row { display: contents; }
-.mw-barlist__label {
+.mw-pie__row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+}
+.mw-pie__swatch {
+  width: 9px;
+  height: 9px;
+  border-radius: var(--mw-r-xs);
+  background: var(--mw-slice, var(--mw-series-other));
+}
+/* Der ganze Name steht im title-Attribut: neben zwei weiteren Verteilungen
+   bleiben der Spalte rund 240px, und "Novaminsulfon 500" passt da nicht. */
+.mw-pie__label {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 13px;
+  font-size: 12px;
+  line-height: 1.3;
   color: var(--mw-text);
 }
-.mw-barlist__track {
-  height: 10px;
-  border-radius: var(--mw-r-pill);
-  background: var(--mw-tint);
-  overflow: hidden;
-}
-.mw-barlist__fill {
-  display: block;
-  height: 100%;
-  /* Untergrenze, damit "1 von 40" nicht auf null Pixel zusammenfaellt und
-     dann wie "keine" aussieht. */
-  min-width: 3px;
-  width: calc(var(--mw-bar, 0) * 100%);
-  border-radius: var(--mw-r-pill);
-  background: var(--mw-primary);
-}
-.mw-barlist--teal .mw-barlist__fill { background: var(--mw-teal); }
-.mw-barlist__value {
+/* Die Zahl ist die genaue Auskunft - ein Kuchen unterscheidet zwei aehnlich
+   grosse Stuecke nicht. */
+.mw-pie__value {
   font-variant-numeric: tabular-nums;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
+  line-height: 1.3;
   color: var(--mw-text);
 }
-/* Neben zwei weiteren Verteilungen bleiben rund 240px - die volle
-   Textspalte waere davon fast die Haelfte. Der ganze Name steht im
-   title-Attribut. Und die Zeilenhoehe kommt aus dem Balken (10px) und nicht
-   aus dem Zeilenabstand des Fliesstexts: acht Zeilen mal 1.5 sind sonst
-   allein 30px Luft. */
-.mw-cow-duo .mw-barlist {
-  grid-template-columns: minmax(0, 6.5rem) 1fr auto;
-  gap: 5px 8px;
-}
-.mw-cow-duo .mw-barlist__label,
-.mw-cow-duo .mw-barlist__value { line-height: 1.25; }
+
+/* Feste Reihenfolge, nie im Kreis weitergezaehlt: ein siebter Eintrag
+   bekommt keine neue Farbe, sondern faellt in "Weitere". */
+.mw-slice-1 { --mw-slice: var(--mw-series-1); }
+.mw-slice-2 { --mw-slice: var(--mw-series-2); }
+.mw-slice-3 { --mw-slice: var(--mw-series-3); }
+.mw-slice-4 { --mw-slice: var(--mw-series-4); }
+.mw-slice-5 { --mw-slice: var(--mw-series-5); }
+.mw-slice-6 { --mw-slice: var(--mw-series-6); }
+.mw-slice-other { --mw-slice: var(--mw-series-other); }
 
 /* ── Euterviertel ─────────────────────────────────────────────── */
 /* Geometrie wie das Viertel-Raster im UdderDialog, aber nur zum Lesen:
@@ -3006,11 +3023,13 @@ a.mw-row-card { text-decoration: none; }
   .mw-udder-cell { padding: 14px 6px; }
   .mw-udder-cell__count { font-size: 22px; }
 
-  /* "Amoxicillin 400 mg" in 9.5rem waere fast nur noch Ellipse. Die
-     Beschriftung steht deshalb ueber dem Balken, der Wert bleibt rechts. */
-  .mw-barlist,
-  .mw-cow-duo .mw-barlist { grid-template-columns: 1fr auto; row-gap: 4px; }
-  .mw-barlist__label { grid-column: 1 / -1; white-space: normal; }
+  /* Mobil steht jede Verteilung auf voller Breite - da passt ein groesserer
+     Kreis, und "Amoxicillin 400 mg" muss nicht mehr zur Ellipse werden. */
+  .mw-pie { gap: 16px; }
+  .mw-pie__disc { width: 92px; height: 92px; }
+  .mw-pie__legend { gap: 6px; }
+  .mw-pie__label { white-space: normal; font-size: 13px; }
+  .mw-pie__value { font-size: 13px; }
 
   /* Fuenf Laschen passen auf 328px nur mit schmalerem Innenabstand -
      load-bearing, nicht Politur. */

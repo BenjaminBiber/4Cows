@@ -89,6 +89,33 @@
   --mw-neg-fg:      #d02418;
   --mw-hoof-idle:   #c6d4d0;
 
+  /* ── Serienfarben (Kuchendiagramme) ───────────────────────── */
+  /* Sechs Kategorien in fester Reihenfolge, danach faellt der Rest in
+     "Weitere" (--mw-series-other).
+
+     NICHT aus den Markenfarben gebaut: primary, teal, sage und blue liegen
+     alle im selben Blaugruen und waeren als Tortenstuecke nebeneinander
+     nicht zu unterscheiden - bei einer Rot-Gruen-Schwaeche erst recht nicht.
+     Diese sechs Toene sind gegen beide Flaechen geprueft (hell #ffffff,
+     dunkel #262930): schlechtestes benachbartes Paar Delta E 9.1 hell / 8.4
+     dunkel bei simulierter Farbfehlsichtigkeit, 19.6 / 19.3 bei normalem
+     Sehen.
+
+     Drei davon stehen unter 3:1 zur hellen Flaeche. Das ist hier in Ordnung,
+     weil neben jedem Stueck seine Beschriftung UND seine Zahl steht - die
+     Farbe traegt die Auskunft nie allein.
+
+     Dunkel sind es dieselben sechs Farbtoene, nur fuer die dunkle Flaeche
+     nachgezogen - kein zweites Farbschema. */
+  --mw-series-1:     #2a78d6;
+  --mw-series-2:     #eb6834;
+  --mw-series-3:     #1baf7a;
+  --mw-series-4:     #eda100;
+  --mw-series-5:     #e87ba4;
+  --mw-series-6:     #008300;
+  /* Der Rest ist keine Kategorie und bekommt deshalb keinen Farbton. */
+  --mw-series-other: var(--mw-muted);
+
   /* ── Heat-Rampe (Klauen-Heatmap und Euterviertel) ─────────── */
   /* Vier Stufen, bewusst als eigene Token und NICHT als
      rgba(var(--mw-primary-rgb), alpha): eine halbtransparente Markenfarbe
@@ -204,6 +231,16 @@
   --mw-neg-bg:    #3a2726;
   --mw-neg-fg:    #f0a29c;
   --mw-hoof-idle: #41504d;
+
+  /* Dieselben sechs Farbtoene, fuer die dunkle Flaeche nachgezogen - siehe
+     den hellen Block. --mw-series-other zeigt auf --mw-muted und folgt dem
+     Theme von selbst. */
+  --mw-series-1:  #3987e5;
+  --mw-series-2:  #d95926;
+  --mw-series-3:  #199e70;
+  --mw-series-4:  #c98500;
+  --mw-series-5:  #d55181;
+  --mw-series-6:  #008300;
 
   /* Umgekehrte Laufrichtung - siehe die Begruendung im hellen Block. */
   --mw-heat-1:    #23414e;

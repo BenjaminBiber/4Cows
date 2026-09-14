@@ -1,0 +1,157 @@
+@using System.Globalization
+@*
+    Ein Kuchendiagramm: Kreis links, Legende rechts.
+
+    Bewusst KEIN Chart.js, obwohl auf der Kuh-Seite schon eines laeuft. Das
+    kommt vom CDN und ist im Hofnetz nicht garantiert erreichbar - genau der
+    Fall, den .mw-chart-error auf derselben Seite behandelt. Ein Canvas ist
+    fuer einen Screenreader ausserdem eine leere Flaeche, waehrend die Legende
+    hier eine echte Liste bleibt: durchsuchbar, kopierbar, vorlesbar.
+
+    Gezeichnet wird mit stroke-dasharray auf EINEM Kreis je Stueck, dazu
+    pathLength="100": damit ist der Umfang per Definition 100 Einheiten und
+    ein Stueck genau so lang wie sein Prozentanteil. Kein Bogenrechnen - und
+    kein Sonderfall bei hundert Prozent, den ein path mit A-Bogen braeuchte
+    (ein Bogen ueber 360 Grad endet dort, wo er anfaengt, und zeichnet nichts).
+
+    Ein Kuchen zeigt Anteile auf einen Blick. Zwei aehnlich grosse Stuecke
+    unterscheidet er NICHT - deshalb steht in der Legende neben jedem Stueck
+    seine Zahl, und die ist die genaue Auskunft. Mehr als sechs Stuecke sind
+    nicht mehr auseinanderzuhalten; alles darueber faellt in "Weitere".
+
+    Die Farbe folgt hier der Groesse und nicht dem Eintrag: das groesste
+    Stueck ist immer Farbe 1. Das ist die Schwaeche jedes Kuchens - dasselbe
+    Medikament ist bei der naechsten Kuh anders eingefaerbt. Tragbar, weil die
+    Farbe nie allein steht: jede Legendenzeile nennt ihren Namen daneben.
+*@
+@if (Segments.Count == 0)
+{
+    <div class="mw-empty">@EmptyText</div>
+}
+else
+{
+    <div class="mw-pie">
+        @* aria-hidden: die Legende darunter sagt dasselbe in Worten, und
+           zweimal vorgelesen ist eine Grafik keine Hilfe. *@
+        <svg class="mw-pie__disc" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+            @* -90 Grad, damit das erste Stueck oben beginnt und nicht rechts. *@
+            <g transform="rotate(-90 16 16)">
+                @foreach (var segment in Segments)
+                {
+                    <circle class="mw-pie__slice @segment.Slot"
+                            cx="16" cy="16" r="8" stroke-width="16" pathLength="100"
+                            stroke-dasharray="@(Num(segment.Dash)) 100"
+                            stroke-dashoffset="@Num(-segment.Offset)"></circle>
+                }
+            </g>
+        </svg>
+
+        <ol class="mw-pie__legend">
+            @foreach (var segment in Segments)
+            {
+                <li class="mw-pie__row @segment.Slot">
+                    <span class="mw-pie__swatch" aria-hidden="true"></span>
+                    <span class="mw-pie__label" title="@segment.Label">@segment.Label</span>
+                    <span class="mw-pie__value">@segment.Count.ToString("N0")</span>
+                </li>
+            }
+        </ol>
+    </div>
+}
+
+@code {
+    public sealed record Item(string Label, int Count);
+
+    /// <summary>
+    /// Groesstes Stueck zuerst - CowProfile liefert seine Zaehlungen bereits
+    /// so. Die Reihenfolge entscheidet ueber Farbe und darueber, was in
+    /// "Weitere" faellt.
+    /// </summary>
+    [Parameter] public IReadOnlyList<Item> Items { get; set; } = Array.Empty<Item>();
+
+    [Parameter] public string EmptyText { get; set; } = "Keine Daten.";
+
+    /// <summary>Ab hier sind die Stuecke nicht mehr auseinanderzuhalten.</summary>
+    private const int MaxSlices = 6;
+
+    /// <summary>
+    /// Trennfuge zwischen zwei Stuecken, in Prozent des Umfangs. Bei 76px
+    /// Durchmesser sind das knapp zwei Pixel - genug, damit zwei benachbarte
+    /// Farben eine Kante haben und nicht ineinanderlaufen.
+    /// </summary>
+    private const double Gap = .8;
+
+    /// <summary>
+    /// Damit ein Stueck von einem Prozent nicht vollstaendig in der Fuge
+    /// verschwindet und dann wie "gar nicht vorhanden" aussieht. Dieselbe
+    /// Ueberlegung wie die Mindestbreite der frueheren Balken.
+    /// </summary>
+    private const double MinDash = .6;
+
+    private sealed record Segment(string Label, int Count, double Dash, double Offset, string Slot);
+
+    private List<Segment> Segments { get; set; } = new();
+
+    protected override void OnParametersSet()
+    {
+        Segments = Build();
+    }
+
+    private List<Segment> Build()
+    {
+        // Ein Stueck mit null zeichnet nichts, belegt aber eine Farbe und
+        // eine Legendenzeile.
+        var items = Items.Where(i => i.Count > 0).ToList();
+        var total = items.Sum(i => i.Count);
+
+        if (total == 0)
+        {
+            return new List<Segment>();
+        }
+
+        // Gekappt wird erst ab dem siebten Eintrag, und dann fallen mindestens
+        // zwei zusammen. "Weitere (1)" - eine Sammelzeile, die den Namen ihres
+        // einzigen Eintrags verschweigt - kann so gar nicht entstehen.
+        var hasOther = items.Count > MaxSlices;
+        var shown = hasOther
+            ? items.Take(MaxSlices - 1)
+                .Append(new Item(
+                    $"Weitere ({items.Count - (MaxSlices - 1)})",
+                    items.Skip(MaxSlices - 1).Sum(i => i.Count)))
+                .ToList()
+            : items;
+
+        var segments = new List<Segment>(shown.Count);
+        var cursor = 0d;
+
+        for (var index = 0; index < shown.Count; index++)
+        {
+            var item = shown[index];
+            var share = 100.0 * item.Count / total;
+
+            // Ein einzelnes Stueck bekommt keine Fuge: die klaffte sonst als
+            // Schlitz im geschlossenen Kreis.
+            var dash = shown.Count == 1 ? share : Math.Max(share - Gap, MinDash);
+
+            // Die Sammelzeile traegt bewusst KEINE Kategoriefarbe, sondern das
+            // gedaempfte Grau: sie ist kein Eintrag, sondern der Rest.
+            var slot = hasOther && index == shown.Count - 1
+                ? "mw-slice-other"
+                : $"mw-slice-{index + 1}";
+
+            segments.Add(new Segment(item.Label, item.Count, dash, cursor, slot));
+            cursor += share;
+        }
+
+        return segments;
+    }
+
+    /// <summary>
+    /// InvariantCulture ist Pflicht und keine Vorsicht: Program.cs legt keine
+    /// Kultur fest, auf einem de-Host waere "12,5" ein ungueltiger
+    /// SVG-Attributwert und das Stueck fiele still aus. Dasselbe Muster wie
+    /// --mw-pager-slot in MeadowTablePager.
+    /// </summary>
+    private static string Num(double value)
+        => value.ToString("0.###", CultureInfo.InvariantCulture);
+}
