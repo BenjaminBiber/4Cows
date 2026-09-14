@@ -1,11 +1,14 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Microsoft.EntityFrameworkCore;
 
 namespace BB_Cow.Class;
 
 [Table("Cow")]
-[Index(nameof(EarTagNumber), IsUnique = true, Name = "IX_Cow_Ear_Tag_Number")]
+// Der Unique-Index auf Ear_Tag_Number stand hier als [Index]-Attribut. Das Attribut
+// kommt aus Microsoft.EntityFrameworkCore, und dieses Projekt soll paketfrei bleiben,
+// weil der WebAssembly-Client es mitlaedt. Der Index steht jetzt als Fluent-Config in
+// DatabaseContext.OnModelCreating - gleiches Modell, gleicher Indexname, keine neue
+// Migration.
 public class Cow
 {
     // Stable identity of the animal for its whole life. For identified cows this equals the

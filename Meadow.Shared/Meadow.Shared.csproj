@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <!--
+    Dieses Projekt hat bewusst KEINE PackageReference und behaelt keine.
+
+    Es wird spaeter vom WebAssembly-Client referenziert, und alles, was hier
+    hereinkommt, laedt der Browser mit herunter. Es ist ausserdem die einzige
+    Stelle, an der Server und Client dieselben Typen sehen - eine Abhaengigkeit
+    hier zwingt beide Seiten dazu.
+
+    Entity Framework gehoert deshalb nicht hierher, auch nicht als
+    Microsoft.EntityFrameworkCore.Abstractions: das waere nur ein Attribut
+    ([Index] auf Cow) und funktionierte, laedt aber eine ORM-Abhaengigkeit in
+    die Assembly des Browsers ein und laedt das naechste [ForeignKey] dazu ein,
+    denselben Weg zu nehmen. Das Attribut steht stattdessen als Fluent-Config
+    in DatabaseContext.OnModelCreating.
+
+    Wer hier eine PackageReference eintraegt, sollte in der Commit-Nachricht
+    begruenden, warum der Client sie laden soll.
+  -->
+
+</Project>

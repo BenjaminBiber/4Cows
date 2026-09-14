@@ -35,6 +35,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\BBCowDataLibrary\BBCowDataLibrary.csproj" />
+      <ProjectReference Include="..\Meadow.Shared\Meadow.Shared.csproj" />
     </ItemGroup>
 
     <ItemGroup>
