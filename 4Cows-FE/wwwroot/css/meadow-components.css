@@ -2659,62 +2659,79 @@ button.mw-nav-item {
 .mw-card--panel { min-width: 0; }
 
 
-/* ── Heat-Rampe (Euterviertel) ────────────────────────────────── */
-/* Die Stufe setzt nur --mw-heat und die dazu lesbare Schriftfarbe; was
-   daraus wird, entscheidet der Verbraucher. Uebrig ist davon nur noch das
-   Euter: die Klauen zeigen ihre Haeufigkeit seit CowHoofLevels als
-   Fuellstand, weil vier Blautoene nebeneinander nicht vergleichbar sind.
-   Vier Kaesten in einem 2x2 sind es - dort traegt die Flaeche die Farbe und
-   nicht ein Umriss. */
-.mw-heat-0 { --mw-heat: var(--mw-hoof-idle); --mw-heat-fg: var(--mw-muted); }
-.mw-heat-1 { --mw-heat: var(--mw-heat-1);    --mw-heat-fg: var(--mw-heat-1-fg); }
-.mw-heat-2 { --mw-heat: var(--mw-heat-2);    --mw-heat-fg: var(--mw-heat-2-fg); }
-.mw-heat-3 { --mw-heat: var(--mw-heat-3);    --mw-heat-fg: var(--mw-heat-3-fg); }
-.mw-heat-4 { --mw-heat: var(--mw-heat-4);    --mw-heat-fg: var(--mw-heat-4-fg); }
+/* ── Klauen und Euterviertel nebeneinander ────────────────────── */
+/* Die Klauen bekommen mehr Breite: "Rechts Hinten" ist die laengste
+   Beschriftung auf beiden Karten, und die Zelle soll sie nicht kuerzen
+   muessen. Mobil stapeln die beiden Karten - siehe den Mobil-Block. */
+.mw-cow-pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+}
 
-/* ── Klauen-Pegel ─────────────────────────────────────────────── */
-/* Der Umriss fuellt sich von unten. Zwei deckungsgleiche Hufe uebereinander:
-   der untere leer, der obere in Volltonfarbe und oben weggeschnitten.
+/* ── Pegel: ein Umriss, der sich von unten fuellt ─────────────── */
+/* Zwei deckungsgleiche Umrisse uebereinander: der untere leer, der obere in
+   Volltonfarbe und oben weggeschnitten. Traegt sowohl die Klaue als auch das
+   Euterviertel - daher der neutrale Name.
 
    clip-path und keine Maske oder ein Farbverlauf mit hartem Stopp:
    inset() rechnet direkt in Prozent der Elementhoehe, braucht keine im
-   Dokument eindeutige id (vier Instanzen je Seite) und bleibt eine gerade
-   Kante statt einer weichen. Muss NACH .mw-hoof-thumb stehen: dessen
-   --mw-hoof ist gleich spezifisch. */
-.mw-hoof-level {
+   Dokument eindeutige id (acht Instanzen je Seite) und bleibt eine gerade
+   Kante statt einer weichen.
+
+   Gesetzt werden ZWEI Properties, weil Huf und Zitze je eine eigene haben:
+   --mw-hoof traegt der Huf ohnehin quer durch den Klauen-Dialog, und eine
+   gemeinsame Property haette ihn dort mitumbenannt. */
+.mw-level {
   position: relative;
+  display: block;
+  flex-shrink: 0;
   --mw-hoof: var(--mw-hoof-idle);
+  --mw-teat: var(--mw-hoof-idle);
 }
-.mw-hoof-level__fill {
+.mw-level__fill {
   position: absolute;
   inset: 0;
-  /* --mw-heat-4 und nicht --mw-primary: die Rampe laeuft hell nach dunkel und
-     dunkel nach hell (siehe meadow-tokens), ihr Ende ist also in BEIDEN
-     Themes die Farbe fuer "voll". --mw-primary ist im dunklen Theme
-     unveraendert #2C7DA0 und stuende gegen den leeren Umriss (#41504d) mit
-     keinen 2:1 - der Pegelstand waere dort kaum zu sehen. */
-  --mw-hoof: var(--mw-heat-4);
-  clip-path: inset(calc(100% - var(--mw-hoof-level, 0%)) 0 0 0);
+  --mw-hoof: var(--mw-level-fill);
+  --mw-teat: var(--mw-level-fill);
+  clip-path: inset(calc(100% - var(--mw-level, 0%)) 0 0 0);
 }
 
-/* NICHT .mw-show-grid wiederverwenden: das faellt mobil auf eine Spalte
+/* Die Zitze: Groesse kommt vom Elternelement, Farbe aus --mw-teat. Wie
+   .mw-hoof-svg, nur fuer den anderen Umriss. */
+.mw-teat-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: hidden;
+  fill: var(--mw-teat, var(--mw-teal));
+  transition: fill var(--mw-t);
+}
+
+/* ── Koerperstellen: Klauen und Euterviertel ──────────────────── */
+/* Zwei Karten, ein Bauplan. Beide beantworten "wo am Tier?" und zeigen ein
+   2x2 aus Umriss, Ort und Zahl - nebeneinander muessen sie gleich aussehen,
+   sonst liest man sie als zwei verschiedene Dinge.
+
+   NICHT .mw-show-grid wiederverwenden: das faellt mobil auf eine Spalte
    zurueck. Hier IST das 2x2 die Aussage - vorne/hinten und links/rechts
-   stehen an ihrem Platz am Tier. Vier Klauen untereinander waeren eine
+   stehen an ihrem Platz am Tier. Vier Zellen untereinander waeren eine
    Liste, keine Karte. */
-.mw-claw-grid {
+.mw-part-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 6px;
 }
+.mw-part-grid .mw-level { width: 34px; height: 34px; }
 
-/* Die Zelle IST der Link auf die gefilterte Liste. Eigene Klasse und nicht
-   mehr .mw-show-cell: die traegt die Geometrie einer mehrzeiligen
-   Anzeigezelle, hier steht alles auf EINER Zeile.
+/* Bei den Klauen IST die Zelle der Link auf die gefilterte Liste; beim Euter
+   ist sie ein div - Kuhbehandlungen lassen sich nicht nach Viertel filtern.
 
    min-width:0, weil ein Rasterelement sonst die Breite seines Inhalts nach
-   oben durchreicht - "Rechts Hinten" wuerde die Karte sprengen statt zu
+   oben durchreicht - "Hinten rechts" wuerde die Karte sprengen statt zu
    kuerzen. */
-.mw-claw-cell {
+.mw-part-cell {
   display: flex;
   align-items: center;
   gap: 9px;
@@ -2727,14 +2744,13 @@ button.mw-nav-item {
   text-decoration: none;
   transition: border-color var(--mw-t), background var(--mw-t);
 }
-.mw-claw-grid .mw-hoof-thumb { width: 34px; height: 34px; }
 
 /* Der Attributwaehler und nicht die Klasse: eine Klaue ohne Behandlung
-   rendert ein a OHNE href (siehe CowHoofLevels). Sie soll auch nicht so
-   aussehen, als koenne man sie anfassen. */
-.mw-claw-cell[href] { cursor: pointer; }
+   rendert ein a OHNE href (siehe CowHoofLevels), und die Euterzelle ist gar
+   kein a. Beide sollen auch nicht so aussehen, als koenne man sie anfassen. */
+.mw-part-cell[href] { cursor: pointer; }
 @media (hover: hover) {
-  .mw-claw-cell[href]:hover {
+  .mw-part-cell[href]:hover {
     background: var(--mw-panel);
     border-color: var(--mw-primary);
   }
@@ -2742,29 +2758,35 @@ button.mw-nav-item {
 /* Die Klaue, auf die die Liste rechts gerade gefiltert ist. Der Innenschatten
    ist der zweite Rahmenstrich: ein 2px-border liesse die Zelle um einen Pixel
    wachsen und die Reihe daneben mitspringen. */
-.mw-claw-cell.is-active {
+.mw-part-cell.is-active {
   background: var(--mw-panel);
   border-color: var(--mw-primary);
   box-shadow: inset 0 0 0 1px var(--mw-primary);
 }
 
-.mw-claw-cell__label {
+/* Umbrechen statt kuerzen. Nebeneinander bleiben einer Zelle rund 90px fuer
+   die Beschriftung, und "Rechts Hinten" braucht in einer Zeile 110 - mit
+   Ellipse stuende dort "Rechts Hin...". Ueber zwei Zeilen bleibt die Zelle
+   sogar gleich hoch: zwei Zeilen sind niedriger als der 34px-Umriss daneben. */
+.mw-part-cell__label {
   flex: 1;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   font-size: 13px;
   font-weight: 700;
+  line-height: 1.2;
   color: var(--mw-text);
 }
-.mw-claw-cell__count {
+.mw-part-cell__count {
   font-family: var(--mw-font-display);
   font-weight: 800;
   font-size: 16px;
   line-height: 1;
   color: var(--mw-text);
 }
+
+/* Die Fussnote unter der Eutergrafik - zwei Zeilen davon waeren so hoch wie
+   eine halbe Zelle. */
+.mw-part-grid + .mw-hint { margin-top: 6px; font-size: 11px; line-height: 1.4; }
 
 /* ── Umschaltkarte (Verlauf / Medikamente / Gruende) ─────────── */
 /* Die Laschen stehen anstelle eines Kartentitels: die gedrueckte benennt,
@@ -2920,45 +2942,6 @@ button.mw-nav-item {
 .mw-slice-6 { --mw-slice: var(--mw-series-6); }
 .mw-slice-other { --mw-slice: var(--mw-series-other); }
 
-/* ── Euterviertel ─────────────────────────────────────────────── */
-/* Geometrie wie das Viertel-Raster im UdderDialog, aber nur zum Lesen:
-   keine Knoepfe, kein Umschalten. Bleibt auch mobil 2x2 - die Anordnung
-   IST die Aussage. */
-.mw-udder-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-.mw-udder-cell {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  padding: 11px 8px;
-  border: 1px solid var(--mw-border);
-  border-radius: var(--mw-r-2xl);
-  /* Flaeche UND Schrift kommen aus derselben Stufe. Nur die Flaeche zu
-     faerben ginge schief: bei Stufe 4 stuende sonst dunkler Text auf
-     dunklem Blau (hell) bzw. heller auf hellem (dunkel). */
-  background: var(--mw-heat, var(--mw-tint));
-  color: var(--mw-heat-fg, var(--mw-muted));
-}
-.mw-udder-cell__code {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: .1em;
-}
-.mw-udder-cell__count {
-  font-family: var(--mw-font-display);
-  font-weight: 800;
-  font-size: 20px;
-  line-height: 1;
-}
-/* Die Fussnote unter der Eutergrafik - zwei Zeilen davon waeren so hoch wie
-   eine halbe Zelle. */
-.mw-udder-grid + .mw-hint { margin-top: 6px; font-size: 11px; line-height: 1.4; }
-
 /* ── Tab-Leiste mit fuenf Laschen ─────────────────────────────── */
 /* Umbrechen darf sie nicht: der Unterstrich der aktiven Lasche liegt auf
    dem Rahmen des Containers und hinge in einer ersten Zeile in der Luft.
@@ -3036,6 +3019,9 @@ a.mw-row-card { text-decoration: none; }
   .mw-cow-split,
   .mw-cow-col { display: flex; flex-direction: column; gap: 12px; }
 
+  /* Zwei 2x2-Raster nebeneinander sind auf 375px acht Zellen von 40px. */
+  .mw-cow-pair { grid-template-columns: 1fr; gap: 12px; }
+
   /* Muss wiederholt werden: die unbedingte --cow-Regel oben steht SPAETER
      in der Datei als der Mobil-Block des Dashboards und erzwaenge sonst
      auch auf 360px drei Spalten, also 106px je Kachel. */
@@ -3062,14 +3048,15 @@ a.mw-row-card { text-decoration: none; }
   /* Am Daumen sind die vier Zellen Tippziele: 40px Huf plus 11px Polsterung
      ergeben 64px Hoehe, deutlich ueber den 44px, unter denen man daneben
      tippt. */
-  .mw-claw-grid { gap: 8px; }
-  .mw-claw-cell { padding: 11px 12px; gap: 11px; }
-  .mw-claw-grid .mw-hoof-thumb { width: 40px; height: 40px; }
-  .mw-claw-cell__label { font-size: 14px; }
-  .mw-claw-cell__count { font-size: 20px; }
-
-  .mw-udder-cell { padding: 14px 6px; }
-  .mw-udder-cell__count { font-size: 22px; }
+  /* Am Daumen sind die Klauenzellen Tippziele: 40px Umriss plus 11px
+     Polsterung ergeben 64px Hoehe, deutlich ueber den 44px, unter denen man
+     daneben tippt. Das Euter erbt dieselben Masse - die beiden Karten
+     stehen mobil untereinander und muessen gleich aussehen. */
+  .mw-part-grid { gap: 8px; }
+  .mw-part-cell { padding: 11px 12px; gap: 11px; }
+  .mw-part-grid .mw-level { width: 40px; height: 40px; }
+  .mw-part-cell__label { font-size: 14px; }
+  .mw-part-cell__count { font-size: 20px; }
 
   /* Mobil steht jede Verteilung auf voller Breite - da passt ein groesserer
      Kreis, und "Amoxicillin 400 mg" muss nicht mehr zur Ellipse werden. */

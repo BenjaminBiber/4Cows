@@ -1,16 +1,24 @@
+@using _4Cows_FE.Components.Meadow
 @using BB_Cow.Class
 @*
-    Die vier Euterviertel, eingefaerbt nach Behandlungshaeufigkeit.
+    Die vier Euterviertel als Pegel - genau wie die Klauen nebenan: jedes
+    Viertel fuellt sich von unten, so weit es am Hoechstwert dieser Kuh liegt.
 
     Anordnung und Reihenfolge wie im UdderDialog: LV RV oben, LH RH unten.
     Das Euter wird von hinten betrachtet, und die Anwendung ist darin
     durchgaengig - diese Seite ist nicht die richtige Stelle, um als einzige
     zu spiegeln.
 
-    CSS-Raster und kein SVG: die Anwendung hat keine Euterzeichnung, der
-    UdderDialog setzt vier Kaesten in ein 1fr-1fr-Raster, und das ist die
-    ganze vorhandene Formensprache. Ein SVG lohnte sich nur, wenn es echte
-    Geometrie zeichnete; hier tragen die Zellen Text.
+    Frueher waren es vier eingefaerbte Kaesten aus einer vierstufigen
+    Farbrampe. Dieselbe Kritik wie bei den Klauen traf sie: zwei benachbarte
+    Stufen sehen gleich aus, und die Rampe verlangte fuer jede Stufe noch
+    eine dazu lesbare Schriftfarbe. Ein Fuellstand ist eine Laenge, die man
+    ohne Schluessel vergleicht - und er sieht auf beiden Karten der Spalte
+    gleich aus, was die zwei Karten als ein Paar lesbar macht.
+
+    Die Zelle traegt bewusst KEINEN Link, anders als die Klaue daneben: die
+    Kuhbehandlungen sind nicht nach Viertel filterbar - eine Behandlung kann
+    mehrere treffen, und Udder haengt an der Behandlung und nicht umgekehrt.
 *@
 @if (Total == 0)
 {
@@ -23,16 +31,29 @@ else if (WithQuarter == 0)
 }
 else
 {
-    <div class="mw-udder-grid" role="group" aria-label="Euterviertel nach Behandlungshäufigkeit">
+    <div class="mw-part-grid" role="group" aria-label="Euterviertel nach Behandlungshäufigkeit">
         @foreach (var position in HoofPositions.All)
         {
             var count = Count(position);
-            <div class="mw-udder-cell mw-heat-@Step(count)">
-                <span class="mw-udder-cell__code" aria-hidden="true">@position</span>
-                <span class="mw-udder-cell__count" aria-hidden="true">@count.ToString("N0")</span>
-                @* "LV" ist kein Wort - vorgelesen wird die Langform. *@
-                <span class="mw-sr-only">
-                    @LongLabel(position), @count @(count == 1 ? "Behandlung" : "Behandlungen")
+
+            <div class="mw-part-cell">
+                @* Zwei deckungsgleiche Umrisse: der untere leer, der obere
+                   gefuellt und oben weggeschnitten. Beide tragen kein Title
+                   und sind damit aria-hidden - die Zahl daneben sagt dasselbe
+                   in Worten. *@
+                <span class="mw-level" style="@($"--mw-level: {Level(count)}%")">
+                    <Teat />
+                    <span class="mw-level__fill"><Teat /></span>
+                </span>
+
+                @* "LV" ist kein Wort - ausgeschrieben steht es ohnehin da. *@
+                <span class="mw-part-cell__label">@LongLabel(position)</span>
+
+                <span class="mw-part-cell__count">
+                    @count.ToString("N0")
+                    <span class="mw-sr-only">
+                        @(count == 1 ? "Behandlung" : "Behandlungen")
+                    </span>
                 </span>
             </div>
         }
@@ -58,15 +79,27 @@ else
     /// <summary>Alle Kuhbehandlungen dieser Kuh.</summary>
     [Parameter] public int Total { get; set; }
 
-    private const int Steps = 4;
+    /// <summary>
+    /// Untergrenze fuer ein Viertel, das ueberhaupt behandelt wurde - siehe
+    /// CowHoofLevels.MinLevel, dieselbe Ueberlegung und derselbe Wert, damit
+    /// die beiden Karten nebeneinander dieselbe Skala zeigen.
+    /// </summary>
+    private const int MinLevel = 18;
 
     private int Count(HoofPosition position)
         => Quarters.TryGetValue(position, out var count) ? count : 0;
 
     private int Max => HoofPositions.All.Max(Count);
 
-    private int Step(int count)
-        => count == 0 || Max == 0 ? 0 : (int)Math.Ceiling((double)Steps * count / Max);
+    /// <summary>
+    /// Fuellstand in Prozent der Umrisshoehe. Ganzzahlig, damit der Wert ohne
+    /// Ruecksicht auf die Kultur in den style-Wert darf - "0,42%" waere ein
+    /// ungueltiger CSS-Wert und der Pegel fiele still auf null zurueck.
+    /// </summary>
+    private int Level(int count)
+        => count == 0 || Max == 0
+            ? 0
+            : Math.Max(MinLevel, (int)Math.Round(100.0 * count / Max));
 
     /// <summary>
     /// Bewusst hier und nicht ueber HoofPositions.SideLabel: die Woerter

@@ -116,28 +116,18 @@
   /* Der Rest ist keine Kategorie und bekommt deshalb keinen Farbton. */
   --mw-series-other: var(--mw-muted);
 
-  /* ── Heat-Rampe (Klauen-Heatmap und Euterviertel) ─────────── */
-  /* Vier Stufen, bewusst als eigene Token und NICHT als
-     rgba(var(--mw-primary-rgb), alpha): eine halbtransparente Markenfarbe
-     kippt auf der dunklen Flaeche (--mw-panel: #262930) in ein Grau, das
-     weder gegen das Panel noch gegen --mw-tint steht - die unteren zwei
-     Stufen waeren dort unsichtbar.
+  /* ── Pegelfarbe (Klauen und Euterviertel) ─────────────────── */
+  /* Der gefuellte Teil eines Umrisses; leer ist --mw-hoof-idle.
+     Bewusst ein eigenes Token und NICHT --mw-primary: dunkel muss die
+     Fuellung HELLER sein als der leere Umriss, hell dunkler - eine Farbe,
+     die in beiden Themes dieselbe waere, drehte beim Umschalten ihre
+     Lesbarkeit um. #2C7DA0 auf dem dunklen Panel gegen #41504d sind keine
+     2:1, der Pegelstand waere dort kaum zu sehen.
 
-     Hell laeuft die Rampe nach DUNKEL, dunkel nach HELL. Eine Rampe, die in
-     beiden Themes in dieselbe Richtung liefe, drehte beim Umschalten ihre
-     Bedeutung um.
-
-     Jede Stufe traegt ihre Vordergrundfarbe mit, wie soft/block/neg auch:
-     das Euterviertel faerbt Flaeche UND Zahl aus derselben Stufe, sonst
-     stuende bei Stufe 4 dunkler Text auf dunklem Blau. */
-  --mw-heat-1:      #dbebf2;
-  --mw-heat-1-fg:   #1f5f7d;
-  --mw-heat-2:      #b3d5e5;
-  --mw-heat-2-fg:   #1f5f7d;
-  --mw-heat-3:      #7fb6cf;
-  --mw-heat-3-fg:   #133f52;
-  --mw-heat-4:      #2C7DA0;   /* = --mw-primary */
-  --mw-heat-4-fg:   #ffffff;
+     Hier stand bis zuletzt eine vierstufige Rampe. Die ist mit dem
+     Fuellstand entfallen: zwei benachbarte Blautoene sind nebeneinander
+     nicht zu unterscheiden, eine Fuellhoehe schon. */
+  --mw-level-fill:  #2C7DA0;   /* = --mw-primary */
 
   /* ── Backdrops ────────────────────────────────────────────── */
   --mw-backdrop-drawer: rgba(8, 20, 24, .42);
@@ -242,15 +232,8 @@
   --mw-series-5:  #d55181;
   --mw-series-6:  #008300;
 
-  /* Umgekehrte Laufrichtung - siehe die Begruendung im hellen Block. */
-  --mw-heat-1:    #23414e;
-  --mw-heat-1-fg: #cfe3ec;
-  --mw-heat-2:    #2f6178;
-  --mw-heat-2-fg: #dbeef7;
-  --mw-heat-3:    #4691b0;
-  --mw-heat-3-fg: #0d2630;
-  --mw-heat-4:    #60ADC9;   /* = --mw-blue */
-  --mw-heat-4-fg: #10262e;
+  /* Heller als der leere Umriss - siehe die Begruendung im hellen Block. */
+  --mw-level-fill: #60ADC9;   /* = --mw-blue */
 }
 
 /* ── Keyframes (Prototyp Zeilen 23-27) ──────────────────────── */

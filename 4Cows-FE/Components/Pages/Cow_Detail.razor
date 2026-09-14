@@ -119,23 +119,30 @@ else
                     }
                 </div>
 
-                @* Die Klauen bleiben allein auf einer Karte, obwohl vier
-                   einzeilige Zellen auch neben etwas anderem Platz haetten:
-                   sie sind als einzige Grafik der Spalte BEDIENBAR - jede
-                   Zelle fuehrt in die Liste rechts. Zwischen zwei
-                   Verteilungen gequetscht liest sich das wie Zierat. *@
-                <MeadowPanelCard Title="Klauen">
-                    <CowHoofLevels Hoofs="_profile.Hoofs"
-                                   TotalTreatments="_profile.TotalClawTreatments"
-                                   CowId="@CowId"
-                                   Selected="_claw" />
-                </MeadowPanelCard>
+                @* Klauen und Euterviertel nebeneinander: beide beantworten
+                   dieselbe Frage - wo am Tier? -, beide sind ein 2x2 aus
+                   Umriss, Ort und Zahl, und nebeneinander liest man sie als
+                   das Paar, das sie sind. Die Klauen bekommen etwas mehr
+                   Breite: "Rechts Hinten" ist laenger als jede Viertel-
+                   Beschriftung.
 
-                <MeadowPanelCard Title="Euterviertel">
-                    <CowUdderQuadrants Quarters="_profile.UdderQuarters"
-                                       WithQuarter="_profile.UdderTreatments"
-                                       Total="_profile.TotalCowTreatments" />
-                </MeadowPanelCard>
+                   Nur die Klauenzelle ist ein Link. Kuhbehandlungen lassen
+                   sich nicht nach Viertel filtern - eine Behandlung kann
+                   mehrere treffen. *@
+                <div class="mw-cow-pair">
+                    <MeadowPanelCard Title="Klauen">
+                        <CowHoofLevels Hoofs="_profile.Hoofs"
+                                       TotalTreatments="_profile.TotalClawTreatments"
+                                       CowId="@CowId"
+                                       Selected="_claw" />
+                    </MeadowPanelCard>
+
+                    <MeadowPanelCard Title="Euterviertel">
+                        <CowUdderQuadrants Quarters="_profile.UdderQuarters"
+                                           WithQuarter="_profile.UdderTreatments"
+                                           Total="_profile.TotalCowTreatments" />
+                    </MeadowPanelCard>
+                </div>
             </div>
 
             <div class="mw-cow-col mw-cow-col--lists">

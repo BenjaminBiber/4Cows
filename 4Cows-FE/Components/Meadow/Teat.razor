@@ -1,0 +1,32 @@
+@*
+    Der Umriss EINES Euterviertels: das Polster mit seiner Zitze.
+
+    Gegenstueck zu Hoof.razor und aus demselben Grund ein Inline-SVG: nur so
+    laesst sich die Flaeche per CSS umfaerben, und <use href="x.svg#id">
+    bricht in Safari.
+
+    Die Farbe kommt aus --mw-teat, wie beim Huf aus --mw-hoof. Zwei
+    Properties und nicht eine gemeinsame: der Huf traegt seine schon quer
+    durch den Klauen-Dialog (.mw-hoof-btn.has-data und Verwandte), und eine
+    Umbenennung dort hat mit dem Euter nichts zu tun. Wer beide gleichzeitig
+    faerben will - der Fuellstand in .mw-level - setzt eben beide.
+
+    Ein Viertel und nicht das ganze Euter: gezaehlt wird je Viertel, und vier
+    einzelne Umrisse im 2x2 sagen, welches gemeint ist. Eine Gesamtansicht
+    mit vier eingefaerbten Zonen waere eine zweite, aufwendigere Zeichnung
+    fuer dieselbe Auskunft.
+*@
+<svg viewBox="0 0 100 120" class="mw-teat-svg"
+     role="@(Title is null ? "presentation" : "img")" aria-hidden="@(Title is null ? "true" : null)"
+     focusable="false">
+    @if (Title is not null)
+    {
+        <title>@Title</title>
+    }
+    <path d="M50,6c26,0,42,18,42,40c0,18-10,30-24,36c-6,3-9,8-9,16c0,12-4,19-9,19c-5,0-9-7-9-19c0-8-3-13-9-16C18,76,8,64,8,46C8,24,24,6,50,6z" />
+</svg>
+
+@code {
+    /// <summary>Nur setzen, wenn der Umriss allein Information traegt.</summary>
+    [Parameter] public string? Title { get; set; }
+}
