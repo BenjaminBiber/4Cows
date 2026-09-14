@@ -16,16 +16,22 @@
     ohne Schluessel vergleicht - und er sieht auf beiden Karten der Spalte
     gleich aus, was die zwei Karten als ein Paar lesbar macht.
 
-    Die Zelle traegt bewusst KEINEN Link, anders als die Klaue daneben: die
-    Kuhbehandlungen sind nicht nach Viertel filterbar - eine Behandlung kann
-    mehrere treffen, und Udder haengt an der Behandlung und nicht umgekehrt.
+    Jede Zelle ist ein Link auf die Lasche "Kuh", gefiltert auf genau dieses
+    Viertel - wie die Klaue nebenan auf ihre Lasche.
 
-    Genau deshalb summieren sich die vier Zahlen hoeher als die Zahl der
-    Kuhbehandlungen: die Udder-Zeile traegt vier Booleans, und eine Behandlung
-    kann mehrere davon setzen. Unter dem Raster stand dazu eine Fussnote
-    ("2 von 5 Behandlungen mit Viertelangabe. Mehrfachnennung moeglich.") -
-    entfernt, weil die Kachel ohne Kleingedrucktes auskommen soll. Wer die
-    Summe nachrechnet und sich wundert, findet die Begruendung hier.
+    Hier stand einmal, das ginge nicht, weil eine Behandlung mehrere Viertel
+    treffen kann. Das ist zwar richtig, aber kein Hindernis: die vier
+    gefilterten Mengen ueberschneiden sich eben, statt die Liste zu teilen.
+    Was zaehlt, ist dass die Zahl auf der Zelle und die Zeilen in der Liste
+    dieselbe Menge beschreiben - und das tun sie, weil beide dasselbe
+    Praedikat verwenden (Udder.GetQuarter).
+
+    Genau dieselbe Ueberschneidung ist der Grund, warum sich die vier Zahlen
+    hoeher summieren als die Zahl der Kuhbehandlungen: die Udder-Zeile traegt
+    vier Booleans, und eine Behandlung kann mehrere davon setzen. Unter dem
+    Raster stand dazu eine Fussnote - entfernt, weil die Kachel ohne
+    Kleingedrucktes auskommen soll. Wer die Summe nachrechnet und sich
+    wundert, findet die Begruendung hier.
 *@
 @if (Total == 0)
 {
@@ -42,7 +48,16 @@ else
         {
             var count = Count(position);
 
-            <div class="mw-part-cell">
+            @* Echter Link und kein onclick: der Filter lebt in ?viertel=,
+               also funktionieren Zurueck-Knopf, Mittelklick und ein geteilter
+               Link von selbst.
+
+               Ohne Behandlung bleibt das a OHNE href (Blazor laesst
+               null-Attribute weg) und ist damit kein Link: eine leere Liste
+               zu oeffnen ist kein Ziel. *@
+            <a class="mw-part-cell @(position == Selected ? "is-active" : null)"
+               href="@Href(position, count)"
+               aria-current="@(position == Selected ? "true" : null)">
                 @* Zwei deckungsgleiche Umrisse: der untere leer, der obere
                    gefuellt und oben weggeschnitten. Beide tragen kein Title
                    und sind damit aria-hidden - die Zahl daneben sagt dasselbe
@@ -53,7 +68,7 @@ else
                 </span>
 
                 @* "LV" ist kein Wort - ausgeschrieben steht es ohnehin da. *@
-                <span class="mw-part-cell__label">@LongLabel(position)</span>
+                <span class="mw-part-cell__label">@CowDetailPosition.QuarterLabel(position)</span>
 
                 <span class="mw-part-cell__count">
                     @count.ToString("N0")
@@ -61,7 +76,7 @@ else
                         @(count == 1 ? "Behandlung" : "Behandlungen")
                     </span>
                 </span>
-            </div>
+            </a>
         }
     </div>
 }
@@ -76,6 +91,12 @@ else
 
     /// <summary>Alle Kuhbehandlungen dieser Kuh.</summary>
     [Parameter] public int Total { get; set; }
+
+    /// <summary>Fuer die Adressen der vier Links. Die Cow_ID, nicht die Halsbandnummer.</summary>
+    [Parameter] public string CowId { get; set; } = "";
+
+    /// <summary>Das Viertel, auf das die Liste gerade gefiltert ist, oder null.</summary>
+    [Parameter] public HoofPosition? Selected { get; set; }
 
     /// <summary>
     /// Untergrenze fuer ein Viertel, das ueberhaupt behandelt wurde - siehe
@@ -99,16 +120,6 @@ else
             ? 0
             : Math.Max(MinLevel, (int)Math.Round(100.0 * count / Max));
 
-    /// <summary>
-    /// Bewusst hier und nicht ueber HoofPositions.SideLabel: die Woerter
-    /// stimmen heute ueberein, aber das ist Klauen-Vokabular. Ein spaeterer
-    /// Umbau dort wuerde sonst still die Eutergrafik umbenennen.
-    /// </summary>
-    private static string LongLabel(HoofPosition position) => position switch
-    {
-        HoofPosition.LV => "Vorne links",
-        HoofPosition.RV => "Vorne rechts",
-        HoofPosition.LH => "Hinten links",
-        _ => "Hinten rechts"
-    };
+    private string? Href(HoofPosition position, int count)
+        => count == 0 ? null : CowDetailPosition.QuarterHref(CowId, position);
 }

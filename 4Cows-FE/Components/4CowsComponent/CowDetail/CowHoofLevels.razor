@@ -116,5 +116,5 @@ else
             : Math.Max(MinLevel, (int)Math.Round(100.0 * count / Max));
 
     private string? Href(CowProfileHoof hoof)
-        => hoof.TreatmentCount == 0 ? null : CowDetailClaw.HrefFor(CowId, hoof.Position);
+        => hoof.TreatmentCount == 0 ? null : CowDetailPosition.ClawHref(CowId, hoof.Position);
 }

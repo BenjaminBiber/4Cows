@@ -126,9 +126,8 @@ else
                    Breite: "Rechts Hinten" ist laenger als jede Viertel-
                    Beschriftung.
 
-                   Nur die Klauenzelle ist ein Link. Kuhbehandlungen lassen
-                   sich nicht nach Viertel filtern - eine Behandlung kann
-                   mehrere treffen. *@
+                   Beide Zellen sind Links, jede auf ihre Lasche: die Klaue
+                   auf "Klauen", das Viertel auf "Kuh". *@
                 <div class="mw-cow-pair">
                     <MeadowPanelCard Title="Klauen">
                         <CowHoofLevels Hoofs="_profile.Hoofs"
@@ -140,7 +139,9 @@ else
                     <MeadowPanelCard Title="Euterviertel">
                         <CowUdderQuadrants Quarters="_profile.UdderQuarters"
                                            WithQuarter="_profile.UdderTreatments"
-                                           Total="_profile.TotalCowTreatments" />
+                                           Total="_profile.TotalCowTreatments"
+                                           CowId="@CowId"
+                                           Selected="_quarter" />
                     </MeadowPanelCard>
                 </div>
             </div>
@@ -162,25 +163,24 @@ else
                     }
                 </div>
 
-                @* Der Klauenfilter kommt von einem Klick auf die Klauen-Karte
-                   nebenan. Er muss hier stehen und nicht nur dort: wer ueber
-                   einen geteilten Link hereinkommt, sieht sonst eine
-                   unerklaerlich kurze Liste. Aufgehoben wird er mit dem
-                   gewoehnlichen Laschen-Link - der traegt kein ?klaue=. *@
-                @if (_tab == CowDetailTab.ClawTreatments && _claw is { } filtered)
+                @* Der Filter kommt von einem Klick auf die Karte nebenan - auf
+                   eine Klaue oder ein Euterviertel. Er muss hier stehen und
+                   nicht nur dort: wer ueber einen geteilten Link hereinkommt,
+                   sieht sonst eine unerklaerlich kurze Liste. Aufgehoben wird
+                   er mit dem gewoehnlichen Laschen-Link - der traegt weder
+                   ?klaue= noch ?viertel=. *@
+                @if (ActiveFilter is { } filter)
                 {
                     <div class="mw-cow-filter">
-                        <span>Nur <strong>@HoofPositions.Label(filtered)</strong></span>
-                        <a class="mw-cow-filter__clear" href="@TabHref(CowDetailTab.ClawTreatments)">
-                            Alle Klauen zeigen
-                        </a>
+                        <span>Nur <strong>@filter.Place</strong></span>
+                        <a class="mw-cow-filter__clear" href="@TabHref(_tab)">@filter.Clear</a>
                     </div>
                 }
 
                 @switch (_tab)
                 {
                     case CowDetailTab.CowTreatments:
-                        <CowTreatmentsPanel Rows="_profile.CowTreatments" />
+                        <CowTreatmentsPanel Rows="CowRows" />
                         break;
 
                     case CowDetailTab.ClawTreatments:
@@ -217,10 +217,17 @@ else
     /// <summary>
     /// Die Klaue, auf die die Lasche "Klauen" gefiltert ist. Ebenfalls im
     /// Query-String, damit das 2x2 der Klauen aus echten Links bestehen kann
-    /// - siehe CowDetailClaw.
+    /// - siehe CowDetailPosition.
     /// </summary>
     [SupplyParameterFromQuery(Name = "klaue")]
     public string? ClawSlug { get; set; }
+
+    /// <summary>
+    /// Das Euterviertel, auf das die Lasche "Kuh" gefiltert ist. Gegenstueck
+    /// zu ?klaue= - siehe CowDetailPosition.
+    /// </summary>
+    [SupplyParameterFromQuery(Name = "viertel")]
+    public string? QuarterSlug { get; set; }
 
     // Eigene Canvas-ID: ChartHelper.js fuehrt eine modulweite Registry ueber
     // die ID, "CowChart" waere der Eintrag des Dashboards.
@@ -230,6 +237,7 @@ else
     private CowProfile _profile = CowProfileBuilder.Empty("", DateTime.Today);
     private CowDetailTab _tab = CowDetailTab.CowTreatments;
     private HoofPosition? _claw;
+    private HoofPosition? _quarter;
 
     /// <summary>
     /// Die drei Auswertungen der oberen Karte. Bewusst ein Feld und NICHT im
@@ -295,7 +303,8 @@ else
     protected override async Task OnParametersSetAsync()
     {
         _tab = CowDetailTabs.Parse(TabSlug);
-        _claw = CowDetailClaw.Parse(ClawSlug);
+        _claw = CowDetailPosition.Parse(ClawSlug);
+        _quarter = CowDetailPosition.Parse(QuarterSlug);
 
         if (_loadedCowId != CowId)
         {
@@ -493,12 +502,31 @@ else
         : _profile.ClawTreatments;
 
     /// <summary>
-    /// Die Zahl an der Lasche. Bei "Klauen" die GEFILTERTE - eine Lasche, die
-    /// sieben sagt und vier Zeilen zeigt, liest sich als Fehler.
+    /// Die Kuhbehandlungen der Lasche, gefiltert wie in ?viertel= verlangt.
+    ///
+    /// Dasselbe Praedikat, mit dem CowProfileBuilder.UdderQuarters seine vier
+    /// Zahlen zaehlt - sonst zeigte die angeklickte Zelle eine andere Menge
+    /// als die Liste. HasAnyQuarter braucht es hier nicht: wo GetQuarter wahr
+    /// ist, ist auch irgendein Viertel gesetzt.
+    ///
+    /// Die vier gefilterten Mengen ueberschneiden sich, weil eine Behandlung
+    /// mehrere Viertel treffen kann. Das ist richtig so - sie TEILEN die
+    /// Liste nicht, sie schneiden sie an.
+    /// </summary>
+    private IReadOnlyList<CowTreatment> CowRows => _quarter is { } quarter
+        ? _profile.CowTreatments
+            .Where(t => UdderService.Udder.TryGetValue(t.UdderId, out var udder)
+                        && udder.GetQuarter(quarter))
+            .ToList()
+        : _profile.CowTreatments;
+
+    /// <summary>
+    /// Die Zahl an der Lasche - bei "Kuh" und "Klauen" die GEFILTERTE. Eine
+    /// Lasche, die sieben sagt und vier Zeilen zeigt, liest sich als Fehler.
     /// </summary>
     private int Count(CowDetailTab tab) => tab switch
     {
-        CowDetailTab.CowTreatments => _profile.CowTreatments.Count,
+        CowDetailTab.CowTreatments => CowRows.Count,
         CowDetailTab.ClawTreatments => ClawRows.Count,
         CowDetailTab.PlannedCow => _profile.PlannedCowTreatments.Count,
         CowDetailTab.PlannedClaw => _profile.PlannedClawTreatments.Count,
@@ -506,10 +534,24 @@ else
     };
 
     /// <summary>
-    /// Adresse einer Lasche, immer OHNE ?klaue=: der Klauenfilter gilt nur
-    /// fuer die eine Lasche, und ihn beim Wechsel mitzuschleppen hiesse, ihn
-    /// auf der naechsten still weiterlaufen zu lassen. Derselbe Link hebt
-    /// deshalb auch den Filter auf.
+    /// Der Ort, auf den die sichtbare Lasche gefiltert ist, samt Text zum
+    /// Aufheben - oder null. Beide Filter koennen gleichzeitig in der Adresse
+    /// stehen; angezeigt wird der, der zur Lasche gehoert.
+    /// </summary>
+    private (string Place, string Clear)? ActiveFilter => (_tab, _claw, _quarter) switch
+    {
+        (CowDetailTab.ClawTreatments, { } claw, _)
+            => (HoofPositions.Label(claw), "Alle Klauen zeigen"),
+        (CowDetailTab.CowTreatments, _, { } quarter)
+            => (CowDetailPosition.QuarterLabel(quarter), "Alle Viertel zeigen"),
+        _ => null
+    };
+
+    /// <summary>
+    /// Adresse einer Lasche, immer OHNE ?klaue= und ?viertel=: ein Ortsfilter
+    /// gilt nur fuer die eine Lasche, und ihn beim Wechsel mitzuschleppen
+    /// hiesse, ihn auf der naechsten still weiterlaufen zu lassen. Derselbe
+    /// Link hebt deshalb auch den Filter auf.
     /// </summary>
     private string TabHref(CowDetailTab tab)
         => $"{MeadowRoutes.CowDetailFor(CowId)}?tab={CowDetailTabs.ToSlug(tab)}";

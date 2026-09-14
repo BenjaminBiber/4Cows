@@ -64,19 +64,21 @@ public static class CowDetailTabs
 
 /// <summary>
 /// Der zweite Teil des Query-Vokabulars der Kuh-Seite: ?klaue= filtert die
-/// Lasche "Klauen" auf eine Position.
+/// Lasche "Klauen" auf eine Klaue, ?viertel= die Lasche "Kuh" auf ein
+/// Euterviertel. Beide Orte sind eine HoofPosition - vier Ecken am Tier, und
+/// dieselben vier Kuerzel.
 ///
 /// Steht neben CowDetailTabs aus demselben Grund, aus dem die Lasche dort
-/// steht - der Zustand gehoert in die Adresse. Nur so kann das 2x2 der
-/// Klauen aus ECHTEN Links bestehen: Zurueck-Knopf, Mittelklick und ein
-/// geteilter Link funktionieren damit von selbst.
+/// steht - der Zustand gehoert in die Adresse. Nur so koennen die beiden 2x2
+/// aus ECHTEN Links bestehen: Zurueck-Knopf, Mittelklick und ein geteilter
+/// Link funktionieren damit von selbst.
 ///
 /// Das Kuerzel ist der Enum-Name in Kleinbuchstaben ("lv"). Eine eigene
 /// Zuordnungstabelle waere hier nur eine zweite Stelle, an der LV, RV, LH
 /// und RH gepflegt werden muessten; Umlaute oder Leerzeichen, wegen denen
 /// die Laschen eigene Kuerzel tragen, gibt es bei den vier Codes nicht.
 /// </summary>
-public static class CowDetailClaw
+public static class CowDetailPosition
 {
     public static string ToSlug(HoofPosition position)
         => position.ToString().ToLowerInvariant();
@@ -84,8 +86,8 @@ public static class CowDetailClaw
     /// <summary>
     /// Unbekanntes oder fehlendes Kuerzel heisst "kein Filter" - eine
     /// verunglueckte Adresse zeigt die ganze Liste und nicht eine leere.
-    /// IsDefined zusaetzlich zu TryParse: das nimmt auch Zahlen an, und "?
-    /// klaue=99" ergaebe sonst eine HoofPosition, die es nicht gibt.
+    /// IsDefined zusaetzlich zu TryParse: das nimmt auch Zahlen an, und
+    /// "?klaue=99" ergaebe sonst eine HoofPosition, die es nicht gibt.
     /// </summary>
     public static HoofPosition? Parse(string? slug)
         => Enum.TryParse<HoofPosition>(slug, ignoreCase: true, out var position)
@@ -93,9 +95,29 @@ public static class CowDetailClaw
             ? position
             : null;
 
-    /// <summary>Adresse der Lasche "Klauen", gefiltert auf eine Position.</summary>
-    public static string HrefFor(string cowId, HoofPosition position)
+    /// <summary>Adresse der Lasche "Klauen", gefiltert auf eine Klaue.</summary>
+    public static string ClawHref(string cowId, HoofPosition position)
         => $"{MeadowRoutes.CowDetailFor(cowId)}"
            + $"?tab={CowDetailTabs.ToSlug(CowDetailTab.ClawTreatments)}"
            + $"&klaue={ToSlug(position)}";
+
+    /// <summary>Adresse der Lasche "Kuh", gefiltert auf ein Euterviertel.</summary>
+    public static string QuarterHref(string cowId, HoofPosition position)
+        => $"{MeadowRoutes.CowDetailFor(cowId)}"
+           + $"?tab={CowDetailTabs.ToSlug(CowDetailTab.CowTreatments)}"
+           + $"&viertel={ToSlug(position)}";
+
+    /// <summary>
+    /// Die Viertel ausgeschrieben. Bewusst NICHT HoofPositions.SideLabel,
+    /// obwohl die Woerter heute uebereinstimmen: das ist Klauen-Vokabular,
+    /// und ein spaeterer Umbau dort soll nicht still die Eutergrafik
+    /// umbenennen.
+    /// </summary>
+    public static string QuarterLabel(HoofPosition position) => position switch
+    {
+        HoofPosition.LV => "Vorne links",
+        HoofPosition.RV => "Vorne rechts",
+        HoofPosition.LH => "Hinten links",
+        _ => "Hinten rechts"
+    };
 }
