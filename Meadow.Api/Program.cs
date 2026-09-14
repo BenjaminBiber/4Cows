@@ -103,6 +103,10 @@ builder.Services.AddSingleton<IKPIService, KPIService>();
 builder.Services.AddSingleton<ISettingsService, SettingsService>();
 builder.Services.AddSingleton<DatabaseConnectionState>();
 builder.Services.AddSingleton<IXLinkService, XLinkService>();
+// Muss Singleton sein: er haelt das "laeuft gerade"-Flag, an dem ein zweiter
+// POST auf /api/xlink/refresh seine 409 erkennt. Einer pro Anfrage wuesste
+// von keinem anderen Lauf.
+builder.Services.AddSingleton<XLinkRunner>();
 builder.Services.AddSingleton(demoSettings);
 
 // Shell-Zustand ist Scoped, also einer pro Circuit. Als Singleton wuerde der
@@ -207,6 +211,7 @@ api.MapPlannedCowTreatmentEndpoints();
 api.MapPlannedClawTreatmentEndpoints();
 api.MapSettingsEndpoints();
 api.MapKpiEndpoints();
+api.MapXLinkEndpoints();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();

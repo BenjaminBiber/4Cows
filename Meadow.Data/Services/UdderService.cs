@@ -9,6 +9,24 @@ namespace Meadow.Data.Services;
 
 public class UdderService : IUdderService
 {
+    /// <summary>
+    /// Klammert die Suchen-sonst-Anlegen-Laeufe von
+    /// <see cref="GetIDByBools"/> UND <see cref="GetIdForNoQuarters"/>. Warum
+    /// ueberhaupt, und wie weit das traegt - naemlich genau einen Prozess -,
+    /// steht an MedicineService.MedicineGate.
+    ///
+    /// Ein Semaphor fuer beide Methoden, weil beide dieselbe Tabelle anlegen:
+    /// "keine Viertel" ist nur eine der sechzehn Kombinationen, und zwei
+    /// Sperren liessen genau die Kreuzung offen, die sie schliessen sollen.
+    /// Die Methoden rufen sich gegenseitig NICHT auf - SemaphoreSlim ist
+    /// nicht wiedereintrittsfaehig, das waere sonst eine Selbstblockade.
+    ///
+    /// Was doppelte Euter-Zeilen anrichten, steht im Kommentar in
+    /// <see cref="InsertDataAsync"/> weiter unten. Es ist die teuerste der
+    /// sechs Stellen.
+    /// </summary>
+    private static readonly SemaphoreSlim UdderGate = new(1, 1);
+
     private ImmutableDictionary<int, Udder> _cachedUdder = ImmutableDictionary<int, Udder>.Empty;
     private readonly IDbContextFactory<DatabaseContext> _contextFactory;
     private readonly DatabaseStatusService _databaseStatusService;
@@ -84,41 +102,71 @@ public class UdderService : IUdderService
 
     public async Task<int> GetIDByBools(Udder emptyUdder)
     {
-        var id = _cachedUdder.Values.FirstOrDefault(x =>
-            x.QuarterLV == emptyUdder.QuarterLV && x.QuarterRV == emptyUdder.QuarterRV &&
-            x.QuarterLH == emptyUdder.QuarterLH && x.QuarterRH == emptyUdder.QuarterRH) ?? null;
+        await UdderGate.WaitAsync();
+        try
+        {
+            // Ein kalter Cache meldet "kennt keiner" und wuerde eine laengst
+            // vorhandene Kombination ein zweites Mal anlegen; siehe
+            // MedicineService.GetMedicineIdByName. Hier waere der Schaden am
+            // groessten - der Kommentar in InsertDataAsync beschreibt ihn.
+            if (_cachedUdder.IsEmpty)
+            {
+                await GetAllDataAsync();
+            }
 
-        if (id == null)
-        {
-            await InsertDataAsync(emptyUdder);
-            return (_cachedUdder.Values.FirstOrDefault(x =>
+            var id = _cachedUdder.Values.FirstOrDefault(x =>
                 x.QuarterLV == emptyUdder.QuarterLV && x.QuarterRV == emptyUdder.QuarterRV &&
-                x.QuarterLH == emptyUdder.QuarterLH && x.QuarterRH == emptyUdder.QuarterRH) ?? new Udder()).UdderId;
+                x.QuarterLH == emptyUdder.QuarterLH && x.QuarterRH == emptyUdder.QuarterRH) ?? null;
+
+            if (id == null)
+            {
+                await InsertDataAsync(emptyUdder);
+                return (_cachedUdder.Values.FirstOrDefault(x =>
+                    x.QuarterLV == emptyUdder.QuarterLV && x.QuarterRV == emptyUdder.QuarterRV &&
+                    x.QuarterLH == emptyUdder.QuarterLH && x.QuarterRH == emptyUdder.QuarterRH) ?? new Udder()).UdderId;
+            }
+            else
+            {
+                return id.UdderId;
+            }
         }
-        else
+        finally
         {
-            return id.UdderId;
+            UdderGate.Release();
         }
     }
 
     public async Task<int> GetIdForNoQuarters()
     {
-        var id = (_cachedUdder.Values
-            .FirstOrDefault(x => !x.QuarterLV && !x.QuarterLH && !x.QuarterRH && !x.QuarterRV) ?? new Udder()).UdderId;
-
-        if (id == int.MinValue)
+        await UdderGate.WaitAsync();
+        try
         {
-            var newUdder = new Udder
+            if (_cachedUdder.IsEmpty)
             {
-                QuarterLH = false,
-                QuarterLV = false,
-                QuarterRV = false,
-                QuarterRH = false,
-            };
-            await InsertDataAsync(newUdder);
+                await GetAllDataAsync();
+            }
+
+            var id = (_cachedUdder.Values
+                .FirstOrDefault(x => !x.QuarterLV && !x.QuarterLH && !x.QuarterRH && !x.QuarterRV) ?? new Udder()).UdderId;
+
+            if (id == int.MinValue)
+            {
+                var newUdder = new Udder
+                {
+                    QuarterLH = false,
+                    QuarterLV = false,
+                    QuarterRV = false,
+                    QuarterRH = false,
+                };
+                await InsertDataAsync(newUdder);
+            }
+            return (_cachedUdder.Values
+                .FirstOrDefault(x => !x.QuarterLV && !x.QuarterLH && !x.QuarterRH && !x.QuarterRV) ?? new Udder()).UdderId;
         }
-        return (_cachedUdder.Values
-            .FirstOrDefault(x => !x.QuarterLV && !x.QuarterLH && !x.QuarterRH && !x.QuarterRV) ?? new Udder()).UdderId;
+        finally
+        {
+            UdderGate.Release();
+        }
     }
 
     // Weiterleitungen; die Rumpfe stehen in UdderLookups, damit es die Regel

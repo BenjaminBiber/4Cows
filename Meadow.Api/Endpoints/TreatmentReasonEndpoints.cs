@@ -10,6 +10,9 @@ namespace Meadow.Api.Endpoints;
 /// </summary>
 public sealed record TreatmentReasonMergeRequest(int TargetId);
 
+/// <summary>Rumpf von POST /treatment-reasons/by-name.</summary>
+public sealed record TreatmentReasonByNameRequest(string? Name);
+
 public static class TreatmentReasonEndpoints
 {
     public static RouteGroupBuilder MapTreatmentReasonEndpoints(this RouteGroupBuilder api)
@@ -41,6 +44,27 @@ public static class TreatmentReasonEndpoints
                 ? Results.Created($"/api/treatment-reasons/{reason.TreatmentReasonId}", reason)
                 : EndpointCommon.WriteFailed($"Der Behandlungsgrund {reason.TreatmentReasonName} konnte nicht angelegt werden.");
         }).BumpsOnWrite(DataScope.TreatmentReasons).WithName("TreatmentReasonCreate");
+
+        // Suchen, sonst anlegen; die Begruendung fuer den eigenen Endpunkt
+        // steht bei /medicines/by-name.
+        //
+        // GetIdByNameAsync gibt bei leerer Eingabe denselben int.MinValue
+        // zurueck wie beim Scheitern - die beiden Faelle sind im Rueckgabewert
+        // nicht zu unterscheiden. Deshalb wird der leere Name hier vorher
+        // abgefangen: sonst bekaeme ein Client fuer "Feld vergessen" eine 500.
+        api.MapPost("/treatment-reasons/by-name", async (TreatmentReasonByNameRequest body, ITreatmentReasonService svc) =>
+        {
+            var name = body.Name?.Trim();
+            if (string.IsNullOrEmpty(name))
+            {
+                return EndpointCommon.Invalid("name", "Ein Behandlungsgrund ohne Namen ist keiner.");
+            }
+
+            var id = await svc.GetIdByNameAsync(name);
+            return id == int.MinValue
+                ? EndpointCommon.UpsertFailed("Den Behandlungsgrund", name)
+                : Results.Ok(new { id });
+        }).BumpsOnWrite(DataScope.TreatmentReasons).WithName("TreatmentReasonByName");
 
         api.MapPut("/treatment-reasons/{reasonId:int}", async (int reasonId, TreatmentReason reason, ITreatmentReasonService svc) =>
         {
