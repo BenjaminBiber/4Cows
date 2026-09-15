@@ -90,3 +90,94 @@ img, svg { max-width: 100%; }
    Screenreader kuendigen die Ueberschrift trotzdem an. */
 .mw-header__title:focus,
 .mw-header__title:focus-visible { outline: none; }
+
+/* ── Splash ─────────────────────────────────────────────────────
+   Das Markup dazu steht in index.html, nicht in einer Komponente -
+   deshalb liegt es hier bei #blazor-error-ui und nicht in
+   meadow-components.css.
+
+   Drei Entscheidungen, die nicht Geschmack sind:
+
+   1. Der Ring ist der ECHTE Fortschritt. blazor.webassembly.js setzt
+      waehrend des Bootens --blazor-load-percentage auf #app; der
+      conic-gradient liest genau diesen Wert. Kein Spinner: der dreht
+      sich auch weiter, wenn nichts mehr ankommt, und diese
+      Beschoenigung kostet im Stall-WLAN echte Minuten. Steht der Ring,
+      steht der Download.
+
+   2. Er erscheint VERZOEGERT. Beim zweiten Start liegt alles im Cache
+      und Blazor ist in Millisekunden da - ohne die Verzoegerung blitzte
+      der Splash dann kurz auf, und ein Aufblitzen liest sich als
+      Fehler. animation-delay haelt ihn die ersten 400 ms unsichtbar;
+      wer schnell bootet, sieht ihn nie.
+
+   3. Kein eigener Keyframe. mwPop aus meadow-tokens.css ist die
+      Einblendbewegung dieser App, und der Splash hat keinen Grund, sich
+      anders zu bewegen als jeder Dialog. prefers-reduced-motion ist
+      dort schon global behandelt.                                    */
+.mw-splash {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  grid-template-rows: repeat(3, min-content);
+  place-content: center;
+  justify-items: center;
+  gap: 18px;
+  padding: 24px;
+  background: var(--mw-canvas);
+  animation: mwPop .45s var(--mw-ease) .4s backwards;
+}
+
+/* Der Ring. Die Spur ist --mw-hoof-idle, das Token, mit dem die
+   Klauengrafik den LEEREN Teil eines Umrisses faerbt - dieselbe
+   Bedeutung, also dieselbe Farbe.
+
+   Der naheliegende Griff waere --mw-border gewesen. Der ist falsch:
+   #e6ecea auf --mw-canvas #e7ecea ist derselbe Ton, die Spur
+   verschwindet, und uebrig bleibt ein schwebender Bogen. Der sagt
+   "irgendwas laedt" statt "35 von 100" - also genau das, was ein
+   Spinner sagt und wogegen dieser Ring gebaut ist. Nachgesehen, nicht
+   vermutet: die beiden Werte stehen in meadow-tokens.css. */
+.mw-splash__ring {
+  display: grid;
+  place-items: center;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: conic-gradient(
+      var(--mw-primary) var(--blazor-load-percentage, 0%),
+      var(--mw-hoof-idle) 0);
+}
+
+/* Die innere Scheibe deckt die Mitte des Kegels ab und laesst nur den
+   Rand als Ring stehen. Sie traegt --mw-canvas, nicht --mw-panel: ein
+   weisser Kreis auf dem grauen Grund waere eine zweite Form, die
+   niemand gemeint hat. */
+.mw-splash__ring img {
+  width: 108px;
+  height: 108px;
+  padding: 6px;
+  border-radius: 50%;
+  background: var(--mw-canvas);
+}
+
+.mw-splash__word {
+  margin: 0;
+  font-family: var(--mw-font-display);
+  font-weight: 800;
+  font-size: 34px;
+  line-height: 1;
+  letter-spacing: -.01em;
+  color: var(--mw-text);
+}
+
+/* Die Statuszeile traegt die Laufweite der Gruppenueberschriften aus
+   dem Drawer - dieselbe Rolle: ein kleines Schild, keine Aussage. */
+.mw-splash__status {
+  margin: -8px 0 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--mw-muted);
+}

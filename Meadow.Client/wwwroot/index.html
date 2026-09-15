@@ -68,17 +68,28 @@
 <body>
     <!--
         Der Splash. Unter Blazor Server kam die fertige Seite vom Server, hier
-        laedt der Browser erst mehrere MB Laufzeit. Ohne diesen Block saehe der
+        laedt der Browser erst rund 10 MB Laufzeit. Ohne diesen Block saehe der
         Nutzer so lange eine weisse Flaeche.
 
         Er traegt die Theme-Farben aus meadow-tokens.css, also faerbt ihn das
         Skript oben mit, und Blazor ersetzt den gesamten Inhalt von #app,
         sobald die erste Komponente rendert - kein Aufraeumen noetig.
+
+        Der Ring um das Emblem ist der Ladefortschritt, und er ist ECHT:
+        blazor.webassembly.js schreibt waehrend des Bootens
+        --blazor-load-percentage auf #app, meadow-base.css macht daraus einen
+        Kreisausschnitt. Deshalb steht hier kein Spinner. Ein Spinner dreht
+        sich auch dann weiter, wenn gar nichts mehr ankommt - im Stall-WLAN
+        kostet diese Beschoenigung den Landwirt echte Minuten. Steht der Ring,
+        steht der Download.
     -->
     <div id="app">
         <div class="mw-splash">
-            <img src="LOGO.png" alt="" width="72" height="72" />
-            <p>Meadow wird geladen&nbsp;&hellip;</p>
+            <div class="mw-splash__ring">
+                <img src="LOGO.png" alt="" width="96" height="96" />
+            </div>
+            <p class="mw-splash__word">Meadow</p>
+            <p class="mw-splash__status">Wird geladen&nbsp;&hellip;</p>
         </div>
     </div>
 
