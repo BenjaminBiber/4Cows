@@ -6,14 +6,20 @@
     Spalten wie in Cow_Table, aber ohne Halsband und Ohrmarke - beides steht
     im Kopf der Seite und waere hier in jeder Zeile dieselbe Angabe.
 *@
+@implements IDisposable
+
+@using Meadow.Client.Services
+
 @inject IMedicineService medicineService
 @inject IWhereHowService WhereHowService
 @inject IUdderService UdderService
 @inject ITreatmentReasonService TreatmentReasonService
 @inject ISettingsService SettingsService
+@inject MeadowSyncState Sync
 
 <MeadowTable TItem="CowTreatment" Items="Rows" Columns="_columns"
              RowKey="@(r => r.CowTreatmentId)"
+             RowClass="@(r => MeadowSyncRow.Class(Sync.StateOf(r.ClientId)))"
              DefaultSortTitle="Datum" DefaultSortDescending="true"
              PagerLabel="Behandlungen pro Seite"
              MoreLabel="Weitere Behandlungen laden"
@@ -66,6 +72,14 @@
 
     protected override void OnInitialized() => _columns = new()
     {
+        new MeadowColumn<CowTreatment>
+        {
+            // Uebertragungszustand - dieselbe Spalte wie in der grossen
+            // Tabelle. Eine synchronisierte Zeile rendert nichts.
+            Title = "",
+            Width = "28px",
+            Template = row =>@<MeadowSyncDot State="@(Sync.StateOf(row.ClientId))" />
+        },
         new MeadowColumn<CowTreatment>
         {
             Title = "Datum",
@@ -135,4 +149,27 @@
         var detail = value[(open + 1)..^1].Replace("/ ", "/").Trim();
         return (value[..open].TrimEnd(), detail.Length == 0 ? null : detail);
     }
+
+    /// <summary>
+    /// Abonniert wird erst nach dem ersten Rendern und nicht in
+    /// OnInitialized: dort steht der Spaltenaufbau als Ausdruckskoerper, und
+    /// den in einen Block umzuschreiben haette jede Spalte dieser Datei
+    /// angefasst, ohne dass sich an einer einzigen etwas aendert.
+    /// </summary>
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            Sync.Changed += OnSyncChanged;
+        }
+    }
+
+    /// <summary>
+    /// Der Uebertragungszustand hat sich geaendert - nur neu zeichnen. Die
+    /// Zeilen kommen als Parameter herein und sind dieselben; was wechselt,
+    /// ist der Punkt davor und die Zeilenklasse.
+    /// </summary>
+    private void OnSyncChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Sync.Changed -= OnSyncChanged;
 }

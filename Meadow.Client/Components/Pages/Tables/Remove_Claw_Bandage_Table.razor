@@ -4,12 +4,14 @@
 @using Meadow.Client.Components.Cows.Dialogs
 @using Meadow.Client.Components.Ui
 @using Meadow.Client.Components.Services
+@using Meadow.Client.Services
 
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject MeadowDataLoader Data
 @inject MeadowDialogLauncher Launcher
 @inject MeadowDataChanges Changes
+@inject MeadowSyncState Sync
 @inject IClawTreatmentService clawTreatmentService
 @inject IClawFindingService clawFindingService
 @inject ICowService cowService
@@ -122,9 +124,26 @@
         BuildColumns();
 
         Changes.Changed += OnDataChanged;
+        Sync.Changed += OnSyncChanged;
     }
 
-    public void Dispose() => Changes.Changed -= OnDataChanged;
+    public void Dispose()
+    {
+        Changes.Changed -= OnDataChanged;
+        Sync.Changed -= OnSyncChanged;
+    }
+
+    private void OnSyncChanged() => InvokeAsync(StateHasChanged);
+
+    /// <summary>
+    /// Der Verband gehoert zu einer Klauenbehandlung; die traegt die ClientId.
+    /// Kennt der Cache sie nicht, gilt die Zeile als uebertragen - ein Punkt an
+    /// einer Zeile, ueber die wir nichts wissen, waere geraten.
+    /// </summary>
+    private MeadowRowState SyncState(BandagedClaw row)
+        => clawTreatmentService.Treatments.TryGetValue(row.TreatmentId, out var t)
+            ? Sync.StateOf(t.ClientId)
+            : MeadowRowState.Synced;
 
     private void OnDataChanged(MeadowDataKind kind)
     {
@@ -164,6 +183,14 @@
 
     private void BuildColumns() => _columns = new()
     {
+        new MeadowColumn<BandagedClaw>
+        {
+            // Uebertragungszustand der BEHANDLUNG hinter dem Verband - ein
+            // Verband ist keine eigene Zeile in der Datenbank.
+            Title = "",
+            Width = "28px",
+            Template = row =>@<MeadowSyncDot State="@SyncState(row)" />
+        },
         // Kopf bleibt leer: MeadowTable zeichnet Spaltenkoepfe als reinen
         // Text, ein "alles ankreuzen" oben ginge nicht. Es steht stattdessen
         // in der Auswahlleiste - und meint dort die ganze gefilterte Liste,
@@ -290,8 +317,19 @@
 
     private bool IsSelected(BandagedClaw row) => _selected.Contains(row.TreatmentId);
 
+    /// <summary>
+    /// Zwei Zustaende an derselben Zeile: ausgewaehlt und noch nicht
+    /// uebertragen. MeadowTable nimmt genau EIN RowClass, also werden sie hier
+    /// verbunden statt dort - beide Klassen setzen verschiedene Eigenschaften
+    /// und vertragen sich nebeneinander.
+    /// </summary>
     private string? SelectedRowClass(BandagedClaw row)
-        => IsSelected(row) ? "mw-table__row--selected" : null;
+    {
+        var klassen = new List<string>(2);
+        if (IsSelected(row)) { klassen.Add("mw-table__row--selected"); }
+        if (MeadowSyncRow.Class(SyncState(row)) is { } wartend) { klassen.Add(wartend); }
+        return klassen.Count == 0 ? null : string.Join(" ", klassen);
+    }
 
     /// <summary>Eine Spalte blosser Kaestchen waere sonst stumm.</summary>
     private string SelectLabel(BandagedClaw row)

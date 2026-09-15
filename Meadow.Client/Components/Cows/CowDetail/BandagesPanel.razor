@@ -9,13 +9,19 @@
     die Zeilenzahl hier, die Zahl auf der Kachel und die gefilterte Zeilenzahl
     unter /Verband_Daten nicht auseinanderlaufen koennen.
 *@
+@implements IDisposable
+
+@using Meadow.Client.Services
+
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject IClawTreatmentService clawTreatmentService
 @inject IClawFindingService clawFindingService
+@inject MeadowSyncState Sync
 
 <MeadowTable TItem="BandagedClaw" Items="_rows" Columns="_columns"
              RowKey="@(r => r.Key)"
+             RowClass="@(r => MeadowSyncRow.Class(SyncState(r)))"
              DefaultSortTitle="Tage" DefaultSortDescending="true"
              PagerLabel="Verbände pro Seite"
              MoreLabel="Weitere Verbände laden"
@@ -58,6 +64,14 @@
 
     protected override void OnInitialized() => _columns = new()
     {
+        new MeadowColumn<BandagedClaw>
+        {
+            // Uebertragungszustand - dieselbe Spalte wie in der grossen
+            // Tabelle. Eine synchronisierte Zeile rendert nichts.
+            Title = "",
+            Width = "28px",
+            Template = row =>@<MeadowSyncDot State="@(SyncState(row))" />
+        },
         new MeadowColumn<BandagedClaw>
         {
             Title = "Klaue",
@@ -198,4 +212,30 @@
             Snackbar.Add("Entfernen des Verbands fehlgeschlagen.", Severity.Error);
         }
     }
+
+    /// <summary>
+    /// Der Verband gehoert zu einer Klauenbehandlung; die traegt die ClientId.
+    /// Kennt der Cache sie nicht, gilt die Zeile als uebertragen - ein Punkt an
+    /// einer Zeile, ueber die wir nichts wissen, waere geraten.
+    /// </summary>
+    private MeadowRowState SyncState(BandagedClaw row)
+        => clawTreatmentService.Treatments.TryGetValue(row.TreatmentId, out var t)
+            ? Sync.StateOf(t.ClientId)
+            : MeadowRowState.Synced;
+
+    /// <summary>
+    /// Abonniert wird erst nach dem ersten Rendern und nicht in
+    /// OnInitialized: dort steht der Spaltenaufbau als Ausdruckskoerper.
+    /// </summary>
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            Sync.Changed += OnSyncChanged;
+        }
+    }
+
+    private void OnSyncChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Sync.Changed -= OnSyncChanged;
 }
