@@ -1,0 +1,144 @@
+@page "/uebertragung"
+@implements IDisposable
+
+@using Meadow.Client.Components.Ui
+@using Meadow.Client.Services
+
+@inject MeadowOutbox Outbox
+@inject OutboxProcessor Processor
+@inject MeadowSyncState Sync
+
+@*
+    Was noch aussteht und was nicht mehr von allein weitergeht.
+
+    Kriterium 3 der Abnahme verlangt, dass ein dauerhaft gescheiterter
+    Schreibvorgang SICHTBAR bleibt - auch nach einem Neuladen. Deshalb liest
+    diese Seite bei jedem Aufbau die Outbox aus IndexedDB und nicht einen
+    Zaehler aus dem Arbeitsspeicher: der gespeicherte Zustand ist die
+    Wahrheit, alles andere waere eine zweite, die beim ersten Absturz
+    abweicht.
+*@
+
+<div class="mw-transfers">
+    @if (_entries is null)
+    {
+        <p class="mw-transfers__empty">Wird geladen …</p>
+    }
+    else if (_entries.Count == 0)
+    {
+        <p class="mw-transfers__empty">
+            Alles übertragen. Hier steht nur, was noch aussteht.
+        </p>
+    }
+    else
+    {
+        @foreach (var entry in _entries)
+        {
+            var gescheitert = entry.State == OutboxState.Failed;
+
+            <article class="mw-transfer @(gescheitert ? "mw-transfer--fehler" : null)">
+                <header class="mw-transfer__head">
+                    <MeadowIcon Name="@(gescheitert ? MeadowIconName.Alert : MeadowIconName.CloudUpload)"
+                                Size="18" />
+                    <span class="mw-transfer__title">
+                        @Beschreibung(entry)
+                    </span>
+                    <span class="mw-transfer__when">@entry.CreatedUtc.ToLocalTime().ToString("g")</span>
+                </header>
+
+                @if (entry.LastError is { Length: > 0 } fehler)
+                {
+                    <p class="mw-transfer__error">@fehler</p>
+                }
+
+                <p class="mw-transfer__meta">
+                    @entry.Attempts @(entry.Attempts == 1 ? "Versuch" : "Versuche")
+                    @if (!gescheitert && entry.NextAttemptUtc is { } next)
+                    {
+                        <text> · nächster Versuch @next.ToLocalTime().ToString("t")</text>
+                    }
+                </p>
+
+                @* Nur Gescheitertes bekommt Knoepfe. Ein wartender Eintrag
+                   braucht keine Entscheidung - er geht von allein hinaus,
+                   sobald es wieder ein Netz gibt. *@
+                @if (gescheitert)
+                {
+                    <div class="mw-transfer__actions">
+                        <button type="button" class="mw-btn mw-btn--primary"
+                                @onclick="@(() => WiederholenAsync(entry.Seq))">
+                            Erneut versuchen
+                        </button>
+                        <button type="button" class="mw-btn mw-btn--plain"
+                                @onclick="@(() => VerwerfenAsync(entry.Seq))">
+                            Verwerfen
+                        </button>
+                    </div>
+                }
+            </article>
+        }
+    }
+</div>
+
+@code {
+    private List<OutboxEntry>? _entries;
+
+    /// <summary>
+    /// Gescheitertes zuerst, dann nach Erfassungsreihenfolge. Wer diese Seite
+    /// oeffnet, kommt fast immer wegen eines Fehlers - und der soll nicht
+    /// unter zwanzig wartenden Zeilen liegen.
+    /// </summary>
+    private async Task LadenAsync()
+    {
+        var alle = await Outbox.LoadAsync();
+        _entries = alle
+            .OrderByDescending(e => e.State == OutboxState.Failed)
+            .ThenBy(e => e.Seq)
+            .ToList();
+
+        StateHasChanged();
+    }
+
+    private static string Beschreibung(OutboxEntry entry)
+    {
+        var art = MeadowStores.Describe(entry.EntityType);
+        var was = entry.Operation switch
+        {
+            MeadowOperation.Insert => entry.ClientIds.Length > 1
+                ? $"{entry.ClientIds.Length} neue Einträge"
+                : "Neuer Eintrag",
+            MeadowOperation.Update => "Änderung",
+            _ => "Löschung"
+        };
+
+        return $"{was} · {art}";
+    }
+
+    private async Task WiederholenAsync(long seq)
+    {
+        await Processor.RetryAsync(seq);
+        await LadenAsync();
+    }
+
+    private async Task VerwerfenAsync(long seq)
+    {
+        await Processor.DiscardAsync(seq);
+        await LadenAsync();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Sync.Changed += Aktualisieren;
+        await LadenAsync();
+    }
+
+    /// <summary>
+    /// Die Outbox aendert sich auch, waehrend diese Seite offen ist - ein
+    /// Durchlauf im Hintergrund raeumt Eintraege weg. Neu gelesen wird
+    /// deshalb aus dem Speicher und nicht aus dem Ereignis: das Ereignis sagt
+    /// nur DASS sich etwas geaendert hat.
+    /// </summary>
+    private void Aktualisieren() => _ = InvokeAsync(LadenAsync);
+
+    public void Dispose() => Sync.Changed -= Aktualisieren;
+}

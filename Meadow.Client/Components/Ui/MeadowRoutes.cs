@@ -46,6 +46,18 @@ public static class MeadowRoutes
     public const string ClawTreatments = "Klauen_Daten";
     public const string PlannedClawTreatments = "geplante_Klauen_Daten";
     public const string Settings = "Settings";
+
+    /// <summary>
+    /// Die Liste der Uebertragungen, die allein nicht mehr weiterkommen.
+    ///
+    /// Bewusst eine eigene Adresse und kein Dialog: Kriterium 3 der Abnahme
+    /// lautet "sichtbar, auch nach einem Neuladen" - ein Dialog ist nach dem
+    /// naechsten Start weg, eine Adresse laesst sich aufheben und noch einmal
+    /// oeffnen. Erreichbar ueber das Statusband; im Drawer steht sie nicht,
+    /// weil sie die meiste Zeit leer ist.
+    /// </summary>
+    public const string Transfers = "uebertragung";
+
     public const string NotFound = "nicht-gefunden";
 
     /// <summary>
@@ -90,6 +102,7 @@ public static class MeadowRoutes
             [ClawTreatments] = "Klauen Behandlungen",
             [PlannedClawTreatments] = "Geplante Klauen Behandl.",
             [Settings] = "Einstellungen",
+            [Transfers] = "Übertragung",
             [NotFound] = "Seite nicht gefunden"
         };
 
@@ -134,7 +147,7 @@ public static class MeadowRoutes
         Root or Dashboard => NavGroup.Dashboard,
         Cows or CowDetail or CowTreatments or PlannedCowTreatments => NavGroup.Cow,
         ClawTreatments or PlannedClawTreatments or Bandages => NavGroup.Claw,
-        Settings => NavGroup.System,
+        Settings or Transfers => NavGroup.System,
         _ => NavGroup.None
     };
 

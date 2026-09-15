@@ -4,6 +4,7 @@
 @using Meadow.Client.Components.Cows.Dialogs
 @using Meadow.Client.Components.Ui
 @using Meadow.Client.Components.Services
+@using Meadow.Client.Services
 @using Meadow.Shared.Kpi
 
 @inject IDialogService DialogService
@@ -12,6 +13,7 @@
 @inject MeadowDataLoader Data
 @inject MeadowDialogLauncher Launcher
 @inject MeadowDataChanges Changes
+@inject MeadowSyncState Sync
 @inject IPCowTreatmentService pCowTreatmentService
 @inject IMedicineService medicineService
 @inject ICowService cowService
@@ -70,6 +72,7 @@
 <MeadowTable TItem="PlannedCowTreatment" Items="_rows" Columns="_columns"
              IsLoading="@(!_loaded)"
              RowKey="@(r => r.PlannedCowTreatmentId)"
+             RowClass="@(r => MeadowSyncRow.Class(Sync.StateOf(r.ClientId)))"
              DefaultSortTitle="Geplant für"
              PagerLabel="Behandlungen pro Seite"
              MoreLabel="Weitere Behandlungen laden"
@@ -135,9 +138,21 @@
         Reload();
 
         Changes.Changed += OnDataChanged;
+        Sync.Changed += OnSyncChanged;
     }
 
-    public void Dispose() => Changes.Changed -= OnDataChanged;
+    public void Dispose()
+    {
+        Changes.Changed -= OnDataChanged;
+        Sync.Changed -= OnSyncChanged;
+    }
+
+    /// <summary>
+    /// Der Uebertragungszustand hat sich geaendert - nur neu zeichnen. Die
+    /// Zeilen selbst sind dieselben; was wechselt, ist der Punkt davor und
+    /// die Zeilenklasse.
+    /// </summary>
+    private void OnSyncChanged() => InvokeAsync(StateHasChanged);
 
     private void OnDataChanged(MeadowDataKind kind)
     {
@@ -172,6 +187,16 @@
     {
         var columns = new List<MeadowColumn<PlannedCowTreatment>>
         {
+            new MeadowColumn<PlannedCowTreatment>
+            {
+                // Der Uebertragungszustand. Erste Spalte, weil eine wartende
+                // Zeile vor allem anderen als solche erkennbar sein muss - und
+                // ohne Titel, weil eine Kopfzeile ueber einer Spalte, die fast
+                // immer leer ist, nur Breite kostet.
+                Title = "",
+                Width = "28px",
+                Template = row =>@<MeadowSyncDot State="@Sync.StateOf(row.ClientId)" />
+            },
             new()
             {
                 Title = "Halsband",

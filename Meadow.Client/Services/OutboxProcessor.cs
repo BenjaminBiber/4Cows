@@ -122,6 +122,74 @@ public sealed class OutboxProcessor : IDisposable
     public Task DrainNowAsync() => DrainAsync("manuell");
 
     /// <summary>
+    /// Stellt einen gescheiterten Eintrag zurueck in die Schlange.
+    ///
+    /// Die Versuchszahl wird dabei auf 0 gesetzt. Sie steuert den Backoff, und
+    /// ein Eintrag, den ein Mensch gerade bewusst noch einmal anstoesst, soll
+    /// nicht erst eine Stunde warten, weil er es vor drei Tagen fuenfmal
+    /// vergeblich versucht hat.
+    /// </summary>
+    public async Task RetryAsync(long seq)
+    {
+        var entry = (await _outbox.LoadAsync()).FirstOrDefault(e => e.Seq == seq);
+        if (entry is null || entry.State != OutboxState.Failed)
+        {
+            return;
+        }
+
+        await _outbox.UpdateAsync(entry with
+        {
+            State = OutboxState.Pending,
+            Attempts = 0,
+            NextAttemptUtc = null
+        });
+
+        await _outbox.RefreshCountersAsync();
+        _logger.LogInformation("Outbox {Seq} von Hand zurueck in die Schlange gestellt.", seq);
+
+        await DrainAsync("wiederholen");
+    }
+
+    /// <summary>
+    /// Verwirft einen gescheiterten Eintrag endgueltig.
+    ///
+    /// Bei einem Insert wandern die lokalen Zeilen mit. Sie haben eine negative
+    /// provisorische Id und werden nie eine echte bekommen - blieben sie
+    /// stehen, zeigte die Tabelle fuer immer eine Behandlung an, die es nirgends
+    /// gibt. Das ist schlimmer als der Verlust: der Landwirt glaubt, sie sei
+    /// erfasst.
+    ///
+    /// Bei Update und Delete gibt es nichts wegzuwerfen - die Zeile gehoert dem
+    /// Server. Die Datenmeldung laedt sie in ihrem echten Zustand neu.
+    /// </summary>
+    public async Task DiscardAsync(long seq)
+    {
+        var entry = (await _outbox.LoadAsync()).FirstOrDefault(e => e.Seq == seq);
+        if (entry is null || entry.State != OutboxState.Failed)
+        {
+            return;
+        }
+
+        if (entry.Operation == MeadowOperation.Insert)
+        {
+            var store = MeadowStores.StoreOf(entry.EntityType);
+            foreach (var clientId in entry.ClientIds)
+            {
+                await _store.DeleteRowAsync(store, clientId);
+            }
+        }
+
+        await _outbox.RemoveAsync(entry.Seq);
+        await _outbox.RefreshCountersAsync();
+
+        _logger.LogWarning(
+            "Outbox {Seq} verworfen ({OperationId}): {Error}",
+            entry.Seq, entry.OperationId, entry.LastError);
+
+        _sync.NotifyData(MeadowStores.KindOf(entry.EntityType));
+    }
+
+    /// <summary>
     /// Ein InFlight-Eintrag heisst: beim letzten Mal ging die App mitten im
     /// Senden aus. Ob der Server ihn bekommen hat, weiss hier niemand - und es
     /// muss auch niemand wissen: die vier Endpunkte sind Upserts auf ClientId,

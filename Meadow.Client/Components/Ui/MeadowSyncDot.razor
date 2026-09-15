@@ -1,0 +1,33 @@
+@*
+    Der Zeilenzustand in einer 28px-Spalte.
+
+    Eine synchronisierte Zeile rendert NICHTS - kein leeres span, kein
+    Platzhalter. Das ist der ganze Entwurf: 99 % der Zeilen bleiben
+    pixelgleich zu vorher, und was auffaellt, faellt auf, weil es selten ist.
+
+    Die Farbe ist nicht das Signal, sondern die Zugabe: title und aria-label
+    tragen dieselbe Aussage in Worten. Ein Punkt, dessen Bedeutung man nur
+    aus seiner Farbe erraten kann, ist fuer einen Screenreader und fuer
+    jemanden mit Rot-Gruen-Schwaeche dasselbe wie gar kein Punkt.
+
+    Ohne eigene Zustandsverwaltung: der Zustand kommt als Parameter herein.
+    Die Tabelle haengt EINMAL an MeadowSyncState.Changed - nicht jede Zeile
+    einzeln, sonst haetten fuenfundzwanzig Punkte fuenfundzwanzig Abos auf
+    dasselbe Ereignis.
+*@
+@using Meadow.Client.Services
+
+@if (State != MeadowRowState.Synced)
+{
+    <span class="mw-syncdot mw-syncdot--@Klasse" role="img" aria-label="@Label" title="@Label"></span>
+}
+
+@code {
+    [Parameter] public MeadowRowState State { get; set; }
+
+    private string Klasse => State == MeadowRowState.Failed ? "fehler" : "warten";
+
+    private string Label => State == MeadowRowState.Failed
+        ? "Konnte nicht übertragen werden"
+        : "Wartet auf die Übertragung";
+}

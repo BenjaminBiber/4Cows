@@ -850,55 +850,73 @@ a.mw-icon-btn { text-decoration: none; }
 /* ============================================================
    OFFLINE-GATE   (st.backdrop + Karte)
    ============================================================ */
-.mw-offline-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 1500;
+/* ============================================================
+   STATUSBAND DER UEBERTRAGUNG   (loest das Offline-Gate ab)
+   ============================================================
+   Ein Streifen, kein Overlay. Das Gate legte sich als
+   role="alertdialog" aria-modal="true" ueber eine App, die ohne
+   Netz voll benutzbar ist - gegenueber einem Screenreader eine
+   Falschaussage. Hier bleibt alles bedienbar; das Band sagt nur,
+   was noch aussteht.
+
+   Die vier Zustaende teilen sich die Grundform und wechseln nur
+   die zwei Farbtoken. Farbe ist NIE das einzige Signal: Text und
+   Glyph tragen die Aussage auch fuer sich. */
+.mw-syncband {
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 20px;
-  background: var(--mw-backdrop-dialog);
-  backdrop-filter: blur(4px);
+  gap: 10px;
+  padding: 8px 16px;
+  font-size: 13px;
+  line-height: 1.35;
+  border-bottom: 1px solid var(--mw-border);
+  background: var(--mw-band-bg);
+  color: var(--mw-band-fg);
   animation: mwFade var(--mw-t-pop) ease;
 }
-.mw-offline-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  width: 400px;
-  max-width: 100%;
-  padding: 36px 32px;
-  text-align: center;
-  background: var(--mw-panel);
-  border: 1px solid var(--mw-border);
-  border-radius: var(--mw-r-5xl);
-  box-shadow: var(--mw-shadow-dialog);
-  animation: mwPop var(--mw-t-dialog) var(--mw-ease);
+.mw-syncband--offline,
+.mw-syncband--warten { --mw-band-bg: var(--mw-soft);     --mw-band-fg: var(--mw-soft-fg); }
+.mw-syncband--aktiv  { --mw-band-bg: var(--mw-block-bg); --mw-band-fg: var(--mw-block-fg); }
+.mw-syncband--fehler { --mw-band-bg: var(--mw-neg-bg);   --mw-band-fg: var(--mw-neg-fg); }
+
+.mw-syncband__icon { flex: 0 0 auto; }
+
+/* Nimmt den Platz, damit der Knopf rechts steht; darf umbrechen,
+   weil der Offline-Satz auf einem Telefon zweizeilig wird. */
+.mw-syncband__text { flex: 1 1 auto; min-width: 0; }
+
+.mw-syncband__action {
+  flex: 0 0 auto;
+  padding: 4px 10px;
+  font: inherit;
+  font-weight: 600;
+  color: inherit;
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: var(--mw-r-pill, 999px);
+  cursor: pointer;
 }
-.mw-offline-card__badge {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 60px;
-  height: 60px;
-  margin-bottom: 12px;
-  border-radius: 14px;
-  background: var(--mw-neg-bg);
-  color: var(--mw-danger);
+.mw-syncband__action:hover { background: rgba(0, 0, 0, .06); }
+:root[data-mw-theme="dark"] .mw-syncband__action:hover { background: rgba(255, 255, 255, .08); }
+
+/* ── Zeilenzustand in den vier Behandlungstabellen ───────────── */
+/* MeadowTable braucht dafuer NULL Aenderungen: RowClass und
+   MeadowColumn.Template gibt es laengst. Eine synchronisierte
+   Zeile rendert NICHTS - 99 % der Zeilen bleiben pixelgleich. */
+.mw-syncdot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
 }
-.mw-offline-card__title {
-  font-family: var(--mw-font-display);
-  font-weight: 700;
-  font-size: 24px;
-  color: var(--mw-text);
-}
-.mw-offline-card__text {
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--mw-muted);
-}
+.mw-syncdot--warten { background: var(--mw-soft-fg); }
+.mw-syncdot--fehler { background: var(--mw-danger); }
+
+/* Die wartende Zeile wird nicht eingefaerbt, nur leicht
+   zurueckgenommen: sie ist echt und vollstaendig lesbar, ihr fehlt
+   nur die Quittung vom Server. */
+.mw-row--warten { opacity: .72; }
+.mw-row--fehler { background: var(--mw-neg-bg); }
 
 /* ── Dashboard mobil ──────────────────────────────────────────── */
 @media (max-width: 1023.98px) {
@@ -3224,4 +3242,69 @@ a.mw-row-card { text-decoration: none; }
   /* Fuenf Laschen passen auf 328px nur mit schmalerem Innenabstand -
      load-bearing, nicht Politur. */
   .mw-tabs--scroll .mw-tab { padding: 11px 12px; }
+}
+
+/* ── Seite /uebertragung ─────────────────────────────────────── */
+/* Karten und keine Tabelle: die Fehlermeldung des Servers ist ein
+   Satz, und ein Satz in einer Tabellenzelle wird entweder
+   abgeschnitten oder sprengt die Spaltenbreiten. */
+.mw-transfers {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.mw-transfers__empty {
+  padding: 32px 0;
+  text-align: center;
+  color: var(--mw-muted);
+}
+.mw-transfer {
+  padding: 14px 16px;
+  background: var(--mw-panel);
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-2xl, 14px);
+  box-shadow: var(--mw-shadow-card);
+}
+.mw-transfer--fehler { border-color: var(--mw-danger); }
+
+.mw-transfer__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.mw-transfer__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-weight: 600;
+  color: var(--mw-text);
+}
+.mw-transfer__when {
+  flex: 0 0 auto;
+  font-size: 12px;
+  color: var(--mw-muted);
+}
+
+/* Woertlich das, was der Server geantwortet hat. Nicht zu einer
+   freundlichen Formulierung geglaettet: wer hier landet, braucht
+   die Meldung zum Weitergeben, nicht zum Beruhigen. */
+.mw-transfer__error {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  font-family: var(--mw-font-mono);
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--mw-neg-fg);
+  background: var(--mw-neg-bg);
+  border-radius: var(--mw-r-md, 8px);
+  overflow-wrap: anywhere;
+}
+.mw-transfer__meta {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--mw-muted);
+}
+.mw-transfer__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
 }

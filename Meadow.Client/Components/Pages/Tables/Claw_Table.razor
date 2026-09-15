@@ -4,6 +4,7 @@
 @using Meadow.Client.Components.Cows.Dialogs
 @using Meadow.Client.Components.Ui
 @using Meadow.Client.Components.Services
+@using Meadow.Client.Services
 
 @inject IDialogService DialogService
 @inject IJSRuntime JS
@@ -13,6 +14,7 @@
 @inject MeadowDataLoader Data
 @inject MeadowDialogLauncher Launcher
 @inject MeadowDataChanges Changes
+@inject MeadowSyncState Sync
 @inject ISnackbar Snackbar
 @inject IClawTreatmentService clawTreatmentService
 @inject IClawFindingService clawFindingService
@@ -74,6 +76,7 @@
 <MeadowTable TItem="ClawTreatment" Items="_rows" Columns="_columns"
              IsLoading="@(!_loaded)"
              RowKey="@(r => r.ClawTreatmentId)"
+             RowClass="@(r => MeadowSyncRow.Class(Sync.StateOf(r.ClientId)))"
              DefaultSortTitle="Datum" DefaultSortDescending="true"
              PagerLabel="Behandlungen pro Seite"
              MoreLabel="Weitere Behandlungen laden"
@@ -133,9 +136,21 @@
         BuildColumns();
 
         Changes.Changed += OnDataChanged;
+        Sync.Changed += OnSyncChanged;
     }
 
-    public void Dispose() => Changes.Changed -= OnDataChanged;
+    public void Dispose()
+    {
+        Changes.Changed -= OnDataChanged;
+        Sync.Changed -= OnSyncChanged;
+    }
+
+    /// <summary>
+    /// Der Uebertragungszustand hat sich geaendert - nur neu zeichnen. Die
+    /// Zeilen selbst sind dieselben; was wechselt, ist der Punkt davor und
+    /// die Zeilenklasse.
+    /// </summary>
+    private void OnSyncChanged() => InvokeAsync(StateHasChanged);
 
     private void OnDataChanged(MeadowDataKind kind)
     {
@@ -171,6 +186,16 @@
 
     private void BuildColumns() => _columns = new()
     {
+        new MeadowColumn<ClawTreatment>
+        {
+            // Der Uebertragungszustand. Erste Spalte, weil eine wartende
+            // Zeile vor allem anderen als solche erkennbar sein muss - und
+            // ohne Titel, weil eine Kopfzeile ueber einer Spalte, die fast
+            // immer leer ist, nur Breite kostet.
+            Title = "",
+            Width = "28px",
+            Template = row =>@<MeadowSyncDot State="@Sync.StateOf(row.ClientId)" />
+        },
         new MeadowColumn<ClawTreatment>
         {
             Title = "Halsband",
