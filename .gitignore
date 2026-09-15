@@ -396,3 +396,8 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+# Die Betriebsgeheimnisse neben deploy/docker-compose.yml: Datenbankpasswort
+# und ein DNS-API-Token mit Schreibrecht. Gehoert weder ins Repo noch ins Image.
+.env
+**/.env
