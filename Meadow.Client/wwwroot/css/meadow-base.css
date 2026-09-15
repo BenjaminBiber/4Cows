@@ -49,8 +49,10 @@ img, svg { max-width: 100%; }
 .mw-scroll::-webkit-scrollbar-track { background: transparent; }
 
 /* ── Blazor-Fehler-UI ───────────────────────────────────────────
-   #blazor-error-ui ist ein Framework-Vertrag: blazor.web.js schaltet
-   das Element per id sichtbar. Id und display:none-Default muessen bleiben. */
+   #blazor-error-ui ist ein Framework-Vertrag: blazor.webassembly.js
+   schaltet das Element per id sichtbar. Id und display:none-Default
+   muessen bleiben. (Frueher stand hier blazor.web.js - der Vertrag gilt
+   unter WebAssembly unveraendert, nur der Dateiname hat gewechselt.) */
 #blazor-error-ui {
   display: none;
   position: fixed;
