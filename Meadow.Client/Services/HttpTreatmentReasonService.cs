@@ -164,6 +164,26 @@ public class HttpTreatmentReasonService : HttpServiceBase, ITreatmentReasonServi
             return int.MinValue;
         }
 
+        // Erst im eigenen Cache nachsehen, dann erst fragen.
+        //
+        // Online spart das eine Netzrunde. OFFLINE ist es der Unterschied
+        // zwischen "Behandlung laesst sich erfassen" und "gar nicht": ein
+        // bekannter Eintrag muss sich ohne Netz aufloesen lassen, sonst bricht
+        // das Speichern ab, bevor die Outbox ueberhaupt gefragt wird. Uebrig
+        // bleibt der unbekannte Name - und der gehoert offline abgelehnt, weil
+        // an der Behandlung sonst ein Eintrag haengt, den es serverseitig nicht
+        // gibt.
+        //
+        // Der Vergleich ist woertlich der aus der EF-Fassung: getrimmt und
+        // kleingeschrieben.
+        var known = _cachedReasons.Values.FirstOrDefault(
+            x => x.TreatmentReasonName != null
+                 && x.TreatmentReasonName.Trim().ToLower() == trimmed.ToLower());
+        if (known is not null)
+        {
+            return known.TreatmentReasonId;
+        }
+
         var response = await ReadAsync<IdResponse>(
             () => PostAsync("api/treatment-reasons/by-name", new NameRequest(trimmed)),
             $"Failed to resolve treatment reason name {trimmed}.");

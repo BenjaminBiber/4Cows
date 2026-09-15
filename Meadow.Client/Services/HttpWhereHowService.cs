@@ -158,6 +158,26 @@ public class HttpWhereHowService : HttpServiceBase, IWhereHowService
             return int.MinValue;
         }
 
+        // Erst im eigenen Cache nachsehen, dann erst fragen.
+        //
+        // Online spart das eine Netzrunde. OFFLINE ist es der Unterschied
+        // zwischen "Behandlung laesst sich erfassen" und "gar nicht": ein
+        // bekannter Eintrag muss sich ohne Netz aufloesen lassen, sonst bricht
+        // das Speichern ab, bevor die Outbox ueberhaupt gefragt wird. Uebrig
+        // bleibt der unbekannte Name - und der gehoert offline abgelehnt, weil
+        // an der Behandlung sonst ein Eintrag haengt, den es serverseitig nicht
+        // gibt.
+        //
+        // Der Vergleich ist woertlich der aus der EF-Fassung: getrimmt und
+        // kleingeschrieben.
+        var known = _cachedWhereHows.Values.FirstOrDefault(
+            x => x.WhereHowName != null
+                 && x.WhereHowName.Trim().ToLower() == trimmed.ToLower());
+        if (known is not null)
+        {
+            return known.WhereHowId;
+        }
+
         var response = await ReadAsync<IdResponse>(
             () => PostAsync("api/where-hows/by-name", new WhereHowByNameRequest(trimmed, showDialog)),
             $"Failed to resolve WhereHow name {trimmed}.");
