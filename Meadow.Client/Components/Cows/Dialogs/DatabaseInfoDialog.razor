@@ -38,11 +38,22 @@
     private string Server => Configuration["DB_SERVER"] ?? "127.0.0.1";
     private string Database => Configuration["DB_DB"] ?? "4cows_v2";
 
+    // Ebenfalls ueber Configuration, aus demselben Grund - und der ist hier
+    // sogar zwingender: Environment.GetEnvironmentVariable liefert im Browser
+    // IMMER null, weil es dort keine Prozessumgebung gibt. Der Dialog zeigte
+    // damit auf jeder Instanz die eingebauten Rueckfallwerte an, also
+    // "http://192.168.50.9/Xlink/" und 24 Stunden, ganz gleich was der Server
+    // wirklich benutzt. Auf main lief derselbe Code im Serverprozess und
+    // lieferte die echten Werte - die Zeile ist beim Umzug in den Browser
+    // stillschweigend falsch geworden.
+    //
+    // /api/system/info gibt beide Werte unter genau diesen Schluesseln aus;
+    // Program.cs laedt sie beim Start in die Konfiguration.
     private string XLinkUrl =>
-        Environment.GetEnvironmentVariable("XLinkUrl") ?? "http://192.168.50.9/Xlink/";
+        Configuration["XLinkUrl"] ?? "http://192.168.50.9/Xlink/";
 
     private double IntervalHours =>
-        double.TryParse(Environment.GetEnvironmentVariable("XLinkSyncIntervalHours"), out var h) && h > 0
+        double.TryParse(Configuration["XLinkSyncIntervalHours"], out var h) && h > 0
             ? h
             : 24;
 

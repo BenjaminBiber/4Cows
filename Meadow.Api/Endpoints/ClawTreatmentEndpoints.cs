@@ -107,6 +107,44 @@ public static class ClawTreatmentEndpoints
             }
 
             var removed = await svc.RemoveBandagesAsync(body.Ids);
+
+            // KEINE Zeile getroffen heisst: alle Ziele sind weg. Das mit 200 zu
+            // quittieren war die Luecke - die Outbox wertet jede 200 als
+            // Erfolg, loescht ihren Eintrag und raeumt die Wartemarkierungen
+            // weg. Der Landwirt sah "uebertragen", obwohl serverseitig nichts
+            // geschrieben wurde.
+            //
+            // Die 404 stellt den Stapel mit seiner Einzelvariante gleich: die
+            // antwortet fuer eine verschwundene Zeile ebenfalls mit 404, und
+            // der Prozessor macht daraus einen dauerhaften, sichtbaren
+            // Fehlschlag.
+            //
+            // Ein TEILtreffer bleibt bewusst eine 200. Wessen Behandlung es
+            // nicht mehr gibt, dessen Verband gibt es auch nicht mehr - da ist
+            // nichts verloren, und eine Fehlerkarte schickte den Landwirt eine
+            // Zeile suchen, die niemand mehr hat. Die Zahl im Rumpf sagt, wie
+            // viele es waren.
+            if (removed == 0)
+            {
+                // Null betroffene Zeilen ist zweideutig, und die beiden Faelle
+                // duerfen nicht verwechselt werden:
+                //
+                // - Die Behandlungen GIBT es, ihr Verband war nur schon
+                //   abgenommen. MySQL zaehlt eine Zeile nicht mit, deren Wert
+                //   sich nicht aendert. Das ist der gewuenschte Endzustand, und
+                //   eine Fehlerkarte dafuer schickte den Landwirt eine Zeile
+                //   suchen, die jemand erfolgreich abgenommen hat.
+                // - Die Behandlungen sind WEG. Dann wurde nichts geschrieben,
+                //   und genau das muss sichtbar werden.
+                await svc.GetAllDataAsync();
+                var nochDa = body.Ids.Any(id => svc.Treatments.ContainsKey(id));
+
+                if (!nochDa)
+                {
+                    return EndpointCommon.NotFound("Klauenbehandlungen", string.Join(", ", body.Ids));
+                }
+            }
+
             return Results.Ok(new { removed });
         }).BumpsOnWrite(DataScope.ClawTreatments).WithName("ClawTreatmentRemoveBandages");
 
