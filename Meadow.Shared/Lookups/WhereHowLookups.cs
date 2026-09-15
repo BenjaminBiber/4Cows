@@ -14,6 +14,42 @@ public static class WhereHowLookups
     }
 
     /// <summary>
+    /// Die Id zum Namen, <see cref="int.MinValue"/> wenn es ihn nicht gibt.
+    ///
+    /// Der Rumpf liegt hier, weil beide Fassungen von GetWhereHowIDByName ihn
+    /// brauchen - und weil sie sich genau darueber schon einmal uneinig waren:
+    ///
+    /// Die EF-Fassung schrieb das Nachschlagen als
+    /// <c>(... ?? new WhereHow()).WhereHowId</c>. Der parameterlose
+    /// Konstruktor von WhereHow ruft <c>this(0, "", true)</c> - bei einem
+    /// Fehltreffer kam also eine 0 heraus statt int.MinValue. Die HTTP-Fassung
+    /// lieferte int.MinValue. Die Aufrufstellen pruefen auf int.MinValue; die
+    /// 0 rutschte durch und landete als Wie/Wo-Fremdschluessel an einer
+    /// Behandlung, obwohl es keinen WhereHow 0 gibt.
+    ///
+    /// Udder macht es richtig (<c>new Udder()</c> setzt int.MinValue) - die
+    /// Asymmetrie zwischen den beiden Modellen war der ganze Fehler. Mit einer
+    /// Kopie dieser Regel kann sie nicht wiederkommen.
+    ///
+    /// Verglichen wird getrimmt und kleingeschrieben, wie an jeder anderen
+    /// Namenssuche auch.
+    /// </summary>
+    public static int FindIdByName(IReadOnlyDictionary<int, WhereHow> whereHows, string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return int.MinValue;
+        }
+
+        var gesucht = name.Trim().ToLower();
+
+        var treffer = whereHows.Values.FirstOrDefault(
+            x => x.WhereHowName != null && x.WhereHowName.Trim().ToLower() == gesucht);
+
+        return treffer?.WhereHowId ?? int.MinValue;
+    }
+
+    /// <summary>
     /// Bei Fehltreffer ein frisches, leeres WhereHow - kein null. Die
     /// Aufrufstellen lesen den Namen direkt.
     /// </summary>

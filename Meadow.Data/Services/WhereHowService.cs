@@ -285,10 +285,7 @@ public class WhereHowService : IWhereHowService
                     await GetAllDataAsync();
                 }
 
-                var id =  _cachedWhereHows.Values.Any(x => x.WhereHowName.ToLower().Trim() == name.ToLower().Trim())
-                    ? _cachedWhereHows.Values.FirstOrDefault(x => x.WhereHowName.ToLower().Trim() == name.ToLower().Trim())
-                        .WhereHowId
-                    : int.MinValue;
+                var id = WhereHowLookups.FindIdByName(_cachedWhereHows, name);
 
                 if (id == int.MinValue)
                 {
@@ -301,9 +298,15 @@ public class WhereHowService : IWhereHowService
                         ShowDialog = showDialog
                     };
                     await InsertDataAsync(newWhereHow);
-                    id = (_cachedWhereHows.Values
-                            .FirstOrDefault(x => x.WhereHowName.ToLower().Trim() == name.ToLower().Trim()) ?? new WhereHow())
-                        .WhereHowId;
+
+                    // Nach dem Anlegen noch einmal nachschlagen - DURCH DIESELBE
+                    // Regel. Vorher stand hier "(... ?? new WhereHow()).WhereHowId",
+                    // und weil der parameterlose Konstruktor die Id auf 0 setzt,
+                    // kam bei einem gescheiterten Insert eine 0 heraus statt
+                    // int.MinValue. Die Aufrufstellen pruefen auf int.MinValue: die
+                    // 0 rutschte durch und haengte der Behandlung einen Wie/Wo an,
+                    // den es nicht gibt.
+                    id = WhereHowLookups.FindIdByName(_cachedWhereHows, name);
                 }
 
                 return id;

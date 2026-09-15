@@ -168,14 +168,15 @@ public class HttpWhereHowService : HttpServiceBase, IWhereHowService
         // an der Behandlung sonst ein Eintrag haengt, den es serverseitig nicht
         // gibt.
         //
-        // Der Vergleich ist woertlich der aus der EF-Fassung: getrimmt und
-        // kleingeschrieben.
-        var known = _cachedWhereHows.Values.FirstOrDefault(
-            x => x.WhereHowName != null
-                 && x.WhereHowName.Trim().ToLower() == trimmed.ToLower());
-        if (known is not null)
+        // Nachgeschlagen wird durch WhereHowLookups.FindIdByName - dieselbe
+        // Regel, die auch die EF-Fassung benutzt. Vorher stand der Vergleich
+        // hier ein zweites Mal ausgeschrieben, und genau darueber waren die
+        // beiden Fassungen sich schon einmal uneinig: die EF-Fassung lieferte
+        // bei einem Fehltreffer eine 0, diese hier int.MinValue.
+        var known = WhereHowLookups.FindIdByName(_cachedWhereHows, trimmed);
+        if (known != int.MinValue)
         {
-            return known.WhereHowId;
+            return known;
         }
 
         // Unbekannt - ab hier wuerde angelegt. Ohne Verbindung nicht; siehe

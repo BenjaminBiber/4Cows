@@ -132,4 +132,71 @@ public class WhereHowLookupsTests
 
         Assert.Equal(" (RH)", WhereHowLookups.GetFullWhereHowName(WhereHows(), udders, 99, 5));
     }
+
+    // ---- Id zum Namen, und der Fehlwert dahinter --------------------------
+    //
+    // Diese vier Tests halten einen Fehler fest, der in Produktion stand: die
+    // EF-Fassung von GetWhereHowIDByName schlug mit
+    // "(... ?? new WhereHow()).WhereHowId" nach. Der parameterlose Konstruktor
+    // von WhereHow setzt this(0, "", true) - ein Fehltreffer kam also als 0
+    // heraus, nicht als int.MinValue. Die HTTP-Fassung lieferte int.MinValue.
+    //
+    // Gepruefft wird an den Aufrufstellen auf int.MinValue. Die 0 rutschte
+    // durch und wurde als Wie/Wo-Fremdschluessel an einer Behandlung
+    // gespeichert, obwohl es keinen WhereHow mit der Id 0 gibt.
+
+    [Fact]
+    public void A_known_name_resolves_to_its_id()
+    {
+        var whereHows = WhereHows(W(3, "s.c."), W(7, "i.m."));
+
+        Assert.Equal(7, WhereHowLookups.FindIdByName(whereHows, "i.m."));
+    }
+
+    [Fact]
+    public void An_unknown_name_is_int_MinValue_and_never_zero()
+    {
+        var whereHows = WhereHows(W(3, "s.c."));
+
+        var id = WhereHowLookups.FindIdByName(whereHows, "gibt es nicht");
+
+        Assert.Equal(int.MinValue, id);
+        // Die eigentliche Aussage. 0 waere ein gueltig aussehender
+        // Fremdschluessel auf eine Zeile, die es nicht gibt.
+        Assert.NotEqual(0, id);
+    }
+
+    [Theory]
+    [InlineData("  i.m.  ")]
+    [InlineData("I.M.")]
+    [InlineData("i.M.")]
+    public void The_name_is_matched_trimmed_and_case_insensitively(string eingabe)
+    {
+        var whereHows = WhereHows(W(7, "i.m."));
+
+        Assert.Equal(7, WhereHowLookups.FindIdByName(whereHows, eingabe));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void An_empty_name_is_int_MinValue_and_not_the_first_row(string? eingabe)
+    {
+        var whereHows = WhereHows(W(3, "s.c."), W(7, "i.m."));
+
+        Assert.Equal(int.MinValue, WhereHowLookups.FindIdByName(whereHows, eingabe));
+    }
+
+    [Fact]
+    public void The_empty_where_how_keeps_the_id_that_caused_the_bug()
+    {
+        // Kein Wunschdenken, sondern die Dokumentation der Asymmetrie: das
+        // leere WhereHow traegt 0, das leere Udder traegt int.MinValue. Wer
+        // eines der beiden Modelle angleicht, soll hier stolpern und den
+        // Kommentar oben lesen, bevor er es tut - an GetById haengt die
+        // Anzeige, die mit dem Leerstring rechnet.
+        Assert.Equal(0, new WhereHow().WhereHowId);
+        Assert.Equal(int.MinValue, new Udder().UdderId);
+    }
 }
