@@ -23,6 +23,19 @@
   <ItemGroup>
     <ProjectReference Include="..\Meadow.Data\Meadow.Data.csproj" />
     <ProjectReference Include="..\Meadow.Shared\Meadow.Shared.csproj" />
+
+    <!--
+      Fuer die Fallen-Tests. Sie pruefen die HTTP-Fassungen der Dienste gegen
+      eine erfundene API; ohne diesen Verweis liesse sich Falle 2 nur
+      behaupten, denn der Cache-Schreibpfad, um den es geht, liegt in
+      Meadow.Client.
+
+      Meadow.Client ist ein BlazorWebAssembly-Projekt, wird hier aber als
+      gewoehnliche Assembly referenziert: der Test bootet keinen Host, er ruft
+      Methoden auf. Dass das geht, ist kein Zufall - die Dienste haengen an
+      HttpClient und ILogger, nicht an einer Browserumgebung.
+    -->
+    <ProjectReference Include="..\Meadow.Client\Meadow.Client.csproj" />
   </ItemGroup>
 
 </Project>
