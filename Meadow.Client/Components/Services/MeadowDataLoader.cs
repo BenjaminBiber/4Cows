@@ -53,52 +53,101 @@ public sealed class MeadowDataLoader
         _settings = settings;
     }
 
+    private enum Cache { Lookups, CowTreatments, ClawTreatments, PlannedCow, PlannedClaw }
+
+    private readonly HashSet<Cache> _done = new();
+    private readonly Dictionary<Cache, Task> _inFlight = new();
+
+    /// <summary>
+    /// Laedt einen Cache hoechstens einmal pro Datenstand.
+    ///
+    /// Im Serverbetrieb war ein erneutes GetAllDataAsync eine Datenbankrunde im
+    /// selben Prozess - unangenehm, aber unsichtbar. Ueber HTTP ist jeder
+    /// Aufruf eine Netzrunde, und jede Seite ruft hier eine Ensure-Methode auf:
+    /// gemessen waren das sieben Nachschlagetabellen PRO Seitenwechsel.
+    ///
+    /// Die Logik sitzt bewusst HIER und nicht in den Diensten. 26 Stellen in
+    /// den .razor-Dateien rufen GetAllDataAsync() direkt auf, und rund elf davon
+    /// sind bewusste Neuladungen NACH einer Aenderung. Wuerde man dort
+    /// memoisieren, wuerden genau die still zu Leeraufrufen, und die Tabelle
+    /// hoerte nach dem Speichern auf, sich zu aktualisieren.
+    ///
+    /// _inFlight fasst gleichzeitige Aufrufer auf denselben Cache zusammen -
+    /// beim Seitenstart laufen mehrere Ensure-Methoden nebeneinander.
+    /// </summary>
+    private Task Once(Cache cache, Func<Task> load)
+    {
+        if (_done.Contains(cache))
+        {
+            return Task.CompletedTask;
+        }
+
+        if (_inFlight.TryGetValue(cache, out var running))
+        {
+            return running;
+        }
+
+        var task = RunAsync(cache, load);
+        _inFlight[cache] = task;
+        return task;
+    }
+
+    private async Task RunAsync(Cache cache, Func<Task> load)
+    {
+        try
+        {
+            await load();
+            _done.Add(cache);
+        }
+        finally
+        {
+            _inFlight.Remove(cache);
+        }
+    }
+
+    /// <summary>
+    /// Verwirft alles Geladene. Gedacht fuer den Fall, dass X-Data-Version eine
+    /// fremde Aenderung meldet.
+    /// </summary>
+    public void Invalidate()
+    {
+        _done.Clear();
+    }
+
     /// <summary>Kuehe, Medikamente, Wie/Wo, Behandlungsgruende, Klauenbefunde, Euterviertel - alles, was Spalten aufloest.</summary>
-    public async Task EnsureLookupsAsync()
-    {
-        await _settings.GetAllDataAsync();
-        await _cows.GetAllDataAsync();
-        await _medicines.GetAllDataAsync();
-        await _whereHows.GetAllDataAsync();
-        await _reasons.GetAllDataAsync();
-        await _findings.GetAllDataAsync();
-        await _udders.GetAllDataAsync();
-    }
+    public Task EnsureLookupsAsync() => Once(Cache.Lookups, () => Task.WhenAll(
+        _settings.GetAllDataAsync(),
+        _cows.GetAllDataAsync(),
+        _medicines.GetAllDataAsync(),
+        _whereHows.GetAllDataAsync(),
+        _reasons.GetAllDataAsync(),
+        _findings.GetAllDataAsync(),
+        _udders.GetAllDataAsync()));
 
-    public async Task EnsureCowTreatmentsAsync()
-    {
-        await EnsureLookupsAsync();
-        await _cowTreatments.GetAllDataAsync();
-    }
+    public Task EnsureCowTreatmentsAsync() => Task.WhenAll(
+        EnsureLookupsAsync(),
+        Once(Cache.CowTreatments, _cowTreatments.GetAllDataAsync));
 
-    public async Task EnsureClawTreatmentsAsync()
-    {
-        await EnsureLookupsAsync();
-        await _clawTreatments.GetAllDataAsync();
-    }
+    public Task EnsureClawTreatmentsAsync() => Task.WhenAll(
+        EnsureLookupsAsync(),
+        Once(Cache.ClawTreatments, _clawTreatments.GetAllDataAsync));
 
-    public async Task EnsurePlannedCowAsync()
-    {
-        await EnsureLookupsAsync();
-        await _plannedCow.GetAllDataAsync();
-    }
+    public Task EnsurePlannedCowAsync() => Task.WhenAll(
+        EnsureLookupsAsync(),
+        Once(Cache.PlannedCow, _plannedCow.GetAllDataAsync));
 
-    public async Task EnsurePlannedClawAsync()
-    {
-        await EnsureLookupsAsync();
-        await _plannedClaw.GetAllDataAsync();
-    }
+    public Task EnsurePlannedClawAsync() => Task.WhenAll(
+        EnsureLookupsAsync(),
+        Once(Cache.PlannedClaw, _plannedClaw.GetAllDataAsync));
 
     /// <summary>
     /// Die Kuh-Uebersicht: Tiere plus die beiden erfassten Behandlungsarten
     /// fuer die Zaehlspalten. Geplante Termine stehen dort nicht.
     /// </summary>
-    public async Task EnsureCowOverviewAsync()
-    {
-        await EnsureLookupsAsync();
-        await _cowTreatments.GetAllDataAsync();
-        await _clawTreatments.GetAllDataAsync();
-    }
+    public Task EnsureCowOverviewAsync() => Task.WhenAll(
+        EnsureLookupsAsync(),
+        Once(Cache.CowTreatments, _cowTreatments.GetAllDataAsync),
+        Once(Cache.ClawTreatments, _clawTreatments.GetAllDataAsync));
 
     /// <summary>
     /// Die Kuh-Seite rechnet ueber alle vier Behandlungsarten, genau wie das
@@ -109,12 +158,10 @@ public sealed class MeadowDataLoader
     public Task EnsureCowProfileAsync() => EnsureDashboardAsync();
 
     /// <summary>Alles - das Dashboard rechnet ueber saemtliche Behandlungsarten.</summary>
-    public async Task EnsureDashboardAsync()
-    {
-        await EnsureLookupsAsync();
-        await _cowTreatments.GetAllDataAsync();
-        await _clawTreatments.GetAllDataAsync();
-        await _plannedCow.GetAllDataAsync();
-        await _plannedClaw.GetAllDataAsync();
-    }
+    public Task EnsureDashboardAsync() => Task.WhenAll(
+        EnsureLookupsAsync(),
+        Once(Cache.CowTreatments, _cowTreatments.GetAllDataAsync),
+        Once(Cache.ClawTreatments, _clawTreatments.GetAllDataAsync),
+        Once(Cache.PlannedCow, _plannedCow.GetAllDataAsync),
+        Once(Cache.PlannedClaw, _plannedClaw.GetAllDataAsync));
 }
