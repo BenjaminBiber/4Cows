@@ -173,6 +173,26 @@ public class HttpMedicineService : HttpServiceBase, IMedicineService
         {
             return int.MinValue;
         }
+        // Erst im eigenen Cache nachsehen, dann erst fragen.
+        //
+        // Online spart das eine Netzrunde. OFFLINE ist es der Unterschied
+        // zwischen "Behandlung laesst sich erfassen" und "gar nicht": ein
+        // bekannter Eintrag muss sich ohne Netz aufloesen lassen, sonst bricht
+        // das Speichern ab, bevor die Outbox ueberhaupt gefragt wird. Bleibt
+        // nur der unbekannte Name uebrig - und der gehoert offline abgelehnt,
+        // weil an der Behandlung sonst ein Eintrag haengt, den es serverseitig
+        // nicht gibt.
+        //
+        // Der Vergleich ist woertlich der aus der EF-Fassung: getrimmt und
+        // kleingeschrieben. Zwei Regeln dafuer waeren zwei Gelegenheiten, dass
+        // "Baytril " und "baytril" auf den beiden Seiten verschieden ausgehen.
+        var known = _cachedMedicines.Values.FirstOrDefault(
+            x => x.MedicineName != null
+                 && x.MedicineName.Trim().ToLower() == medicineName.Trim().ToLower());
+        if (known is not null)
+        {
+            return known.MedicineId;
+        }
 
         var response = await ReadAsync<IdResponse>(
             () => PostAsync("api/medicines/by-name", new NameRequest(medicineName.Trim())),

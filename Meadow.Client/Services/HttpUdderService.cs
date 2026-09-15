@@ -79,6 +79,27 @@ public class HttpUdderService : HttpServiceBase, IUdderService
     /// </summary>
     public async Task<int> GetIDByBools(Udder emptyUdder)
     {
+        // Erst im eigenen Cache nachsehen, genau mit dem Vergleich aus der
+        // EF-Fassung. Zwei Gruende, beide gemessen:
+        //
+        // - Ohne Netz kaeme der Endpunkt nie zu Wort, GetIDByBools gaebe
+        //   int.MinValue zurueck, und die Behandlung landete mit dem Sentinel
+        //   in COW_QUARTER_ID - ein Wert, den keine der 121 bestehenden
+        //   Zeilen hat. Die Viertelanzeige liest ihn dann als "keine
+        //   Viertel", obwohl die Zeile fuer "keine Viertel" (Id 1) existiert.
+        // - Online spart es den Aufruf fuer die fuenfzehn Kombinationen, die
+        //   der Cache ohnehin schon kennt.
+        //
+        // Ein Treffer hier ist keine zweite Wahrheit: der Endpunkt vergleicht
+        // dieselben vier Flaggen. Angelegt wird weiterhin nur dort.
+        var known = _cachedUdder.Values.FirstOrDefault(x =>
+            x.QuarterLV == emptyUdder.QuarterLV && x.QuarterRV == emptyUdder.QuarterRV &&
+            x.QuarterLH == emptyUdder.QuarterLH && x.QuarterRH == emptyUdder.QuarterRH);
+        if (known is not null)
+        {
+            return known.UdderId;
+        }
+
         var response = await ReadAsync<IdResponse>(
             () => PostAsync(
                 "api/udders/by-quarters",
