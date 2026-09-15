@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Meadow.Shared.Models;
 
 namespace Meadow.Shared.Kpi;
 
@@ -28,6 +29,29 @@ public static class KpiScriptGuard
     private static readonly Regex LineComments = new(@"(--|#)[^\r\n]*", RegexOptions.Compiled);
     private static readonly Regex FileWrite = new(@"\bINTO\s+(OUTFILE|DUMPFILE)\b",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    /// <summary>
+    /// Wie <see cref="Reject"/>, aber es weiss, dass eine Baukasten-Kennzahl
+    /// gar kein Skript braucht.
+    ///
+    /// Eine Baukasten-Kennzahl rechnet aus ihrer Definition; KPIDialog setzt
+    /// fuer sie bewusst kein Script. Wer <see cref="Reject"/> beim SPEICHERN
+    /// unbedingt anwendet, lehnt damit jede einzelne von ihnen mit "Das Skript
+    /// ist leer." ab - genau das ist auf dem Weg ueber HTTP passiert, und ueber
+    /// die Oberflaeche liess sich keine Baukasten-Kennzahl mehr anlegen.
+    ///
+    /// Steht ein Skript da, wird es geprueft, auch im Baukasten: ein im
+    /// Expertenmodus geschriebenes Skript bleibt beim Wechsel erhalten, damit
+    /// der Wechsel umkehrbar ist. Ausgefuehrt wird es dann nicht - aber es kann
+    /// jederzeit wieder ausgefuehrt werden.
+    ///
+    /// Beim AUSFUEHREN gilt weiterhin <see cref="Reject"/> ohne Ausnahme: dort
+    /// ist ein leeres Skript wirklich nichts, was laufen koennte.
+    /// </summary>
+    public static string? RejectForKind(KpiKind kind, string? script)
+        => kind == KpiKind.Builder && string.IsNullOrWhiteSpace(script)
+            ? null
+            : Reject(script);
 
     /// <summary>
     /// Null when the script may run, otherwise the reason it may not - phrased for the dialog.

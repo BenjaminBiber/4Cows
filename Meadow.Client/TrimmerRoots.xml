@@ -13,8 +13,24 @@
     dieselbe Zahl. Keine Ausnahme, kein Logeintrag.
 
     Die GANZE Assembly bleibt erhalten, nicht einzelne Typen: eine Typliste ist
-    die Datei, die beim naechsten DTO jemand vergisst. Kostet rund 150 KB -
-    der Preis fuer eine Fehlerklasse, die sich nicht anmeldet.
+    die Datei, die beim naechsten DTO jemand vergisst.
+
+    NACHGEMESSEN am 15.09.2026, und das Ergebnis widerspricht dem Absatz oben:
+    Meadow.Shared.wasm ist MIT und OHNE diese Datei byte-gleich gross (129301),
+    und eine ueber den Dialog angelegte Baukasten-Kennzahl schreibt in beiden
+    Faellen dieselbe vollstaendige Definition in die Datenbank
+    ({"source":"ClawTreatment",...,"timeframe":"Days7",...}), nicht "{}".
+
+    Der Grund ist einleuchtend: KpiDefinition wird nicht nur ueber Reflexion
+    angefasst. KpiEvaluator, KpiSqlBuilder und der Dialog lesen ihre
+    Eigenschaften statisch, der Trimmer sieht diese Zugriffe und behaelt alles.
+    Der beschriebene Ausfall ist mit dem heutigen Stand also nicht ausloesbar.
+
+    Die Datei bleibt trotzdem stehen. Sie kostet nichts - gemessen null Byte -
+    und sie deckt den Fall ab, den es heute nur noch nicht gibt: ein DTO, das
+    AUSSCHLIESSLICH durch den Serialisierer laeuft. Wer sie entfernt, nimmt
+    eine Versicherung weg, kein totes Gewicht; wer sich auf den gemessenen
+    Befund beruft, muss ihn vorher neu messen.
 -->
 <linker>
   <assembly fullname="Meadow.Shared" preserve="all" />
