@@ -1,10 +1,8 @@
-using Microsoft.AspNetCore.Diagnostics;
 using Meadow.Api.Endpoints;
 using Meadow.Api.Infrastructure;
 using Meadow.Shared;
 using OfficeOpenXml;
-using Meadow.Api.Components;
-using Meadow.Api.Components.Services;
+using Meadow.Api.BackgroundServices;
 using Meadow.Shared.Kpi;
 // DatabaseStatusService liegt seit der Interface-Naht in Meadow.Shared.Services.
 // Die Registrierungen unten bleiben bewusst auf den konkreten Typen.
@@ -13,9 +11,6 @@ using Meadow.Data.Services;
 using Meadow.Data.Sql;
 using Microsoft.AspNetCore.Hosting.StaticWebAssets;
 using Microsoft.EntityFrameworkCore;
-using MudBlazor;
-using MudBlazor.Services;
-using Meadow.Api.Components.Ui;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddEnvironmentVariables();
@@ -46,34 +41,17 @@ var databaseSettings = new DatabaseConnectionSettings
 // TryParse statt GetValue<bool>: ein Tippfehler in Demo__Enabled ("1", "yes",
 // "True " mit Leerzeichen) soll den Start nicht abreissen, sondern still auf
 // den sicheren Wert false fallen - gleiche Haltung wie beim DB_PORT darueber.
-var demoSettings = new DemoSettings
-{
-    Enabled = bool.TryParse(builder.Configuration["Demo:Enabled"], out var demoOn) && demoOn,
-    ResetHour = int.TryParse(builder.Configuration["Demo:ResetHour"], out var resetHour)
+var demoSettings = new DemoOptions(
+    Enabled: bool.TryParse(builder.Configuration["Demo:Enabled"], out var demoOn) && demoOn,
+    ResetHour: int.TryParse(builder.Configuration["Demo:ResetHour"], out var resetHour)
                 && resetHour is >= 0 and <= 23
         ? resetHour
-        : 3
-};
+        : 3);
 var connectionString = ConnectionStringFactory.Create(databaseSettings);
 await DatabaseInitializer.EnsureDatabaseAsync(connectionString);
 LoggerService.InitializeDBLogger(connectionString);
 StaticWebAssetsLoader.UseStaticWebAssets(builder.Environment, builder.Configuration);
 
-// Add services to the container.
-builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
-// Snackbar-Konfiguration gehoert hierher, nicht in die Speicher-Methoden der
-// Dialoge: dort wurde bisher an acht Stellen ein Singleton aus dem Render-Pfad
-// mutiert (u.a. MaxDisplayedSnackbars = 10, weshalb sich Toasts stapelten).
-builder.Services.AddMudServices(cfg =>
-{
-    cfg.SnackbarConfiguration.PositionClass = Defaults.Classes.Position.BottomRight;
-    cfg.SnackbarConfiguration.SnackbarVariant = Variant.Outlined;
-    cfg.SnackbarConfiguration.MaxDisplayedSnackbars = 4;
-    cfg.SnackbarConfiguration.VisibleStateDuration = 4000;
-    cfg.SnackbarConfiguration.ShowTransitionDuration = 180;
-    cfg.SnackbarConfiguration.PreventDuplicates = false;
-});
 // Der Zaehler, an dem ein Client erkennt, ob sich etwas geaendert hat. Muss ein
 // Singleton sein - ein Zaehler pro Anfrage zaehlt nichts.
 builder.Services.AddSingleton<IDataVersion, DataVersion>();
@@ -101,25 +79,12 @@ builder.Services.AddSingleton<IUdderService, UdderService>();
 builder.Services.AddSingleton<KpiRowProvider>();
 builder.Services.AddSingleton<IKPIService, KPIService>();
 builder.Services.AddSingleton<ISettingsService, SettingsService>();
-builder.Services.AddSingleton<DatabaseConnectionState>();
 builder.Services.AddSingleton<IXLinkService, XLinkService>();
 // Muss Singleton sein: er haelt das "laeuft gerade"-Flag, an dem ein zweiter
 // POST auf /api/xlink/refresh seine 409 erkennt. Einer pro Anfrage wuesste
 // von keinem anderen Lauf.
 builder.Services.AddSingleton<XLinkRunner>();
-builder.Services.AddSingleton(demoSettings);
 
-// Shell-Zustand ist Scoped, also einer pro Circuit. Als Singleton wuerde der
-// Drawer oder das Theme eines Nutzers bei allen anderen mitschalten - die
-// Datenservices oben sind absichtlich prozessweit, dieser Zustand nicht.
-builder.Services.AddScoped<LayoutState>();
-builder.Services.AddScoped<ThemeState>();
-builder.Services.AddScoped<MeadowDataLoader>();
-builder.Services.AddScoped<MeadowDialogLauncher>();
-// Meldet der gerade gerenderten Seite, dass eine Behandlung dazugekommen ist.
-// Ohne das erschien ein Eintrag, der ueber FAB, Add-Menue oder Dashboard
-// angelegt wurde, erst nach dem Neuladen in der Tabelle.
-builder.Services.AddScoped<MeadowDataChanges>();
 
 // Genau ein HostedService, je nach Modus ein anderer. Im Demo-Modus wuerde
 // XLinkService.SaveCowData jede Demo-Kuh als IsGone markieren, weil der
@@ -128,6 +93,7 @@ builder.Services.AddScoped<MeadowDataChanges>();
 // Hof-LAN-Adresse) faerbt die Zeile im Datenbank-Dialog rot.
 if (demoSettings.Enabled)
 {
+    builder.Services.AddSingleton(demoSettings);
     builder.Services.AddHostedService<DemoResetBackgroundService>();
 }
 else
@@ -151,53 +117,31 @@ using (var scope = app.Services.CreateScope())
         await DemoDataSeeder.SeedAsync(context);
     }
 }
-app.UseStaticFiles();
 if (!app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Error", createScopeForErrors: true);
+    // Kein UseExceptionHandler("/Error") mehr: die Fehlerseite war eine Razor
+    // Page und ist mit dem Umzug der Oberflaeche in den Browser entfallen.
     app.UseHsts();
 }
 app.UseHttpsRedirection();
 
-// Nach UseStaticFiles, damit vorhandene Dateien normal ausgeliefert werden:
-// erst eine 404-Antwort wird hierher umgeleitet. Ohne das liefert eine
-// getippte Falschadresse einen leeren Body - der <NotFound>-Zweig in
-// Routes.razor greift nur bei App-interner Navigation.
-app.UseStatusCodePagesWithReExecute("/nicht-gefunden");
+// Der Client liegt als statische Dateien daneben. UseBlazorFrameworkFiles
+// bedient /_framework, UseStaticFiles alles andere aus seinem wwwroot.
+app.UseBlazorFrameworkFiles();
+app.UseStaticFiles();
 
-// ... aber nicht fuer /api. Sonst wird aus einem API-404 eine 200 mit der
-// deutschen HTML-Seite im Rumpf, und ein Client, der IsSuccessStatusCode
-// prueft, meldet einen Parser-Fehler statt "Endpunkt gibt es nicht".
-//
-// Ueber das Feature und nicht per UseWhen: UseWhen baut einen eigenen Zweig,
-// und die Wiederausfuehrung findet darin die Blazor-Endpunkte nicht mehr - die
-// 404-Seite kam dann mit leerem Rumpf zurueck. Hier bleibt die Middleware im
-// Hauptstrang und wird nur fuer diese eine Anfrage abgeschaltet.
-app.Use(async (context, next) =>
-{
-    if (context.Request.Path.StartsWithSegments("/api"))
-    {
-        var feature = context.Features.Get<IStatusCodePagesFeature>();
-        if (feature is not null)
-        {
-            feature.Enabled = false;
-        }
-    }
-
-    await next();
-});
-
-// Vor allem anderen, damit auch Fehlerantworten den Header tragen.
+// Ganz vorn, damit auch Fehlerantworten den Header tragen.
 app.UseMiddleware<DataVersionHeaderMiddleware>();
 
-app.UseAntiforgery();
-
-// Die API haengt unter /api und ist von der Antiforgery-Pruefung ausgenommen:
-// sie ist zustandslos, kennt keine Cookies und wird spaeter vom
-// WebAssembly-Client mit reinem JSON aufgerufen. Ohne DisableAntiforgery
-// beantwortet ein POST ohne Token eine 400 mit leerem Rumpf - das sieht wie
-// ein Bindungsfehler aus.
-var api = app.MapGroup("/api").DisableAntiforgery();
+// UseStatusCodePagesWithReExecute ist ersatzlos weg. Es war die Kruecke dafuer,
+// dass der <NotFound>-Zweig in Routes.razor nur bei App-interner Navigation
+// griff; jetzt liefert MapFallbackToFile jede unbekannte Adresse an den Router
+// im Browser aus, und der Zweig deckt endlich beide Faelle ab. Damit faellt
+// auch die Sonderbehandlung weg, die ihn fuer /api wieder abschalten musste.
+//
+// UseAntiforgery ebenfalls: es gehoerte zu den Blazor-Server-Formularen, die es
+// hier nicht mehr gibt.
+var api = app.MapGroup("/api");
 api.MapInfrastructureEndpoints();
 api.MapCowEndpoints();
 api.MapMedicineEndpoints();
@@ -217,7 +161,20 @@ api.MapClawExportEndpoints();
 
 api.MapXLinkEndpoints();
 
-app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
+
+// Ein Tippfehler in einer API-Adresse muss als 404 zurueckkommen und NICHT als
+// index.html mit Status 200. Ohne diese Zeile bekaeme der Client HTML, wo er
+// JSON erwartet, und meldete einen Parser-Fehler statt "Endpunkt gibt es
+// nicht". Konkrete Routen schlagen den Catch-all, /api/cows trifft also weiter
+// seinen Endpunkt.
+app.Map("/api/{**rest}", () => Results.NotFound());
+
+// Zuletzt: MapFallbackToFile haengt sich mit Order int.MaxValue ein und kann
+// deshalb keinen der Endpunkte darueber verschlucken. Jede unbekannte Adresse
+// liefert damit index.html, und der Router im Browser entscheidet - inklusive
+// des <NotFound>-Zweigs in Routes.razor, der bisher nur bei App-interner
+// Navigation griff und deshalb UseStatusCodePagesWithReExecute als Kruecke
+// brauchte. Die ist damit weg.
+app.MapFallbackToFile("index.html");
 
 app.Run();

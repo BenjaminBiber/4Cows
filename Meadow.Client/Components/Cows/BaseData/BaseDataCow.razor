@@ -1,0 +1,227 @@
+@using Meadow.Client.Components.Cows.Dialogs
+@using Meadow.Client.Components.Ui
+
+@inject ICowService CowService
+@inject IXLinkService XLinkService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<MeadowToolbar>
+    <Left>
+        <MeadowSearchBox Value="@_search" ValueChanged="OnSearchChanged"
+                         AriaLabel="Kühe durchsuchen" />
+    </Left>
+    <Right>
+        <button type="button" class="mw-btn mw-btn--ghost" @onclick="OpenAddCalfDialog">
+            <MeadowIcon Name="MeadowIconName.Plus" Size="20" />
+            <span>Kalb anlegen</span>
+        </button>
+        <button type="button" class="mw-btn mw-btn--primary" @onclick="RefreshFromXLink"
+                disabled="@_isRefreshing">
+            <MeadowIcon Name="MeadowIconName.Download" Size="20" />
+            <span>@(_isRefreshing ? "Aktualisiere…" : "Von XLink aktualisieren")</span>
+        </button>
+    </Right>
+</MeadowToolbar>
+
+<MeadowTable TItem="Cow" Items="_rows" Columns="_columns"
+             RowKey="@(c => c.CowId)"
+             Class="mw-table-wrap--dense" ShowMobileCards="false"
+             DefaultSortTitle="Halsbandnummer"
+             PagerLabel="Kühe pro Seite"
+             EmptyText="Keine Kühe gefunden." />
+
+@code {
+    private List<Cow> _all = new();
+    private List<Cow> _rows = new();
+    private string _search = "";
+    private bool _isRefreshing;
+
+    private IReadOnlyList<MeadowColumn<Cow>> _columns = Array.Empty<MeadowColumn<Cow>>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        BuildColumns();
+        await CowService.GetAllDataAsync();
+        Reload();
+    }
+
+    private void BuildColumns() => _columns = new List<MeadowColumn<Cow>>
+    {
+        new()
+        {
+            Title = "Halsbandnummer",
+            Text = c => c.CollarNumber.ToString(),
+            SortBy = c => c.CollarNumber,
+            Style = MeadowCellStyle.Bold
+        },
+        new()
+        {
+            Title = "Ohrmarkennummer",
+            Text = c => string.IsNullOrWhiteSpace(c.EarTagNumber) ? "—" : c.EarTagNumber,
+            SortBy = c => c.EarTagNumber ?? string.Empty
+        },
+        new()
+        {
+            Title = "Typ",
+            Template = cow =>
+                @<span class="mw-pill">@(cow.IsCalv ? "Kalb" : "Kuh")</span>,
+            SortBy = c => c.IsCalv ? 1 : 0
+        },
+        new()
+        {
+            Title = "Status",
+            Template = cow => cow.IsGone
+                ? @<span class="mw-tag mw-tag--removed">Betrieb verlassen</span>
+                : @<span class="mw-dim">Im Betrieb</span>,
+            SortBy = c => c.IsGone ? 1 : 0
+        },
+        new()
+        {
+            IsActions = true,
+            Template = cow =>
+                @<text>
+                    @if (cow.IsCalv)
+                    {
+                        <MeadowIconButton Icon="MeadowIconName.Edit" Title="Ohrenmarke zuweisen"
+                                          OnClick="() => OpenAssignEarTagDialog(cow)" />
+                    }
+                    @if (!cow.IsGone)
+                    {
+                        <MeadowIconButton Icon="MeadowIconName.CloudOff"
+                                          Title="Als 'Betrieb verlassen' markieren"
+                                          OnClick="() => MarkGone(cow)" />
+                    }
+                    <MeadowIconButton Icon="MeadowIconName.Trash" Title="Kuh löschen"
+                                      Danger="true" OnClick="() => DeleteCow(cow)" />
+                </text>
+        }
+    };
+
+    private void Reload()
+    {
+        _all = CowService.Cows.Values.ToList();
+        ApplyFilter();
+    }
+
+    private void OnSearchChanged(string value)
+    {
+        _search = value;
+        ApplyFilter();
+    }
+
+    private void ApplyFilter()
+    {
+        var term = _search.Trim();
+        _rows = term.Length == 0
+            ? _all.ToList()
+            : _all.Where(c => CowService.FilterFuncCow(c.CowId, term)).ToList();
+    }
+
+    private async Task RefreshFromXLink()
+    {
+        if (_isRefreshing)
+        {
+            return;
+        }
+
+        _isRefreshing = true;
+        try
+        {
+            await XLinkService.RefreshCowsAsync();
+            await CowService.GetAllDataAsync();
+            Reload();
+            Snackbar.Add("Kühe wurden erfolgreich von XLink aktualisiert.", Severity.Success);
+        }
+        catch (Exception e)
+        {
+            Snackbar.Add($"Fehler beim Aktualisieren der Kühe: {e.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isRefreshing = false;
+        }
+    }
+
+    private async Task OpenAddCalfDialog()
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<Add_Calf_Dialog>(string.Empty, options);
+        var result = await dialog.Result;
+
+        if (result is null || result.Canceled)
+        {
+            return;
+        }
+
+        Reload();
+    }
+
+    private async Task OpenAssignEarTagDialog(Cow calf)
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var parameters = new DialogParameters<Assign_EarTag_Dialog> { { x => x.Calf, calf } };
+
+        var dialog = await DialogService.ShowAsync<Assign_EarTag_Dialog>(
+            string.Empty, parameters, options);
+        var result = await dialog.Result;
+
+        if (result is null || result.Canceled)
+        {
+            return;
+        }
+
+        Reload();
+    }
+
+    private async Task MarkGone(Cow cow)
+    {
+        if (!await Confirm(
+                "Verlassen",
+                $"Halsbandnummer {cow.CollarNumber} als „Betrieb verlassen\" markieren?",
+                "Markieren", Color.Warning))
+        {
+            return;
+        }
+
+        var success = await CowService.UpdateIsGoneAsync(cow.CowId, true);
+        Snackbar.Add(
+            success ? "Als verlassen markiert." : "Aktion fehlgeschlagen.",
+            success ? Severity.Success : Severity.Error);
+        Reload();
+    }
+
+    private async Task DeleteCow(Cow cow)
+    {
+        if (!await Confirm(
+                "Löschen",
+                $"Halsbandnummer {cow.CollarNumber} wirklich löschen?",
+                "Löschen", Color.Error))
+        {
+            return;
+        }
+
+        var success = await CowService.RemoveByIdAsync(cow.CowId);
+        Snackbar.Add(
+            success ? "Gelöscht." : "Löschen fehlgeschlagen.",
+            success ? Severity.Success : Severity.Error);
+        Reload();
+    }
+
+    private async Task<bool> Confirm(string header, string description, string accept, Color scheme)
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var parameters = new DialogParameters<GenericDialog>
+        {
+            { x => x.HeaderText, header },
+            { x => x.Description, description },
+            { x => x.AcceptButtonText, accept },
+            { x => x.CancelButtonText, "Abbrechen" },
+            { x => x.ColorScheme, scheme }
+        };
+
+        var dialog = await DialogService.ShowAsync<GenericDialog>(string.Empty, parameters, options);
+        var result = await dialog.Result;
+        return result is not null && !result.Canceled;
+    }
+}

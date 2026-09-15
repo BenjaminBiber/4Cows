@@ -1,0 +1,807 @@
+@page "/Kuh/{CowId}"
+@implements IDisposable
+
+@using Meadow.Client.Components.Cows.CowDetail
+@using Meadow.Client.Components.Ui
+@using Meadow.Client.Components.Services
+@using Meadow.Shared.Models
+@using Meadow.Shared.Profile
+
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject MeadowDataLoader Data
+@inject MeadowDataChanges Changes
+@inject LayoutState Layout
+@inject ThemeState Theme
+@inject ICowService cowService
+@inject ICowTreatmentService cowTreatmentService
+@inject IClawTreatmentService clawTreatmentService
+@inject IClawFindingService clawFindingService
+@inject IPCowTreatmentService pCowTreatmentService
+@inject IPClawTreatmentService pClawTreatmentService
+@inject IMedicineService medicineService
+@inject ITreatmentReasonService TreatmentReasonService
+@inject IUdderService UdderService
+
+<PageTitle>@HeaderTitle · Meadow</PageTitle>
+
+@if (!_loaded)
+{
+    @* Nichts. Solange die Caches laden, ist NICHT bekannt, ob es das Tier
+       gibt - "Kuh nicht gefunden" waere dann keine Auskunft, sondern eine
+       Behauptung, die sich einen Wimpernschlag spaeter selbst widerruft.
+
+       Die Caches sind Singletons und nach dem ersten Aufruf warm, aber
+       EnsureCowProfileAsync bleibt ein await: Blazor rendert dazwischen, und
+       genau dieser eine Durchgang zeigte bisher die Fehlmeldung. Eine leere
+       Flaeche fuer 50ms sieht niemand. *@
+}
+else if (_cow is null)
+{
+    @* Bewusst kein NavigateTo("nicht-gefunden"): das schriebe die Adresszeile
+       um und der fehlerhafte Link waere weg. Hier stimmt die Route, nur das
+       Tier dahinter fehlt - UseStatusCodePagesWithReExecute hilft also
+       ohnehin nicht. *@
+    <MeadowNotFound Title="Kuh nicht gefunden"
+                    Text="Zu dieser Adresse gibt es kein Tier (mehr)." />
+}
+else
+{
+    @* Am Desktop zwei Spalten statt eines langen Stapels: links die
+       Auswertung, rechts die Listen.
+
+       Die Seite ist dabei auf die Fensterhoehe festgenagelt (.mw-cow-page)
+       und scrollt NICHT mehr als Ganzes - gescrollt wird innerhalb einer
+       Spalte. Vorher lag zwischen der Kopfzeile und der Zeile, die man
+       gerade suchte, eine ganze Bildschirmhoehe Diagramme.
+
+       Wer das Tier ist, steht nicht mehr auf der Seite, sondern im Kopf der
+       Anwendung: Halsbandnummer als Seitentitel, Ohrmarke und Status daneben
+       (LayoutState.SetPageHeading). Die Kachel dafuer kostete eine ganze
+       Zeile Hoehe fuer zwei Angaben.
+
+       Mobil bleibt alles ein Stapel - siehe den Mobil-Block im CSS. *@
+    <div class="mw-cow-page">
+        <CowKpiTiles Profile="_profile" Collar="@Collar" TopMedicineName="@TopMedicineName"
+                     TopFindingName="@TopFindingName" />
+
+        <div class="mw-cow-split">
+            <div class="mw-cow-col mw-cow-col--charts mw-scroll">
+                @* Eine Karte fuer drei Auswertungen derselben Behandlungen:
+                   wann, womit, warum. Sie schliessen einander aus, keine
+                   davon braucht die andere daneben - und zusammen bekommen
+                   sie die Hoehe, die vorher auf drei Karten verteilt war.
+
+                   Knoepfe mit aria-pressed und KEIN role="tablist": ein
+                   echtes Tablist verspricht Pfeiltasten und eine wandernde
+                   tabindex-Verwaltung. Ohne beides ist die Rolle eine Luege,
+                   und mit beidem waere es eine Menge Fokusverwaltung fuer
+                   einen Umschalter mit drei Stellungen. Ein gedrueckter
+                   Knopf sagt dasselbe und funktioniert mit der Tastatur von
+                   selbst - dieselbe Wahl wie bei MeadowChip. *@
+                <div class="mw-card mw-card--chart">
+                    <div class="mw-tabs mw-tabs--card" role="group"
+                         aria-label="Auswertung wählen">
+                        @foreach (var view in ChartViews)
+                        {
+                            <button type="button"
+                                    class="mw-tab @(_chartView == view ? "is-active" : null)"
+                                    aria-pressed="@(_chartView == view ? "true" : "false")"
+                                    @onclick="() => SelectChartView(view)">
+                                @ChartViewLabel(view)
+                            </button>
+                        }
+
+                        @if (_chartView == ChartView.Months)
+                        {
+                            <span class="mw-tabs__note">@ChartRange</span>
+                        }
+                    </div>
+
+                    @* Der Canvas haengt an einer Registry ueber seine ID
+                       (ChartHelper.js). Beim Zurueckschalten ist es ein NEUES
+                       Element, also muss neu gezeichnet werden - das erledigt
+                       SelectChartView, und renderChart raeumt die alte
+                       Instanz vorher weg. *@
+                    @if (_chartView == ChartView.Months)
+                    {
+                        <div class="mw-chart-canvas">
+                            @* role="img" plus Zusammenfassung: ein Canvas ist fuer
+                               Screenreader eine leere Flaeche, und die Einzelwerte
+                               stehen ohnehin in den Tabellen der rechten Spalte. *@
+                            <canvas id="@ChartId" role="img" aria-label="@ChartSummary"></canvas>
+                        </div>
+
+                        @if (_chartError is not null)
+                        {
+                            <div class="mw-chart-error" role="status">
+                                Das Diagramm konnte nicht gezeichnet werden. Prüfe, ob die
+                                Chart.js-Bibliothek erreichbar ist.
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="mw-cow-chartpanel">
+                            <MeadowPieChart Class="mw-pie--large"
+                                            Items="@(_chartView == ChartView.Medicines ? MedicineSlices : ReasonSlices)"
+                                            EmptyText="@(_chartView == ChartView.Medicines
+                                                         ? "Keine Medikamente erfasst."
+                                                         : "Kein Behandlungsgrund erfasst.")" />
+                        </div>
+                    }
+                </div>
+
+                @* Klauen und Euterviertel nebeneinander: beide beantworten
+                   dieselbe Frage - wo am Tier? -, beide sind ein 2x2 aus
+                   Umriss, Ort und Zahl, und nebeneinander liest man sie als
+                   das Paar, das sie sind. Die Klauen bekommen etwas mehr
+                   Breite: "Rechts Hinten" ist laenger als jede Viertel-
+                   Beschriftung.
+
+                   Beide Zellen sind Links, jede auf ihre Lasche: die Klaue
+                   auf "Klauen", das Viertel auf "Kuh". *@
+                <div class="mw-cow-pair">
+                    <MeadowPanelCard Title="Klauen">
+                        <CowHoofLevels Hoofs="_profile.Hoofs"
+                                       TotalTreatments="_profile.TotalClawTreatments"
+                                       CowId="@CowId"
+                                       Selected="_claw" />
+                    </MeadowPanelCard>
+
+                    <MeadowPanelCard Title="Euterviertel">
+                        <CowUdderQuadrants Quarters="_profile.UdderQuarters"
+                                           WithQuarter="_profile.UdderTreatments"
+                                           Total="_profile.TotalCowTreatments"
+                                           CowId="@CowId"
+                                           Selected="_quarter" />
+                    </MeadowPanelCard>
+                </div>
+            </div>
+
+            <div class="mw-cow-col mw-cow-col--lists">
+                @* Mobil ein Auswahlfeld statt fuenf Laschen: auf 375px sind
+                   die fuenf eine Leiste, die man seitwaerts schieben muss,
+                   und was hinter dem Rand liegt, findet man nur durch
+                   Probieren. Ein select oeffnet die native Liste des
+                   Geraets, zeigt alle fuenf samt Zahl und braucht eine Zeile.
+
+                   Beide Varianten stehen im Markup, CSS zeigt eine - wie beim
+                   Titel in MeadowHeader: Blazor Server prerendert ohne
+                   Viewport-Wissen, jede JS-Weiche rendert beim ersten Frame
+                   die falsche und klappt dann um.
+
+                   Das select ist zwangslaeufig ein onchange und kein Link.
+                   Die Adresse stimmt trotzdem: NavigateTo geht auf dieselbe
+                   TabHref wie die Lasche daneben. *@
+                <label class="mw-tab-select mw-only-mobile">
+                    <span class="mw-sr-only">Liste wählen</span>
+                    <select @onchange="OnTabPicked">
+                        @foreach (var tab in CowDetailTabs.All)
+                        {
+                            <option value="@CowDetailTabs.ToSlug(tab)" selected="@(_tab == tab)">
+                                @CowDetailTabs.Label(tab) (@Count(tab))
+                            </option>
+                        }
+                    </select>
+                    @* Der eigene Chevron statt des System-Pfeils, damit das
+                       Feld wie die uebrigen Bedienelemente aussieht - derselbe
+                       Aufbau wie .mw-select__trigger. Das Ausklappmenue selbst
+                       zeichnet weiterhin das Geraet: auf dem Telefon ist das
+                       genau richtig, und dort ist dieses Feld auch zuhause. *@
+                    <MeadowIcon Name="MeadowIconName.ChevronDown" Size="16" />
+                </label>
+
+                <div class="mw-tabs mw-tabs--scroll mw-only-desktop">
+                    @foreach (var tab in CowDetailTabs.All)
+                    {
+                        @* Echte Links, keine Knoepfe: die Auswahl lebt in ?tab=, also ist
+                           aria-current="page" hier woertlich richtig - und die Kacheln
+                           "offene Verbaende" und "offene Termine" koennen darauf zeigen.
+                           null und nicht false: "@(x == y)" schriebe das Literal "False"
+                           ins Attribut, das ein Screenreader dann vorliest. *@
+                        <a class="mw-tab @(_tab == tab ? "is-active" : null)"
+                           href="@TabHref(tab)"
+                           aria-current="@(_tab == tab ? "page" : null)">
+                            @CowDetailTabs.Label(tab)<span class="mw-tab__count">@Count(tab)</span>
+                        </a>
+                    }
+                </div>
+
+                @* Der Filter kommt von einem Klick auf die Karte nebenan - auf
+                   eine Klaue oder ein Euterviertel. Er muss hier stehen und
+                   nicht nur dort: wer ueber einen geteilten Link hereinkommt,
+                   sieht sonst eine unerklaerlich kurze Liste. Aufgehoben wird
+                   er mit dem gewoehnlichen Laschen-Link - der traegt weder
+                   ?klaue= noch ?viertel=. *@
+                @if (ActiveFilter is { } filter)
+                {
+                    <div class="mw-cow-filter">
+                        <span>Nur <strong>@filter.Place</strong></span>
+                        <a class="mw-cow-filter__clear" href="@TabHref(_tab)">@filter.Clear</a>
+                    </div>
+                }
+
+                @switch (_tab)
+                {
+                    case CowDetailTab.CowTreatments:
+                        <CowTreatmentsPanel Rows="CowRows" />
+                        break;
+
+                    case CowDetailTab.ClawTreatments:
+                        <ClawTreatmentsPanel Rows="ClawRows" OnChanged="ReloadAsync" />
+                        break;
+
+                    case CowDetailTab.PlannedCow:
+                        <PlannedCowPanel Rows="_profile.PlannedCowTreatments" OnChanged="ReloadAsync" />
+                        break;
+
+                    case CowDetailTab.PlannedClaw:
+                        <PlannedClawPanel Rows="_profile.PlannedClawTreatments" OnChanged="ReloadAsync" />
+                        break;
+
+                    default:
+                        <BandagesPanel Treatments="_profile.ClawTreatments" OnChanged="ReloadAsync" />
+                        break;
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string CowId { get; set; } = "";
+
+    /// <summary>
+    /// Die aktive Lasche. Im Query-String und nicht in einem Feld, damit die
+    /// beiden Statuskacheln echte Links sein koennen - siehe CowDetailTabs.
+    /// </summary>
+    [SupplyParameterFromQuery(Name = "tab")]
+    public string? TabSlug { get; set; }
+
+    /// <summary>
+    /// Die Klaue, auf die die Lasche "Klauen" gefiltert ist. Ebenfalls im
+    /// Query-String, damit das 2x2 der Klauen aus echten Links bestehen kann
+    /// - siehe CowDetailPosition.
+    /// </summary>
+    [SupplyParameterFromQuery(Name = "klaue")]
+    public string? ClawSlug { get; set; }
+
+    /// <summary>
+    /// Das Euterviertel, auf das die Lasche "Kuh" gefiltert ist. Gegenstueck
+    /// zu ?klaue= - siehe CowDetailPosition.
+    /// </summary>
+    [SupplyParameterFromQuery(Name = "viertel")]
+    public string? QuarterSlug { get; set; }
+
+    // Eigene Canvas-ID: ChartHelper.js fuehrt eine modulweite Registry ueber
+    // die ID, "CowChart" waere der Eintrag des Dashboards.
+    private const string ChartId = "CowProfileChart";
+
+    private Cow? _cow;
+    private CowProfile _profile = CowProfileBuilder.Empty("", DateTime.Today);
+    private CowDetailTab _tab = CowDetailTab.CowTreatments;
+    private HoofPosition? _claw;
+    private HoofPosition? _quarter;
+
+    /// <summary>
+    /// Die drei Auswertungen der oberen Karte. Bewusst ein Feld und NICHT im
+    /// Query-String wie die Laschen rechts: dort liegt die Auswahl in der
+    /// Adresse, weil zwei KPI-Kacheln darauf zeigen. Hierher zeigt nichts,
+    /// und ein Umschalter, der den Zurueck-Knopf mit Diagrammwechseln
+    /// vollschreibt, waere ein schlechter Tausch.
+    /// </summary>
+    private enum ChartView
+    {
+        Months,
+        Medicines,
+        Reasons
+    }
+
+    private static readonly ChartView[] ChartViews =
+    {
+        ChartView.Months, ChartView.Medicines, ChartView.Reasons
+    };
+
+    private static string ChartViewLabel(ChartView view) => view switch
+    {
+        ChartView.Medicines => "Medikamente",
+        ChartView.Reasons => "Gründe",
+        _ => "Pro Monat"
+    };
+
+    private ChartView _chartView = ChartView.Months;
+
+    /// <summary>
+    /// Zurueck auf "Pro Monat" heisst: ein frisches canvas-Element im DOM.
+    /// Die alte Chart.js-Instanz zeigt auf das weggeworfene und muss ersetzt
+    /// werden - force, weil sich an den ZAHLEN nichts geaendert hat und der
+    /// Fingerabdruck in MarkChartDirty sonst abwinkt.
+    /// </summary>
+    private void SelectChartView(ChartView view)
+    {
+        _chartView = view;
+
+        if (view == ChartView.Months)
+        {
+            MarkChartDirty(force: true);
+        }
+    }
+
+    /// <summary>Noch keine Daten - siehe den Kommentar oben im Markup.</summary>
+    private bool _loaded;
+
+    private string? _loadedCowId;
+    private string? _chartError;
+    private int _chartPrint;
+    private bool _chartDirty;
+
+    protected override void OnInitialized()
+    {
+        Changes.Changed += OnDataChanged;
+        Theme.Changed += OnThemeChanged;
+    }
+
+    /// <summary>
+    /// Geladen wird in OnParametersSetAsync, NICHT in OnInitializedAsync:
+    /// /Kuh/A -> /Kuh/B behaelt dieselbe Komponenteninstanz, OnInitialized
+    /// liefe also kein zweites Mal und die Seite zeigte weiter das alte Tier.
+    /// Der Waechter verhindert im Gegenzug, dass jedes Rendern neu laedt.
+    /// </summary>
+    protected override async Task OnParametersSetAsync()
+    {
+        _tab = CowDetailTabs.Parse(TabSlug);
+        _claw = CowDetailPosition.Parse(ClawSlug);
+        _quarter = CowDetailPosition.Parse(QuarterSlug);
+
+        if (_loadedCowId != CowId)
+        {
+            _loadedCowId = CowId;
+            await Data.EnsureCowProfileAsync();
+            _loaded = true;
+            // Gezeichnet wird nicht hier, sondern in OnAfterRenderAsync -
+            // siehe dort. Rebuild hat den Auftrag dafuer schon hinterlegt.
+            Rebuild();
+        }
+
+        // MainLayout loescht den Seitenkopf bei JEDER Navigation, und ein
+        // Laschenwechsel ist eine: /Kuh/X?tab=kuh -> ?tab=klauen kommt hier
+        // an, faellt am Waechter oben durch und liesse den Kopf sonst als
+        // blosses "Kuh" ohne Nummer und Ohrmarke zurueck.
+        //
+        // Rebuild setzt denselben Kopf noch einmal - das muss es, weil eine
+        // Aenderung in der Basisdatenpflege gar nicht hier vorbeikommt. Der
+        // zweite Aufruf kostet nichts: SetPageHeading meldet nur, wenn sich
+        // wirklich etwas geaendert hat.
+        Layout.SetPageHeading(HeaderTitle, HeaderEarTag, HeaderTags, MeadowRoutes.Cows);
+    }
+
+    public void Dispose()
+    {
+        Changes.Changed -= OnDataChanged;
+        Theme.Changed -= OnThemeChanged;
+        Layout.SetPageHeading(null);
+    }
+
+    /// <summary>
+    /// Der einzige Ort, an dem gezeichnet wird - und bewusst NICHT nur beim
+    /// ersten Render.
+    ///
+    /// OnParametersSetAsync wartet auf die Daten; bis dahin rendert die Seite
+    /// den 404-Zweig, in dem es gar kein &lt;canvas&gt; gibt. Ein Aufruf im
+    /// Ladepfad traf deshalb auf getElementById(...) === null. Statt auf
+    /// firstRender zu warten, hinterlegt jede Aenderung einen Auftrag, und
+    /// gezeichnet wird, sobald das Element tatsaechlich im DOM steht.
+    /// </summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Auch die Lasche pruefen, nicht nur den Auftrag: waehrend
+        // "Medikamente" oben steht, gibt es das canvas-Element gar nicht, und
+        // getElementById(...) waere null. Der Auftrag BLEIBT dabei stehen -
+        // SelectChartView setzt ihn beim Zurueckschalten ohnehin neu, aber
+        // eine Datenaenderung auf einer anderen Lasche soll nicht verpuffen.
+        if (!_chartDirty || _cow is null || _chartView != ChartView.Months)
+        {
+            return;
+        }
+
+        _chartDirty = false;
+        await RenderChartAsync();
+    }
+
+    // ---- Daten ----------------------------------------------------------
+
+    private void Rebuild()
+    {
+        _cow = cowService.GetById(CowId);
+
+        // Fuer ein Tier, das es nicht gibt, wird gar nicht erst gerechnet.
+        _profile = _cow is null
+            ? CowProfileBuilder.Empty(CowId, DateTime.Today)
+            : CowProfileBuilder.Build(
+                CowId,
+                cowTreatmentService.Treatments.Values,
+                clawTreatmentService.Treatments.Values,
+                pCowTreatmentService.Treatments.Values,
+                pClawTreatmentService.Treatments.Values,
+                UdderService.Udder,
+                DateTime.Today);
+
+        // Wer das Tier ist, steht im Kopf der Anwendung und nicht auf der
+        // Seite. LayoutState meldet nur, wenn sich wirklich etwas geaendert
+        // hat - der Aufruf bei jedem Neuaufbau kostet also nichts.
+        Layout.SetPageHeading(HeaderTitle, HeaderEarTag, HeaderTags, MeadowRoutes.Cows);
+
+        MarkChartDirty();
+    }
+
+    private async Task ReloadAsync()
+    {
+        await Data.EnsureCowProfileAsync();
+        Rebuild();
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Ohne Unterscheidung nach Art, wie auf dem Dashboard: jede der vier
+    /// Arten geht in mindestens eine Kachel ein.
+    /// </summary>
+    private void OnDataChanged(MeadowDataKind kind) => _ = InvokeAsync(ReloadAsync);
+
+    private void OnThemeChanged() => _ = InvokeAsync(() =>
+    {
+        // Achsen-, Gitter- und Balkenfarben stecken in der Chart.js-Config,
+        // nicht im CSS - beim Themenwechsel muss IMMER neu gezeichnet werden,
+        // auch wenn sich an den Zahlen nichts geaendert hat. Daher force.
+        MarkChartDirty(force: true);
+        StateHasChanged();
+    });
+
+    // ---- Anzeige --------------------------------------------------------
+
+    private string Collar
+    {
+        get
+        {
+            var collar = cowService.GetCollarNumberByCowId(CowId);
+            return collar == int.MinValue ? "–" : collar.ToString();
+        }
+    }
+
+    private string HeaderTitle => _cow is null ? "Kuh" : $"Kuh {Collar}";
+
+    /// <summary>
+    /// Die Ohrmarke neben dem Seitentitel, oder null.
+    ///
+    /// Gefragt wird das Feld und nicht GetEarTagDisplay: das liefert fuer ein
+    /// Tier ohne Ohrmarke den Platzhalter "Kalb", und der stuende neben der
+    /// Statusmarke ein zweites Mal da. Die rohe Cow_ID darf nie in die
+    /// Anzeige - die ist bei einem Kalb eine GUID.
+    /// </summary>
+    private string? HeaderEarTag => string.IsNullOrWhiteSpace(_cow?.EarTagNumber)
+        ? null
+        : cowService.GetEarTagDisplay(CowId);
+
+    /// <summary>
+    /// "Kalb" und "Abgang" als Marken neben der Ohrmarke. Beide standen
+    /// vorher in der Kopfkachel; sie hier wegzulassen hiesse, dass einem
+    /// abgegangenen Tier die Seite nirgends mehr ansieht, dass es abgegangen
+    /// ist.
+    /// </summary>
+    private IReadOnlyList<PageTag> HeaderTags
+    {
+        get
+        {
+            if (_cow is null)
+            {
+                return Array.Empty<PageTag>();
+            }
+
+            var tags = new List<PageTag>(2);
+
+            if (_cow.IsCalv)
+            {
+                tags.Add(new PageTag("Kalb"));
+            }
+            if (_cow.IsGone)
+            {
+                tags.Add(new PageTag("Abgang", PageTagTone.Removed));
+            }
+
+            return tags;
+        }
+    }
+
+    /// <summary>
+    /// Name des haeufigsten Medikaments, oder null. "--" wird uebersprungen:
+    /// so heisst bei MedicineService eine unbekannte ID, und als Kachelwert
+    /// waere das keine Auskunft. Dieselbe Regel wie in Cow_Table.
+    /// </summary>
+    private string? TopMedicineName => _profile.Medicines
+        .Select(m => medicineService.GetMedicineNameById(m.Id))
+        .FirstOrDefault(n => !string.IsNullOrEmpty(n) && n != "--");
+
+    /// <summary>
+    /// Name des haeufigsten Klauenbefunds, oder null. ClawFindingService
+    /// liefert bei unbekannter ID einen Leerstring - der wird hier wie ein
+    /// fehlender Befund behandelt.
+    /// </summary>
+    private string? TopFindingName => _profile.Findings
+        .Select(f => clawFindingService.GetNameById(f.Id))
+        .FirstOrDefault(n => !string.IsNullOrEmpty(n));
+
+    private IReadOnlyList<MeadowPieChart.Item> MedicineSlices => _profile.Medicines
+        .Select(m => new MeadowPieChart.Item(medicineService.GetMedicineNameById(m.Id), m.Count))
+        .Where(i => !string.IsNullOrEmpty(i.Label) && i.Label != "--")
+        .ToList();
+
+    /// <summary>
+    /// Behandlungen ohne Grund bekommen ein eigenes Stueck statt zu
+    /// verschwinden - sonst summierte sich der Kuchen auf weniger als die
+    /// Kachel "Behandlungen gesamt" zeigt, und ein Teil ohne Ganzes sieht nach
+    /// Fehler aus.
+    /// </summary>
+    private IReadOnlyList<MeadowPieChart.Item> ReasonSlices => _profile.Reasons
+        .Select(r => new MeadowPieChart.Item(
+            r.Id == CowProfile.NoReasonId ? "Ohne Angabe" : TreatmentReasonService.GetNameById(r.Id),
+            r.Count))
+        .ToList();
+
+    /// <summary>
+    /// Die Klauenbehandlungen der Lasche, gefiltert wie in ?klaue= verlangt.
+    ///
+    /// HasData ist dasselbe Praedikat, mit dem CowProfileBuilder.Hoofs seine
+    /// TreatmentCount zaehlt. Das ist kein Zufall, sondern die Bedingung
+    /// dafuer, dass die Zahl auf der angeklickten Klaue und die Zeilenzahl in
+    /// der Liste dieselbe Menge beschreiben.
+    /// </summary>
+    private IReadOnlyList<ClawTreatment> ClawRows => _claw is { } position
+        ? _profile.ClawTreatments.Where(t => t.HasData(position)).ToList()
+        : _profile.ClawTreatments;
+
+    /// <summary>
+    /// Die Kuhbehandlungen der Lasche, gefiltert wie in ?viertel= verlangt.
+    ///
+    /// Dasselbe Praedikat, mit dem CowProfileBuilder.UdderQuarters seine vier
+    /// Zahlen zaehlt - sonst zeigte die angeklickte Zelle eine andere Menge
+    /// als die Liste. HasAnyQuarter braucht es hier nicht: wo GetQuarter wahr
+    /// ist, ist auch irgendein Viertel gesetzt.
+    ///
+    /// Die vier gefilterten Mengen ueberschneiden sich, weil eine Behandlung
+    /// mehrere Viertel treffen kann. Das ist richtig so - sie TEILEN die
+    /// Liste nicht, sie schneiden sie an.
+    /// </summary>
+    private IReadOnlyList<CowTreatment> CowRows => _quarter is { } quarter
+        ? _profile.CowTreatments
+            .Where(t => UdderService.Udder.TryGetValue(t.UdderId, out var udder)
+                        && udder.GetQuarter(quarter))
+            .ToList()
+        : _profile.CowTreatments;
+
+    /// <summary>
+    /// Die Zahl an der Lasche - bei "Kuh" und "Klauen" die GEFILTERTE. Eine
+    /// Lasche, die sieben sagt und vier Zeilen zeigt, liest sich als Fehler.
+    /// </summary>
+    private int Count(CowDetailTab tab) => tab switch
+    {
+        CowDetailTab.CowTreatments => CowRows.Count,
+        CowDetailTab.ClawTreatments => ClawRows.Count,
+        CowDetailTab.PlannedCow => _profile.PlannedCowTreatments.Count,
+        CowDetailTab.PlannedClaw => _profile.PlannedClawTreatments.Count,
+        _ => _profile.OpenBandages
+    };
+
+    /// <summary>
+    /// Der Ort, auf den die sichtbare Lasche gefiltert ist, samt Text zum
+    /// Aufheben - oder null. Beide Filter koennen gleichzeitig in der Adresse
+    /// stehen; angezeigt wird der, der zur Lasche gehoert.
+    /// </summary>
+    private (string Place, string Clear)? ActiveFilter => (_tab, _claw, _quarter) switch
+    {
+        (CowDetailTab.ClawTreatments, { } claw, _)
+            => (HoofPositions.Label(claw), "Alle Klauen zeigen"),
+        (CowDetailTab.CowTreatments, _, { } quarter)
+            => (CowDetailPosition.QuarterLabel(quarter), "Alle Viertel zeigen"),
+        _ => null
+    };
+
+    /// <summary>
+    /// Adresse einer Lasche, immer OHNE ?klaue= und ?viertel=: ein Ortsfilter
+    /// gilt nur fuer die eine Lasche, und ihn beim Wechsel mitzuschleppen
+    /// hiesse, ihn auf der naechsten still weiterlaufen zu lassen. Derselbe
+    /// Link hebt deshalb auch den Filter auf.
+    /// </summary>
+    private string TabHref(CowDetailTab tab)
+        => $"{MeadowRoutes.CowDetailFor(CowId)}?tab={CowDetailTabs.ToSlug(tab)}";
+
+    /// <summary>
+    /// Das mobile Auswahlfeld. Geht ueber TabHref auf dieselbe Adresse wie
+    /// die Lasche am Desktop - damit landet die Auswahl im Verlauf und der
+    /// Zurueck-Knopf tut, was er soll.
+    /// </summary>
+    private void OnTabPicked(ChangeEventArgs args)
+        => Nav.NavigateTo(TabHref(CowDetailTabs.Parse(args.Value?.ToString())));
+
+    // ---- Diagramm -------------------------------------------------------
+
+    private DateTime ChartStart => _profile.Months.Count == 0
+        ? DateTime.Today
+        : new DateTime(_profile.Months[0].Year, _profile.Months[0].Month, 1);
+
+    private string ChartRange => MeadowMonthAxis.RangeCaption(ChartStart, _profile.Months.Count);
+
+    private string ChartSummary
+    {
+        get
+        {
+            var cow = _profile.Months.Sum(m => m.CowCount);
+            var claw = _profile.Months.Sum(m => m.ClawCount);
+            return $"Behandlungen pro Monat, {ChartRange}: {cow + claw} gesamt, "
+                   + $"davon {cow} Kuh und {claw} Klaue.";
+        }
+    }
+
+    /// <summary>
+    /// Ein Fingerabdruck ueber die Monatsreihe. Jeder Dialogabschluss meldet
+    /// eine Aenderung, aber die meisten davon aendern an DIESEM Diagramm
+    /// nichts - und ein Neuzeichnen ist eine JS-Runde ueber den Circuit.
+    /// </summary>
+    private static int Print(CowProfile profile)
+        => profile.Months.Aggregate(17, (a, m) => HashCode.Combine(a, m.CowCount, m.ClawCount));
+
+    /// <param name="force">
+    /// Auch zeichnen, wenn die Zahlen gleich geblieben sind - fuer den
+    /// Themenwechsel, bei dem sich nur die Farben aendern.
+    /// </param>
+    private void MarkChartDirty(bool force = false)
+    {
+        var print = Print(_profile);
+        if (!force && print == _chartPrint)
+        {
+            return;
+        }
+
+        _chartPrint = print;
+        _chartDirty = true;
+    }
+
+    /// <summary>
+    /// Einziger Einstiegspunkt zum Zeichnen. Chart.js kommt vom CDN und ist
+    /// im Hofnetz nicht garantiert erreichbar - schlaegt der Aufruf fehl,
+    /// soll die Seite ohne Diagramm weiterlaufen. Ein unbehandelter
+    /// Interop-Fehler risse sonst den ganzen Circuit ab, samt Heatmap,
+    /// Kuchendiagramme und Tabellen, die gar kein JS brauchen.
+    /// </summary>
+    private async Task RenderChartAsync()
+    {
+        try
+        {
+            var tokens = await JS.InvokeAsync<Dictionary<string, string>>(
+                "meadowTheme.tokens",
+                new[] { "primary", "teal", "muted", "border" });
+
+            var primary = Pick(tokens, "primary", "#2C7DA0");
+            var teal = Pick(tokens, "teal", "#619B98");
+            var muted = Pick(tokens, "muted", "#6c7b78");
+            var border = Pick(tokens, "border", "#e6ecea");
+
+            // Zwei Linien auf EINER Achse, nicht zwei Achsen.
+            //
+            // Beide Reihen zaehlen dasselbe - Behandlungen - und liegen in
+            // derselben Groessenordnung. Zwei y-Skalen wuerden jede Linie auf
+            // ihr eigenes Maximum strecken: eine Kuhbehandlung staende dann
+            // genauso hoch wie fuenf Klauenbehandlungen, und jeder
+            // Schnittpunkt der beiden Linien waere ein Zufall der Skalierung
+            // statt einer Aussage. Eine gemeinsame Achse ist hier die einzige,
+            // die beide Linien vergleichbar macht.
+            var config = new
+            {
+                type = "line",
+                data = new
+                {
+                    labels = MeadowMonthAxis.TickLabels(ChartStart, _profile.Months.Count),
+                    datasets = new object[]
+                    {
+                        new
+                        {
+                            label = "Kuh",
+                            data = _profile.Months.Select(m => m.CowCount).ToArray(),
+                            borderColor = primary,
+                            backgroundColor = primary,
+                            borderWidth = 2,
+                            pointRadius = 3.5,
+                            pointHoverRadius = 6,
+                            // Zwei Punktformen, nicht nur zwei Farben: die
+                            // meisten Monate stehen beide Reihen auf null und
+                            // liegen dort exakt uebereinander. Eine Raute
+                            // schaut unter einem Kreis hervor, eine blaue
+                            // Linie unter einer tuerkisen nicht.
+                            pointStyle = "circle",
+                            // Geradlinig und NICHT gerundet: zwischen zwei
+                            // Monaten gibt es keine Zwischenwerte, und eine
+                            // Kurve behauptete welche.
+                            tension = 0,
+                            fill = false
+                        },
+                        new
+                        {
+                            label = "Klaue",
+                            data = _profile.Months.Select(m => m.ClawCount).ToArray(),
+                            borderColor = teal,
+                            backgroundColor = teal,
+                            borderWidth = 2,
+                            pointRadius = 4,
+                            pointHoverRadius = 6,
+                            pointStyle = "rectRot",
+                            tension = 0,
+                            fill = false
+                        }
+                    }
+                },
+                options = new
+                {
+                    responsive = true,
+                    maintainAspectRatio = false,
+                    interaction = new { intersect = false, mode = "index" },
+                    scales = new
+                    {
+                        x = new
+                        {
+                            grid = new { display = false },
+                            border = new { color = border },
+                            ticks = new { color = muted, font = new { size = 10 } }
+                        },
+                        y = new
+                        {
+                            beginAtZero = true,
+                            grid = new { color = border },
+                            border = new { display = false },
+                            ticks = new { color = muted, precision = 0, font = new { size = 10 } }
+                        }
+                    },
+                    plugins = new
+                    {
+                        legend = new
+                        {
+                            display = true,
+                            labels = new
+                            {
+                                color = muted,
+                                // usePointStyle uebernimmt die Punktform der
+                                // Reihe - damit steht in der Legende dasselbe
+                                // Zeichen wie im Diagramm. boxWidth muss dann
+                                // mit: sonst blaest Chart.js den Punkt auf die
+                                // Breite eines Farbkastens auf.
+                                usePointStyle = true,
+                                boxWidth = 8,
+                                boxHeight = 8,
+                                font = new { size = 11 }
+                            }
+                        }
+                    }
+                }
+            };
+
+            // Die Achse zeigt nur Anfangsbuchstaben, der Tooltip Monat UND
+            // Jahr - ein rollendes Fenster ueberschreitet den Jahreswechsel.
+            await JS.InvokeVoidAsync(
+                "meadowChart.render",
+                ChartId,
+                config,
+                MeadowMonthAxis.TooltipTitles(ChartStart, _profile.Months.Count));
+
+            _chartError = null;
+        }
+        catch (JSException ex)
+        {
+            _chartError = ex.Message;
+        }
+
+        StateHasChanged();
+    }
+
+    private static string Pick(IReadOnlyDictionary<string, string> tokens, string key, string fallback)
+        => tokens.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value)
+            ? value
+            : fallback;
+}

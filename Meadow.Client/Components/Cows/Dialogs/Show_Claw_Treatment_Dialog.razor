@@ -1,0 +1,69 @@
+@using Meadow.Client.Components.Ui
+
+@inject ICowService cowService
+@inject ISettingsService Settings
+@inject IClawFindingService ClawFindingService
+
+@*
+    Aus 24 if/else-Zweigen mit Zustands-SVGs wird eine ClawSummary.
+
+    Behoben ist dabei auch, dass OnInitialized hier
+    Claw_Treatment.TreatmentDate = DateTime.Today gesetzt hat - auf der
+    gecachten Entitaet. Das Oeffnen dieses Dialogs setzte damit das
+    Verbandsalter derselben Behandlung fuer den Rest des Circuits auf
+    "0 Tage", und angezeigt wurde das Datum nie.
+*@
+<MeadowDialog Title="@($"Klauen Behandlung · Nr. {Collar}")" Size="MeadowDialogSize.ShowClaw">
+    <Meta>
+        <div>
+            <span class="mw-label">Halsband</span>
+            <div class="mw-dlg-meta__value">Nr. @Collar</div>
+        </div>
+        <div>
+            <span class="mw-label">Ohrmarke</span>
+            <div class="mw-dlg-meta__mono">@EarTag</div>
+        </div>
+        <div>
+            <span class="mw-label">Datum</span>
+            <div class="mw-dlg-meta__value">@Claw_Treatment.TreatmentDate.ToString("dd.MM.yyyy")</div>
+        </div>
+    </Meta>
+    <ChildContent>
+        <ClawSummary Treatment="Claw_Treatment" FallbackFinding="@Settings.ClawFindingFallback"
+                     FindingName="ClawFindingService.GetNameById" />
+    </ChildContent>
+    <Footer>
+        <button type="button" class="mw-btn mw-btn--plain mw-btn--wide" @onclick="Close">
+            Schließen
+        </button>
+        <button type="button" class="mw-btn mw-btn--primary mw-btn--wide" @onclick="Edit">
+            <MeadowIcon Name="MeadowIconName.Edit" Size="16" />
+            <span>Bearbeiten</span>
+        </button>
+    </Footer>
+</MeadowDialog>
+
+@code {
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public ClawTreatment Claw_Treatment { get; set; } = new();
+
+    private string Collar
+    {
+        get
+        {
+            var collar = cowService.GetCollarNumberByCowId(Claw_Treatment.EarTagNumber);
+            return collar == int.MinValue ? "–" : collar.ToString();
+        }
+    }
+
+    private string EarTag => cowService.GetEarTagDisplay(Claw_Treatment.EarTagNumber);
+
+    private void Close() => MudDialog.Cancel();
+
+    /// <summary>
+    /// Gibt die Behandlung an den Aufrufer zurueck, damit er den
+    /// Bearbeiten-Dialog oeffnet. So bleibt der Dialog-Stapel flach.
+    /// </summary>
+    private void Edit() => MudDialog.Close(DialogResult.Ok(Claw_Treatment));
+}

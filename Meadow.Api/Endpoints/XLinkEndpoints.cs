@@ -1,4 +1,4 @@
-using Meadow.Api.Components.Services;
+using Meadow.Api.BackgroundServices;
 using Meadow.Api.Infrastructure;
 using Meadow.Shared.Services;
 
@@ -25,7 +25,7 @@ public static class XLinkEndpoints
         // Deshalb hier auch kein BumpsOnWrite: zum Zeitpunkt dieser Antwort
         // hat sich an der Kuh-Tabelle noch nichts geaendert. Den Zaehler
         // erhoeht XLinkRunner, wenn der Lauf durch ist.
-        api.MapPost("/xlink/refresh", (XLinkRunner runner, DemoSettings demo) =>
+        api.MapPost("/xlink/refresh", (XLinkRunner runner, DemoOptions demo) =>
         {
             // 403 im Demo-Modus, und zwar bevor irgendetwas startet.
             //
@@ -73,7 +73,7 @@ public static class XLinkEndpoints
         // sagen lastSyncUtc = null und running = false zusammen genommen sonst
         // faelschlich "aktiv, nur noch nie gelaufen" - denselben Fehlschluss
         // faengt DatabaseInfoDialog.razor heute mit derselben Abfrage ab.
-        api.MapGet("/xlink/status", (IXLinkService xLink, XLinkRunner runner, DemoSettings demo) =>
+        api.MapGet("/xlink/status", (IXLinkService xLink, XLinkRunner runner, DemoOptions demo) =>
             Results.Ok(new
             {
                 lastSyncUtc = xLink.LastSyncUtc,
