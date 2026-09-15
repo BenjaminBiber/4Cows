@@ -1,0 +1,56 @@
+@using Meadow.Client.Components.Ui
+
+@inject ISnackbar Snackbar
+@inject ICowTreatmentService CowTreatmentService
+
+<MeadowDialog Title="Jahr wählen" Size="MeadowDialogSize.Info">
+    <ChildContent>
+        <div class="mw-yearpicker">
+            <MudDatePicker FixDay="1" FixMonth="1" OpenTo="OpenTo.Year"
+                           PickerVariant="PickerVariant.Static" Elevation="0"
+                           @bind-Date="_inputDate" />
+        </div>
+    </ChildContent>
+    <Footer>
+        <button type="button" class="mw-btn mw-btn--plain mw-btn--wide" @onclick="Cancel">
+            Abbrechen
+        </button>
+        <button type="button" class="mw-btn mw-btn--primary mw-btn--wide" @onclick="Accept">
+            Übernehmen
+        </button>
+    </Footer>
+</MeadowDialog>
+
+@code {
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public int Year { get; set; } = DateTime.Now.Year;
+
+    private DateTime? _inputDate;
+
+    protected override void OnInitialized()
+    {
+        // Der Parameter wurde bisher nie zur Vorauswahl genutzt - der Picker
+        // stand immer leer, obwohl der Aufrufer das aktive Jahr kennt.
+        _inputDate = new DateTime(Year, 1, 1);
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void Accept()
+    {
+        if (!_inputDate.HasValue)
+        {
+            Snackbar.Add("Bitte ein Jahr wählen.", Severity.Error);
+            return;
+        }
+
+        if (CowTreatmentService.GetMinYear() > _inputDate.Value.Year)
+        {
+            Snackbar.Add("Keine Behandlungen für das Jahr vorhanden", Severity.Error);
+            return;
+        }
+
+        MudDialog.Close(DialogResult.Ok(_inputDate.Value.Year));
+    }
+}

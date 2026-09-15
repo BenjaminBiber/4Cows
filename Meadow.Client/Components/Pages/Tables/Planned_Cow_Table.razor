@@ -1,0 +1,464 @@
+@page "/geplante_Kuh_Daten"
+@implements IDisposable
+
+@using Meadow.Client.Components.Cows.Dialogs
+@using Meadow.Client.Components.Ui
+@using Meadow.Client.Components.Services
+@using Meadow.Shared.Kpi
+
+@inject IDialogService DialogService
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+@inject MeadowDataLoader Data
+@inject MeadowDialogLauncher Launcher
+@inject MeadowDataChanges Changes
+@inject IPCowTreatmentService pCowTreatmentService
+@inject IMedicineService medicineService
+@inject ICowService cowService
+@inject IWhereHowService WhereHowService
+@inject IUdderService UdderService
+@inject ITreatmentReasonService TreatmentReasonService
+@inject ISettingsService SettingsService
+
+@* Dieselbe Filterleiste wie Cow_Table/Claw_Table - bisher hatte diese Seite
+   nur ein Suchfeld. Der Zeitraum zeigt hier in die ZUKUNFT: geplante
+   Behandlungen sind absichtlich vordatiert, "letzte 30 Tage" wuerde alles
+   wegfiltern. Siehe PlannedDateRanges. *@
+<MeadowToolbar>
+    <Left>
+        <MeadowSearchBox Value="@_filter.Search" ValueChanged="OnSearchChanged"
+                         AriaLabel="Geplante Kuh Behandlungen durchsuchen" />
+        @if (_filter.HasAny)
+        {
+            <span class="mw-result-count mw-only-desktop">@CountText</span>
+        }
+    </Left>
+    <Right>
+        <MeadowFilterPopover Open="_filterOpen" ShowReset="@(_filter.ActiveCount > 0)"
+                             CountText="@($"{CountText} Behandlungen")"
+                             OnClose="CloseFilter" OnReset="ResetFilter">
+            <Trigger>
+                <MeadowFilterButton ActiveCount="_filter.ActiveCount" Open="_filterOpen"
+                                    OnClick="ToggleFilter" />
+            </Trigger>
+            <ChildContent>
+                <MeadowMultiSelect Label="Medikament" Options="MedicineOptions"
+                                   Selected="_filter.Medicines"
+                                   SelectionChanged="Apply" />
+                <MeadowMultiSelect Label="Grund" Options="ReasonOptions"
+                                   Selected="_filter.Reasons"
+                                   SelectionChanged="Apply" />
+                <MeadowSingleSelect Label="Gefunden" Options="FlagStates.FoundLabels"
+                                    Value="@_filter.Found"
+                                    ValueChanged="OnFoundChanged" />
+                <MeadowSingleSelect Label="Behandelt" Options="FlagStates.TreatedLabels"
+                                    Value="@_filter.Treated"
+                                    ValueChanged="OnTreatedChanged" />
+                <MeadowSingleSelect Label="Zeitraum" Options="PlannedDateRanges.Labels"
+                                    Value="@PlannedDateRanges.ToLabel(_filter.Range)"
+                                    ValueChanged="OnRangeChanged" />
+            </ChildContent>
+        </MeadowFilterPopover>
+
+        <button type="button" class="mw-btn mw-btn--primary mw-only-desktop" @onclick="Plan">
+            <MeadowIcon Name="MeadowIconName.Plus" Size="20" />
+            <span>Planen</span>
+        </button>
+    </Right>
+</MeadowToolbar>
+
+<MeadowTable TItem="PlannedCowTreatment" Items="_rows" Columns="_columns"
+             IsLoading="@(!_loaded)"
+             RowKey="@(r => r.PlannedCowTreatmentId)"
+             DefaultSortTitle="Geplant für"
+             PagerLabel="Behandlungen pro Seite"
+             MoreLabel="Weitere Behandlungen laden"
+             EmptyText="Keine geplanten Behandlungen gefunden.">
+    <EmptyContent>
+        @if (_filter.HasAny)
+        {
+            <button type="button" class="mw-empty__reset" @onclick="ClearAll">
+                Suche und Filter zurücksetzen
+            </button>
+        }
+    </EmptyContent>
+    <MobileCard Context="row">
+        <div class="mw-row-card">
+            <div class="mw-row-card__top">
+                @* Nur der Titel ist der Link, nicht die ganze Karte: darunter
+                   stehen Aktionsknoepfe, und ein Knopf in einem Link ist
+                   ungueltiges Markup. *@
+                <a class="mw-row-card__title mw-cell-link"
+                   href="@MeadowRoutes.CowDetailFor(row.EarTagNumber)">Nr. @Collar(row)</a>
+                <span class="mw-pill">@Medicine(row)</span>
+            </div>
+            <div class="mw-row-card__meta">
+                <span>@row.AdministrationDate.ToString("dd.MM.yyyy")</span>
+                <span>@WhereHow(row)</span>
+                <span>@DosageWithUnit(row)</span>
+                @* Ohne Grund entfaellt die Angabe ganz, statt ein "–" in die
+                   ohnehin knappe Meta-Zeile zu setzen. *@
+                @if (row.TreatmentReasonId is not null)
+                {
+                    <span>@Reason(row)</span>
+                }
+            </div>
+            <div class="mw-row-card__actions">
+                <button type="button" class="mw-btn mw-btn--sm mw-btn--primary"
+                        @onclick="() => Complete(row)">Abschließen</button>
+                <button type="button" class="mw-btn mw-btn--sm mw-btn--ghost"
+                        @onclick="() => Remove(row)">Entfernen</button>
+            </div>
+        </div>
+    </MobileCard>
+</MeadowTable>
+
+@code {
+    private List<PlannedCowTreatment> _all = new();
+    private List<PlannedCowTreatment> _rows = new();
+    private List<MeadowColumn<PlannedCowTreatment>> _columns = new();
+
+    private readonly PlannedCowTableFilter _filter = new();
+    private bool _filterOpen;
+
+    /// <summary>Noch keine Daten - siehe MeadowTable.IsLoading.</summary>
+
+    private bool _loaded;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Data.EnsurePlannedCowAsync();
+        _loaded = true;
+        // Eine KPI-Kachel verlinkt mit ihren Filtern im Query-String hierher.
+        KpiDrillDown.ApplyTo(_filter, Nav);
+        Reload();
+
+        Changes.Changed += OnDataChanged;
+    }
+
+    public void Dispose() => Changes.Changed -= OnDataChanged;
+
+    private void OnDataChanged(MeadowDataKind kind)
+    {
+        if (kind != MeadowDataKind.PlannedCowTreatment)
+        {
+            return;
+        }
+
+        // Die Meldung kommt aus dem Dialog-Aufrufer, nicht aus dem
+        // Renderpfad dieser Seite - deshalb InvokeAsync.
+        _ = InvokeAsync(async () =>
+        {
+            await ReloadAsync();
+            StateHasChanged();
+        });
+    }
+
+    private async Task ReloadAsync()
+    {
+        await pCowTreatmentService.GetAllDataAsync();
+        Reload();
+    }
+
+    private void Reload()
+    {
+        _all = pCowTreatmentService.Treatments.Values.ToList();
+        _columns = BuildColumns();
+        Apply();
+    }
+
+    private List<MeadowColumn<PlannedCowTreatment>> BuildColumns()
+    {
+        var columns = new List<MeadowColumn<PlannedCowTreatment>>
+        {
+            new()
+            {
+                Title = "Halsband",
+                Text = Collar,
+                SortBy = r => CollarSortKey(r),
+                Style = MeadowCellStyle.Bold,
+                // Die Zelle verlinkt auf die Kuh-Seite - siehe Cow_Table.
+                Template = row =>@<a class="mw-cell-link"
+                                     href="@MeadowRoutes.CowDetailFor(row.EarTagNumber)">@Collar(row)</a>
+            },
+            new()
+            {
+                Title = "Ohrmarke",
+                Text = EarTag,
+                SortBy = EarTag,
+                Style = MeadowCellStyle.Mono
+            }
+        };
+
+        columns.Add(new MeadowColumn<PlannedCowTreatment>
+        {
+            Title = "Geplant für",
+            Text = r => r.AdministrationDate.ToString("dd.MM.yyyy"),
+            SortBy = r => r.AdministrationDate,
+            NoWrap = true
+        });
+
+        columns.Add(new MeadowColumn<PlannedCowTreatment>
+        {
+            Title = "Medikament",
+            Text = Medicine,
+            SortBy = Medicine,
+            Template = row => @<span class="mw-pill">@Medicine(row)</span>
+        });
+
+        // Statt der gezeichneten Spalte "Notiz": Planned_Cow_Treatment hat
+        // kein Beschreibungsfeld, also die vorhandenen Angaben.
+        columns.Add(new MeadowColumn<PlannedCowTreatment>
+        {
+            Title = "Wie / Wo",
+            Text = WhereHow,
+            SortBy = WhereHow
+        });
+
+        columns.Add(new MeadowColumn<PlannedCowTreatment>
+        {
+            Title = "Menge",
+            Text = DosageWithUnit,
+            SortBy = r => r.MedicineDosage,
+            NoWrap = true
+        });
+
+        columns.Add(new MeadowColumn<PlannedCowTreatment>
+        {
+            Title = "Grund",
+            Text = Reason,
+            SortBy = Reason
+        });
+
+        // Der bisherige Kopf "Behandelt" hatte keine zugehoerige Zelle -
+        // Kopf- und Zellenzahl liefen dadurch auseinander.
+        columns.Add(new MeadowColumn<PlannedCowTreatment>
+        {
+            IsActions = true,
+            Template = row =>
+                @<text>
+                    <button type="button" class="mw-btn mw-btn--sm mw-btn--primary"
+                            @onclick="() => Complete(row)">Behandlung abschließen</button>
+                    <MeadowIconButton Icon="MeadowIconName.Trash" Title="Behandlung entfernen"
+                                      Danger="true" OnClick="() => Remove(row)" />
+                </text>
+        });
+
+        return columns;
+    }
+
+    // ---- Anzeige-Helfer -----------------------------------------------
+
+    private string Collar(PlannedCowTreatment r)
+    {
+        var collar = cowService.GetCollarNumberByCowId(r.EarTagNumber);
+        return collar == int.MinValue ? "–" : collar.ToString();
+    }
+
+    private int CollarSortKey(PlannedCowTreatment r)
+    {
+        var collar = cowService.GetCollarNumberByCowId(r.EarTagNumber);
+        return collar == int.MinValue ? int.MaxValue : collar;
+    }
+
+    private string EarTag(PlannedCowTreatment r) => cowService.GetEarTagDisplay(r.EarTagNumber);
+
+    private string Medicine(PlannedCowTreatment r) => medicineService.GetMedicineNameById(r.MedicineId);
+
+    private string WhereHow(PlannedCowTreatment r)
+        => WhereHowService.GetFullWhereHowName(r.WhereHowId, UdderService, r.UdderId);
+
+    private string Dosage(PlannedCowTreatment r) => r.MedicineDosage.ToString("0.##");
+
+    // Die Einheit steht am Medikament (Medicine.Dosage_Unit). Rueckfallwert
+    // ist der Standardwert aus AppSetting, damit Zeilen ohne hinterlegte
+    // Einheit unveraendert aussehen wie bisher.
+    private string DosageWithUnit(PlannedCowTreatment r)
+        => $"{Dosage(r)} {medicineService.GetDosageUnit(r.MedicineId, SettingsService.DefaultDosageUnit)}";
+
+    // Fuer Spalte und Karte: "–", wenn nichts gesetzt ist.
+    private string Reason(PlannedCowTreatment r) => TreatmentReasonService.GetNameById(r.TreatmentReasonId);
+
+    // Fuer Filter und Optionsliste: null, wenn nichts gesetzt ist. Siehe den
+    // gleichnamigen Helfer in Cow_Table.
+    private string? ReasonKey(PlannedCowTreatment r)
+        => r.TreatmentReasonId is int id
+           && TreatmentReasonService.Reasons.TryGetValue(id, out var reason)
+            ? reason.TreatmentReasonName
+            : null;
+
+    private string CountText => $"{_rows.Count} von {_all.Count}";
+
+    // ---- Filter -------------------------------------------------------
+
+    /// <summary>
+    /// Nur die tatsaechlich vorkommenden Medikamente - nicht GetMedicineNames(),
+    /// das automatisch angelegte und nie benutzte Namen enthaelt. Gleiche Regel
+    /// wie in Cow_Table.
+    /// </summary>
+    private IReadOnlyList<string> MedicineOptions => _all
+        .Select(r => medicineService.GetMedicineNameById(r.MedicineId))
+        .Where(n => !string.IsNullOrEmpty(n) && n != "--")
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(n => n, StringComparer.CurrentCulture)
+        .ToList();
+
+    /// <summary>Vorkommende Gruende plus ggf. "Ohne Grund" - wie in Cow_Table.</summary>
+    private IReadOnlyList<string> ReasonOptions => ReasonFilter.Options(_all.Select(ReasonKey));
+
+    private void Apply()
+    {
+        IEnumerable<PlannedCowTreatment> query = _all;
+
+        var search = _filter.Search.Trim();
+        if (search.Length > 0)
+        {
+            query = query.Where(r =>
+                Collar(r).Contains(search, StringComparison.OrdinalIgnoreCase)
+                || EarTag(r).Contains(search, StringComparison.OrdinalIgnoreCase)
+                || Medicine(r).Contains(search, StringComparison.OrdinalIgnoreCase)
+                || WhereHow(r).Contains(search, StringComparison.OrdinalIgnoreCase));
+        }
+
+        // Leere Auswahl = kein Filter, ODER innerhalb der Gruppe.
+        if (_filter.Medicines.Count > 0)
+        {
+            query = query.Where(r => _filter.Medicines.Contains(Medicine(r)));
+        }
+
+        // Getrennte Gruppen, also UND: "gefunden, aber noch nicht behandelt".
+        query = query
+            .Where(r => ReasonFilter.Matches(_filter.Reasons, ReasonKey(r)))
+            .Where(r => FlagStates.Matches(_filter.Found, r.IsFound, KpiFlags.Found))
+            .Where(r => FlagStates.Matches(_filter.Treated, r.IsTreatet, KpiFlags.Treated))
+            .Where(r => PlannedDateRanges.Matches(_filter.Range, r.AdministrationDate));
+
+        _rows = query.ToList();
+    }
+
+    private void OnSearchChanged(string value)
+    {
+        _filter.Search = value;
+        Apply();
+    }
+
+    private void OnFoundChanged(string value)
+    {
+        _filter.Found = value;
+        Apply();
+    }
+
+    private void OnTreatedChanged(string value)
+    {
+        _filter.Treated = value;
+        Apply();
+    }
+
+    private void OnRangeChanged(string label)
+    {
+        _filter.Range = PlannedDateRanges.Parse(label);
+        Apply();
+    }
+
+    private void ToggleFilter() => _filterOpen = !_filterOpen;
+
+    private void CloseFilter() => _filterOpen = false;
+
+    private void ResetFilter()
+    {
+        _filter.Reset();
+        Apply();
+    }
+
+    /// <summary>Aus dem Leerzustand heraus: hier gehoert der Suchtext mit weg.</summary>
+    private void ClearAll()
+    {
+        _filter.Reset();
+        _filter.Search = "";
+        Apply();
+    }
+
+    // ---- Aktionen -----------------------------------------------------
+
+    // Derselbe Weg wie FAB, Add-Menue und Dashboard: der Launcher meldet das
+    // Speichern, OnDataChanged laedt nach.
+    private Task Plan() => Launcher.OpenPlannedCowTreatmentAsync();
+
+    private async Task Complete(PlannedCowTreatment planned)
+    {
+        if (!await Confirm(
+                "Speichern",
+                "Wollen Sie die Behandlung wirklich speichern?",
+                "Ja", Color.Success))
+        {
+            return;
+        }
+
+        var treatment = new CowTreatment
+        {
+            EarTagNumber = planned.EarTagNumber,
+            AdministrationDate = planned.AdministrationDate,
+            MedicineDosage = planned.MedicineDosage,
+            MedicineId = planned.MedicineId,
+            WhereHowId = planned.WhereHowId,
+            UdderId = planned.UdderId,
+            TreatmentReasonId = planned.TreatmentReasonId
+        };
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var parameters = new DialogParameters<Add_Cow_Treatment_Dialog>
+        {
+            { x => x.Cow_Treatment, treatment }
+        };
+
+        var dialog = await DialogService.ShowAsync<Add_Cow_Treatment_Dialog>(
+            string.Empty, parameters, options);
+        var result = await dialog.Result;
+
+        // Bisher wurde der geplante Eintrag geloescht, sobald der Dialog
+        // geoeffnet war - auch wenn der Nutzer dort abbrach. Damit war die
+        // Planung weg, ohne dass eine Behandlung entstand.
+        if (result is null || result.Canceled)
+        {
+            Snackbar.Add("Abgebrochen — die Planung bleibt bestehen.", Severity.Warning);
+            return;
+        }
+
+        await pCowTreatmentService.RemoveByIDAsync(planned.PlannedCowTreatmentId);
+        Snackbar.Add("Behandlung abgeschlossen.", Severity.Success);
+        Reload();
+    }
+
+    private async Task Remove(PlannedCowTreatment planned)
+    {
+        if (!await Confirm(
+                "Löschen",
+                "Wollen Sie die geplante Behandlung wirklich löschen?",
+                "Löschen", Color.Error))
+        {
+            return;
+        }
+
+        await pCowTreatmentService.RemoveByIDAsync(planned.PlannedCowTreatmentId);
+        Snackbar.Add("Geplante Behandlung gelöscht.", Severity.Success);
+        Reload();
+    }
+
+    private async Task<bool> Confirm(string header, string description, string accept, Color scheme)
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, NoHeader = true };
+        var parameters = new DialogParameters<GenericDialog>
+        {
+            { x => x.HeaderText, header },
+            { x => x.Description, description },
+            { x => x.AcceptButtonText, accept },
+            { x => x.CancelButtonText, "Abbrechen" },
+            { x => x.ColorScheme, scheme }
+        };
+
+        var dialog = await DialogService.ShowAsync<GenericDialog>(string.Empty, parameters, options);
+        var result = await dialog.Result;
+        return result is not null && !result.Canceled;
+    }
+}

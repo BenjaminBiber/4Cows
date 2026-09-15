@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <base href="/" />
+
+    <title>Meadow</title>
+
+    <!--
+        Theme-Boot. Unveraendert aus App.razor uebernommen, aber unter
+        WebAssembly noch wichtiger als vorher: es gibt kein Prerendering mehr,
+        der Splash weiter unten ist das Erste, was der Nutzer sieht, und der
+        muss schon die richtige Farbe haben. Muss synchron und VOR jedem
+        Stylesheet laufen.
+
+        document.documentElement gibt es hier bereits, document.body nicht -
+        deshalb sitzt das Attribut auf <html>.
+
+        Ohne gespeicherte Wahl greift die bisherige Uhrzeit-Regel (ab 19:00
+        dunkel) als Erst-Default. localStorage kann im privaten Modus schon
+        beim Lesen werfen, daher try/catch.
+    -->
+    <script>
+        (function () {
+            try {
+                var s = localStorage.getItem('mw-theme');
+                if (s !== 'dark' && s !== 'light') {
+                    s = (new Date().getHours() >= 19) ? 'dark' : 'light';
+                }
+                document.documentElement.setAttribute('data-mw-theme', s);
+            } catch (e) {
+                document.documentElement.setAttribute('data-mw-theme', 'light');
+            }
+        })();
+    </script>
+
+    <link rel="stylesheet" href="css/meadow-tokens.css" />
+    <link rel="stylesheet" href="css/meadow-base.css" />
+    <link rel="stylesheet" href="css/meadow-components.css" />
+
+    <!--
+        meadow-landing.css hing in App.razor an @if (Demo.Enabled). Eine
+        statische Datei kann das nicht, und sie muss es auch nicht: mw-lp-*
+        kollidiert mit nichts, die Datei ist rund 28 KB, und App.razor hat die
+        CSS-Auswahl schon vorher bewusst NICHT an IsLanding gehaengt - beim
+        Zurueckspringen auf "/" wurde die Komponente nicht neu gerendert und
+        die Seite waere unformatiert geblieben.
+    -->
+    <link rel="stylesheet" href="css/meadow-landing.css" />
+
+    <!--
+        Reihenfolge ist tragend: MudBlazor zuerst, meadow-mud.css danach.
+        Nur deshalb kommt meadow-mud.css ohne ein einziges !important aus.
+    -->
+    <link rel="stylesheet" href="_content/MudBlazor/MudBlazor.min.css" />
+    <link rel="stylesheet" href="css/meadow-mud.css" />
+
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png" />
+    <link rel="icon" href="favicon.ico" />
+    <meta name="theme-color" content="#2C7DA0" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+</head>
+
+<body>
+    <!--
+        Der Splash. Unter Blazor Server kam die fertige Seite vom Server, hier
+        laedt der Browser erst mehrere MB Laufzeit. Ohne diesen Block saehe der
+        Nutzer so lange eine weisse Flaeche.
+
+        Er traegt die Theme-Farben aus meadow-tokens.css, also faerbt ihn das
+        Skript oben mit, und Blazor ersetzt den gesamten Inhalt von #app,
+        sobald die erste Komponente rendert - kein Aufraeumen noetig.
+    -->
+    <div id="app">
+        <div class="mw-splash">
+            <img src="LOGO.png" alt="" width="72" height="72" />
+            <p>Meadow wird geladen&nbsp;&hellip;</p>
+        </div>
+    </div>
+
+    <!--
+        blazor.web.js schaltete dieses Feld ueber die id um. Unter WebAssembly
+        heisst die Datei anders und die Klasse ist "blazor-error-boundary",
+        aber die id bleibt: meadow-base.css stylt sie, und ein Circuit-Abbruch
+        kann hier ohnehin nicht mehr auftreten - genau das ist der Zweck des
+        Umbaus.
+    -->
+    <div id="blazor-error-ui">
+        Ein unerwarteter Fehler ist aufgetreten.
+        <a href="" class="reload">Neu laden</a>
+        <a class="dismiss">🗙</a>
+    </div>
+
+    <script src="_framework/blazor.webassembly.js"></script>
+
+    <!--
+        Alle Skripte laden jetzt unbedingt. In App.razor hingen sie an
+        IsLanding, das ueber HttpContext.Request.Path entschied - beides gibt
+        es im Browser nicht. Die Landing-Page laedt damit MudBlazor, Chart.js
+        und Ace mit, die sie nicht braucht; aus dem Vorab-Cache des Service
+        Workers bleiben sie trotzdem draussen (siehe Phase 3).
+    -->
+    <script src="_content/MudBlazor/MudBlazor.min.js"></script>
+    <script src="js/meadow.js"></script>
+    <script src="js/download.js"></script>
+
+    <!--
+        Chart.js liegt lokal. Vorher stand hier cdn.jsdelivr.net/npm/chart.js
+        ohne Version - also bei jedem Laden die jeweils neueste, aus dem
+        Internet, auf einer Seite, die "laeuft im eigenen Betriebsnetz, ohne
+        Cloud" verspricht. Offline ist sie ohnehin nicht erreichbar.
+    -->
+    <script src="js/vendor/chart.umd.js"></script>
+    <script src="js/ChartHelper.js"></script>
+
+    <script src="_content/Blazor.AceEditorJs/BlazorAceEditor.min.js"></script>
+</body>
+
+</html>

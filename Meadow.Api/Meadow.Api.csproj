@@ -12,29 +12,20 @@
     </PropertyGroup>
     
     <ItemGroup>
-      <PackageReference Include="Blazor.AceEditorJs" Version="1.2.1" />
+      <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="8.0.27" />
       <PackageReference Include="EPPlus" Version="7.5.1" />
       <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.19.6" />
-      <PackageReference Include="MudBlazor" Version="7.15.0" />
       <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.6" />
       <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="8.0.2" />
     </ItemGroup>
 
     <ItemGroup>
-      <_ContentIncludedByDefault Remove="Components\Layout\MainLayout.razor" />
-      <_ContentIncludedByDefault Remove="Components\Pages\Error.razor" />
-      <_ContentIncludedByDefault Remove="Components\Pages\Home.razor" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <AdditionalFiles Include="Components\Layout\MainLayout.razor" />
-      <AdditionalFiles Include="Components\Pages\Error.cshtml" />
-      <AdditionalFiles Include="Components\Pages\Index.razor" />
-    </ItemGroup>
-
-    <ItemGroup>
       <ProjectReference Include="..\Meadow.Data\Meadow.Data.csproj" />
       <ProjectReference Include="..\Meadow.Shared\Meadow.Shared.csproj" />
+      <!-- Nur zum AUSLIEFERN: publish von Meadow.Api zieht die WebAssembly-Ausgabe
+           des Clients nach wwwroot. Kein einziger Typ aus Meadow.Client wird hier
+           verwendet, und es darf auch keiner werden - die Naht laeuft ueber HTTP. -->
+      <ProjectReference Include="..\Meadow.Client\Meadow.Client.csproj" />
     </ItemGroup>
 
     <ItemGroup>

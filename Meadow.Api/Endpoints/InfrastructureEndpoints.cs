@@ -1,5 +1,5 @@
 using System.Globalization;
-using Meadow.Api.Components.Services;
+using Meadow.Api.BackgroundServices;
 using Meadow.Api.Infrastructure;
 using Meadow.Data.Sql;
 using Meadow.Shared.Services;
@@ -77,7 +77,7 @@ public static class InfrastructureEndpoints
         // Dialog, fuer den die Antwort gedacht ist, zeigt ohnehin nur Server
         // und Datenbank an; ein Client, der die Datenbank direkt anspricht,
         // ist kein Fall, den es hier gibt.
-        api.MapGet("/system/info", (IConfiguration configuration, DemoSettings demo) =>
+        api.MapGet("/system/info", (IConfiguration configuration, DemoOptions demo) =>
             Results.Ok(new Dictionary<string, string>
             {
                 // Dieselben Rueckfallwerte wie in Program.cs.
@@ -92,7 +92,7 @@ public static class InfrastructureEndpoints
                 ["XLinkUrl"] = XLinkUrl(),
                 ["XLinkSyncIntervalHours"] = XLinkIntervalRaw(),
 
-                // Aus DemoSettings und nicht aus der Rohkonfiguration:
+                // Aus DemoOptions und nicht aus der Rohkonfiguration:
                 // Program.cs faellt bei einem unlesbaren Wert still auf false
                 // bzw. 3 zurueck, und der Client soll erfahren, was GILT.
                 ["Demo:Enabled"] = demo.Enabled ? "true" : "false",
@@ -110,7 +110,7 @@ public static class InfrastructureEndpoints
         // abholt und danach als Einstellungen behaelt.
         api.MapGet("/config", async (
             IConfiguration configuration,
-            DemoSettings demo,
+            DemoOptions demo,
             IDbContextFactory<DatabaseContext> factory) =>
         {
             bool connected;

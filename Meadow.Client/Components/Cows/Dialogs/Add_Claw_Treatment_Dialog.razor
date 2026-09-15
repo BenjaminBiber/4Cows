@@ -1,0 +1,191 @@
+@using Meadow.Client.Components.Ui
+
+@inject ISnackbar Snackbar
+@inject IClawTreatmentService clawTreatmentService
+@inject IClawFindingService clawFindingService
+@inject ICowService cowService
+
+@*
+    Aus vier if/else-Zweigen mit je drei duplizierten Eingaben (und dem
+    #Claw_Treatment_Modal-Sprite-Gitter) wird ein ClawSelector.
+*@
+<MeadowDialog Title="@Title" Size="MeadowDialogSize.Claw">
+    <ChildContent>
+        <div class="mw-field-row">
+            <div class="mw-col">
+                <label class="mw-label" for="mw-collar">Halsbandnummer</label>
+                <div class="mw-field">
+                    <MudNumericField T="int" InputId="mw-collar" Variant="Variant.Text"
+                                     HideSpinButtons="true" Immediate="true"
+                                     Value="@CollarNumber" ValueChanged="OnCollarChanged"
+                                     Placeholder="z.B. 142" />
+                </div>
+            </div>
+            <div class="mw-col mw-col--wide">
+                <label class="mw-label" for="mw-cow">Kuh / Kalb</label>
+                <div class="mw-field">
+                    <MudAutocomplete T="string" InputId="mw-cow" Variant="Variant.Text"
+                                     SearchFunc="cowService.SearchCows"
+                                     ToStringFunc="cowService.GetDisplayLabel"
+                                     ResetValueOnEmptyText="true" Immediate="true"
+                                     Value="@Claw_Treatment.EarTagNumber"
+                                     ValueChanged="OnCowChanged"
+                                     Placeholder="DE 08 1523 …" />
+                </div>
+            </div>
+        </div>
+
+        @* Eigene Zeile unter der Tierauswahl - wie in den beiden Kuh-Dialogen.
+           In der Dreierzeile blieb fuer den Picker so wenig Platz, dass die
+           Beschriftung ueber die Nachbarn hinauslief. *@
+        <div>
+            <span class="mw-label">Behandlungsdatum</span>
+            <div class="mw-field">
+                <MudDatePicker Label="Behandlungsdatum" Variant="Variant.Text" Editable="true"
+                               DateFormat="dd.MM.yyyy" @bind-Date="NullDate" />
+            </div>
+        </div>
+
+        <span class="mw-label mw-label--spaced">Klaue auswählen — tippe auf eine Position</span>
+
+        <ClawSelector Treatment="Claw_Treatment"
+                      Mode="ClawSelectorMode.Findings"
+                      Findings="clawFindingService.FindingNames"
+                      FindingDraft="_findingDraft"
+                      @bind-Selected="_selected"
+                      OnChanged="StateHasChanged" />
+    </ChildContent>
+    <Footer>
+        <button type="button" class="mw-btn mw-btn--plain mw-btn--wide" @onclick="Cancel">
+            Abbrechen
+        </button>
+        <button type="button" class="mw-btn mw-btn--primary mw-btn--wide" @onclick="Save">
+            @(IsEdit ? "Änderungen speichern" : "Speichern")
+        </button>
+    </Footer>
+</MeadowDialog>
+
+@code {
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public ClawTreatment Claw_Treatment { get; set; } = new();
+
+    private DateTime? NullDate;
+    private int CollarNumber;
+    private HoofPosition? _selected;
+
+    /// <summary>
+    /// Die eingetippten Befundnamen je Klaue. Die Entitaet traegt nur IDs;
+    /// aufgeloest wird erst in <see cref="Save"/>, damit ein Abbrechen keine
+    /// Zeile in Claw_Finding zuruecklaesst.
+    /// </summary>
+    private readonly Dictionary<HoofPosition, string> _findingDraft = new();
+
+    /// <summary>
+    /// Eine bestehende Behandlung wird geaendert, nicht angelegt. Moeglich,
+    /// seit ClawTreatmentService ein UpdateDataAsync hat - vorher haette
+    /// "Bearbeiten" jedes Speichern zu einer zweiten Behandlung gemacht.
+    /// </summary>
+    private bool IsEdit => Claw_Treatment.ClawTreatmentId != 0;
+
+    private string Title => IsEdit ? "Klauen Behandlung bearbeiten" : "Klauen Behandlung hinzufügen";
+
+    protected override void OnInitialized()
+    {
+        if (!string.IsNullOrEmpty(Claw_Treatment.EarTagNumber))
+        {
+            var collar = cowService.GetCollarNumberByCowId(Claw_Treatment.EarTagNumber);
+            CollarNumber = collar == int.MinValue ? 0 : collar;
+        }
+
+        NullDate = Claw_Treatment.TreatmentDate == default
+            ? DateTime.Today
+            : Claw_Treatment.TreatmentDate;
+
+        foreach (var position in HoofPositions.All)
+        {
+            _findingDraft[position] = clawFindingService.GetNameById(
+                Claw_Treatment.GetFindingId(position));
+        }
+    }
+
+    // Halsbandnummer und Kuh/Kalb befuellen sich gegenseitig - wie bisher.
+    private void OnCollarChanged(int value)
+    {
+        CollarNumber = value;
+        var cowId = cowService.GetCowIdByCollarNumber(value);
+        if (!string.IsNullOrEmpty(cowId))
+        {
+            Claw_Treatment.EarTagNumber = cowId;
+        }
+    }
+
+    private void OnCowChanged(string? cowId)
+    {
+        Claw_Treatment.EarTagNumber = cowId ?? string.Empty;
+        var collar = string.IsNullOrEmpty(cowId) ? 0 : cowService.GetCollarNumberByCowId(cowId);
+        CollarNumber = collar == int.MinValue ? 0 : collar;
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Save()
+    {
+        if (NullDate is null)
+        {
+            Snackbar.Add("Bitte ein Behandlungsdatum wählen.", Severity.Error);
+            return;
+        }
+
+        var cowId = cowService.GetCowIdByCollarNumber(CollarNumber);
+        if (string.IsNullOrEmpty(cowId))
+        {
+            Snackbar.Add($"Halsbandnummer {CollarNumber} nicht gefunden!", Severity.Error);
+            return;
+        }
+
+        // Erst ALLE vier Befunde aufloesen, dann erst schreiben: scheitert das
+        // Anlegen eines neuen Befunds, bricht der Dialog ab, BEVOR die
+        // Behandlung gespeichert ist. Dieselbe Reihenfolge wie beim Medikament
+        // und bei Wie/Wo im Kuhbehandlungs-Dialog.
+        //
+        // "Pflege" wird NICHT in unberuehrte Klauen geschrieben. Ein leerer
+        // Befund bleibt leer (die Spalte NULL); angezeigt wird der pflegbare
+        // Standardwert aus den Einstellungen.
+        var findingIds = new Dictionary<HoofPosition, int?>();
+        foreach (var position in HoofPositions.All)
+        {
+            _findingDraft.TryGetValue(position, out var name);
+            var id = await clawFindingService.GetIdByNameAsync(name);
+
+            if (id == ClawFinding.FailedId)
+            {
+                Snackbar.Add($"Befund „{name?.Trim()}\" konnte nicht angelegt werden.", Severity.Error);
+                return;
+            }
+
+            findingIds[position] = id;
+        }
+
+        Claw_Treatment.TreatmentDate = NullDate.Value;
+        Claw_Treatment.EarTagNumber = cowId;
+
+        foreach (var position in HoofPositions.All)
+        {
+            Claw_Treatment.SetFindingId(position, findingIds[position]);
+        }
+
+        var success = IsEdit
+            ? await clawTreatmentService.UpdateDataAsync(Claw_Treatment)
+            : await clawTreatmentService.InsertDataAsync(Claw_Treatment);
+
+        if (!success)
+        {
+            Snackbar.Add("Speichern fehlgeschlagen!", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add(IsEdit ? "Änderungen gespeichert." : "Speichern erfolgreich!", Severity.Success);
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+}
