@@ -60,6 +60,26 @@ public sealed record OutboxEntry
     /// <summary>Fuer Update und Delete, die eine Server-Id brauchen.</summary>
     public int? ServerId { get; init; }
 
+    /// <summary>
+    /// Verb und Adresse, so wie der Dienst sie gerufen haette.
+    ///
+    /// Eingebacken statt im Prozessor nachgebaut: "Verband entfernt" ist ein
+    /// PUT auf .../{id}/bandage-removed, der Stapel ein POST auf
+    /// .../bandages-removed, und das Loeschen ein DELETE auf .../{id}. Diese
+    /// Zuordnung ein zweites Mal aus EntityType und Operation abzuleiten hiesse,
+    /// sie an zwei Stellen richtig halten zu muessen.
+    ///
+    /// NULLABLE, und das ist kein Schoenheitsfehler: Eintraege, die vor dieser
+    /// Aenderung geschrieben wurden, haben die Felder nicht. Sie sind
+    /// ausnahmslos Inserts, und dafuer faellt der Prozessor auf POST plus
+    /// InsertRoute zurueck. Ein Landwirt mit einer wartenden Behandlung im
+    /// Telefon verliert sie durch das Update der App also nicht.
+    /// </summary>
+    public string? Method { get; init; }
+
+    /// <inheritdoc cref="Method"/>
+    public string? Route { get; init; }
+
     /// <summary>Der fertige Anfragerumpf, mit MeadowJson serialisiert.</summary>
     public string Payload { get; init; } = "";
 

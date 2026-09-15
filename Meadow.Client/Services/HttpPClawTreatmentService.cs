@@ -146,9 +146,29 @@ public class HttpPClawTreatmentService : HttpServiceBase, IPClawTreatmentService
             }
         }
 
-        var isSuccess = await WriteAsync(
-            () => DeleteAsync($"api/planned-claw-treatments/{id}"),
+        var route = $"api/planned-claw-treatments/{id}";
+
+        var outcome = await TryWriteAsync(
+            () => DeleteAsync(route),
             $"Failed to delete planned claw treatment {id}.");
+
+        // Ohne Leitung wird die Loeschung vorgemerkt, und die Zeile
+        // verschwindet SOFORT - online tut sie das auch.
+        if (outcome.IsOffline && _cachedTreatments.TryGetValue(id, out var gone))
+        {
+            if (!await _outbox.QueueWriteAsync(
+                    MeadowEntityType.PlannedClawTreatment, MeadowOperation.Delete, "DELETE",
+                    route, id, [gone.ClientId]))
+            {
+                return false;
+            }
+
+            _cachedTreatments = _cachedTreatments.Remove(id);
+            Logger.LogInformation("Loeschung von geplanter Klauenbehandlung {Id} wartet auf die Uebertragung.", id);
+            return true;
+        }
+
+        var isSuccess = outcome.Ok;
 
         if (isSuccess && _cachedTreatments.ContainsKey(id))
         {

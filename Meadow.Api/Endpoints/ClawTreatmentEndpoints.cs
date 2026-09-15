@@ -70,7 +70,9 @@ public static class ClawTreatmentEndpoints
             var ok = await svc.UpdateDataAsync(clawTreatment);
             return ok
                 ? Results.NoContent()
-                : EndpointCommon.WriteFailed($"Klauenbehandlung {treatmentId} konnte nicht geaendert werden.");
+                : await EndpointCommon.WriteFailedOrGoneAsync(
+                    () => svc.Treatments, treatmentId, svc.GetAllDataAsync, "Klauenbehandlung",
+                    $"Klauenbehandlung {treatmentId} konnte nicht geaendert werden.");
         }).BumpsOnWrite(DataScope.ClawTreatments).WithName("ClawTreatmentUpdate");
 
         // Eigene Route, weil der Verband kein Feld der Behandlung ist, das man
@@ -86,7 +88,9 @@ public static class ClawTreatmentEndpoints
             var ok = await svc.RemoveBandageAsync(treatmentId);
             return ok
                 ? Results.NoContent()
-                : EndpointCommon.WriteFailed($"Der Verband an Klauenbehandlung {treatmentId} liess sich nicht als entfernt vermerken.");
+                : await EndpointCommon.WriteFailedOrGoneAsync(
+                    () => svc.Treatments, treatmentId, svc.GetAllDataAsync, "Klauenbehandlung",
+                    $"Der Verband an Klauenbehandlung {treatmentId} liess sich nicht als entfernt vermerken.");
         }).BumpsOnWrite(DataScope.ClawTreatments).WithName("ClawTreatmentRemoveBandage");
 
         // Die Mengenvariante ist keine Schleife ueber die Route darueber: der

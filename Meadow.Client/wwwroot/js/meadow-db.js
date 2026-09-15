@@ -161,6 +161,29 @@
             return tx(name, 'readwrite', function (store) { store['delete'](key); });
         },
 
+        // Nimmt einer Zeile ihr Wartemerkmal, ohne sie zu ersetzen.
+        //
+        // Fuer Aenderung und Loeschung: die antworten mit 204 und schicken
+        // keine Zeile zurueck, mit der sich die wartende ueberschreiben liesse.
+        // Ohne das bliebe der Punkt stehen und behauptete "noch nicht
+        // uebertragen" fuer etwas, das laengst beim Server ist - eine
+        // Falschaussage, die erst der naechste Neuabruf beseitigt.
+        //
+        // Gelesen und geschrieben in EINER Transaktion: dazwischen koennte der
+        // Neuabruf dieselbe Zeile anfassen.
+        clearPending: function (name, key) {
+            return tx(name, 'readwrite', function (store) {
+                var read = store.get(key);
+                read.onsuccess = function () {
+                    var row = read.result;
+                    if (row && row[PENDING]) {
+                        delete row[PENDING];
+                        store.put(row);
+                    }
+                };
+            });
+        },
+
         // Ganze Tabelle ersetzen.
         //
         // keepPredicate ist aus JS eine Funktion; aus C# kommt die Zeichenkette
@@ -269,6 +292,16 @@
         watchConnectivity: function (ref) {
             window.addEventListener('online', function () {
                 ref.invokeMethodAsync('ConnectivitySignal', 'online');
+            });
+
+            // Der Gegenweg, und er ist nicht symmetrisch: beim online-Ereignis
+            // gibt es etwas zu TUN (senden), beim offline-Ereignis etwas zu
+            // ZEIGEN. Ohne diese Zeile erfaehrt die App vom Funkloch erst,
+            // wenn der Landwirt speichert und es fehlschlaegt - das Statusband
+            // meldete bis dahin "verbunden", waehrend er schon zwanzig Minuten
+            // ohne Netz im Stall steht.
+            window.addEventListener('offline', function () {
+                ref.invokeMethodAsync('ConnectivitySignal', 'offline');
             });
 
             // Das Tablet im Stall steht die meiste Zeit im Ruhezustand. Ein

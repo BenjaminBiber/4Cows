@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Text.Json;
 using Meadow.Shared.Lookups;
 using Meadow.Shared.Models;
 using Meadow.Shared.Services;
@@ -159,9 +160,39 @@ public class HttpClawTreatmentService : HttpServiceBase, IClawTreatmentService, 
 
     public async Task<bool> UpdateDataAsync(ClawTreatment clawTreatment)
     {
-        var isSuccess = await WriteAsync(
-            () => PutAsync($"api/claw-treatments/{clawTreatment.ClawTreatmentId}", clawTreatment),
+        var route = $"api/claw-treatments/{clawTreatment.ClawTreatmentId}";
+
+        var outcome = await TryWriteAsync(
+            () => PutAsync(route, clawTreatment),
             $"Failed to update claw treatment {clawTreatment.ClawTreatmentId}.");
+
+        if (outcome.IsOffline)
+        {
+            // Die Nutzlast wird JETZT serialisiert, mit dem Stand, den der
+            // Nutzer gerade gespeichert hat. Sie spaeter aus dem Cache zu
+            // holen hiesse, eine Aenderung von 17:00 mit dem Stand von 17:20
+            // hinauszuschicken.
+            var queued = await _outbox.QueueWriteAsync(
+                MeadowEntityType.ClawTreatment,
+                MeadowOperation.Update,
+                "PUT",
+                route,
+                clawTreatment.ClawTreatmentId,
+                [clawTreatment.ClientId],
+                JsonSerializer.Serialize(clawTreatment, Json),
+                rowToKeep: clawTreatment);
+
+            if (queued)
+            {
+                _cachedTreatments = _cachedTreatments.SetItem(clawTreatment.ClawTreatmentId, clawTreatment);
+                Logger.LogInformation(
+                    "Klauenbehandlung {Id} geaendert, wartet auf die Uebertragung.", clawTreatment.ClawTreatmentId);
+            }
+
+            return queued;
+        }
+
+        var isSuccess = outcome.Ok;
 
         if (isSuccess)
         {
@@ -186,9 +217,43 @@ public class HttpClawTreatmentService : HttpServiceBase, IClawTreatmentService, 
     /// </summary>
     public async Task<bool> RemoveBandageAsync(int id)
     {
-        var isSuccess = await WriteAsync(
-            () => PutAsync($"api/claw-treatments/{id}/bandage-removed"),
+        var route = $"api/claw-treatments/{id}/bandage-removed";
+
+        var outcome = await TryWriteAsync(
+            () => PutAsync(route),
             $"Failed to update bandage flag of claw treatment {id}.");
+
+        // Ohne Leitung wandert der Vorgang in die Outbox, statt als
+        // Fehlschlag zu enden. Der Verband ist im Stall abgenommen, ob die App
+        // gerade Netz hat oder nicht - und beim naechsten Mal wuerde der
+        // Landwirt ihn sonst ein zweites Mal suchen.
+        if (outcome.IsOffline && _cachedTreatments.TryGetValue(id, out var offline))
+        {
+            offline.IsBandageRemoved = true;
+
+            var queued = await _outbox.QueueWriteAsync(
+                MeadowEntityType.ClawTreatment,
+                MeadowOperation.Update,
+                "PUT",
+                route,
+                id,
+                [offline.ClientId],
+                rowToKeep: offline);
+
+            if (queued)
+            {
+                _cachedTreatments = _cachedTreatments.SetItem(id, offline);
+                Logger.LogInformation("Verband von Klauenbehandlung {Id} wartet auf die Uebertragung.", id);
+                return true;
+            }
+
+            // Nicht zwischengelagert - dann darf die Zeile auch nicht so
+            // aussehen, als sei sie erledigt.
+            offline.IsBandageRemoved = false;
+            return false;
+        }
+
+        var isSuccess = outcome.Ok;
 
         if (isSuccess && _cachedTreatments.ContainsKey(id))
         {
@@ -220,9 +285,21 @@ public class HttpClawTreatmentService : HttpServiceBase, IClawTreatmentService, 
             return 0;
         }
 
-        var response = await ReadAsync<RemovedResponse>(
-            () => PostAsync("api/claw-treatments/bandages-removed", new BandageRemovalRequest(ids)),
+        var attempt = await TryPostAsync<RemovedResponse>(
+            "api/claw-treatments/bandages-removed",
+            new BandageRemovalRequest(ids),
             $"Failed to update bandage flags of {ids.Count} claw treatments.");
+
+        // Ohne Leitung: derselbe EINE Aufruf wandert in die Outbox, mit
+        // derselben Id-Liste. Ihn in N Eintraege zu zerlegen braeche die Zusage
+        // des Endpunkts - er schreibt ein Update, und ein halb entfernter
+        // Stapel ist genau das, wogegen die Mengenvariante gebaut wurde.
+        if (attempt.IsOffline)
+        {
+            return await QueueBandageRemovalAsync(ids);
+        }
+
+        var response = attempt.Value;
 
         if (response is null)
         {
@@ -254,6 +331,67 @@ public class HttpClawTreatmentService : HttpServiceBase, IClawTreatmentService, 
     }
 
     /// <summary>
+    /// Die Mengenvariante ohne Leitung: EIN Outbox-Eintrag fuer den ganzen
+    /// Stapel, mit der Nutzlast, die auch hinausgegangen waere.
+    ///
+    /// Die ServerId des Eintrags ist die erste Id des Stapels. Sie steht dort
+    /// nur zur Anzeige - die Adresse traegt keine Id, die Ids stehen im Rumpf.
+    ///
+    /// Beruecksichtigt werden nur Zeilen, die der Cache kennt: fuer eine
+    /// unbekannte Id gaebe es keine ClientId, und ohne die weiss der
+    /// Zeilenpunkt nicht, welche Zeile er meint.
+    /// </summary>
+    private async Task<int> QueueBandageRemovalAsync(IReadOnlyCollection<int> ids)
+    {
+        var known = ids
+            .Where(id => _cachedTreatments.ContainsKey(id))
+            .Select(id => _cachedTreatments[id])
+            .ToList();
+
+        if (known.Count == 0)
+        {
+            return 0;
+        }
+
+        foreach (var treatment in known)
+        {
+            treatment.IsBandageRemoved = true;
+        }
+
+        var queued = await _outbox.QueueWriteAsync(
+            MeadowEntityType.ClawTreatment,
+            MeadowOperation.Update,
+            "POST",
+            "api/claw-treatments/bandages-removed",
+            known[0].ClawTreatmentId,
+            known.Select(t => t.ClientId).ToList(),
+            JsonSerializer.Serialize(new BandageRemovalRequest(known.Select(t => t.ClawTreatmentId).ToList()), Json));
+
+        if (!queued)
+        {
+            foreach (var treatment in known)
+            {
+                treatment.IsBandageRemoved = false;
+            }
+
+            return 0;
+        }
+
+        // Die wartenden Zeilen einzeln ablegen - QueueWriteAsync nimmt nur EINE
+        // Zeile entgegen, und hier sind es mehrere.
+        foreach (var treatment in known)
+        {
+            await _outbox.MarkRowPendingAsync(MeadowStores.ClawTreatment, treatment);
+        }
+
+        _cachedTreatments = _cachedTreatments.SetItems(
+            known.Select(t => new KeyValuePair<int, ClawTreatment>(t.ClawTreatmentId, t)));
+
+        Logger.LogInformation("{Count} Verbaende warten auf die Uebertragung.", known.Count);
+        return known.Count;
+    }
+
+    /// <summary>
     /// Loescht eine Klauenbehandlung. Gibt wie die EF-Fassung ein blankes Task
     /// zurueck und verschluckt jeden Fehlschlag in eine Protokollzeile.
     /// </summary>
@@ -275,9 +413,30 @@ public class HttpClawTreatmentService : HttpServiceBase, IClawTreatmentService, 
             }
         }
 
-        var isSuccess = await WriteAsync(
-            () => DeleteAsync($"api/claw-treatments/{id}"),
+        var route = $"api/claw-treatments/{id}";
+
+        var outcome = await TryWriteAsync(
+            () => DeleteAsync(route),
             $"Failed to delete claw treatment {id}.");
+
+        // Ohne Leitung wird die Loeschung vorgemerkt, und die Zeile
+        // verschwindet SOFORT - online tut sie das auch. Eine Zeile, die man
+        // geloescht hat und die trotzdem stehen bleibt, wuerde ein zweites Mal
+        // geloescht.
+        if (outcome.IsOffline && _cachedTreatments.TryGetValue(id, out var gone))
+        {
+            if (await _outbox.QueueWriteAsync(
+                    MeadowEntityType.ClawTreatment, MeadowOperation.Delete, "DELETE",
+                    route, id, [gone.ClientId]))
+            {
+                _cachedTreatments = _cachedTreatments.Remove(id);
+                Logger.LogInformation("Loeschung von Klauenbehandlung {Id} wartet auf die Uebertragung.", id);
+            }
+
+            return;
+        }
+
+        var isSuccess = outcome.Ok;
 
         if (isSuccess && _cachedTreatments.ContainsKey(id))
         {
