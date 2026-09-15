@@ -91,9 +91,18 @@ builder.Services.AddSingleton<XLinkRunner>();
 // Scraper sie nicht liefert - danach waere jede Kuh-Auswahl in jedem Dialog
 // leer. Und ein nicht erreichbarer XLink-Host (der Default ist eine
 // Hof-LAN-Adresse) faerbt die Zeile im Datenbank-Dialog rot.
+// Unbedingt registrieren, nicht nur im Demo-Betrieb. /api/config und
+// /api/xlink/refresh nehmen DemoOptions als Parameter; fehlt die
+// Registrierung, haelt Minimal API den Parameter fuer einen Anfragerumpf und
+// wirft "Body was inferred but the method does not allow inferred body
+// parameters" - und zwar bei JEDER Anfrage, auch bei / und /api/health, weil
+// die Endpunkt-Metadaten beim ersten Zugriff fuer die ganze Pipeline aufgebaut
+// werden. Stand vorher im if-Zweig und fiel deshalb nur im Nicht-Demo-Betrieb
+// auf, also genau dort, wo die Anwendung produktiv laeuft.
+builder.Services.AddSingleton(demoSettings);
+
 if (demoSettings.Enabled)
 {
-    builder.Services.AddSingleton(demoSettings);
     builder.Services.AddHostedService<DemoResetBackgroundService>();
 }
 else

@@ -118,6 +118,17 @@
     <script src="js/ChartHelper.js"></script>
 
     <script src="_content/Blazor.AceEditorJs/BlazorAceEditor.min.js"></script>
+
+    <!--
+        Ohne diese Zeile gibt es keinen Service Worker, also keinen Offline-Cache
+        und keine Installierbarkeit - und zwar ohne jede Fehlermeldung. Die
+        Projektvorlage bringt sie mit; diese index.html ist aus App.razor
+        abgeleitet, wo es nichts dergleichen gab.
+
+        Im Entwicklungsbuild zeigt service-worker.js bewusst auf eine leere
+        Datei - sonst laege bei jedem F5 eine alte App-Huelle im Cache.
+    -->
+    <script>navigator.serviceWorker.register('service-worker.js');</script>
 </body>
 
 </html>

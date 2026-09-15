@@ -4,12 +4,65 @@
 self.importScripts('./service-worker-assets.js');
 self.addEventListener('install', event => event.waitUntil(onInstall(event)));
 self.addEventListener('activate', event => event.waitUntil(onActivate(event)));
-self.addEventListener('fetch', event => event.respondWith(onFetch(event)));
+// Alles unter /api/ geht am Service Worker VORBEI: kein respondWith, also keine
+// Cache-Abfrage, kein Cache-Eintrag und kein index.html-Fallback. Der Cache
+// haelt ausschliesslich die App-Huelle; die Daten gehoeren der Anwendung.
+//
+// Zwei konkurrierende Caches waeren die Hauptquelle fuer "warum sehe ich alte
+// Daten" - einer im Service Worker, einer in der App, und keiner weiss vom
+// anderen.
+//
+// URL(...).pathname statt url.includes('/api/'): "includes" traefe auch
+// https://host/app?ziel=/api/x. toLowerCase(), weil die Routen dieser App
+// gemischt geschrieben sind (/Kuh_Daten).
+function isApiRequest(request) {
+    return new URL(request.url, self.location.origin)
+        .pathname.toLowerCase().startsWith('/api/');
+}
+
+self.addEventListener('fetch', event => {
+    if (isApiRequest(event.request)) { return; }
+    event.respondWith(onFetch(event));
+});
 
 const cacheNamePrefix = 'offline-cache-';
 const cacheName = `${cacheNamePrefix}${self.assetsManifest.version}`;
-const offlineAssetsInclude = [ /\.dll$/, /\.pdb$/, /\.wasm/, /\.html/, /\.js$/, /\.json$/, /\.css$/, /\.woff$/, /\.png$/, /\.jpe?g$/, /\.gif$/, /\.ico$/, /\.blat$/, /\.dat$/ ];
-const offlineAssetsExclude = [ /^service-worker\.js$/ ];
+const offlineAssetsInclude = [
+    /\.dll$/, /\.pdb$/, /\.wasm/, /\.html/, /\.js$/, /\.json$/, /\.css$/,
+    /\.woff$/,
+    // NEU. Die Vorlage hat nur /\.woff$/ - wegen des $ trifft das
+    // "barlow-400.woff2" NICHT. Ohne diese Zeile faellt die App offline auf
+    // eine Systemschrift zurueck, und weil online alles stimmt, faellt es beim
+    // Testen nie auf.
+    /\.woff2$/,
+    /\.png$/, /\.jpe?g$/, /\.gif$/, /\.ico$/, /\.blat$/, /\.dat$/
+];
+
+// Was NICHT vorab geladen wird. Ausgeliefert wird es weiterhin - es fehlt nur
+// im Offline-Cache, und online laedt es unveraendert nach.
+const offlineAssetsExclude = [
+    /^service-worker\.js$/,
+
+    // Die zwoelf Mockups der Landing-Page, 4,4 MB. Wer die App auf dem Telefon
+    // installiert hat, sieht diese Seite nie wieder.
+    /^images\/Mockups\//,
+    /^images\/hero\.jpg$/,
+
+    // Ace-Editor, 2,6 MB nach dem Trimmen, fuer ein Feld, das ausschliesslich
+    // im Kennzahl-Dialog vorkommt. Offline bleibt genau dieses eine Feld leer;
+    // Kennzahlen zu bearbeiten ist ohnehin Schreibtischarbeit und steht auf der
+    // Online-only-Liste.
+    /^_content\/Blazor\.AceEditorJs\//,
+
+    // Die Homescreen-Icons liest das BETRIEBSSYSTEM aus dem Manifest, beim
+    // Installieren, online. Die laufende App zeigt sie nirgends - im
+    // Offline-Cache waeren sie 177 KB fuer nichts.
+    /^icon-192.png$/, /^icon-512.png$/,
+
+    // Falls je ein Debug-Publish durchrutscht: ein Satz .pdb waere rund 3 MB.
+    /\.pdb$/, /\.map$/
+];
+
 
 // Replace with your base path if you are hosting on a subfolder. Ensure there is a trailing '/'.
 const base = "/";
