@@ -431,3 +431,46 @@ Fünf Abweichungen, jede beim Umsetzen belegt und nicht beim Lesen vermutet.
 
 `Udder` steht oben mit 6 Zeilen. Das stammt aus `information_schema.TABLE_ROWS`, und das ist bei
 InnoDB eine **Schätzung**. `SELECT COUNT(*)` sagt **7**. Die übrigen elf Zahlen stimmen.
+
+## Nachtrag 15.09.2026 (2) — was ein Prüflauf gegen den Auftrag gefunden hat
+
+Acht unabhängige Prüfer gegen die sechs Anforderungen und die acht Fallen, jeder Befund danach
+von einem Skeptiker zu widerlegen versucht: 22 Befunde, 18 hielten stand. Was davon wirklich
+etwas geändert hat:
+
+| # | Befund | Schwere |
+|---|---|---|
+| 18 | **Das Dockerfile war seit Commit 4519d9c nicht baubar.** Derselbe Commit hat es von 31 auf 17 Zeilen gekürzt — es endet mitten in einem Kommentar, ohne restore, publish, final-Stage oder ENTRYPOINT. Und genau dieser Commit schließt mit „verifiziert, nicht behauptet: das Image baut, läuft". Der Build lief damals wirklich; die Datei ist danach beim Bearbeiten verstümmelt worden, und gemeldet wurde trotzdem der Build | blocker |
+| 19 | **Keine Baukasten-Kennzahl ließ sich mehr anlegen.** `POST /api/kpis` rief `KpiScriptGuard.Reject` unbedingt auf; eine Baukasten-Kennzahl hat per Konstruktion kein Skript und wurde mit „Das Skript ist leer." abgelehnt. Die vier vorhandenen tragen ein Skript, weil der Seeder es mitschreibt — an den Kacheln war nichts zu sehen | blocker in der Wirkung |
+| 20 | Der Stapel „Verband entfernt" meldete Erfolg, auch wenn er **keine einzige Zeile** traf. Die Outbox wertet jede 200 als Erfolg und räumt ihren Eintrag weg | wichtig |
+| 21 | Änderung und Verbandsabnahme an einer **wartenden** Zeile gingen mit der vorläufigen, negativen Id hinaus und scheiterten nach dem Insert an einer 404 | wichtig |
+| 22 | **Falle 3 war halb entschärft**: die beiden XLink-Zeilen des Datenbank-Dialogs lasen weiter `Environment.GetEnvironmentVariable` — im Browser immer `null` | wichtig |
+| 23 | **Falle 8 war halb entschärft**: Demo-Reset und XLink-Sync schreiben, ohne zu bumpen. `BumpAll` hatte im ganzen Repo keinen Aufrufer | wichtig |
+
+### Falle 6 reproduziert nicht
+
+Der Entwurf behauptet, ohne `TrimmerRoots.xml` serialisiere `KpiDefinition` zu `{}`. **Gemessen:**
+`Meadow.Shared.wasm` ist mit und ohne die Datei byte-gleich groß (129301), und eine über den Dialog
+angelegte Kennzahl schreibt in beiden Fällen dieselbe vollständige Definition. `KpiDefinition` wird
+eben nicht nur über Reflexion angefasst — `KpiEvaluator`, `KpiSqlBuilder` und der Dialog lesen ihre
+Eigenschaften statisch, der Trimmer sieht das und behält alles.
+
+Der erste Messversuch war wertlos: der Publish hatte das bereits getrimmte Ergebnis aus `obj/`
+wiederverwendet, beide Ausgaben trugen denselben Zeitstempel. Erst nach `rm -rf obj bin` war es
+eine Messung. Die Datei bleibt trotzdem stehen — sie kostet gemessen null Byte.
+
+### Falle 5 ist schlimmer als beschrieben
+
+Der Entwurf erwartet ohne `BlazorIcuDataFileName` ein falsches Trennzeichen („1240 statt 1.240").
+Tatsächlich **startet die App gar nicht**: mit `navigator.language = "ja-JP"` lädt die Laufzeit
+`icudt_CJK.dat`, `de-DE` kommt darin nicht vor, und der Boot bricht mit
+`AggregateException … <BlazorWebAssemblyLoadAllGlobalizationData> in the application's project file`
+ab — die Seite bleibt im Splash. Mit der Zeile rendert dasselbe Gerät `5,7 ml`.
+
+### Was offen bleibt
+
+Der Excel-Export lässt eine **wartende** Zeile stillschweigend weg: die Tabelle sendet ihre
+vorläufige negative Id mit, der Endpunkt überspringt unbekannte Ids bewusst. Der Export liegt
+laut Entwurf außerhalb des Offline-Umfangs, und das Überspringen ist dort begründet — aber wer
+online exportiert, während noch etwas wartet, bekommt eine Datei mit einer Zeile weniger und
+keinen Hinweis darauf.
