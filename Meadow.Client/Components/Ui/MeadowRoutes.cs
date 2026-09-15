@@ -34,12 +34,6 @@ public static class MeadowRoutes
     /// </summary>
     public const string Dashboard = "app";
 
-    /// <summary>
-    /// Absoluter Pfad zum Dashboard - fuer Kontexte OHNE das
-    /// &lt;base href="/"&gt; aus App.razor, also Error.cshtml.
-    /// </summary>
-    public const string DashboardPath = "/" + Dashboard;
-
     public const string CowTreatments = "Kuh_Daten";
     public const string PlannedCowTreatments = "geplante_Kuh_Daten";
     public const string Bandages = "Verband_Daten";

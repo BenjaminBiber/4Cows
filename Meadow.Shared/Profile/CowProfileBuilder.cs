@@ -8,7 +8,7 @@ namespace Meadow.Shared.Profile;
 ///
 /// Statisch, ohne DI, ohne EF, ohne async - wie KpiEvaluator. Das ist kein
 /// Stilentscheid: Meadow.Data.Tests referenziert nur diese Bibliothek,
-/// alles was in 4Cows-FE liegt waere nicht testbar. Und der Stichtag ist ein
+/// alles was in Meadow.Client liegt waere nicht testbar. Und der Stichtag ist ein
 /// Parameter statt DateTime.Today im Rumpf, damit Tests eine feste Gegenwart
 /// setzen koennen (siehe KpiTestData.Now).
 /// </summary>

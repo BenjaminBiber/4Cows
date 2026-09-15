@@ -1,7 +1,7 @@
 // Meadow — Theme-Persistenz und Chart-Bruecke.
 
 // Das data-mw-theme-Attribut setzt schon das Inline-Skript im <head> von
-// App.razor, damit der erste Paint das richtige Theme hat. Hier steht nur,
+// index.html, damit der erste Paint das richtige Theme hat. Hier steht nur,
 // was Blazor zur Laufzeit braucht.
 window.meadowTheme = {
     get: function () {

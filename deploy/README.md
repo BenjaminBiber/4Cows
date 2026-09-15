@@ -72,9 +72,10 @@ docker compose logs caddy | grep -i "certificate obtained"
 
 ## Was bewusst nicht konfiguriert ist
 
-`UseHttpsRedirection` und `UseHsts` in der Anwendung sind entfernt: TLS endet in
-Caddy, der Container spricht intern nur `http:8080`, und eine Umleitung haette
-dort keinen Zielport. HSTS setzt das Caddyfile.
+`UseHttpsRedirection` und `UseHsts` stehen weiterhin in Program.cs, wirken in
+diesem Aufbau aber nicht: TLS endet in Caddy, der Container spricht intern nur
+`http:8080` und bekommt nie eine als https markierte Anfrage zu sehen. HSTS
+setzt deshalb das Caddyfile, nicht `UseHsts`.
 
 `Kpi__AllowScriptValidation` steht auf der Vorgabe `false`. Der Endpunkt fuehrt
 SQL aus dem Anfragerumpf aus, und die Anwendung hat keine Authentifizierung.

@@ -5,12 +5,21 @@
 @*
     Die 404-Seite als echte Route.
 
-    Der <NotFound>-Zweig in Routes.razor allein genuegt NICHT: er greift nur
-    bei App-interner Navigation. Eine getippte oder verlinkte Adresse laeuft
-    gegen die Server-Endpunkte von MapRazorComponents, findet keinen Treffer
-    und lieferte einen nackten 404 mit leerem Body (nachgeprueft: bodyLen 0).
-    Program.cs leitet solche Antworten per UseStatusCodePagesWithReExecute
-    hierher.
+    Bis zum Umbau auf WebAssembly war das noetig: der <NotFound>-Zweig in
+    Routes.razor griff nur bei App-interner Navigation, eine getippte oder
+    verlinkte Adresse lief gegen die Server-Endpunkte von MapRazorComponents,
+    fand keinen Treffer und lieferte einen nackten 404 mit leerem Body
+    (nachgeprueft: bodyLen 0). Program.cs leitete solche Antworten per
+    UseStatusCodePagesWithReExecute hierher um.
+
+    Beides gibt es nicht mehr (siehe Program.cs, ~Zeile 145):
+    UseStatusCodePagesWithReExecute ist ersatzlos weg, und
+    app.MapFallbackToFile("index.html") liefert heute jede unbekannte,
+    nicht-API-Adresse mit Status 200 aus - der Browser bekommt so immer die
+    volle App, und der <NotFound>-Zweig in Routes.razor deckt seither beide
+    Faelle ab, App-interne Navigation wie eine getippte Adresse. Diese eigene
+    Route bleibt trotzdem bestehen: eine stabile, verlinkbare Adresse fuer
+    denselben Inhalt.
 
     KEINE Catch-all-Route ("/{*pfad}") - das war der erste Versuch und hat
     jede statische Datei mitgerissen: /css/*.css kam mit

@@ -19,7 +19,8 @@
 
 <PageTitle>Meadow · Klauen- und Tiergesundheit dokumentieren</PageTitle>
 
-@* Der HeadOutlet dafuer steht bereits in App.razor. *@
+@* Der HeadOutlet dafuer wird in Meadow.Client/Program.cs registriert
+   (builder.RootComponents.Add<HeadOutlet>). *@
 <HeadContent>
     <meta name="description"
           content="Meadow erfasst und plant Klauen- und Tierbehandlungen im Rinderbestand. Läuft im eigenen Betriebsnetz, ohne Cloud. Live-Demo mit Beispieldaten, ohne Anmeldung." />
@@ -79,13 +80,19 @@
                    mit der mittleren Maustaste in einem neuen Tab oeffenbar, und die
                    Zurueck-Taste fuehrt danach hierher.
 
-                   target="_top" ist hier keine Kosmetik, sondern Bedingung fuer die
-                   Skript-Auswahl in App.razor: blazor.web.js faengt einen Klick nur
-                   ab, wenn target fehlt oder "_self" ist. Ohne das Attribut wuerde
-                   der interaktive Router in den Circuit navigieren, App.razor nicht
-                   neu rendern - und das Dashboard stuende ohne MudBlazor und Chart.js
-                   da. "_top" ist in einem ungeframten Dokument dasselbe Fenster: kein
-                   neuer Tab, keine Screenreader-Ansage. *@
+                   target="_top" ist hier keine Kosmetik, sondern erzwingt einen
+                   echten Dokumentwechsel. Der urspruengliche Grund - App.razor lud
+                   MudBlazor und Chart.js auf der Landing-Page bedingt nicht mit, ein
+                   abgefangener Klick haette das Dashboard ohne beide dastehen lassen
+                   - gilt seit dem Umzug auf WebAssembly nicht mehr: index.html bindet
+                   alle Skripte unbedingt ein, die Landing-Page traegt sie also
+                   ohnehin schon mit. Der volle Dokumentwechsel bleibt trotzdem
+                   sinnvoll: LandingLayout kommt bewusst ohne MudBlazor-Provider aus,
+                   die das Dashboard braucht - ein clientseitiger Wechsel ohne Reload
+                   muesste sie nachtraeglich in dieselbe laufende Instanz haengen,
+                   statt dass die App sie beim naechsten Boot regulaer aufbaut. "_top"
+                   ist in einem ungeframten Dokument dasselbe Fenster: kein neuer Tab,
+                   keine Screenreader-Ansage. *@
                 <a class="mw-btn mw-btn--primary mw-btn--wide" target="_top"
                    href="@MeadowRoutes.Dashboard">
                     Demo starten

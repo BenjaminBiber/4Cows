@@ -1,10 +1,13 @@
 /* ============================================================
-   Meadow — Landing (nur im Demo-Modus geladen)
+   Meadow — Landing (wird immer geladen)
 
    Eigene Datei statt eines Anhangs an meadow-components.css: dort
    entspricht jede Klasse einem st.*-Eintrag aus Meadow.dc.html, die
    Landing-Page hat im Prototyp keine Entsprechung. Verlinkt wird sie in
-   App.razor nur, wenn Demo:Enabled gesetzt ist.
+   index.html unbedingt, nicht nur wenn Demo:Enabled gesetzt ist: eine
+   statische Datei kann das nicht bedingt tun, und sie muss es auch nicht -
+   mw-lp-* kollidiert mit nichts, und die Datei ist mit rund 28 KB klein
+   genug, dass ein ungenutztes Laden auf der Dashboard-Seite nicht auffaellt.
 
    Praefix mw-lp-, damit nichts mit den Shell-Klassen kollidiert.
    Farben, Radien und Schriften AUSSCHLIESSLICH ueber die Tokens aus
