@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Meadow.Shared enthaelt Modelle, DTOs und reine Rechenlogik. Alles davon geht
+    als JSON ueber die Leitung, und zwar ueber Reflexion: ReadFromJsonAsync und
+    PostAsJsonAsync schauen sich die Eigenschaften zur Laufzeit an. Der Trimmer
+    sieht diese Zugriffe nicht und darf die Eigenschaften deshalb entfernen.
+
+    Was dann passiert, ist KEIN Fehler, sondern ein leeres Objekt.
+    KpiDefinition.Serialize liefert "{}", die Spalte Definition wird NULL, und
+    Deserialize gibt danach jede Eigenschaft auf ihrem Standardwert zurueck -
+    Source = CowTreatment, Measure = Count, Timeframe = All. Jede
+    Builder-Kennzahl waere damit "zaehle alle Kuhbehandlungen", und alle zeigten
+    dieselbe Zahl. Keine Ausnahme, kein Logeintrag.
+
+    Die GANZE Assembly bleibt erhalten, nicht einzelne Typen: eine Typliste ist
+    die Datei, die beim naechsten DTO jemand vergisst. Kostet rund 150 KB -
+    der Preis fuer eine Fehlerklasse, die sich nicht anmeldet.
+-->
+<linker>
+  <assembly fullname="Meadow.Shared" preserve="all" />
+</linker>

@@ -34,4 +34,40 @@
       </Content>
     </ItemGroup>
 
+
+  <!--
+    Blazor.AceEditorJs liefert 473 Dateien mit 15,9 MB aus: 191 Sprachmodi
+    (8,3 MB), 11 Syntaxpruefer (5,7 MB, worker-xquery.js allein 3,4 MB), 48
+    Themes und 4 Tastaturlayouts.
+
+    Benutzt werden davon DREI. KPIDialog setzt AceLanguage.sqlserver und, je
+    nach Design, AceTheme.sqlserver oder AceTheme.nord_dark - fuer ein
+    Eingabefeld, das in genau einem Dialog vorkommt.
+
+    Ohne dieses Target liegen die 15,9 MB im Image UND in
+    service-worker-assets.js, und der Service Worker versucht beim Installieren
+    jede einzelne davon zu holen. Bei einem Ziel im einstelligen MB-Bereich ist
+    das allein schon das Doppelte.
+
+    Die ext-*-Dateien bleiben (0,6 MB): ace.js laedt sie bei Bedarf nach, und
+    welche davon der Editor anfasst, haengt an seiner Konfiguration. Wer eine
+    weitere Sprache braucht, traegt sie hier ein - sonst laedt Ace das Modul
+    zur Laufzeit und bekommt eine 404.
+  -->
+  <Target Name="TrimAceAssets" BeforeTargets="GenerateComputedPublishStaticWebAssets;GenerateComputedBuildStaticWebAssets">
+    <ItemGroup>
+      <StaticWebAsset Remove="@(StaticWebAsset)" Condition="
+        $([System.String]::Copy('%(StaticWebAsset.RelativePath)').Contains('ace/'))
+        and (
+          $([System.String]::Copy('%(StaticWebAsset.RelativePath)').Contains('mode-'))
+          or $([System.String]::Copy('%(StaticWebAsset.RelativePath)').Contains('theme-'))
+          or $([System.String]::Copy('%(StaticWebAsset.RelativePath)').Contains('worker-'))
+          or $([System.String]::Copy('%(StaticWebAsset.RelativePath)').Contains('keybinding-'))
+        )
+        and !$([System.String]::Copy('%(StaticWebAsset.RelativePath)').EndsWith('mode-sqlserver.js'))
+        and !$([System.String]::Copy('%(StaticWebAsset.RelativePath)').EndsWith('theme-sqlserver.js'))
+        and !$([System.String]::Copy('%(StaticWebAsset.RelativePath)').EndsWith('theme-nord_dark.js'))" />
+    </ItemGroup>
+  </Target>
+
 </Project>
