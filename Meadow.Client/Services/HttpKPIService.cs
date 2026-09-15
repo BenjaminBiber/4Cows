@@ -1,0 +1,290 @@
+using System.Collections.Immutable;
+using System.Net.Http.Json;
+using Meadow.Shared.Kpi;
+using Meadow.Shared.Models;
+using Meadow.Shared.Services;
+using Microsoft.Extensions.Logging;
+
+namespace Meadow.Client.Services;
+
+/// <summary>
+/// Die Kennzahlen ueber HTTP. Gegenstueck zum EF-Dienst KPIService.
+///
+/// GetKPIValueAsync(DatabaseContext, KPI, bool) hat hier kein Gegenstueck und
+/// steht auch nicht auf der Naht: sie nimmt einen DatabaseContext, weil sie
+/// sich eine Verbindung ueber alle SQL-Kennzahlen eines Dashboards teilt. Die
+/// Ersparnis, um die es dabei ging, loest <see cref="GetDashboardAsync"/> hier
+/// von innen - siehe dort.
+/// </summary>
+public class HttpKPIService : HttpServiceBase, IKPIService
+{
+    private ImmutableDictionary<int, KPI> _cachedKPIs = ImmutableDictionary<int, KPI>.Empty;
+
+    /// <summary>
+    /// Baut die Zeilen einer Datenquelle aus den Caches der neun anderen
+    /// Dienste. Kommt ueber den Konstruktor herein, genau wie in der
+    /// EF-Fassung - der Typ liegt in Meadow.Shared und haengt an keiner
+    /// Datenbank.
+    /// </summary>
+    private readonly KpiRowProvider _rowProvider;
+
+    public ImmutableDictionary<int, KPI> KPIs => _cachedKPIs;
+
+    public HttpKPIService(
+        KpiRowProvider rowProvider,
+        HttpClient http,
+        DatabaseStatusService databaseStatusService,
+        ILogger<HttpKPIService> logger)
+        : base(http, databaseStatusService, logger)
+    {
+        _rowProvider = rowProvider;
+    }
+
+    public async Task GetAllDataAsync()
+    {
+        var kpis = await GetListAsync<KPI>("api/kpis", "Failed to load KPIs.");
+        if (kpis is null)
+        {
+            return;
+        }
+
+        _cachedKPIs = kpis.ToImmutableDictionary(k => k.KPIId);
+        Logger.LogInformation("Loaded {Count} KPIs.", _cachedKPIs.Count);
+    }
+
+    /// <summary>
+    /// Legt eine Kennzahl an und traegt die erzeugte Id in die UEBERGEBENE
+    /// Instanz nach - serverseitig tut EF genau das.
+    /// </summary>
+    public async Task<bool> InsertDataAsync(KPI KPI)
+    {
+        var created = await CreateAsync("api/kpis", KPI, $"Failed to insert KPI {KPI.Title}.");
+        if (created is null)
+        {
+            return false;
+        }
+
+        KPI.KPIId = created.KPIId;
+
+        // SetItem statt Add, und kein Neuladen: gespiegelt aus der EF-Fassung.
+        _cachedKPIs = _cachedKPIs.SetItem(KPI.KPIId, KPI);
+        Logger.LogInformation("Inserted KPI {Title}.", KPI.Title);
+        return true;
+    }
+
+    /// <summary>
+    /// Der Wert EINER gespeicherten Kennzahl, gerechnet vom Server.
+    ///
+    /// Der Anfragerumpf ist leer: das Skript kommt aus der Datenbankzeile, nie
+    /// aus der Anfrage. Der Skript-Guard (KpiScriptGuard) laeuft deshalb dort
+    /// und wird hier NICHT noch einmal nachgebaut - eine zweite Fassung
+    /// derselben Regel waere die naechste, die auseinanderlaeuft.
+    ///
+    /// "--" ist der dokumentierte Fehlwert und heisst "leeres Ergebnis ODER
+    /// Fehler"; die beiden lassen sich auf diesem Weg nicht unterscheiden.
+    /// Derselbe Wert wie in der EF-Fassung.
+    ///
+    /// <paramref name="throwError"/> deckt hier NUR den Aufruf ab: einen
+    /// Netzfehler, eine unbekannte Kennzahl, eine Fehlerantwort. Ein
+    /// gescheitertes SKRIPT kommt weiterhin als "--" an, weil der Endpunkt
+    /// throwError nicht weiterreicht - er ruft GetKPIValue ohne das Kennzeichen
+    /// auf und reicht das Ergebnis unveraendert durch.
+    /// </summary>
+    public async Task<string> GetKPIValue(KPI kpi, bool throwError = false)
+    {
+        // Bewusst aufgeteilt, wie in der EF-Fassung: das erste try deckt nur
+        // ab, dass die Anfrage ueberhaupt hinausgeht. Eine ANTWORT mit
+        // Fehlercode ist etwas anderes als eine tote Leitung - SendAsync hat
+        // den Zustand dafuer schon richtig gemeldet, und ein pauschales
+        // ReportFailure im catch machte aus einer 404 faelschlich einen
+        // Verbindungsabbruch.
+        HttpResponseMessage response;
+        try
+        {
+            response = await PostAsync($"api/kpi/{kpi.KPIId}/value");
+        }
+        catch (Exception ex)
+        {
+            // Von Hand gemeldet, weil diese Methode als einzige nicht durch
+            // GuardAsync laufen kann: sie muss die Ausnahme auf Wunsch
+            // weiterreichen, und GuardAsync schluckt jede.
+            ReportFailure();
+
+            if (throwError)
+            {
+                throw;
+            }
+
+            Logger.LogError(ex, "Failed to reach the KPI endpoint for {KPIId}.", kpi.KPIId);
+            return "--";
+        }
+
+        using (response)
+        {
+            if (!response.IsSuccessStatusCode)
+            {
+                var detail = await response.Content.ReadAsStringAsync();
+                var message =
+                    $"Die Kennzahl {kpi.KPIId} konnte nicht berechnet werden (HTTP {(int)response.StatusCode}). {detail}";
+
+                Logger.LogError("{Message}", message);
+
+                if (throwError)
+                {
+                    throw new InvalidOperationException(message);
+                }
+
+                return "--";
+            }
+
+            try
+            {
+                var value = await response.Content.ReadFromJsonAsync<KpiValueResponse>(Json);
+                return value?.Value ?? "--";
+            }
+            catch (Exception ex)
+            {
+                ReportFailure();
+
+                if (throwError)
+                {
+                    throw;
+                }
+
+                Logger.LogError(ex, "Error while getting KPI-Value for {KPIId}.", kpi.KPIId);
+                return "--";
+            }
+        }
+    }
+
+    /// <summary>
+    /// Alles, was das Dashboard braucht, in EINEM Durchlauf.
+    ///
+    /// Die Schleife ist dieselbe wie in KPIService.GetDashboardAsync, nur dass
+    /// der SQL-Zweig ein HTTP-Aufruf ist statt eines SqlQueryRaw auf einem
+    /// geteilten Context.
+    ///
+    /// /api/kpi/dashboard wird bewusst NICHT benutzt. Es gaebe dieselben
+    /// Kacheln zurueck, kostete aber pro Builder-Kennzahl einen Netzaufruf -
+    /// und wirfe damit genau die Eigenschaft weg, fuer die diese Klasse gebaut
+    /// wurde: eine deklarative Kennzahl kostet nichts, weil sie aus Caches
+    /// gerechnet wird, die ohnehin im Speicher liegen. Nur handgeschriebenes
+    /// SQL muss ueber die Leitung.
+    /// </summary>
+    public async Task<IReadOnlyList<KpiTileModel>> GetDashboardAsync(bool addButtonKPI = true)
+    {
+        await GetAllDataAsync();
+
+        var tiles = new List<KpiTileModel>();
+
+        // Zeilen werden einmal je Datenquelle gebaut, nicht einmal je Kennzahl:
+        // fuenf Kennzahlen ueber Kuhbehandlungen teilen sich eine Projektion.
+        var rowsBySource = new Dictionary<KpiSourceId, IReadOnlyList<KpiRow>>();
+
+        foreach (var kpi in KPIs.Values.OrderBy(x => x.SortOrder))
+        {
+            if (kpi.IsBuilder)
+            {
+                tiles.Add(new KpiTileModel { Kpi = kpi, Result = EvaluateBuilder(kpi, rowsBySource) });
+                continue;
+            }
+
+            var value = await GetKPIValue(kpi);
+
+            tiles.Add(new KpiTileModel
+            {
+                Kpi = kpi,
+                // Ein Altskript liefert eine nackte Zeichenkette, Ok und Error
+                // sind hier also nicht zu unterscheiden - genau diesen
+                // Unterschied kauft der deklarative Weg.
+                Result = new KpiResult
+                {
+                    State = value == "--" ? KpiResultState.Empty : KpiResultState.Ok,
+                    Display = value
+                }
+            });
+        }
+
+        if (tiles.Count < 8 && addButtonKPI)
+        {
+            tiles.Add(KpiTileModel.AddTile());
+        }
+
+        return tiles;
+    }
+
+    public async Task<bool> UpdateDataAsync(KPI KPI)
+    {
+        var isSuccess = await WriteAsync(
+            () => PutAsync($"api/kpis/{KPI.KPIId}", KPI),
+            $"Failed to update KPI {KPI.KPIId}.");
+
+        if (isSuccess)
+        {
+            await GetAllDataAsync();
+            Logger.LogInformation("Updated KPI {Title}.", KPI.Title);
+        }
+
+        return isSuccess;
+    }
+
+    public async Task<bool> DeleteDataAsync(int kpiId)
+    {
+        var isSuccess = await WriteAsync(
+            () => DeleteAsync($"api/kpis/{kpiId}"),
+            $"Failed to delete KPI {kpiId}.");
+
+        if (isSuccess)
+        {
+            await GetAllDataAsync();
+            Logger.LogInformation("Deleted KPI with ID {KPIId}.", kpiId);
+        }
+
+        return isSuccess;
+    }
+
+    /// <summary>
+    /// Wertet eine deklarative Kennzahl aus und benutzt dafuer die schon
+    /// gebaute Zeilenmenge ihrer Quelle. Gespiegelt aus
+    /// KPIService.EvaluateBuilder.
+    ///
+    /// Es gibt bewusst KEINEN Rueckfall auf <see cref="KPI.Script"/>, wenn die
+    /// Definition unbrauchbar ist: das fuehrte eine Abfrage aus, die der Autor
+    /// abgeschaltet glaubte. Ein sichtbarer Fehler ist die ehrliche Antwort.
+    /// </summary>
+    private KpiResult EvaluateBuilder(KPI kpi, Dictionary<KpiSourceId, IReadOnlyList<KpiRow>> rowsBySource)
+    {
+        var definition = KpiDefinition.Deserialize(kpi.Definition);
+        if (definition is null)
+        {
+            return Failed(kpi, "Die Definition dieser KPI ist unlesbar.");
+        }
+
+        var source = KpiSourceRegistry.Find(definition.Source);
+        if (source is null)
+        {
+            return Failed(kpi, $"Unbekannte Datenquelle: {definition.Source}.");
+        }
+
+        if (!rowsBySource.TryGetValue(definition.Source, out var rows))
+        {
+            rows = _rowProvider.Rows(definition.Source);
+            rowsBySource[definition.Source] = rows;
+        }
+
+        var result = KpiEvaluator.Evaluate(definition, source, rows, DateTime.Now);
+
+        if (result.State == KpiResultState.Error)
+        {
+            Logger.LogError("KPI '{Title}' could not be evaluated: {Message}", kpi.Title, result.Message);
+        }
+
+        return result;
+    }
+
+    private KpiResult Failed(KPI kpi, string message)
+    {
+        Logger.LogError("KPI '{Title}': {Message}", kpi.Title, message);
+        return KpiResult.Failed(message);
+    }
+}

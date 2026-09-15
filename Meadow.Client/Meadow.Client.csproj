@@ -1,0 +1,51 @@
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Meadow.Client</RootNamespace>
+
+    <ServiceWorkerAssetsManifest>service-worker-assets.js</ServiceWorkerAssetsManifest>
+
+    <!--
+      Die tragende Zeile fuer die Zahlenformatierung.
+
+      Ohne sie waehlt die Laufzeit den ICU-Scherben nach der GERAETESPRACHE, und
+      zwar im Boot, bevor eine einzige Zeile C# laeuft - die Kultur in Program.cs
+      kann daran nichts mehr aendern. Ein japanisches Telefon bekaeme
+      icudt_CJK.dat, in dem de-DE gar nicht vorkommt; new CultureInfo("de-DE")
+      faellt dann still auf invariant zurueck und zeigt 1240 statt 1.240.
+
+      EFIGS enthaelt en, fr, es, it und de-DE und ist der kleinste Scherben, der
+      das tut. InvariantGlobalization waere hier ausdruecklich falsch: invariant
+      formatiert 1240 als "1,240", waehrend KpiSqlBuilder fest 'de_DE' schreibt
+      und "1.240" erzeugt - dieselbe Zahl, zwei Schreibweisen nebeneinander auf
+      dem Dashboard.
+    -->
+    <BlazorIcuDataFileName>icudt_EFIGS.dat</BlazorIcuDataFileName>
+    <InvariantGlobalization>false</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="8.0.27" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="8.0.27" PrivateAssets="all" />
+    <PackageReference Include="MudBlazor" Version="7.15.0" />
+    <PackageReference Include="Blazor.AceEditorJs" Version="1.2.1" />
+  </ItemGroup>
+
+  <!--
+    Ausdruecklich NICHT referenziert: EPPlus, Microsoft.EntityFrameworkCore,
+    Pomelo, Meadow.Data. Taucht eines davon hier auf, ist der Build falsch -
+    EPPlus zieht System.Drawing.Common nach, und das wirft auf browser-wasm zur
+    LAUFZEIT, nicht beim Uebersetzen.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\Meadow.Shared\Meadow.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ServiceWorker Include="wwwroot\service-worker.js" PublishedContent="wwwroot\service-worker.published.js" />
+  </ItemGroup>
+
+</Project>
