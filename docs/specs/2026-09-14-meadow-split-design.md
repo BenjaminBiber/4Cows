@@ -1,7 +1,8 @@
 > **Status:** Entwurfsvorlage für den Umbau, angenommen am 14.09.2026.
 > Der Abnahmemaßstab ist der Auftrag, nicht dieses Dokument.
-> **Zwölf Stellen dieses Entwurfs sind gegen die Codebasis geprüft und falsch** —
-> sie stehen im [Nachtrag](#nachtrag-1409-2026--verifizierte-korrekturen) am Ende.
+> **Siebzehn Stellen dieses Entwurfs sind gegen die Codebasis geprüft und falsch** —
+> zwölf davon stehen im [Nachtrag](#nachtrag-1409-2026--verifizierte-korrekturen), fünf weitere im
+> Nachtrag vom 15.09.2026 ganz am Ende.
 > Lies den Nachtrag, bevor du einen Abschnitt umsetzt.
 
 # Split 4Cows in Meadow.Api + Meadow.Client (Blazor WASM, PWA, Offline-fähig)
@@ -413,3 +414,20 @@ Aufgenommen am 14.09.2026 auf `531ea37`, damit spätere Aussagen belegbar sind u
 | `dotnet build` Warnungen | 20 |
 | `git grep LicenseContext` | **0** — der Excel-Export kann heute nicht funktionieren |
 | Dev-DB Zeilen | Cow 40 · Cow_Treatment 121 · Claw_Treatment 80 · Planned_Cow 15 · Planned_Claw 15 · Medicine 6 · WhereHow 12 · Treatment_Reason 6 · Claw_Finding 7 · Udder 6 · KPI 7 · AppSetting 2 |
+
+## Nachtrag 15.09.2026 — was Phase 4 anders gemacht hat als dieser Entwurf
+
+Fünf Abweichungen, jede beim Umsetzen belegt und nicht beim Lesen vermutet.
+
+| # | Entwurf sagt | Tatsächlich | Warum |
+|---|---|---|---|
+| 13 | `MeadowOfflineGate` „wechselt die Bedeutung" zum Statusband | **Gelöscht**, `MeadowSyncBand` ist neu | Das Gate war `role="alertdialog" aria-modal="true"`. Diese Attribute zu einem `role="status"` umzubiegen, wäre kein Umstylen, sondern ein anderer Baustein mit demselben Namen — und der alte Name stünde dann für das Gegenteil dessen, was er tut |
+| 14 | Offline schreibbar sind die vier Behandlungstabellen | Bis zur Fehlersuche an Kriterium 3 kannte die Outbox **nur Inserts** | Verband abnehmen, ändern und löschen fielen ohne Netz ersatzlos aus — der Vorgang verschwand, die Outbox blieb leer. Nachgezogen: `Method`/`Route` am Eintrag, beide nullable, damit wartende Einträge aus der Vorfassung das App-Update überleben |
+| 15 | „Ziel weg → 404 → dauerhaft gescheitert" | Der Server antwortete **500** | Der Existenztest liest den Dienst-Cache. Wurde die Zeile woanders gelöscht, geht er durch, das Update trifft null Zeilen, der Dienst meldet `false`, und `WriteFailed` macht daraus eine 500. Für die Outbox heißt 5xx „später nochmal" — der Eintrag wäre ewig im Backoff gelaufen, unsichtbar. `WriteFailedOrGoneAsync` lädt jetzt neu und antwortet 404, wenn die Zeile fehlt |
+| 16 | (nicht erwähnt) | Die **fünf** Upsert-Aufrufe gingen immer über das Netz | Ohne Netz brach das Speichern ab, bevor die Outbox überhaupt gefragt wurde: der Dialog löst zuerst Medikament, Wie/Wo und Euterviertel auf. Beim Euter zusätzlich still falsch — `GetIDByBools` fällt auf `int.MinValue` zurück, und die Behandlung landete mit `-2147483648` in `COW_QUARTER_ID`, einem Wert, den keine der 121 Bestandszeilen hat |
+| 17 | (nicht erwähnt) | „Jetzt übertragen" respektierte den Backoff | Bis zu fünf Minuten sichtbar nichts. Der Backoff schützt einen Server vor einem Tablet im Funkloch; er ist nicht dazu da, jemanden warten zu lassen, der gerade sieht, dass wieder Netz da ist |
+
+### Korrektur der Basislinie
+
+`Udder` steht oben mit 6 Zeilen. Das stammt aus `information_schema.TABLE_ROWS`, und das ist bei
+InnoDB eine **Schätzung**. `SELECT COUNT(*)` sagt **7**. Die übrigen elf Zahlen stimmen.
