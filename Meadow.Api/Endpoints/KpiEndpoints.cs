@@ -37,7 +37,7 @@ public static class KpiEndpoints
             // laege sonst in der Datenbank und wartete darauf, dass jemand die
             // Kachel anschaut. Abgelehnt wird, was mehr als ein Statement ist,
             // nicht mit SELECT oder WITH beginnt, oder in eine Datei schreibt.
-            var rejection = KpiScriptGuard.Reject(kpi.Script);
+            var rejection = RejectScript(kpi);
             if (rejection is not null)
             {
                 return Results.ValidationProblem(new Dictionary<string, string[]>
@@ -59,7 +59,7 @@ public static class KpiEndpoints
                 return EndpointCommon.NotFound("Kennzahl", kpiId);
             }
 
-            var rejection = KpiScriptGuard.Reject(kpi.Script);
+            var rejection = RejectScript(kpi);
             if (rejection is not null)
             {
                 return Results.ValidationProblem(new Dictionary<string, string[]>
@@ -94,4 +94,17 @@ public static class KpiEndpoints
 
         return api;
     }
+
+    /// <summary>
+    /// Der Waechter beim SPEICHERN. Die Regel selbst steht in
+    /// KpiScriptGuard.RejectForKind, damit sie pruefbar ist und nicht zweimal
+    /// existiert - POST und PUT brauchen sie beide.
+    ///
+    /// Aufgefallen ist die fehlende Fallunterscheidung erst, als der Nachweis
+    /// zu Falle 6 eine Kennzahl wirklich ueber den Dialog angelegt hat. Die
+    /// vier vorhandenen Baukasten-Kennzahlen tragen ein Skript, weil der Seeder
+    /// es mitschreibt - an ihnen war nichts zu sehen.
+    /// </summary>
+    private static string? RejectScript(KPI kpi)
+        => KpiScriptGuard.RejectForKind((KpiKind)kpi.Kind, kpi.Script);
 }
