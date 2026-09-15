@@ -8,6 +8,7 @@
 @inject IUdderService UdderService
 @inject ITreatmentReasonService TreatmentReasonService
 @inject ISettingsService SettingsService
+@inject DatabaseConnectionState Connection
 
 <MeadowDialog Title="Kuh Behandlung hinzufügen" Size="MeadowDialogSize.Cow">
     <ChildContent>
@@ -240,7 +241,7 @@
         // irgendetwas geschrieben wird. Die Meldung kommt aus ResolveAsync
         // selbst, null heisst abbrechen.
         var medications = await MedicationRows.ResolveAsync(
-            _medications, medicineService, WhereHowService, UdderService, Snackbar);
+            _medications, medicineService, WhereHowService, UdderService, Connection, Snackbar);
 
         if (medications is null)
         {

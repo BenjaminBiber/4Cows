@@ -184,6 +184,15 @@ public class HttpTreatmentReasonService : HttpServiceBase, ITreatmentReasonServi
             return known.TreatmentReasonId;
         }
 
+        // Unbekannt - ab hier wuerde angelegt. Ohne Verbindung nicht; siehe
+        // HttpMedicineService.GetMedicineIdByName, es ist dieselbe Regel.
+        if (!IsConnected)
+        {
+            Logger.LogInformation(
+                "Behandlungsgrund {Name} ist unbekannt und ohne Verbindung nicht anzulegen.", trimmed);
+            return int.MinValue;
+        }
+
         var response = await ReadAsync<IdResponse>(
             () => PostAsync("api/treatment-reasons/by-name", new NameRequest(trimmed)),
             $"Failed to resolve treatment reason name {trimmed}.");

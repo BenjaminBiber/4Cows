@@ -100,6 +100,20 @@ public class HttpUdderService : HttpServiceBase, IUdderService
             return known.UdderId;
         }
 
+        // Eine Kombination, die der Cache nicht kennt - ab hier wuerde sie
+        // angelegt. Ohne Verbindung nicht; siehe
+        // HttpMedicineService.GetMedicineIdByName, es ist dieselbe Regel.
+        //
+        // Die haeufigen Faelle kosten das nichts: "keine Viertel" und die
+        // bereits benutzten Kombinationen stehen oben im Cache. Getroffen wird
+        // nur, wer ohne Netz eine bisher nie verwendete Viertel-Kombination
+        // waehlt - und der bekommt die Ablehnung aus ResolveAsync.
+        if (!IsConnected)
+        {
+            Logger.LogInformation("Unbekannte Viertel-Kombination, ohne Verbindung nicht anzulegen.");
+            return int.MinValue;
+        }
+
         var response = await ReadAsync<IdResponse>(
             () => PostAsync(
                 "api/udders/by-quarters",

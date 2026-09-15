@@ -194,6 +194,22 @@ public class HttpMedicineService : HttpServiceBase, IMedicineService
             return known.MedicineId;
         }
 
+        // Der Name ist unbekannt - ab hier WUERDE angelegt, denn genau das
+        // kauft CoerceValue am Feld. Ohne Verbindung darf das nicht passieren:
+        // die Behandlung haenge sonst an einem Medikament, das nur dieses
+        // Telefon kennt, und der Server koennte sie nie annehmen.
+        //
+        // int.MinValue ist derselbe Fehlwert wie bei einem fehlgeschlagenen
+        // Aufruf; abgefangen wird er in MedicationRows.ResolveAsync, wo auch
+        // die Meldung dazu steht.
+        if (!IsConnected)
+        {
+            Logger.LogInformation(
+                "Medikament {Name} ist unbekannt und ohne Verbindung nicht anzulegen.",
+                medicineName.Trim());
+            return int.MinValue;
+        }
+
         var response = await ReadAsync<IdResponse>(
             () => PostAsync("api/medicines/by-name", new NameRequest(medicineName.Trim())),
             $"Failed to resolve medicine name {medicineName}.");

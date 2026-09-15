@@ -1,3 +1,4 @@
+using Meadow.Client.Components.Services;
 using Meadow.Shared.Services;
 using Meadow.Shared.Models;
 using MudBlazor;
@@ -174,6 +175,29 @@ public static class MedicationRows
             : medicine!.DosageUnit!.Trim();
     }
 
+    /// <summary>
+    /// Die Meldung fuer den einen Fall, den der Nutzer im Stall durch Warten
+    /// loest: der Eintrag ist neu, und ohne Verbindung laesst er sich nicht
+    /// anlegen. <c>null</c> heisst "das ist es nicht" - dann bleibt die
+    /// bisherige Meldung Wort fuer Wort stehen.
+    ///
+    /// Die Unterscheidung ist noetig, weil die Dienste beide Faelle mit
+    /// demselben int.MinValue melden. "Medikament nicht gefunden!" waere ohne
+    /// Netz schlicht falsch: gefunden wurde nichts, weil nichts gesucht werden
+    /// konnte - und der Nutzer sucht daraufhin den Tippfehler statt das Netz.
+    /// </summary>
+    private static string? OfflineAblehnung(
+        DatabaseConnectionState connection, string was, string? name, string prefix)
+    {
+        if (connection.IsConnected)
+        {
+            return null;
+        }
+
+        return $"{prefix}„{name?.Trim()}\" ist neu. Ohne Verbindung lassen sich keine "
+               + $"{was}-Eintraege anlegen - bitte einen bestehenden waehlen.";
+    }
+
     private static Medicine? FindMedicine(string? medicineName, IMedicineService medicineService)
     {
         if (string.IsNullOrWhiteSpace(medicineName))
@@ -197,12 +221,19 @@ public static class MedicationRows
     /// harmlos: Stammdaten mit eigener Pflegeseite, keine Behandlungen. Was
     /// zaehlt, ist die Zusicherung dahinter - es entsteht keine halb
     /// gespeicherte Behandlungsserie.
+    ///
+    /// Ohne Verbindung legen die Dienste NICHTS an und liefern denselben
+    /// Fehlwert wie bei einem Fehlschlag. Deshalb kommt hier die Verbindung
+    /// dazu: nur mit ihr laesst sich "kenne ich nicht" von "kann ich gerade
+    /// nicht anlegen" unterscheiden, und nur das zweite ist etwas, das der
+    /// Nutzer im Stall durch Warten loest.
     /// </summary>
     public static async Task<List<ResolvedMedication>?> ResolveAsync(
         IReadOnlyList<MedicationEntry> rows,
         IMedicineService medicineService,
         IWhereHowService whereHowService,
         IUdderService udderService,
+        DatabaseConnectionState connection,
         ISnackbar snackbar)
     {
         if (rows.Count == 0)
@@ -250,7 +281,8 @@ public static class MedicationRows
             var medicineId = await medicineService.GetMedicineIdByName(row.MedicineName);
             if (medicineId == int.MinValue)
             {
-                snackbar.Add($"{prefix}Medikament nicht gefunden!", Severity.Error);
+                snackbar.Add(OfflineAblehnung(connection, "Medikament", row.MedicineName, prefix)
+                             ?? $"{prefix}Medikament nicht gefunden!", Severity.Error);
                 return null;
             }
 
@@ -259,7 +291,8 @@ public static class MedicationRows
 
             if (whereHowId == int.MinValue)
             {
-                snackbar.Add($"{prefix}Wie / Wo nicht gefunden!", Severity.Error);
+                snackbar.Add(OfflineAblehnung(connection, "Wie / Wo", row.WhereHowName, prefix)
+                             ?? $"{prefix}Wie / Wo nicht gefunden!", Severity.Error);
                 return null;
             }
 

@@ -164,6 +164,7 @@ public class HttpClawFindingService : HttpServiceBase, IClawFindingService
         {
             return null;
         }
+
         // Erst im eigenen Cache nachsehen, dann erst fragen.
         //
         // Online spart das eine Netzrunde. OFFLINE ist es der Unterschied
@@ -179,10 +180,19 @@ public class HttpClawFindingService : HttpServiceBase, IClawFindingService
         // "Baytril " und "baytril" auf den beiden Seiten verschieden ausgehen.
         var known = _cachedFindings.Values.FirstOrDefault(
             x => x.ClawFindingName != null
-                 && x.ClawFindingName.Trim().ToLower() == name.Trim().ToLower());
+                 && x.ClawFindingName.Trim().ToLower() == trimmed.ToLower());
         if (known is not null)
         {
             return known.ClawFindingId;
+        }
+
+        // Unbekannt - ab hier wuerde angelegt. Ohne Verbindung nicht; siehe
+        // HttpMedicineService.GetMedicineIdByName, es ist dieselbe Regel.
+        if (!IsConnected)
+        {
+            Logger.LogInformation(
+                "Klauenbefund {Name} ist unbekannt und ohne Verbindung nicht anzulegen.", trimmed);
+            return ClawFinding.FailedId;
         }
 
         var response = await ReadAsync<IdResponse>(
