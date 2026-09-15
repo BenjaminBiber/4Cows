@@ -1,0 +1,50 @@
+# ---------------------------------------------------------------------------
+# Meadow hinter Caddy.
+#
+# Zweck dieser Datei ist ein gueltiges Zertifikat auf Geraeten im Hofnetz -
+# nicht Erreichbarkeit von aussen. Ohne gueltiges Zertifikat registriert Chrome
+# keinen Service Worker; ohne Service Worker gibt es keine PWA und damit auch
+# kein Offline. Ein selbstsigniertes Zertifikat reicht dafuer NICHT.
+#
+# Deshalb DNS-01 statt HTTP-01: der Nachweis laeuft ueber einen TXT-Eintrag im
+# DNS, nicht ueber eine Anfrage von aussen. Es muss also kein einziger Port
+# nach aussen offen sein.
+# ---------------------------------------------------------------------------
+
+{
+	# Gebunden wird NICHT hier, sondern im ports-Abschnitt der compose-Datei:
+	# "192.168.50.10:443:443" laesst Docker ausschliesslich auf der LAN-Adresse
+	# lauschen. Caddy im Container an eine Host-Adresse zu binden ginge nur mit
+	# network_mode: host - und dann loest "meadow:8080" nicht mehr auf.
+	#
+	# Worauf man sich dabei verlaesst: POST /api/kpi/validate fuehrt
+	# nutzergeschriebenes SQL aus, und die Anwendung hat keine
+	# Authentifizierung. Der Endpunkt ist per Vorgabe abgeschaltet, aber diese
+	# Bindung ist die zweite Haelfte derselben Entscheidung.
+	email {$ACME_EMAIL}
+}
+
+meadow.example.de {
+	tls {
+		dns cloudflare {$CLOUDFLARE_API_TOKEN}
+		# Kein Nachweis ueber Port 80 oder 443. Faellt der DNS-Nachweis aus,
+		# soll Caddy NICHT auf HTTP-01 ausweichen und dafuer einen Port
+		# oeffnen wollen.
+		propagation_timeout 5m
+	}
+
+	encode zstd gzip
+
+	# HSTS. Steht hier und nicht in der Anwendung: dort haengt es an
+	# UseHsts, und der Container spricht intern ohnehin nur http.
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "same-origin"
+	}
+
+	reverse_proxy meadow:8080 {
+		header_up X-Forwarded-Proto {scheme}
+		header_up X-Forwarded-Host {host}
+	}
+}

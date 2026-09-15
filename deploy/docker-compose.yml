@@ -1,0 +1,68 @@
+# Betrieb auf dem Hof. Dev-Datenbank steht in docker-compose.dev.yml.
+services:
+  meadow-db:
+    image: mariadb:11.4
+    container_name: meadow-db
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD fehlt in .env}
+      MARIADB_DATABASE: 4cows_v2
+    volumes:
+      - meadow-db-data:/var/lib/mysql
+    # KEIN ports-Abschnitt. Die Datenbank ist nur ueber das interne Netz
+    # erreichbar; 3306 nach aussen zu legen waere ein Wurzelzugang ohne
+    # Zertifikat im selben Netz, in dem Tablets haengen.
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  meadow:
+    image: benjaminbiber/4cows:latest
+    container_name: meadow
+    restart: unless-stopped
+    depends_on:
+      meadow-db:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      DB_SERVER: meadow-db
+      DB_User: root
+      DB_Password: ${DB_PASSWORD}
+      DB_DB: 4cows_v2
+      XLinkUrl: ${XLINK_URL:-http://192.168.50.9/Xlink/}
+      XLinkID: ${XLINK_ID:-10672}
+      # Demo__Enabled: "false"   # Vorgabe. true macht "/" zur Marketing-Seite
+      #                            und setzt die Daten naechtlich zurueck.
+      # Kpi__AllowScriptValidation: "false"  # fuehrt SQL aus dem Anfragerumpf
+      #                                        aus. Siehe Caddyfile.
+    # Auch hier KEIN ports-Abschnitt. Der einzige Weg zur Anwendung fuehrt
+    # ueber Caddy; sonst waere sie auf 8080 ohne Zertifikat zu haben, und ein
+    # Browser, der sie einmal so gesehen hat, merkt sich das.
+
+  caddy:
+    build: ./caddy
+    container_name: meadow-caddy
+    restart: unless-stopped
+    depends_on: [meadow]
+    # Beide Ports NUR auf der LAN-Adresse. Ohne das Praefix nimmt Docker
+    # 0.0.0.0 und Caddy waere ueber jede Schnittstelle des Hosts erreichbar -
+    # auch ueber eine, die spaeter jemand ans Internet haengt. Die Adresse
+    # gehoert dem Docker-Host und braucht eine feste DHCP-Reservierung.
+    ports:
+      - "192.168.50.10:80:80"
+      - "192.168.50.10:443:443"
+    environment:
+      ACME_EMAIL: ${ACME_EMAIL:?ACME_EMAIL fehlt in .env}
+      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:?CLOUDFLARE_API_TOKEN fehlt in .env}
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  meadow-db-data:
+  caddy-data:
+  caddy-config:
