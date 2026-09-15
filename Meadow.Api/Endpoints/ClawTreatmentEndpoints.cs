@@ -1,3 +1,5 @@
+using Meadow.Data.Sql;
+using Microsoft.EntityFrameworkCore;
 using Meadow.Api.Infrastructure;
 using Meadow.Shared.Models;
 using Meadow.Shared.Services;
@@ -33,12 +35,27 @@ public static class ClawTreatmentEndpoints
         // steht nach dem Aufruf in DIESER Instanz - gaebe der Endpunkt den
         // deserialisierten Rumpf von vorher zurueck, stuende beim Client
         // zweimal die 0, und der zweite Insert ersetzte im Cache den ersten.
-        api.MapPost("/claw-treatments", async (ClawTreatment clawTreatment, IClawTreatmentService svc) =>
+        api.MapPost("/claw-treatments", async (
+            ClawTreatment clawTreatment,
+            IClawTreatmentService svc,
+            IDbContextFactory<DatabaseContext> factory) =>
         {
+            var rows = new[] { clawTreatment };
+            Task<List<ClawTreatment>> Find(DatabaseContext c, List<Guid> ids) =>
+                c.ClawTreatments.AsNoTracking().Where(t => ids.Contains(t.ClientId)).ToListAsync();
+
+            var decision = await ClientIdUpsert.PrepareAsync(
+                factory, rows, t => t.ClientId, Find, "Klauenbehandlung");
+            if (decision.Answer is not null) { return decision.Answer; }
+
             var ok = await svc.InsertDataAsync(clawTreatment);
-            return ok
-                ? Results.Created($"/api/claw-treatments/{clawTreatment.ClawTreatmentId}", clawTreatment)
-                : EndpointCommon.WriteFailed("Die Klauenbehandlung konnte nicht angelegt werden.");
+            if (ok)
+            {
+                return Results.Created($"/api/claw-treatments/{clawTreatment.ClawTreatmentId}", clawTreatment);
+            }
+
+            return await ClientIdUpsert.RaceWinnerAsync(factory, rows, t => t.ClientId, Find)
+                   ?? EndpointCommon.WriteFailed("Die Klauenbehandlung konnte nicht angelegt werden.");
         }).BumpsOnWrite(DataScope.ClawTreatments).WithName("ClawTreatmentCreate");
 
         api.MapPut("/claw-treatments/{treatmentId:int}", async (int treatmentId, ClawTreatment clawTreatment, IClawTreatmentService svc) =>

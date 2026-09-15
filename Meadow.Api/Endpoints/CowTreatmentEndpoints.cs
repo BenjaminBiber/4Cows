@@ -1,3 +1,5 @@
+using Meadow.Data.Sql;
+using Microsoft.EntityFrameworkCore;
 using Meadow.Api.Infrastructure;
 using Meadow.Shared.Models;
 using Meadow.Shared.Services;
@@ -37,7 +39,10 @@ public static class CowTreatmentEndpoints
         // EF vergibt die Ids in Einfuegereihenfolge und schreibt sie in die
         // uebergebenen Instanzen zurueck. Zurueck geht deshalb DIESELBE Liste,
         // in Anfragereihenfolge und mit gefuellten Ids.
-        api.MapPost("/cow-treatments/batch", async (List<CowTreatment> treatments, ICowTreatmentService svc) =>
+        api.MapPost("/cow-treatments/batch", async (
+            List<CowTreatment> treatments,
+            ICowTreatmentService svc,
+            IDbContextFactory<DatabaseContext> factory) =>
         {
             // Ein leerer Stapel quittiert im Dienst mit true, ohne etwas zu tun.
             // Als 201 mit leerem Array waere das eine Erfolgsmeldung fuer nichts,
@@ -47,14 +52,22 @@ public static class CowTreatmentEndpoints
                 return EndpointCommon.Invalid("treatments", "Der Stapel enthaelt keine Behandlung.");
             }
 
+            Task<List<CowTreatment>> Find(DatabaseContext c, List<Guid> ids) =>
+                c.CowTreatments.AsNoTracking().Where(t => ids.Contains(t.ClientId)).ToListAsync();
+
+            var decision = await ClientIdUpsert.PrepareAsync(
+                factory, treatments, t => t.ClientId, Find, "Kuhbehandlung");
+            if (decision.Answer is not null) { return decision.Answer; }
+
             var ok = await svc.InsertRangeAsync(treatments);
 
             // Location auf die Sammlung: einen Stapel gibt es hinterher nicht
             // mehr als Ganzes, seine Zeilen stehen einzeln unter
             // /api/cow-treatments/{id}.
-            return ok
-                ? Results.Created("/api/cow-treatments", treatments)
-                : EndpointCommon.WriteFailed($"Die {treatments.Count} Kuhbehandlungen konnten nicht angelegt werden.");
+            if (ok) { return Results.Created("/api/cow-treatments", treatments); }
+
+            return await ClientIdUpsert.RaceWinnerAsync(factory, treatments, t => t.ClientId, Find)
+                   ?? EndpointCommon.WriteFailed($"Die {treatments.Count} Kuhbehandlungen konnten nicht angelegt werden.");
         }).BumpsOnWrite(DataScope.CowTreatments).WithName("CowTreatmentCreateBatch");
 
         // DeleteDataAsync gibt ein blankes Task zurueck und faengt jede Ausnahme
