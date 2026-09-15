@@ -10,6 +10,23 @@ namespace Meadow.Shared.Models
         [Column("Claw_Treatment_ID")]
         public int ClawTreatmentId { get; set; }
 
+        /// <summary>
+        /// Zweiter Schluessel, vom CLIENT vergeben, bevor die Zeile den Server je
+        /// gesehen hat. Der Property-Initialisierer laeuft bei jedem Konstruktor,
+        /// auch beim positionalen - eine Zeile ohne ClientId kann gar nicht
+        /// entstehen, und der Seeder braucht dafuer keine eigene Zeile.
+        ///
+        /// Ohne ihn waere die Uebertragung nicht wiederholbar: bricht die
+        /// Verbindung nach dem Schreiben, aber vor der Antwort ab, legt der
+        /// naechste Versuch dieselbe Medikamentengabe ein zweites Mal an. Bei
+        /// einem Behandlungsjournal mit Wartezeiten ist das ein fachlicher
+        /// Fehler, kein kosmetischer. Serverseitig wird der Insert damit zum
+        /// Upsert auf dieser Spalte.
+        /// </summary>
+        [Required]
+        [Column("Client_Id")]
+        public Guid ClientId { get; set; } = Guid.NewGuid();
+
         [Required]
         [Column("Ear_Tag_Number")]
         public string EarTagNumber { get; set; }
