@@ -10,7 +10,7 @@ namespace Meadow.Client.Services;
 /// Die Kuhbehandlungen ueber HTTP. Gegenstueck zum EF-Dienst
 /// CowTreatmentService.
 /// </summary>
-public class HttpCowTreatmentService : HttpServiceBase, ICowTreatmentService
+public class HttpCowTreatmentService : HttpServiceBase, ICowTreatmentService, IMeadowSyncTarget
 {
     private ImmutableDictionary<int, CowTreatment> _cachedTreatments = ImmutableDictionary<int, CowTreatment>.Empty;
     private ImmutableList<int> _cachedDistinctWhereHows = ImmutableList<int>.Empty;
@@ -19,18 +19,24 @@ public class HttpCowTreatmentService : HttpServiceBase, ICowTreatmentService
     // Wie/Wo-Namen weiterhin, nur nicht mehr die EF-Implementierung davon.
     private readonly IWhereHowService _whereHowService;
 
+    private readonly MeadowOutbox _outbox;
+
     public ImmutableDictionary<int, CowTreatment> Treatments => _cachedTreatments;
 
     public ImmutableList<int> DistinctWhereHows => _cachedDistinctWhereHows;
 
+    public MeadowEntityType EntityType => MeadowEntityType.CowTreatment;
+
     public HttpCowTreatmentService(
         IWhereHowService whereHowService,
+        MeadowOutbox outbox,
         HttpClient http,
         DatabaseStatusService databaseStatusService,
         ILogger<HttpCowTreatmentService> logger)
         : base(http, databaseStatusService, logger)
     {
         _whereHowService = whereHowService;
+        _outbox = outbox;
     }
 
     public async Task GetAllDataAsync()
@@ -67,9 +73,17 @@ public class HttpCowTreatmentService : HttpServiceBase, ICowTreatmentService
 
         var ordered = treatments.ToList();
 
-        var created = await ReadAsync<List<CowTreatment>>(
-            () => PostAsync("api/cow-treatments/batch", ordered),
+        var attempt = await TryPostAsync<List<CowTreatment>>(
+            "api/cow-treatments/batch",
+            ordered,
             $"Failed to insert {ordered.Count} cow treatments.");
+
+        if (attempt.IsOffline)
+        {
+            return await QueueOfflineAsync(ordered);
+        }
+
+        var created = attempt.Value;
 
         if (created is null)
         {
@@ -96,6 +110,64 @@ public class HttpCowTreatmentService : HttpServiceBase, ICowTreatmentService
         await GetAllDataAsync();
         Logger.LogInformation("Inserted {Count} cow treatments.", ordered.Count);
         return true;
+    }
+
+    /// <summary>
+    /// Kein Netz: der Stapel geht in die Outbox und gilt als gespeichert.
+    ///
+    /// Aus Sicht des Dialogs ist er das auch - die Zeilen stehen im lokalen
+    /// Speicher, tragen ihre ClientId und gehen hinaus, sobald wieder Netz da
+    /// ist. Der Cache bekommt sie sofort, sonst blieb die Tabelle leer,
+    /// waehrend der Dialog "gespeichert" meldet.
+    /// </summary>
+    private async Task<bool> QueueOfflineAsync(List<CowTreatment> ordered)
+    {
+        var queued = await _outbox.QueueInsertAsync(
+            MeadowEntityType.CowTreatment,
+            ordered,
+            t => t.ClientId,
+            (t, provisionalId) => t.CowTreatmentId = provisionalId);
+
+        if (!queued)
+        {
+            return false;
+        }
+
+        _cachedTreatments = _cachedTreatments.SetItems(
+            ordered.Select(t => new KeyValuePair<int, CowTreatment>(t.CowTreatmentId, t)));
+        _cachedDistinctWhereHows = _cachedTreatments.Values.Select(t => t.WhereHowId).Distinct().ToImmutableList();
+
+        Logger.LogInformation("Queued {Count} cow treatments for later transmission.", ordered.Count);
+        return true;
+    }
+
+    /// <summary>
+    /// Traegt die vom Server bestaetigten Zeilen ein - aufgerufen aus
+    /// <see cref="OutboxProcessor"/>, bei 201 wie bei 200.
+    /// </summary>
+    public IReadOnlyList<object> ApplySyncedRows(string responseJson)
+    {
+        var rows = MeadowSyncPayload.ReadRows<CowTreatment>(responseJson, Json);
+
+        foreach (var row in rows)
+        {
+            // Schritt 1 ist der entscheidende: die wartende Zeile liegt unter
+            // ihrer vorlaeufigen -3 im Cache, die bestaetigte kommt unter 57
+            // herein. Ohne das Entfernen stuende die Behandlung ZWEIMAL in der
+            // Tabelle, und niemand koennte sagen, welche der Zeilen echt ist.
+            var local = _cachedTreatments.Values.FirstOrDefault(t => t.ClientId == row.ClientId);
+            if (local is not null)
+            {
+                _cachedTreatments = _cachedTreatments.Remove(local.CowTreatmentId);
+            }
+
+            // SetItem und NIE Add: ein parallel gelaufener Neuabruf kann die
+            // echte Id laengst eingetragen haben, und Add wuerfe dann.
+            _cachedTreatments = _cachedTreatments.SetItem(row.CowTreatmentId, row);
+        }
+
+        _cachedDistinctWhereHows = _cachedTreatments.Values.Select(t => t.WhereHowId).Distinct().ToImmutableList();
+        return rows;
     }
 
     /// <summary>
@@ -139,6 +211,22 @@ public class HttpCowTreatmentService : HttpServiceBase, ICowTreatmentService
     /// </summary>
     public async Task DeleteDataAsync(int id)
     {
+        // Eine negative Id ist eine vorlaeufige - die Zeile hat den Server nie
+        // gesehen. Ein DELETE darauf traefe eine Id, die es dort nicht gibt.
+        // Der Endpunkt antwortet ehrlich mit 204, der Cache entfernt die Zeile,
+        // und der Outbox-Eintrag bleibt liegen und legt sie beim naechsten
+        // Durchlauf wieder an: geloescht, und trotzdem wieder da. Deshalb wird
+        // hier der Insert zurueckgezogen statt ein Loeschbefehl gesendet.
+        if (id < 0 && _cachedTreatments.TryGetValue(id, out var pending))
+        {
+            if (await _outbox.CancelPendingInsertAsync(pending.ClientId, MeadowStores.CowTreatment))
+            {
+                _cachedTreatments = _cachedTreatments.Remove(id);
+                Logger.LogInformation("Wartende Zeile {Id} zurueckgezogen, nichts gesendet.", id);
+                return;
+            }
+        }
+
         var isSuccess = await WriteAsync(
             () => DeleteAsync($"api/cow-treatments/{id}"),
             $"Failed to delete cow treatment {id}.");

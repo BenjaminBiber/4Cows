@@ -109,6 +109,14 @@
     <script src="js/download.js"></script>
 
     <!--
+        Der lokale Speicher. Muss VOR dem ersten C#-Aufruf stehen, und das tut
+        er: blazor.webassembly.js startet den Boot nur, laeuft aber synchron
+        weiter - alle Skripte hier sind ausgewertet, lange bevor Program.cs
+        seine erste Zeile ausfuehrt.
+    -->
+    <script src="js/meadow-db.js"></script>
+
+    <!--
         Chart.js liegt lokal. Vorher stand hier cdn.jsdelivr.net/npm/chart.js
         ohne Version - also bei jedem Laden die jeweils neueste, aus dem
         Internet, auf einer Seite, die "laeuft im eigenen Betriebsnetz, ohne

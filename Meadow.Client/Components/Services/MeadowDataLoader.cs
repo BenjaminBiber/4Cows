@@ -1,3 +1,4 @@
+using Meadow.Client.Services;
 using Meadow.Shared.Services;
 
 namespace Meadow.Client.Components.Services;
@@ -13,7 +14,7 @@ namespace Meadow.Client.Components.Services;
 ///
 /// Deshalb ruft jede Seite hier genau eine Methode auf.
 /// </summary>
-public sealed class MeadowDataLoader
+public sealed class MeadowDataLoader : IDisposable
 {
     private readonly ICowService _cows;
     private readonly IMedicineService _medicines;
@@ -27,6 +28,16 @@ public sealed class MeadowDataLoader
     private readonly IPClawTreatmentService _plannedClaw;
     private readonly ISettingsService _settings;
 
+    /// <summary>
+    /// Der Melder fuer einen fremden Datenstand.
+    ///
+    /// Bis Phase 4 rief <see cref="Invalidate"/> niemand - es gab keine Stelle,
+    /// die von einer fremden Aenderung erfuhr. Jetzt liest der
+    /// MeadowOfflineHandler den X-Data-Version-Kopf jeder Antwort, und genau
+    /// das ist diese Stelle.
+    /// </summary>
+    private readonly MeadowSyncState _sync;
+
     public MeadowDataLoader(
         ICowService cows,
         IMedicineService medicines,
@@ -38,7 +49,8 @@ public sealed class MeadowDataLoader
         IClawTreatmentService clawTreatments,
         IPCowTreatmentService plannedCow,
         IPClawTreatmentService plannedClaw,
-        ISettingsService settings)
+        ISettingsService settings,
+        MeadowSyncState sync)
     {
         _cows = cows;
         _medicines = medicines;
@@ -51,7 +63,11 @@ public sealed class MeadowDataLoader
         _plannedCow = plannedCow;
         _plannedClaw = plannedClaw;
         _settings = settings;
+        _sync = sync;
+        _sync.DataVersionChanged += Invalidate;
     }
+
+    public void Dispose() => _sync.DataVersionChanged -= Invalidate;
 
     private enum Cache { Lookups, CowTreatments, ClawTreatments, PlannedCow, PlannedClaw }
 

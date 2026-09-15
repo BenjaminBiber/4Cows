@@ -9,15 +9,24 @@ namespace Meadow.Client.Services;
 /// Die geplanten Klauenbehandlungen ueber HTTP. Gegenstueck zum EF-Dienst
 /// PClawTreatmentService.
 /// </summary>
-public class HttpPClawTreatmentService : HttpServiceBase, IPClawTreatmentService
+public class HttpPClawTreatmentService : HttpServiceBase, IPClawTreatmentService, IMeadowSyncTarget
 {
     private ImmutableDictionary<int, PlannedClawTreatment> _cachedTreatments = ImmutableDictionary<int, PlannedClawTreatment>.Empty;
 
+    private readonly MeadowOutbox _outbox;
+
     public ImmutableDictionary<int, PlannedClawTreatment> Treatments => _cachedTreatments;
 
-    public HttpPClawTreatmentService(HttpClient http, DatabaseStatusService databaseStatusService, ILogger<HttpPClawTreatmentService> logger)
+    public MeadowEntityType EntityType => MeadowEntityType.PlannedClawTreatment;
+
+    public HttpPClawTreatmentService(
+        MeadowOutbox outbox,
+        HttpClient http,
+        DatabaseStatusService databaseStatusService,
+        ILogger<HttpPClawTreatmentService> logger)
         : base(http, databaseStatusService, logger)
     {
+        _outbox = outbox;
     }
 
     public async Task GetAllDataAsync()
@@ -45,10 +54,17 @@ public class HttpPClawTreatmentService : HttpServiceBase, IPClawTreatmentService
     /// </summary>
     public async Task<bool> InsertDataAsync(PlannedClawTreatment clawTreatment)
     {
-        var created = await CreateAsync(
+        var attempt = await TryPostAsync<PlannedClawTreatment>(
             "api/planned-claw-treatments",
             clawTreatment,
             "Failed to insert planned claw treatment.");
+
+        if (attempt.IsOffline)
+        {
+            return await QueueOfflineAsync(clawTreatment);
+        }
+
+        var created = attempt.Value;
 
         if (created is null)
         {
@@ -63,8 +79,73 @@ public class HttpPClawTreatmentService : HttpServiceBase, IPClawTreatmentService
         return true;
     }
 
+    /// <summary>
+    /// Kein Netz: die Planung geht in die Outbox und gilt als gespeichert. Der
+    /// Cache bekommt sie sofort unter ihrer vorlaeufigen, negativen Id.
+    /// </summary>
+    private async Task<bool> QueueOfflineAsync(PlannedClawTreatment clawTreatment)
+    {
+        var queued = await _outbox.QueueInsertAsync(
+            MeadowEntityType.PlannedClawTreatment,
+            [clawTreatment],
+            t => t.ClientId,
+            (t, provisionalId) => t.PlannedClawTreatmentId = provisionalId);
+
+        if (!queued)
+        {
+            return false;
+        }
+
+        _cachedTreatments = _cachedTreatments.SetItem(clawTreatment.PlannedClawTreatmentId, clawTreatment);
+        Logger.LogInformation("Queued planned claw treatment for later transmission.");
+        return true;
+    }
+
+    /// <summary>
+    /// Traegt die vom Server bestaetigten Zeilen ein - aufgerufen aus
+    /// <see cref="OutboxProcessor"/>, bei 201 wie bei 200.
+    /// </summary>
+    public IReadOnlyList<object> ApplySyncedRows(string responseJson)
+    {
+        var rows = MeadowSyncPayload.ReadRows<PlannedClawTreatment>(responseJson, Json);
+
+        foreach (var row in rows)
+        {
+            // Erst den vorlaeufigen Schluessel weg, dann den echten setzen -
+            // sonst stuende die Planung zweimal in der Tabelle, einmal unter
+            // -3 und einmal unter 57.
+            var local = _cachedTreatments.Values.FirstOrDefault(t => t.ClientId == row.ClientId);
+            if (local is not null)
+            {
+                _cachedTreatments = _cachedTreatments.Remove(local.PlannedClawTreatmentId);
+            }
+
+            // SetItem und NIE Add: ein parallel gelaufener Neuabruf kann die
+            // echte Id laengst eingetragen haben.
+            _cachedTreatments = _cachedTreatments.SetItem(row.PlannedClawTreatmentId, row);
+        }
+
+        return rows;
+    }
+
     public async Task<bool> RemoveByIDAsync(int id)
     {
+        // Eine negative Id ist eine vorlaeufige - die Zeile hat den Server nie
+        // gesehen. Ein DELETE darauf traefe eine Id, die es dort nicht gibt.
+        // Der Endpunkt antwortet ehrlich mit 204, der Cache entfernt die Zeile,
+        // und der Outbox-Eintrag bleibt liegen und legt sie beim naechsten
+        // Durchlauf wieder an: geloescht, und trotzdem wieder da. Deshalb wird
+        // hier der Insert zurueckgezogen statt ein Loeschbefehl gesendet.
+        if (id < 0 && _cachedTreatments.TryGetValue(id, out var pending))
+        {
+            if (await _outbox.CancelPendingInsertAsync(pending.ClientId, MeadowStores.PlannedClawTreatment))
+            {
+                _cachedTreatments = _cachedTreatments.Remove(id);
+                Logger.LogInformation("Wartende Zeile {Id} zurueckgezogen, nichts gesendet.", id);
+                return true;
+            }
+        }
+
         var isSuccess = await WriteAsync(
             () => DeleteAsync($"api/planned-claw-treatments/{id}"),
             $"Failed to delete planned claw treatment {id}.");

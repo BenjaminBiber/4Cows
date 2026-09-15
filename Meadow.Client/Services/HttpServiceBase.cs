@@ -72,7 +72,17 @@ public abstract class HttpServiceBase
     {
         var response = await Http.SendAsync(request);
 
-        if ((int)response.StatusCode >= 500)
+        // Eine Antwort aus dem lokalen Speicher traegt eine 200, damit der
+        // Aufrufer sie liest - sie ist aber kein Beleg dafuer, dass die API
+        // erreichbar ist. Ohne diese Zeile zeigte das Verbindungsband
+        // "verbunden", waehrend die App aus der Konserve laeuft: der
+        // unangenehmste aller Zustaende, weil er den Nutzer glauben laesst,
+        // seine Eingabe sei angekommen.
+        if (response.Headers.Contains(MeadowOfflineHandler.OfflineHeader))
+        {
+            _databaseStatusService.ReportFailure();
+        }
+        else if ((int)response.StatusCode >= 500)
         {
             _databaseStatusService.ReportFailure();
         }
@@ -230,6 +240,71 @@ public abstract class HttpServiceBase
     protected Task<TEntity?> CreateAsync<TEntity>(string uri, TEntity body, string failureMessage)
         where TEntity : class
         => ReadAsync<TEntity>(() => PostAsync(uri, body), failureMessage);
+
+    /// <summary>
+    /// Ergebnis eines Schreibaufrufs, der zwischen zwei Fehlschlaegen
+    /// unterscheiden muss, die sonst gleich aussehen.
+    /// </summary>
+    /// <param name="Value">Der Antwortrumpf, oder <c>null</c> bei Fehlschlag.</param>
+    /// <param name="IsOffline">
+    /// <c>true</c> NUR, wenn gar keine Antwort kam. Alles, was der Server
+    /// beantwortet hat - auch eine 400 oder 409 -, ist <c>false</c>.
+    /// </param>
+    protected readonly record struct WriteAttempt<TResponse>(TResponse? Value, bool IsOffline)
+        where TResponse : class;
+
+    /// <summary>
+    /// Wie <see cref="CreateAsync{TEntity}"/>, aber es sagt, WARUM es nicht
+    /// geklappt hat.
+    ///
+    /// GuardAsync schluckt jede Ausnahme und liefert einen Fehlwert - fuer
+    /// dreizehn Dienste genau richtig, fuer die vier Insert-Methoden der
+    /// Behandlungen nicht mehr: dort haengt an dem Unterschied, ob die Zeile in
+    /// die Outbox wandert und der Dialog sich schliesst, oder ob der Nutzer den
+    /// Fehler sehen muss.
+    ///
+    /// Ein 4xx ist AUSDRUECKLICH kein Offline-Fall. Eine 400 wegen eines
+    /// unbekannten Medikaments in die Outbox zu legen hiesse, sie alle fuenf
+    /// Minuten erneut abzulehnen, waehrend der Nutzer glaubt, gespeichert zu
+    /// haben.
+    /// </summary>
+    protected async Task<WriteAttempt<TResponse>> TryPostAsync<TResponse>(
+        string uri,
+        object body,
+        string failureMessage)
+        where TResponse : class
+    {
+        try
+        {
+            using var response = await PostAsync(uri, body);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                await LogStatusAsync(response, failureMessage);
+                return new WriteAttempt<TResponse>(null, false);
+            }
+
+            return new WriteAttempt<TResponse>(await response.Content.ReadFromJsonAsync<TResponse>(Json), false);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            // Die Leitung ist weg. Beim Timeout ist offen, ob der Server
+            // geschrieben hat - das darf hier offen bleiben: die vier
+            // Endpunkte sind Upserts auf ClientId, die Wiederholung aus der
+            // Outbox liefert dieselbe Zeile mit 200 statt 201.
+            ReportFailure();
+            Logger.LogWarning(ex, "{Message} Kein Netz.", failureMessage);
+            return new WriteAttempt<TResponse>(null, true);
+        }
+        catch (Exception ex)
+        {
+            // Alles andere ist ein echter Fehler dieses Aufrufs - etwa ein
+            // Rumpf, der sich nicht lesen laesst. Nicht in die Outbox damit.
+            ReportFailure();
+            Logger.LogError(ex, "{Message}", failureMessage);
+            return new WriteAttempt<TResponse>(null, false);
+        }
+    }
 
     /// <summary>
     /// Ein Pfadabschnitt, der aus Daten stammt. Cow_ID ist ein vom Client
