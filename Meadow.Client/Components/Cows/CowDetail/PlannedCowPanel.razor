@@ -8,6 +8,10 @@
     uebernommen - einschliesslich der Regel, dass ein abgebrochener Dialog
     die Planung stehen laesst (frueher wurde sie beim OEFFNEN geloescht).
 *@
+@implements IDisposable
+
+@using Meadow.Client.Services
+
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject IPCowTreatmentService pCowTreatmentService
@@ -16,9 +20,11 @@
 @inject IUdderService UdderService
 @inject ITreatmentReasonService TreatmentReasonService
 @inject ISettingsService SettingsService
+@inject MeadowSyncState Sync
 
 <MeadowTable TItem="PlannedCowTreatment" Items="Rows" Columns="_columns"
              RowKey="@(r => r.PlannedCowTreatmentId)"
+             RowClass="@(r => MeadowSyncRow.Class(Sync.StateOf(r.ClientId)))"
              DefaultSortTitle="Geplant für"
              PagerLabel="Planungen pro Seite"
              MoreLabel="Weitere Planungen laden"
@@ -56,6 +62,14 @@
 
     protected override void OnInitialized() => _columns = new()
     {
+        new MeadowColumn<PlannedCowTreatment>
+        {
+            // Uebertragungszustand - dieselbe Spalte wie in der grossen
+            // Tabelle. Eine synchronisierte Zeile rendert nichts.
+            Title = "",
+            Width = "28px",
+            Template = row =>@<MeadowSyncDot State="@(Sync.StateOf(row.ClientId))" />
+        },
         new MeadowColumn<PlannedCowTreatment>
         {
             Title = "Geplant für",
@@ -191,4 +205,27 @@
         var result = await dialog.Result;
         return result is not null && !result.Canceled;
     }
+
+    /// <summary>
+    /// Abonniert wird erst nach dem ersten Rendern und nicht in
+    /// OnInitialized: dort steht der Spaltenaufbau als Ausdruckskoerper, und
+    /// den in einen Block umzuschreiben haette jede Spalte dieser Datei
+    /// angefasst, ohne dass sich an einer einzigen etwas aendert.
+    /// </summary>
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            Sync.Changed += OnSyncChanged;
+        }
+    }
+
+    /// <summary>
+    /// Der Uebertragungszustand hat sich geaendert - nur neu zeichnen. Die
+    /// Zeilen kommen als Parameter herein und sind dieselben; was wechselt,
+    /// ist der Punkt davor und die Zeilenklasse.
+    /// </summary>
+    private void OnSyncChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Sync.Changed -= OnSyncChanged;
 }
