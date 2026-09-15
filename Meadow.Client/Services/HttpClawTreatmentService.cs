@@ -11,15 +11,24 @@ namespace Meadow.Client.Services;
 /// ClawTreatmentService, inklusive des grossen ID in
 /// <see cref="GetByIDAsync"/>.
 /// </summary>
-public class HttpClawTreatmentService : HttpServiceBase, IClawTreatmentService
+public class HttpClawTreatmentService : HttpServiceBase, IClawTreatmentService, IMeadowSyncTarget
 {
     private ImmutableDictionary<int, ClawTreatment> _cachedTreatments = ImmutableDictionary<int, ClawTreatment>.Empty;
 
+    private readonly MeadowOutbox _outbox;
+
     public ImmutableDictionary<int, ClawTreatment> Treatments => _cachedTreatments;
 
-    public HttpClawTreatmentService(HttpClient http, DatabaseStatusService databaseStatusService, ILogger<HttpClawTreatmentService> logger)
+    public MeadowEntityType EntityType => MeadowEntityType.ClawTreatment;
+
+    public HttpClawTreatmentService(
+        MeadowOutbox outbox,
+        HttpClient http,
+        DatabaseStatusService databaseStatusService,
+        ILogger<HttpClawTreatmentService> logger)
         : base(http, databaseStatusService, logger)
     {
+        _outbox = outbox;
     }
 
     public async Task GetAllDataAsync()
@@ -46,7 +55,18 @@ public class HttpClawTreatmentService : HttpServiceBase, IClawTreatmentService
     /// </summary>
     public async Task<bool> InsertDataAsync(ClawTreatment clawTreatment)
     {
-        var created = await CreateAsync("api/claw-treatments", clawTreatment, "Failed to insert claw treatment.");
+        var attempt = await TryPostAsync<ClawTreatment>(
+            "api/claw-treatments",
+            clawTreatment,
+            "Failed to insert claw treatment.");
+
+        if (attempt.IsOffline)
+        {
+            return await QueueOfflineAsync(clawTreatment);
+        }
+
+        var created = attempt.Value;
+
         if (created is null)
         {
             return false;
@@ -58,6 +78,55 @@ public class HttpClawTreatmentService : HttpServiceBase, IClawTreatmentService
         _cachedTreatments = _cachedTreatments.SetItem(clawTreatment.ClawTreatmentId, clawTreatment);
         Logger.LogInformation("Inserted claw treatment {Id}.", clawTreatment.ClawTreatmentId);
         return true;
+    }
+
+    /// <summary>
+    /// Kein Netz: die Behandlung geht in die Outbox und gilt als gespeichert.
+    /// Der Cache bekommt sie sofort unter ihrer vorlaeufigen, negativen Id.
+    /// </summary>
+    private async Task<bool> QueueOfflineAsync(ClawTreatment clawTreatment)
+    {
+        var queued = await _outbox.QueueInsertAsync(
+            MeadowEntityType.ClawTreatment,
+            [clawTreatment],
+            t => t.ClientId,
+            (t, provisionalId) => t.ClawTreatmentId = provisionalId);
+
+        if (!queued)
+        {
+            return false;
+        }
+
+        _cachedTreatments = _cachedTreatments.SetItem(clawTreatment.ClawTreatmentId, clawTreatment);
+        Logger.LogInformation("Queued claw treatment for later transmission.");
+        return true;
+    }
+
+    /// <summary>
+    /// Traegt die vom Server bestaetigten Zeilen ein - aufgerufen aus
+    /// <see cref="OutboxProcessor"/>, bei 201 wie bei 200.
+    /// </summary>
+    public IReadOnlyList<object> ApplySyncedRows(string responseJson)
+    {
+        var rows = MeadowSyncPayload.ReadRows<ClawTreatment>(responseJson, Json);
+
+        foreach (var row in rows)
+        {
+            // Erst den vorlaeufigen Schluessel weg, dann den echten setzen -
+            // sonst stuende die Behandlung zweimal in der Tabelle, einmal unter
+            // -3 und einmal unter 57.
+            var local = _cachedTreatments.Values.FirstOrDefault(t => t.ClientId == row.ClientId);
+            if (local is not null)
+            {
+                _cachedTreatments = _cachedTreatments.Remove(local.ClawTreatmentId);
+            }
+
+            // SetItem und NIE Add: ein parallel gelaufener Neuabruf kann die
+            // echte Id laengst eingetragen haben.
+            _cachedTreatments = _cachedTreatments.SetItem(row.ClawTreatmentId, row);
+        }
+
+        return rows;
     }
 
     /// <summary>
@@ -190,6 +259,22 @@ public class HttpClawTreatmentService : HttpServiceBase, IClawTreatmentService
     /// </summary>
     public async Task DeleteDataAsync(int id)
     {
+        // Eine negative Id ist eine vorlaeufige - die Zeile hat den Server nie
+        // gesehen. Ein DELETE darauf traefe eine Id, die es dort nicht gibt.
+        // Der Endpunkt antwortet ehrlich mit 204, der Cache entfernt die Zeile,
+        // und der Outbox-Eintrag bleibt liegen und legt sie beim naechsten
+        // Durchlauf wieder an: geloescht, und trotzdem wieder da. Deshalb wird
+        // hier der Insert zurueckgezogen statt ein Loeschbefehl gesendet.
+        if (id < 0 && _cachedTreatments.TryGetValue(id, out var pending))
+        {
+            if (await _outbox.CancelPendingInsertAsync(pending.ClientId, MeadowStores.ClawTreatment))
+            {
+                _cachedTreatments = _cachedTreatments.Remove(id);
+                Logger.LogInformation("Wartende Zeile {Id} zurueckgezogen, nichts gesendet.", id);
+                return;
+            }
+        }
+
         var isSuccess = await WriteAsync(
             () => DeleteAsync($"api/claw-treatments/{id}"),
             $"Failed to delete claw treatment {id}.");

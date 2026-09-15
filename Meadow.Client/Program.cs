@@ -50,7 +50,15 @@ var apiBase = new Uri(builder.HostEnvironment.BaseAddress);
 //
 // In WebAssembly gibt es ohnehin genau einen Bereich pro Tab, Scoped und
 // Singleton sind hier also dasselbe - nur die Pruefung unterscheidet sie.
-builder.Services.AddSingleton(_ => new HttpClient { BaseAddress = apiBase });
+//
+// Der HttpClient haengt seit Phase 4 an MeadowOfflineHandler. Der spiegelt
+// jede Tabellenantwort nach IndexedDB und beantwortet eine ausgefallene
+// Tabellenanfrage aus dem Schnappschuss - dadurch kommt die App ohne Netz mit
+// Daten hoch, ohne dass einer der dreizehn Dienste davon etwas wissen muss.
+builder.Services.AddSingleton(sp => new HttpClient(sp.GetRequiredService<MeadowOfflineHandler>())
+{
+    BaseAddress = apiBase
+});
 
 // ---------------------------------------------------------------------------
 // Konfiguration vom Server nachladen.
@@ -107,6 +115,22 @@ builder.Services.AddMudServices(cfg =>
 // ob er zu MariaDB oder zu /api ging.
 builder.Services.AddSingleton<DatabaseStatusService>();
 
+// ---------------------------------------------------------------------------
+// Lokaler Speicher und Outbox.
+//
+// Alle vier Singleton, und zwar aus demselben Grund wie die dreizehn Dienste:
+// sie halten Zustand, der zum TAB gehoert und nicht zu einer Seite - den
+// geoeffneten IndexedDB-Handle, den Zaehler der vorlaeufigen Ids, den
+// laufenden Abgleich. MeadowSyncState ist deshalb ebenfalls Singleton und
+// nicht Scoped wie LayoutState: die Dienste lesen ihn, und ein Singleton darf
+// keine Scoped-Abhaengigkeit annehmen.
+// ---------------------------------------------------------------------------
+builder.Services.AddSingleton<MeadowLocalStore>();
+builder.Services.AddSingleton<MeadowSyncState>();
+builder.Services.AddSingleton<MeadowOutbox>();
+builder.Services.AddSingleton<MeadowOfflineHandler>();
+builder.Services.AddSingleton<OutboxProcessor>();
+
 // Die dreizehn Dienste. Singleton, weil sie die Tabellen-Caches halten - genau
 // wie ihre EF-Gegenstuecke im Serverprozess, nur dass "Prozess" hier "Browsertab"
 // heisst.
@@ -123,6 +147,16 @@ builder.Services.AddSingleton<IUdderService, HttpUdderService>();
 builder.Services.AddSingleton<ISettingsService, HttpSettingsService>();
 builder.Services.AddSingleton<IKPIService, HttpKPIService>();
 builder.Services.AddSingleton<IXLinkService, HttpXLinkService>();
+
+// Dieselben vier Instanzen noch einmal, unter der Naht, an der der
+// OutboxProcessor sie erreicht. Ueber GetRequiredService und nicht als zweite
+// Registrierung: sonst legte der Container ein ZWEITES Exemplar an, und das
+// haette seinen eigenen Cache - die zurueckgeschriebene Server-Id landete dann
+// in einem Dienst, den keine Seite je zu sehen bekommt.
+builder.Services.AddSingleton<IMeadowSyncTarget>(sp => (HttpCowTreatmentService)sp.GetRequiredService<ICowTreatmentService>());
+builder.Services.AddSingleton<IMeadowSyncTarget>(sp => (HttpClawTreatmentService)sp.GetRequiredService<IClawTreatmentService>());
+builder.Services.AddSingleton<IMeadowSyncTarget>(sp => (HttpPCowTreatmentService)sp.GetRequiredService<IPCowTreatmentService>());
+builder.Services.AddSingleton<IMeadowSyncTarget>(sp => (HttpPClawTreatmentService)sp.GetRequiredService<IPClawTreatmentService>());
 
 // KpiRowProvider MUSS hier laufen und nicht serverseitig. Er projiziert aus den
 // Caches der Dienste - also aus den Caches DIESES Browsers. Bliebe er auf dem
@@ -141,4 +175,22 @@ builder.Services.AddScoped<MeadowDialogLauncher>();
 builder.Services.AddScoped<MeadowDataChanges>();
 builder.Services.AddScoped<DatabaseConnectionState>();
 
-await builder.Build().RunAsync();
+var host = builder.Build();
+
+// ---------------------------------------------------------------------------
+// Outbox anwerfen, BEVOR die App laeuft - RunAsync kehrt nie zurueck.
+//
+// In WebAssembly gibt es kein Prerendering: JS-Interop steht ab hier bereit,
+// und host.Services IST der Bereich, aus dem auch die Komponenten aufloesen.
+// Deshalb wird MeadowDataChanges hier einmal angefasst: es haengt sich im
+// Konstruktor an MeadowSyncState, und ohne diese Zeile entstuende es erst,
+// wenn die erste Seite es injiziert - eine Behandlung, die in der Zwischenzeit
+// fertig wird, meldete sich dann an niemanden.
+//
+// InitializeAsync selbst wartet nicht auf das Netz; es liest die Outbox,
+// abonniert online und visibilitychange und stoesst den ersten Durchlauf an.
+// ---------------------------------------------------------------------------
+host.Services.GetRequiredService<MeadowDataChanges>();
+await host.Services.GetRequiredService<OutboxProcessor>().InitializeAsync();
+
+await host.RunAsync();
