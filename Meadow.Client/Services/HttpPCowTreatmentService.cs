@@ -190,9 +190,31 @@ public class HttpPCowTreatmentService : HttpServiceBase, IPCowTreatmentService, 
             }
         }
 
-        var isSuccess = await WriteAsync(
-            () => DeleteAsync($"api/planned-cow-treatments/{id}"),
+        var route = $"api/planned-cow-treatments/{id}";
+
+        var outcome = await TryWriteAsync(
+            () => DeleteAsync(route),
             $"Failed to delete planned cow treatment {id}.");
+
+        // Ohne Leitung wird die Loeschung vorgemerkt, und die Zeile
+        // verschwindet SOFORT - online tut sie das auch.
+        if (outcome.IsOffline && _cachedTreatments.TryGetValue(id, out var gone))
+        {
+            if (!await _outbox.QueueWriteAsync(
+                    MeadowEntityType.PlannedCowTreatment, MeadowOperation.Delete, "DELETE",
+                    route, id, [gone.ClientId]))
+            {
+                return false;
+            }
+
+            _cachedTreatments = _cachedTreatments.Remove(id);
+            _cachedMedicineList = _cachedTreatments.Values.Select(t => t.MedicineId.ToString()).Distinct().ToImmutableList();
+            _cachedWhereHowList = _cachedTreatments.Values.Select(t => t.WhereHowId).Distinct().ToImmutableList();
+            Logger.LogInformation("Loeschung von geplanter Kuhbehandlung {Id} wartet auf die Uebertragung.", id);
+            return true;
+        }
+
+        var isSuccess = outcome.Ok;
 
         if (isSuccess && _cachedTreatments.ContainsKey(id))
         {

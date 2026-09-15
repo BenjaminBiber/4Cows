@@ -88,6 +88,40 @@ internal static class EndpointCommon
             statusCode: StatusCodes.Status500InternalServerError);
 
     /// <summary>
+    /// Wie <see cref="WriteFailed"/>, aber es sieht vorher noch einmal nach.
+    ///
+    /// Der Existenztest vor dem Schreiben liest den Cache des Dienstes. Wurde
+    /// die Zeile inzwischen woanders geloescht - im zweiten Browserfenster,
+    /// von Hand in der Datenbank -, geht er trotzdem durch, das Update trifft
+    /// null Zeilen, und der Dienst meldet false. Eine 500 waere dafuer die
+    /// falsche Auskunft: der Server ist heil, das ZIEL ist weg.
+    ///
+    /// Der Unterschied ist nicht kosmetisch. Eine 5xx heisst fuer die Outbox
+    /// des Clients "spaeter nochmal", und spaeter ist die Zeile genauso weg -
+    /// der Eintrag liefe bis in alle Ewigkeit im Backoff, ohne dass jemand
+    /// davon erfuehre. Die 404 macht daraus einen dauerhaften Fehlschlag, und
+    /// der steht sichtbar unter /uebertragung.
+    ///
+    /// Deshalb wird hier NEU GELADEN und nicht der Cache befragt: der ist ja
+    /// gerade der, der sich geirrt hat.
+    /// </summary>
+    internal static async Task<IResult> WriteFailedOrGoneAsync<TKey, TValue>(
+        Func<ImmutableDictionary<TKey, TValue>> cache,
+        TKey key,
+        Func<Task> reload,
+        string resource,
+        string what)
+        where TKey : notnull
+        where TValue : class
+    {
+        await reload();
+
+        return cache().ContainsKey(key)
+            ? WriteFailed(what)
+            : NotFound(resource, key);
+    }
+
+    /// <summary>
     /// Antwort der fuenf Upsert-Endpunkte (/by-name, /by-quarters), wenn der
     /// Dienst seinen Fehlerwert geliefert hat.
     ///

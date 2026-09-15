@@ -113,7 +113,27 @@ public sealed class OutboxProcessor : IDisposable
     /// Kommt aus meadow-db.js: online-Ereignis oder ein wieder sichtbarer Tab.
     /// </summary>
     [JSInvokable("ConnectivitySignal")]
-    public Task ConnectivitySignalAsync(string reason) => DrainAsync(reason);
+    public Task ConnectivitySignalAsync(string reason)
+    {
+        // Das offline-Ereignis ist kein Anlass zu senden, sondern einer zu
+        // zeigen. Gemeldet wird es ueber DENSELBEN Zustandsdienst, den auch
+        // jeder fehlgeschlagene Aufruf benutzt - ein zweiter Verbindungsbegriff
+        // waere eine zweite Wahrheit, und die beiden waeren sich irgendwann
+        // uneinig.
+        //
+        // Der Rueckweg braucht hier nichts: navigator.onLine ist ein Optimist
+        // (im Stall-WLAN ohne Route steht es auf true), also gilt "wieder
+        // verbunden" erst, wenn ein Aufruf wirklich durchkam. Das meldet
+        // HttpServiceBase von selbst.
+        if (string.Equals(reason, "offline", StringComparison.Ordinal))
+        {
+            _databaseStatusService.ReportFailure();
+            _logger.LogInformation("Das Geraet meldet sich offline.");
+            return Task.CompletedTask;
+        }
+
+        return DrainAsync(reason);
+    }
 
     /// <summary>
     /// Der manuelle Knopf. Oeffentlich, weil ihn eine Komponente eines
@@ -230,6 +250,14 @@ public sealed class OutboxProcessor : IDisposable
             _sync.SetDraining(true);
             _logger.LogInformation("Outbox: {Count} Eintraege, Ausloeser {Trigger}.", entries.Count, trigger);
 
+            // Ein Mensch hat getippt - dann wird jetzt versucht und nicht in
+            // vier Minuten. Der Backoff schuetzt einen Server vor einem Tablet,
+            // das im Funkloch weiterfragt; er ist nicht dazu da, jemanden
+            // warten zu lassen, der gerade sieht, dass wieder Netz da ist.
+            // "Jetzt uebertragen", das sichtbar nichts tut, ist schlimmer als
+            // gar kein Knopf.
+            var vonHand = trigger is "manuell" or "wiederholen";
+
             foreach (var entry in entries.OrderBy(e => e.Seq))
             {
                 // Ein dauerhaft gescheiterter Eintrag BLOCKIERT NICHT.
@@ -245,7 +273,7 @@ public sealed class OutboxProcessor : IDisposable
                     continue;
                 }
 
-                if (entry.NextAttemptUtc is { } next && next > DateTimeOffset.UtcNow)
+                if (!vonHand && entry.NextAttemptUtc is { } next && next > DateTimeOffset.UtcNow)
                 {
                     // Der Kopf der Schlange wartet noch - und weil die
                     // Reihenfolge gilt, warten alle dahinter mit.
@@ -303,10 +331,24 @@ public sealed class OutboxProcessor : IDisposable
 
         try
         {
-            using var request = new HttpRequestMessage(HttpMethod.Post, MeadowStores.InsertRoute(entry.EntityType))
+            // Verb und Adresse stehen am Eintrag. Fehlen sie, stammt er aus
+            // einer Fassung, die nur Inserts kannte - dann gilt, was damals galt.
+            var method = entry.Method is { Length: > 0 } verb
+                ? new HttpMethod(verb)
+                : HttpMethod.Post;
+
+            var route = entry.Route is { Length: > 0 } uri
+                ? uri
+                : MeadowStores.InsertRoute(entry.EntityType);
+
+            using var request = new HttpRequestMessage(method, route);
+
+            // Ein DELETE traegt keinen Rumpf, und "Verband entfernt" auch
+            // nicht: dort steht alles in der Adresse.
+            if (entry.Payload.Length > 0)
             {
-                Content = new StringContent(entry.Payload, Encoding.UTF8, "application/json")
-            };
+                request.Content = new StringContent(entry.Payload, Encoding.UTF8, "application/json");
+            }
 
             response = await _http.SendAsync(request);
         }
@@ -325,11 +367,29 @@ public sealed class OutboxProcessor : IDisposable
         {
             var body = await ReadBodyAsync(response);
 
-            if (response.StatusCode is HttpStatusCode.Created or HttpStatusCode.OK)
+            // Eine Loeschung, die ihr Ziel nicht mehr findet, hat ihr Ziel
+            // erreicht. "Schon weg" IST der gewuenschte Endzustand, und eine
+            // Fehlerkarte dafuer liesse den Landwirt eine Zeile suchen, die er
+            // erfolgreich entfernt hat. Fuer eine AENDERUNG gilt das
+            // ausdruecklich nicht: dort ist die verschwundene Zeile der eine
+            // Konflikt, den kein Automat aufloesen kann.
+            if (response.StatusCode == HttpStatusCode.NotFound
+                && entry.Operation == MeadowOperation.Delete)
+            {
+                _databaseStatusService.ReportSuccess();
+                _logger.LogInformation(
+                    "Outbox {Seq}: Zeile war schon geloescht - das ist der gewollte Zustand ({OperationId}).",
+                    entry.Seq, entry.OperationId);
+
+                await CompleteAsync(attempt, body);
+                return true;
+            }
+
+            if (response.StatusCode is HttpStatusCode.Created or HttpStatusCode.OK or HttpStatusCode.NoContent)
             {
                 _databaseStatusService.ReportSuccess();
 
-                if (response.StatusCode == HttpStatusCode.OK)
+                if (response.StatusCode == HttpStatusCode.OK && entry.Operation == MeadowOperation.Insert)
                 {
                     // 200 statt 201 ist kein Fehler, sondern eine Wiederholung:
                     // ein frueherer Versuch hat committet, nur die Antwort ging
@@ -366,6 +426,24 @@ public sealed class OutboxProcessor : IDisposable
     }
 
     /// <summary>
+    /// Nach einer Aenderung: das Wartemerkmal der betroffenen Zeilen loeschen.
+    ///
+    /// Bei einer Loeschung gibt es nichts mehr zu entmerken - der Datensatz ist
+    /// schon beim Einstellen verschwunden. Der Aufruf schadet trotzdem nicht
+    /// und bleibt deshalb ohne Fallunterscheidung: clearPending auf einen
+    /// Schluessel, den es nicht gibt, tut nichts.
+    /// </summary>
+    private async Task RefreshPendingRowsAsync(OutboxEntry entry)
+    {
+        var store = MeadowStores.StoreOf(entry.EntityType);
+
+        foreach (var clientId in entry.ClientIds)
+        {
+            await _store.ClearPendingAsync(store, clientId);
+        }
+    }
+
+    /// <summary>
     /// Der Erfolgsfall, und seine Reihenfolge ist tragend:
     ///
     /// 1. Server-Id in den Cache zurueckschreiben,
@@ -384,7 +462,21 @@ public sealed class OutboxProcessor : IDisposable
     {
         try
         {
-            if (_targets.TryGetValue(entry.EntityType, out var target))
+            // Aenderung und Loeschung bringen keine Zeilen zurueck: ein PUT
+            // antwortet mit 204, ein DELETE ebenso. Zu tun bleibt nur, das
+            // Wartemerkmal loszuwerden - und das erledigt der Neuabruf, den die
+            // Datenmeldung unten ausloest. Der lokale Datensatz der Loeschung
+            // ist schon beim Einstellen verschwunden.
+            //
+            // Frueher hier die Antwort durch ApplySyncedRows zu schicken waere
+            // nicht bloss nutzlos: ein leerer Rumpf ergaebe eine Ausnahme, und
+            // die Protokollzeile im Fang unten liesse jeden Verband so
+            // aussehen, als sei etwas schiefgegangen.
+            if (entry.Operation != MeadowOperation.Insert)
+            {
+                await RefreshPendingRowsAsync(entry);
+            }
+            else if (_targets.TryGetValue(entry.EntityType, out var target))
             {
                 var rows = target.ApplySyncedRows(body);
                 var store = MeadowStores.StoreOf(entry.EntityType);

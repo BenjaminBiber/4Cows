@@ -180,6 +180,30 @@ public sealed class MeadowLocalStore
         }
     }
 
+    /// <summary>
+    /// Nimmt einer Zeile das Wartemerkmal.
+    ///
+    /// Aenderung und Loeschung antworten mit 204 und bringen keine Zeile
+    /// zurueck, mit der sich die wartende ueberschreiben liesse - anders als
+    /// der Insert, dessen Antwort genau das tut.
+    /// </summary>
+    public async Task ClearPendingAsync(string store, object key)
+    {
+        if (!await OpenAsync())
+        {
+            return;
+        }
+
+        try
+        {
+            await _js.InvokeVoidAsync("meadowDb.clearPending", store, key);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Wartemerkmal in {Store} konnte nicht entfernt werden.", store);
+        }
+    }
+
     // ---- meta ---------------------------------------------------------------
 
     public async Task<string?> GetMetaAsync(string key)

@@ -114,6 +114,95 @@ public sealed class MeadowOutbox
     }
 
     /// <summary>
+    /// Nimmt eine Aenderung oder eine Loeschung an, die nicht hinausgehen
+    /// konnte.
+    ///
+    /// Anders als beim Insert gibt es hier nichts zu erfinden: die Zeile hat
+    /// ihre echte Id laengst, sonst waere sie ueber
+    /// <see cref="CancelPendingInsertAsync"/> gelaufen. Deshalb braucht diese
+    /// Methode auch keine vorlaeufigen Schluessel und keine Reihenfolge-
+    /// Akrobatik - sie schreibt den Eintrag und passt den lokalen Datensatz an.
+    ///
+    /// Was mit dem Datensatz passiert, unterscheidet sich:
+    ///
+    /// - Bei einer AENDERUNG bleibt er stehen und wird als wartend markiert.
+    ///   Der Landwirt sieht seine Aenderung sofort, mit einem Punkt davor.
+    /// - Bei einer LOESCHUNG verschwindet er. Alles andere waere eine Zeile,
+    ///   die man geloescht hat und die trotzdem noch da ist - online
+    ///   verschwindet sie ja auch sofort. Geht die Loeschung spaeter dauerhaft
+    ///   schief, holt der naechste Neuabruf die Zeile zurueck, und die
+    ///   Fehlerkarte sagt, warum.
+    /// </summary>
+    public async Task<bool> QueueWriteAsync(
+        MeadowEntityType entityType,
+        MeadowOperation operation,
+        string method,
+        string route,
+        int serverId,
+        IReadOnlyCollection<Guid> clientIds,
+        string payload = "",
+        object? rowToKeep = null)
+    {
+        if (!_store.IsAvailable)
+        {
+            _logger.LogWarning("Kein lokaler Speicher - {Kind} kann nicht zwischengelagert werden.",
+                MeadowStores.Describe(entityType));
+            return false;
+        }
+
+        var entry = new OutboxEntry
+        {
+            OperationId = Guid.NewGuid(),
+            EntityType = entityType,
+            Operation = operation,
+            Method = method,
+            Route = route,
+            ServerId = serverId,
+            ClientIds = clientIds.Select(id => id.ToString()).ToArray(),
+            Payload = payload,
+            CreatedUtc = DateTimeOffset.UtcNow,
+            State = OutboxState.Pending
+        };
+
+        var seq = await _store.AppendOutboxAsync(entry);
+        if (seq == 0)
+        {
+            return false;
+        }
+
+        var store = MeadowStores.StoreOf(entityType);
+
+        if (operation == MeadowOperation.Delete)
+        {
+            foreach (var clientId in entry.ClientIds)
+            {
+                await _store.DeleteRowAsync(store, clientId);
+            }
+        }
+        else if (rowToKeep is not null)
+        {
+            await _store.PutRowAsync(store, rowToKeep, pending: true);
+        }
+
+        _logger.LogInformation(
+            "Outbox {Seq}: {Operation} auf {Kind} {ServerId} zwischengelagert ({OperationId}).",
+            seq, operation, MeadowStores.Describe(entityType), serverId, entry.OperationId);
+
+        await RefreshCountersAsync();
+        return true;
+    }
+
+    /// <summary>
+    /// Markiert eine Zeile als wartend, ohne einen Eintrag zu schreiben.
+    ///
+    /// Fuer die Mengenvariante der Verbaende: dort gehoert EIN Eintrag zu
+    /// mehreren Zeilen, und der Punkt soll trotzdem an jeder stehen.
+    /// </summary>
+    public Task MarkRowPendingAsync<TRow>(string store, TRow row)
+        where TRow : class
+        => _store.PutRowAsync(store, row, pending: true);
+
+    /// <summary>
     /// Die naechste vorlaeufige Id - NEGATIV und absteigend.
     ///
     /// Cow_Table.razor benutzt RowKey="@(r => r.CowTreatmentId)". Zwei wartende

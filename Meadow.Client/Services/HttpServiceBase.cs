@@ -207,6 +207,56 @@ public abstract class HttpServiceBase
             failureMessage);
 
     /// <summary>
+    /// Ergebnis eines Schreibaufrufs, der sagt, WARUM er nicht geklappt hat.
+    ///
+    /// <see cref="IsOffline"/> ist die einzige Frage, die der Aufrufer
+    /// beantwortet haben muss: nur dann wandert der Vorgang in die Outbox.
+    /// Eine 400 dort abzulegen hiesse, sie alle fuenf Minuten erneut ablehnen
+    /// zu lassen, waehrend der Nutzer glaubt, gespeichert zu haben.
+    /// </summary>
+    protected readonly record struct WriteOutcome(bool Ok, bool IsOffline);
+
+    /// <summary>
+    /// Wie <see cref="WriteAsync"/>, aber mit dem Unterschied zwischen
+    /// "abgelehnt" und "keine Leitung". Das Gegenstueck zu
+    /// <see cref="TryPostAsync{TResponse}"/> fuer Aufrufe ohne Antwortrumpf -
+    /// also fuer PUT und DELETE.
+    /// </summary>
+    protected async Task<WriteOutcome> TryWriteAsync(
+        Func<Task<HttpResponseMessage>> send,
+        string failureMessage)
+    {
+        try
+        {
+            using var response = await send();
+
+            if (response.IsSuccessStatusCode)
+            {
+                return new WriteOutcome(true, false);
+            }
+
+            await LogStatusAsync(response, failureMessage);
+            return new WriteOutcome(false, false);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            // Die Leitung ist weg. Beim Timeout bleibt offen, ob der Server
+            // geschrieben hat - und das darf offen bleiben: eine Aenderung
+            // zweimal zu schreiben ergibt denselben Zustand, und eine Loeschung
+            // zweimal ebenso.
+            ReportFailure();
+            Logger.LogWarning(ex, "{Message} Kein Netz.", failureMessage);
+            return new WriteOutcome(false, true);
+        }
+        catch (Exception ex)
+        {
+            ReportFailure();
+            Logger.LogError(ex, "{Message}", failureMessage);
+            return new WriteOutcome(false, false);
+        }
+    }
+
+    /// <summary>
     /// Ein Aufruf, dessen Antwortrumpf gelesen wird - der erzeugte Datensatz
     /// eines POST, das { id } der Upserts, das { removed } der Mengenvariante.
     /// <c>null</c> heisst "ging schief".
