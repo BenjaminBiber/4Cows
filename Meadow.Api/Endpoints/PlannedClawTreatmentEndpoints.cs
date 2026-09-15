@@ -1,3 +1,5 @@
+using Meadow.Data.Sql;
+using Microsoft.EntityFrameworkCore;
 using Meadow.Api.Infrastructure;
 using Meadow.Shared.Models;
 using Meadow.Shared.Services;
@@ -27,12 +29,27 @@ public static class PlannedClawTreatmentEndpoints
         // Einzelner Insert, kein Stapel: IPClawTreatmentService hat
         // InsertDataAsync und kein InsertRangeAsync. Zurueck geht die Instanz,
         // in die EF die Identity geschrieben hat.
-        api.MapPost("/planned-claw-treatments", async (PlannedClawTreatment clawTreatment, IPClawTreatmentService svc) =>
+        api.MapPost("/planned-claw-treatments", async (
+            PlannedClawTreatment clawTreatment,
+            IPClawTreatmentService svc,
+            IDbContextFactory<DatabaseContext> factory) =>
         {
+            var rows = new[] { clawTreatment };
+            Task<List<PlannedClawTreatment>> Find(DatabaseContext c, List<Guid> ids) =>
+                c.PlannedClawTreatments.AsNoTracking().Where(t => ids.Contains(t.ClientId)).ToListAsync();
+
+            var decision = await ClientIdUpsert.PrepareAsync(
+                factory, rows, t => t.ClientId, Find, "geplante Klauenbehandlung");
+            if (decision.Answer is not null) { return decision.Answer; }
+
             var ok = await svc.InsertDataAsync(clawTreatment);
-            return ok
-                ? Results.Created($"/api/planned-claw-treatments/{clawTreatment.PlannedClawTreatmentId}", clawTreatment)
-                : EndpointCommon.WriteFailed("Die geplante Klauenbehandlung konnte nicht angelegt werden.");
+            if (ok)
+            {
+                return Results.Created($"/api/planned-claw-treatments/{clawTreatment.PlannedClawTreatmentId}", clawTreatment);
+            }
+
+            return await ClientIdUpsert.RaceWinnerAsync(factory, rows, t => t.ClientId, Find)
+                   ?? EndpointCommon.WriteFailed("Die geplante Klauenbehandlung konnte nicht angelegt werden.");
         }).BumpsOnWrite(DataScope.PlannedClawTreatments).WithName("PlannedClawTreatmentCreate");
 
         api.MapDelete("/planned-claw-treatments/{treatmentId:int}", async (int treatmentId, IPClawTreatmentService svc) =>

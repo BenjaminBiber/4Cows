@@ -1,3 +1,5 @@
+using Meadow.Data.Sql;
+using Microsoft.EntityFrameworkCore;
 using Meadow.Api.Infrastructure;
 using Meadow.Shared.Models;
 using Meadow.Shared.Services;
@@ -29,17 +31,28 @@ public static class PlannedCowTreatmentEndpoints
         // Nur InsertRangeAsync auf der Naht - wie bei den Kuhbehandlungen. EF
         // vergibt die Ids in Einfuegereihenfolge und schreibt sie in die
         // uebergebenen Instanzen; zurueck geht dieselbe Liste.
-        api.MapPost("/planned-cow-treatments/batch", async (List<PlannedCowTreatment> treatments, IPCowTreatmentService svc) =>
+        api.MapPost("/planned-cow-treatments/batch", async (
+            List<PlannedCowTreatment> treatments,
+            IPCowTreatmentService svc,
+            IDbContextFactory<DatabaseContext> factory) =>
         {
             if (treatments.Count == 0)
             {
                 return EndpointCommon.Invalid("treatments", "Der Stapel enthaelt keine Planung.");
             }
 
+            Task<List<PlannedCowTreatment>> Find(DatabaseContext c, List<Guid> ids) =>
+                c.PlannedCowTreatments.AsNoTracking().Where(t => ids.Contains(t.ClientId)).ToListAsync();
+
+            var decision = await ClientIdUpsert.PrepareAsync(
+                factory, treatments, t => t.ClientId, Find, "geplante Kuhbehandlung");
+            if (decision.Answer is not null) { return decision.Answer; }
+
             var ok = await svc.InsertRangeAsync(treatments);
-            return ok
-                ? Results.Created("/api/planned-cow-treatments", treatments)
-                : EndpointCommon.WriteFailed($"Die {treatments.Count} geplanten Kuhbehandlungen konnten nicht angelegt werden.");
+            if (ok) { return Results.Created("/api/planned-cow-treatments", treatments); }
+
+            return await ClientIdUpsert.RaceWinnerAsync(factory, treatments, t => t.ClientId, Find)
+                   ?? EndpointCommon.WriteFailed($"Die {treatments.Count} geplanten Kuhbehandlungen konnten nicht angelegt werden.");
         }).BumpsOnWrite(DataScope.PlannedCowTreatments).WithName("PlannedCowTreatmentCreateBatch");
 
         // Anders als bei den vier Nachschlagetabellen prueft RemoveByIDAsync
