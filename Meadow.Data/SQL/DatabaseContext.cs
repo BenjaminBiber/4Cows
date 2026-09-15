@@ -39,5 +39,34 @@ public sealed class DatabaseContext : DbContext
             .HasIndex(c => c.EarTagNumber)
             .IsUnique()
             .HasDatabaseName("IX_Cow_Ear_Tag_Number");
+
+        // Der zweite Schluessel der vier offline schreibbaren Tabellen. Die
+        // Eindeutigkeit ist die eigentliche Garantie: sie macht aus einem
+        // wiederholten Insert einen No-op, ganz gleich wie oft die Uebertragung
+        // abbricht und neu ansetzt. Die Pruefung im Endpunkt ist nur der
+        // schnelle Weg dorthin - der Index ist der verlaessliche.
+        //
+        // ascii statt utf8mb4: eine GUID besteht aus Hexziffern und
+        // Bindestrichen. Das macht den Indexschluessel 36 Byte statt 144 und
+        // haelt ihn dicht.
+        modelBuilder.Entity<CowTreatment>()
+            .Property(t => t.ClientId).HasColumnType("char(36)").HasCharSet("ascii");
+        modelBuilder.Entity<CowTreatment>()
+            .HasIndex(t => t.ClientId).IsUnique().HasDatabaseName("IX_Cow_Treatment_Client_Id");
+
+        modelBuilder.Entity<ClawTreatment>()
+            .Property(t => t.ClientId).HasColumnType("char(36)").HasCharSet("ascii");
+        modelBuilder.Entity<ClawTreatment>()
+            .HasIndex(t => t.ClientId).IsUnique().HasDatabaseName("IX_Claw_Treatment_Client_Id");
+
+        modelBuilder.Entity<PlannedCowTreatment>()
+            .Property(t => t.ClientId).HasColumnType("char(36)").HasCharSet("ascii");
+        modelBuilder.Entity<PlannedCowTreatment>()
+            .HasIndex(t => t.ClientId).IsUnique().HasDatabaseName("IX_Planned_Cow_Treatment_Client_Id");
+
+        modelBuilder.Entity<PlannedClawTreatment>()
+            .Property(t => t.ClientId).HasColumnType("char(36)").HasCharSet("ascii");
+        modelBuilder.Entity<PlannedClawTreatment>()
+            .HasIndex(t => t.ClientId).IsUnique().HasDatabaseName("IX_Planned_Claw_Treatment_Client_Id");
     }
 }
