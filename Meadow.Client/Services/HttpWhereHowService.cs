@@ -178,6 +178,15 @@ public class HttpWhereHowService : HttpServiceBase, IWhereHowService
             return known.WhereHowId;
         }
 
+        // Unbekannt - ab hier wuerde angelegt. Ohne Verbindung nicht; siehe
+        // HttpMedicineService.GetMedicineIdByName, es ist dieselbe Regel.
+        if (!IsConnected)
+        {
+            Logger.LogInformation(
+                "Wie/Wo {Name} ist unbekannt und ohne Verbindung nicht anzulegen.", trimmed);
+            return int.MinValue;
+        }
+
         var response = await ReadAsync<IdResponse>(
             () => PostAsync("api/where-hows/by-name", new WhereHowByNameRequest(trimmed, showDialog)),
             $"Failed to resolve WhereHow name {trimmed}.");

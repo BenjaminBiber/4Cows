@@ -102,6 +102,17 @@ public abstract class HttpServiceBase
     /// </summary>
     protected void ReportFailure() => _databaseStatusService.ReportFailure();
 
+    /// <summary>
+    /// Ob der letzte Aufruf durchkam. Fuer die fuenf Upsert-Methoden, die ohne
+    /// Verbindung gar nicht erst fragen duerfen: sie WUERDEN einen Eintrag
+    /// anlegen, und ein Medikament, das nur dieses Telefon kennt, haengt danach
+    /// an einer Behandlung, die der Server nie annehmen kann.
+    ///
+    /// Dieselbe Quelle, die DatabaseConnectionState liest - es gibt also keinen
+    /// zweiten Verbindungsbegriff.
+    /// </summary>
+    protected bool IsConnected => _databaseStatusService.IsConnected;
+
     protected Task<HttpResponseMessage> GetAsync(string uri)
         => SendAsync(Request(HttpMethod.Get, uri, body: null));
 
