@@ -160,6 +160,23 @@ public class HttpClawTreatmentService : HttpServiceBase, IClawTreatmentService, 
 
     public async Task<bool> UpdateDataAsync(ClawTreatment clawTreatment)
     {
+        // Eine negative Id ist eine vorlaeufige: die Zeile wartet noch als
+        // Insert und hat den Server nie gesehen. Dann wird nicht geaendert,
+        // sondern der wartende Insert nachgebessert - sonst ginge ein PUT auf
+        // api/claw-treatments/-3 hinaus, das nach dem Insert in eine 404 laeuft
+        // und als dauerhaft gescheitert gilt. Uebertragen waere der Stand VOR
+        // der Bearbeitung.
+        if (clawTreatment.ClawTreatmentId < 0
+            && await _outbox.UpdatePendingInsertAsync(
+                clawTreatment.ClientId, MeadowStores.ClawTreatment, clawTreatment))
+        {
+            _cachedTreatments = _cachedTreatments.SetItem(clawTreatment.ClawTreatmentId, clawTreatment);
+            Logger.LogInformation(
+                "Wartende Klauenbehandlung {Id} geaendert - es geht nur EIN Anlegen hinaus.",
+                clawTreatment.ClawTreatmentId);
+            return true;
+        }
+
         var route = $"api/claw-treatments/{clawTreatment.ClawTreatmentId}";
 
         var outcome = await TryWriteAsync(
@@ -217,6 +234,24 @@ public class HttpClawTreatmentService : HttpServiceBase, IClawTreatmentService, 
     /// </summary>
     public async Task<bool> RemoveBandageAsync(int id)
     {
+        // Wie in UpdateDataAsync: eine wartende Zeile wird nachgebessert, nicht
+        // geaendert. Der Verband gehoert zu einer Behandlung, die es
+        // serverseitig noch gar nicht gibt.
+        if (id < 0 && _cachedTreatments.TryGetValue(id, out var wartend))
+        {
+            wartend.IsBandageRemoved = true;
+
+            if (await _outbox.UpdatePendingInsertAsync(
+                    wartend.ClientId, MeadowStores.ClawTreatment, wartend))
+            {
+                _cachedTreatments = _cachedTreatments.SetItem(id, wartend);
+                Logger.LogInformation("Verband an wartender Klauenbehandlung {Id} vermerkt.", id);
+                return true;
+            }
+
+            wartend.IsBandageRemoved = false;
+        }
+
         var route = $"api/claw-treatments/{id}/bandage-removed";
 
         var outcome = await TryWriteAsync(
@@ -343,14 +378,37 @@ public class HttpClawTreatmentService : HttpServiceBase, IClawTreatmentService, 
     /// </summary>
     private async Task<int> QueueBandageRemovalAsync(IReadOnlyCollection<int> ids)
     {
-        var known = ids
+        var alle = ids
             .Where(id => _cachedTreatments.ContainsKey(id))
             .Select(id => _cachedTreatments[id])
             .ToList();
 
+        // Wartende Zeilen gehoeren NICHT in den Stapel: ihre Ids sind
+        // vorlaeufig und negativ, und der Endpunkt faende sie nie. Sie werden
+        // einzeln in ihrem eigenen wartenden Insert nachgebessert.
+        var wartende = alle.Where(t => t.ClawTreatmentId < 0).ToList();
+        var known = alle.Where(t => t.ClawTreatmentId > 0).ToList();
+
+        var nachgebessert = 0;
+        foreach (var treatment in wartende)
+        {
+            treatment.IsBandageRemoved = true;
+
+            if (await _outbox.UpdatePendingInsertAsync(
+                    treatment.ClientId, MeadowStores.ClawTreatment, treatment))
+            {
+                _cachedTreatments = _cachedTreatments.SetItem(treatment.ClawTreatmentId, treatment);
+                nachgebessert++;
+            }
+            else
+            {
+                treatment.IsBandageRemoved = false;
+            }
+        }
+
         if (known.Count == 0)
         {
-            return 0;
+            return nachgebessert;
         }
 
         foreach (var treatment in known)
@@ -374,7 +432,7 @@ public class HttpClawTreatmentService : HttpServiceBase, IClawTreatmentService, 
                 treatment.IsBandageRemoved = false;
             }
 
-            return 0;
+            return nachgebessert;
         }
 
         // Die wartenden Zeilen einzeln ablegen - QueueWriteAsync nimmt nur EINE
@@ -388,7 +446,7 @@ public class HttpClawTreatmentService : HttpServiceBase, IClawTreatmentService, 
             known.Select(t => new KeyValuePair<int, ClawTreatment>(t.ClawTreatmentId, t)));
 
         Logger.LogInformation("{Count} Verbaende warten auf die Uebertragung.", known.Count);
-        return known.Count;
+        return known.Count + nachgebessert;
     }
 
     /// <summary>

@@ -1,3 +1,4 @@
+using Meadow.Api.Infrastructure;
 using Meadow.Shared.Services;
 using Meadow.Data.Services;
 using Meadow.Data.Sql;
@@ -13,12 +14,23 @@ public class CowSyncBackgroundService : BackgroundService
 {
     private readonly IXLinkService _xLinkService;
     private readonly IDbContextFactory<DatabaseContext> _contextFactory;
+
+    /// <summary>
+    /// RefreshCowsAsync SCHREIBT Kuhzeilen - Abgang, Halsbandwechsel,
+    /// Kalb-Befoerderung, Neuanlage. Der manuelle Weg ueber POST
+    /// /api/xlink/refresh bumpt dafuer (XLinkRunner); nach einem
+    /// Hintergrundlauf gilt dieselbe Aussage, und ohne den Bump merkt ein
+    /// offener Tab von abgegangenen und neu angelegten Kuehen nichts.
+    /// </summary>
+    private readonly IDataVersion _dataVersion;
     private readonly TimeSpan _interval;
 
-    public CowSyncBackgroundService(IXLinkService xLinkService, IDbContextFactory<DatabaseContext> contextFactory)
+    public CowSyncBackgroundService(IXLinkService xLinkService, IDbContextFactory<DatabaseContext> contextFactory,
+        IDataVersion dataVersion)
     {
         _xLinkService = xLinkService;
         _contextFactory = contextFactory;
+        _dataVersion = dataVersion;
         _interval = TimeSpan.FromHours(
             double.TryParse(Environment.GetEnvironmentVariable("XLinkSyncIntervalHours"), out var hours) && hours > 0
                 ? hours
@@ -44,6 +56,7 @@ public class CowSyncBackgroundService : BackgroundService
             if (canConnect)
             {
                 await _xLinkService.RefreshCowsAsync(cancellationToken);
+                _dataVersion.Bump(DataScope.Cows);
             }
             else
             {

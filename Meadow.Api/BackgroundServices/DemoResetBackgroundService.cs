@@ -1,3 +1,4 @@
+using Meadow.Api.Infrastructure;
 using Meadow.Shared.Services;
 using Meadow.Data.Services;
 using Meadow.Data.Sql;
@@ -69,6 +70,14 @@ public sealed class DemoResetBackgroundService : BackgroundService
     private readonly IPClawTreatmentService _plannedClaw;
     private readonly IKPIService _kpis;
 
+    /// <summary>
+    /// Der Reset loescht neun Tabellen und saet neu. Ohne den Bump saehe ein
+    /// Tab, der die Nacht ueber offen stand, bei seiner naechsten Antwort
+    /// denselben Datenstand-Token wie zuvor - und behielte Zeilen mit IDs, die
+    /// es nicht mehr gibt. Genau dafuer ist BumpAll gebaut.
+    /// </summary>
+    private readonly IDataVersion _dataVersion;
+
     public DemoResetBackgroundService(
         IDbContextFactory<DatabaseContext> contextFactory,
         DemoOptions demo,
@@ -81,7 +90,8 @@ public sealed class DemoResetBackgroundService : BackgroundService
         IClawTreatmentService clawTreatments,
         IPCowTreatmentService plannedCow,
         IPClawTreatmentService plannedClaw,
-        IKPIService kpis)
+        IKPIService kpis,
+        IDataVersion dataVersion)
     {
         _contextFactory = contextFactory;
         _demo = demo;
@@ -95,6 +105,7 @@ public sealed class DemoResetBackgroundService : BackgroundService
         _plannedCow = plannedCow;
         _plannedClaw = plannedClaw;
         _kpis = kpis;
+        _dataVersion = dataVersion;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -158,6 +169,11 @@ public sealed class DemoResetBackgroundService : BackgroundService
             await ClearAsync(context, cancellationToken);
             await DemoDataSeeder.SeedAsync(context);
             await ReloadCachesAsync();
+
+            // NACH dem Neuladen: erst jetzt stimmen die serverseitigen Caches mit
+            // der Datenbank ueberein, und ein Client, der auf den neuen Token
+            // hin sofort nachlaedt, bekaeme sonst noch den alten Stand.
+            _dataVersion.BumpAll();
 
             LoggerService.LogInformation(typeof(DemoResetBackgroundService),
                 "Demo-Daten zurueckgesetzt und neu erzeugt.");

@@ -311,6 +311,99 @@ public sealed class MeadowOutbox
     /// Nutzlast ist entweder ein Array (Stapel) oder ein einzelnes Objekt.
     /// Typfrei, damit es fuer alle vier Behandlungsarten dieselbe Stelle bleibt.
     /// </summary>
+    /// <summary>
+    /// Bessert einen noch nicht uebertragenen Insert nach, statt eine Aenderung
+    /// hinterherzuschicken.
+    ///
+    /// Wer ohne Netz eine Behandlung anlegt und sie danach bearbeitet, haette
+    /// sonst zwei Eintraege: einen Insert und ein PUT auf die VORLAEUFIGE,
+    /// negative Id. Beim Abarbeiten geht der Insert zuerst hinaus, die Zeile
+    /// bekommt ihre echte Id - und das PUT auf api/...-3 laeuft danach in eine
+    /// 404 und gilt als dauerhaft gescheitert. Uebertragen waere der Stand VOR
+    /// der Bearbeitung, und der Landwirt saehe eine Fehlerkarte fuer eine
+    /// Aenderung, die er korrekt gespeichert hat.
+    ///
+    /// Der Server hat die Zeile noch nie gesehen; es gibt also nichts zu
+    /// aendern, sondern nur etwas anderes anzulegen. Genau das passiert hier:
+    /// das Element mit dieser clientId wird in der Nutzlast ersetzt.
+    ///
+    /// Ein Eintrag, der gerade uebertragen wird (InFlight), wird nicht
+    /// angefasst - dort ist nicht mehr zu entscheiden, ob der Server ihn schon
+    /// hat. Die Zeile kommt dann mit ihrer echten Id zurueck und laesst sich
+    /// regulaer aendern.
+    /// </summary>
+    /// <returns><c>true</c>, wenn der wartende Insert nachgebessert wurde.</returns>
+    public async Task<bool> UpdatePendingInsertAsync<TRow>(Guid clientId, string store, TRow row)
+        where TRow : class
+    {
+        var key = clientId.ToString();
+        var entries = await LoadAsync();
+
+        var entry = entries.FirstOrDefault(e =>
+            e.Operation == MeadowOperation.Insert
+            && e.State != OutboxState.InFlight
+            && e.ClientIds.Contains(key, StringComparer.OrdinalIgnoreCase));
+
+        if (entry is null)
+        {
+            return false;
+        }
+
+        await UpdateAsync(entry with
+        {
+            Payload = ReplaceInPayload(entry.Payload, key, JsonSerializer.Serialize(row, Json))
+        });
+
+        await _store.PutRowAsync(store, row, pending: true);
+
+        _logger.LogInformation(
+            "Wartender Eintrag {Seq} nachgebessert - es geht nur EIN Anlegen hinaus.", entry.Seq);
+
+        return true;
+    }
+
+    /// <summary>
+    /// Ersetzt das Element mit dieser clientId in einer JSON-Nutzlast. Wie
+    /// <see cref="RemoveFromPayload"/> typfrei, damit es fuer alle vier
+    /// Behandlungsarten dieselbe Stelle bleibt - und es deckt beide Formen ab:
+    /// einen Stapel (Array) und eine einzelne Zeile (Objekt).
+    /// </summary>
+    private static string ReplaceInPayload(string payload, string clientId, string neu)
+    {
+        try
+        {
+            var node = JsonNode.Parse(payload);
+            var ersatz = JsonNode.Parse(neu);
+
+            if (node is not JsonArray array)
+            {
+                // Einzelne Zeile: nur ersetzen, wenn es wirklich dieselbe ist.
+                var eigene = node?["clientId"]?.GetValue<string>();
+                return string.Equals(eigene, clientId, StringComparison.OrdinalIgnoreCase)
+                    ? neu
+                    : payload;
+            }
+
+            for (var i = 0; i < array.Count; i++)
+            {
+                var value = array[i]?["clientId"]?.GetValue<string>();
+                if (string.Equals(value, clientId, StringComparison.OrdinalIgnoreCase))
+                {
+                    array[i] = ersatz;
+                    break;
+                }
+            }
+
+            return array.ToJsonString();
+        }
+        catch (JsonException)
+        {
+            // Lieber die Nutzlast unveraendert lassen als einen Eintrag
+            // zerschiessen, der sonst uebertragbar waere.
+            return payload;
+        }
+    }
+
     private static string RemoveFromPayload(string payload, string clientId)
     {
         try
