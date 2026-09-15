@@ -102,7 +102,10 @@
         IsLanding, das ueber HttpContext.Request.Path entschied - beides gibt
         es im Browser nicht. Die Landing-Page laedt damit MudBlazor, Chart.js
         und Ace mit, die sie nicht braucht; aus dem Vorab-Cache des Service
-        Workers bleiben sie trotzdem draussen (siehe Phase 3).
+        Workers bleibt davon nur Ace draussen - offlineAssetsExclude in
+        service-worker.published.js schliesst gezielt nur
+        _content/Blazor.AceEditorJs/ aus. MudBlazor und Chart.js werden
+        trotzdem vorab gecacht.
     -->
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
     <script src="js/meadow.js"></script>

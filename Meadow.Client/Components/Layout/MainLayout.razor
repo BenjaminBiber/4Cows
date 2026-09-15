@@ -85,7 +85,7 @@
         if (firstRender)
         {
             // Erst hier gibt es JS. Das Attribut steht dank des Inline-Skripts
-            // in App.razor schon vor dem ersten Paint; nachgelesen wird es nur,
+            // in index.html schon vor dem ersten Paint; nachgelesen wird es nur,
             // damit MudThemeProvider denselben Zustand kennt.
             await Theme.InitializeAsync();
         }

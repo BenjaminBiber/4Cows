@@ -94,7 +94,7 @@ Beispieltiere wären danach in keiner Auswahl mehr sichtbar.
 
 ## Technologie
 
-**Frontend:** Blazor Server App mit Mudblazor
+**Frontend:** Blazor WebAssembly App (Meadow.Client) mit MudBlazor, ausgeliefert von Meadow.Api
 
 **Backend:** MariaDB Datenbank
 

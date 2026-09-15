@@ -7,7 +7,7 @@ namespace Meadow.Client.Components.Services;
 /// data-mw-theme-Attribut auf &lt;html&gt;.
 ///
 /// Das Attribut selbst setzt bereits das Inline-Skript im &lt;head&gt; von
-/// App.razor, also VOR dem ersten Paint. Dieser Service liest den Wert
+/// index.html, also VOR dem ersten Paint. Dieser Service liest den Wert
 /// danach nur nach, damit MudThemeProvider mitzieht - deshalb ist ein
 /// spaeter korrektes IsDark unproblematisch: sichtbar ist nichts davon
 /// abhaengig, weil alle Mud-Farben auf var(--mw-*) zeigen.

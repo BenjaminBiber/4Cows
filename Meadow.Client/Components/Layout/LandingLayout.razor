@@ -12,7 +12,7 @@
       und ein Stueck Circuit-Zustand weniger. Deshalb auch MeadowIcon statt
       MudIcon - Muds gefuellte Glyphen stehen neben den Meadow-Strichen
       ohnehin falsch.
-    - Kein ThemeState: das Boot-Skript im <head> von App.razor setzt
+    - Kein ThemeState: das Boot-Skript im <head> von index.html setzt
       data-mw-theme schon vor dem ersten Paint aus dem localStorage. Die
       Seite faerbt sich allein ueber die var(--mw-*)-Tokens richtig, ohne
       eine Zeile C#. Wer hier einen Umschalter will, kopiert den Knopf aus
@@ -45,10 +45,11 @@
             <a class="mw-lp__link" href="#faq">FAQ</a>
         </nav>
 
-        @* target="_top" statt eines abgefangenen Klicks: App.razor laedt die
-           App-Skripte auf dieser Seite nicht mit, das Dashboard braucht also
-           einen echten Dokumentwechsel. Begruendung am Hero-CTA in
-           MeadowLanding.razor. *@
+        @* target="_top" statt eines abgefangenen Klicks: dieses Layout kommt
+           ohne MudBlazor-Provider aus (siehe oben), die das Dashboard braucht
+           - ein echter Dokumentwechsel baut sie beim naechsten Boot regulaer
+           auf, statt sie nachtraeglich in die laufende Instanz zu haengen.
+           Ausfuehrliche Begruendung am Hero-CTA in MeadowLanding.razor. *@
         <a class="mw-btn mw-btn--primary mw-btn--sm mw-lp__bar-cta"
            target="_top" href="@MeadowRoutes.Dashboard">
             Demo öffnen

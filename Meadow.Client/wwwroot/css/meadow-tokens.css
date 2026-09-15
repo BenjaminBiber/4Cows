@@ -1,7 +1,7 @@
 /* ============================================================
    Meadow — Tokens
    1:1 aus Meadow.dc.html, renderVals() (c / a / Radien / Motion).
-   Dark Mode:  <html data-mw-theme="dark">   (gesetzt vom Boot-Skript in App.razor)
+   Dark Mode:  <html data-mw-theme="dark">   (gesetzt vom Boot-Skript in index.html)
 
    Diese Datei enthaelt ausschliesslich :root-Bloecke, @font-face und Keyframes.
    Keine Komponenten-Selektoren.
