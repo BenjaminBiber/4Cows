@@ -3,10 +3,13 @@
     gehoert Pages/Home.razor, das je nach Demo-Flag diese Komponente oder
     das Dashboard rendert.
 
-    Bewusst OHNE MeadowOfflineGate (anders als Index.razor:20): die Seite
-    liest nichts aus der Datenbank und soll auch dann erscheinen, wenn
-    MariaDB gerade nicht erreichbar ist. Genau deshalb steht hier auch
+    Die Seite liest nichts aus der Datenbank und soll auch dann erscheinen,
+    wenn MariaDB gerade nicht erreichbar ist. Genau deshalb steht hier auch
     keine Live-Zahl ("X Behandlungen erfasst") - die waere ein DB-Zugriff.
+    Frueher stand hier, dass sie bewusst ohne MeadowOfflineGate auskommt;
+    das Gate gibt es nicht mehr, und das Statusband seines Nachfolgers
+    haengt in MainLayout, das diese Seite ohnehin nicht benutzt
+    (LandingLayout, zugewiesen in Routes.razor).
 
     Aufbau: Hero, fuenf Feature-Baender, Mobil-Abschnitt, Abschluss-CTA,
     FAQ. Gestylt in wwwroot/css/meadow-landing.css, Einblenden beim

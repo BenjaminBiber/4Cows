@@ -129,6 +129,19 @@
             <path d="M3 3l18 18" stroke-linecap="round" />
             break;
 
+        @* Dieselbe Wolke wie CloudOff, damit die drei Zustaende des
+           Statusbands als eine Familie lesbar sind - nur der Pfeil wechselt. *@
+        case MeadowIconName.CloudUpload:
+            <path d="M6.5 19h9.5a4 4 0 00.8-7.9 6 6 0 00-11.4-1.6A3.2 3.2 0 006 19" />
+            <path d="M12 16.5V10M9.4 12.6L12 10l2.6 2.6" stroke-linecap="round" stroke-linejoin="round" />
+            break;
+
+        case MeadowIconName.Alert:
+            <path d="M12 3.8L2.7 19.3h18.6L12 3.8z" stroke-linejoin="round" />
+            <path d="M12 9.6v4.2" stroke-linecap="round" />
+            <circle cx="12" cy="16.6" r="1" fill="currentColor" stroke="none" />
+            break;
+
         case MeadowIconName.Check:
             <path d="M4.5 12.5l4.5 4.5L19.5 6.5" />
             break;

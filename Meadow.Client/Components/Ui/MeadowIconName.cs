@@ -39,6 +39,12 @@ public enum MeadowIconName
     Lock,
     CloudOff,
 
+    /// <summary>Wartet auf Uebertragung - das Statusband und der Zeilenpunkt.</summary>
+    CloudUpload,
+
+    /// <summary>Kommt allein nicht mehr weiter; ein Mensch muss ran.</summary>
+    Alert,
+
     // Nur von der Landing-Page gebraucht (Bullet-Haken, CTA-Pfeil,
     // Mobil-Abschnitt) - im Meadow-Prototyp kommen sie nicht vor.
     Check,

@@ -1,0 +1,106 @@
+@*
+    Das Statusband der Uebertragung. Es ersetzt MeadowOfflineGate - und zwar
+    ersatzlos, nicht umgestylt: das Gate war ein role="alertdialog"
+    aria-modal="true" ueber einer App, die ohne Netz voll benutzbar ist. Einem
+    Screenreader "hier geht nichts mehr" zu melden, waehrend der Nutzer im Stall
+    gerade Behandlungen erfasst, ist eine Falschaussage.
+
+    Deshalb role="status" und aria-live="polite": eine Meldung, die vorgelesen
+    wird, wenn der Nutzer gerade Luft hat, und die nichts blockiert.
+
+    Der Wohnort ist MainLayout und nicht Index.razor. Wartende Schreibvorgaenge
+    muessen auf JEDER Seite sichtbar sein - wer im Stall eine Klauenbehandlung
+    erfasst, sieht das Dashboard den ganzen Tag nicht.
+*@
+@implements IDisposable
+
+@using Meadow.Client.Services
+
+@inject MeadowSyncState Sync
+@inject OutboxProcessor Outbox
+@inject DatabaseConnectionState Connection
+@inject NavigationManager Nav
+
+@if (Sichtbar)
+{
+    <div class="mw-syncband mw-syncband--@Art" role="status" aria-live="polite">
+        <MeadowIcon Name="@Glyph" Size="18" Class="mw-syncband__icon" />
+        <span class="mw-syncband__text">@Text</span>
+
+        @if (Sync.FailedCount > 0)
+        {
+            <button type="button" class="mw-syncband__action"
+                    @onclick="@(() => Nav.NavigateTo("/uebertragung"))">
+                Ansehen
+            </button>
+        }
+        else if (Sync.PendingCount > 0 && Connection.IsConnected && !Sync.IsDraining)
+        {
+            <button type="button" class="mw-syncband__action" @onclick="JetztUebertragen">
+                Jetzt übertragen
+            </button>
+        }
+    </div>
+}
+
+@code {
+    /// <summary>
+    /// Versteckt, wenn verbunden UND nichts wartet UND nichts gescheitert ist.
+    ///
+    /// Das "und" ist der ganze Punkt: ein Band, das dauernd da ist, liest
+    /// niemand mehr. Es taucht auf, wenn es etwas zu sagen gibt.
+    /// </summary>
+    private bool Sichtbar
+        => !Connection.IsConnected || Sync.PendingCount > 0 || Sync.FailedCount > 0;
+
+    /// <summary>
+    /// Die Reihenfolge ist eine Rangfolge, keine Aufzaehlung: Gescheitertes
+    /// zuerst, denn nur dort muss ein Mensch etwas tun. Ein "3 warten" ueber
+    /// einer Zeile, die nie ankommen wird, waere beruhigend und falsch.
+    /// </summary>
+    private string Art => Sync.FailedCount > 0 ? "fehler"
+        : Sync.IsDraining ? "aktiv"
+        : Sync.PendingCount > 0 ? "warten"
+        : "offline";
+
+    private MeadowIconName Glyph => Art switch
+    {
+        "fehler" => MeadowIconName.Alert,
+        "offline" => MeadowIconName.CloudOff,
+        _ => MeadowIconName.CloudUpload
+    };
+
+    private string Text => Art switch
+    {
+        "fehler" => Sync.FailedCount == 1
+            ? "1 Eintrag konnte nicht übertragen werden."
+            : $"{Sync.FailedCount} Einträge konnten nicht übertragen werden.",
+
+        "aktiv" => "Überträgt …",
+
+        "warten" => Sync.PendingCount == 1
+            ? "1 Eintrag wartet auf die Übertragung."
+            : $"{Sync.PendingCount} Einträge warten auf die Übertragung.",
+
+        // Der haeufigste Fall im Stall, und der einzige, der eine Zusicherung
+        // enthaelt statt einer Zahl: ohne sie liest "Keine Verbindung" wie ein
+        // Datenverlust.
+        _ => "Keine Verbindung. Änderungen werden gespeichert und später übertragen."
+    };
+
+    private Task JetztUebertragen() => Outbox.DrainNowAsync();
+
+    protected override void OnInitialized()
+    {
+        Sync.Changed += Neuzeichnen;
+        Connection.ConnectionStateChanged += Neuzeichnen;
+    }
+
+    private void Neuzeichnen() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        Sync.Changed -= Neuzeichnen;
+        Connection.ConnectionStateChanged -= Neuzeichnen;
+    }
+}

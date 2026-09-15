@@ -32,6 +32,11 @@
                   OnInfo="@OpenInfo"
                   OnToggleTheme="@Theme.ToggleAsync" />
 
+    @* Direkt unter dem Kopf und damit auf JEDER Seite. Wer im Stall eine
+       Klauenbehandlung erfasst, sieht das Dashboard den ganzen Tag nicht -
+       ein Band nur dort waere ein Band fuer niemanden. *@
+    <MeadowSyncBand />
+
     <div class="mw-body">
         <MeadowDrawer Open="@Layout.DrawerOpen" OnClose="@Layout.CloseAll" OnInfo="OpenInfo" />
 
