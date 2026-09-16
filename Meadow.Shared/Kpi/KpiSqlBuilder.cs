@@ -360,6 +360,15 @@ public static class KpiSqlBuilder
                 Join(joins, $"LEFT JOIN WhereHow wh ON {Alias}.WhereHow_ID = wh.WhereHow_ID");
                 return "wh.WhereHow_Name";
 
+            case KpiTagKeys.Reason:
+                Join(
+                    joins,
+                    $"LEFT JOIN Treatment_Reason tr ON {Alias}.Treatment_Reason_ID = tr.Treatment_Reason_ID");
+                // COALESCE is load-bearing twice over: it is what makes a filter on "Ohne Grund"
+                // match anything at all, AND it keeps reasonless treatments in a ranking, which
+                // otherwise drops them at "WHERE label IS NOT NULL". Mirrors OneOr in the registry.
+                return $"COALESCE(tr.Treatment_Reason_Name, {Literal(KpiFlags.NoReason)})";
+
             case KpiTagKeys.UdderQuarter:
                 Join(joins, $"LEFT JOIN Udder u ON {Alias}.{UdderColumn(sourceId)} = u.UDDER_ID");
                 return UdderLabelExpression();

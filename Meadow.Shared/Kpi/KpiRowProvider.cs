@@ -28,6 +28,7 @@ public sealed class KpiRowProvider : IKpiLookups
     private readonly IClawTreatmentService _clawTreatments;
     private readonly IPCowTreatmentService _plannedCowTreatments;
     private readonly IPClawTreatmentService _plannedClawTreatments;
+    private readonly ITreatmentReasonService _reasons;
 
     public KpiRowProvider(
         ICowService cows,
@@ -38,8 +39,10 @@ public sealed class KpiRowProvider : IKpiLookups
         ICowTreatmentService cowTreatments,
         IClawTreatmentService clawTreatments,
         IPCowTreatmentService plannedCowTreatments,
-        IPClawTreatmentService plannedClawTreatments)
+        IPClawTreatmentService plannedClawTreatments,
+        ITreatmentReasonService reasons)
     {
+        _reasons = reasons;
         _cows = cows;
         _medicines = medicines;
         _whereHows = whereHows;
@@ -79,6 +82,17 @@ public sealed class KpiRowProvider : IKpiLookups
     public string WhereHowName(int whereHowId) => _whereHows.GetWhereHowNameById(whereHowId);
 
     public string ClawFindingName(int? clawFindingId) => _clawFindings.GetNameById(clawFindingId);
+
+    /// <summary>
+    /// Straight out of the cache, NOT through TreatmentReasonLookups.GetNameById: that one returns
+    /// the display dash "–" for an unknown id, and this library must not have to tell that dash
+    /// apart from a real reason. It also exists as two separate constants, one per service, which
+    /// Meadow.Shared could not reference even if it wanted to.
+    /// </summary>
+    public string TreatmentReasonName(int? treatmentReasonId)
+        => treatmentReasonId is int id && _reasons.Reasons.TryGetValue(id, out var reason)
+            ? reason.TreatmentReasonName
+            : string.Empty;
 
     /// <summary>
     /// Reuses WhereHowService.GetUdderString, which is what the tables already display, so a tile

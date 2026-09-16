@@ -33,6 +33,18 @@ public interface IKpiLookups
     string WhereHowName(int whereHowId);
 
     /// <summary>
+    /// Name of the treatment reason, or EMPTY when none is recorded (the id is null) or the id is
+    /// unknown.
+    ///
+    /// Empty rather than a placeholder: KpiSourceRegistry turns the absence into KpiFlags.NoReason,
+    /// and a second placeholder would stand in the filter list and in the ranking as a reason of
+    /// its own. This is also why it does not go through TreatmentReasonLookups.GetNameById, which
+    /// returns the display dash "–" for an unknown id - and does so from two separate constants,
+    /// one per service.
+    /// </summary>
+    string TreatmentReasonName(int? treatmentReasonId);
+
+    /// <summary>
     /// Name des Klauenbefunds, oder LEER wenn keiner erfasst ist (id ist null)
     /// oder die ID unbekannt ist.
     ///

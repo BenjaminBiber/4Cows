@@ -15,7 +15,8 @@ public enum DateRange
 {
     All,
     Days7,
-    Days30
+    Days30,
+    Days90
 }
 
 public static class DateRanges
@@ -23,13 +24,15 @@ public static class DateRanges
     public const string AllLabel = "Alle";
     public const string Days7Label = "7 Tage";
     public const string Days30Label = "30 Tage";
+    public const string Days90Label = "90 Tage";
 
-    public static readonly string[] Labels = { AllLabel, Days7Label, Days30Label };
+    public static readonly string[] Labels = { AllLabel, Days7Label, Days30Label, Days90Label };
 
     public static DateRange Parse(string label) => label switch
     {
         Days7Label => DateRange.Days7,
         Days30Label => DateRange.Days30,
+        Days90Label => DateRange.Days90,
         _ => DateRange.All
     };
 
@@ -37,6 +40,7 @@ public static class DateRanges
     {
         DateRange.Days7 => Days7Label,
         DateRange.Days30 => Days30Label,
+        DateRange.Days90 => Days90Label,
         _ => AllLabel
     };
 
@@ -51,6 +55,7 @@ public static class DateRanges
         DateRange.All => KpiTimeframe.All,
         DateRange.Days7 => KpiTimeframe.Days7,
         DateRange.Days30 => KpiTimeframe.Days30,
+        DateRange.Days90 => KpiTimeframe.Days90,
         _ => throw new ArgumentOutOfRangeException(
             nameof(range), range, "Für diesen Zeitraum gibt es kein KPI-Gegenstück.")
     };
@@ -60,6 +65,7 @@ public static class DateRanges
         KpiTimeframe.All => DateRange.All,
         KpiTimeframe.Days7 => DateRange.Days7,
         KpiTimeframe.Days30 => DateRange.Days30,
+        KpiTimeframe.Days90 => DateRange.Days90,
         _ => throw new ArgumentOutOfRangeException(
             nameof(timeframe), timeframe, "Für diesen KPI-Zeitraum gibt es keinen Tabellen-Chip.")
     };
@@ -88,7 +94,22 @@ public static class DateRanges
 /// </summary>
 public static class ReasonFilter
 {
-    public const string NoneOption = "Ohne Grund";
+    // Aus KpiFlags, nicht als eigenes Literal - genau wie ClawTableFilter.BandageOption. Eine
+    // KPI-Kachel verlinkt mit diesem Wert hierher und speichert ihn in ihrer Definition; zwei
+    // getrennte Konstanten wuerden auseinanderdriften, sobald eine davon umbenannt wird.
+    public const string NoneOption = KpiFlags.NoReason;
+
+    /// <summary>
+    /// Ist <paramref name="name"/> der reservierte Sammelwert?
+    ///
+    /// Die Basisdaten-Seite lehnt genau diesen Namen fuer einen Behandlungsgrund ab, aus demselben
+    /// Grund wie <see cref="ClawTableFilter.IsReservedFindingName"/>: echte Gruende und dieser
+    /// Sammelwert teilen sich hier und in KpiDefinition.Filters denselben Wertebereich. Ein Grund
+    /// namens "Ohne Grund" waere von den grundlosen Behandlungen nicht mehr zu unterscheiden, und
+    /// eine gespeicherte Kachel wuerde still beides zaehlen.
+    /// </summary>
+    public static bool IsReservedReasonName(string? name)
+        => string.Equals(name?.Trim() ?? "", NoneOption, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Die Optionsliste aus den tatsaechlich vorkommenden Gruenden - nicht aus
@@ -232,7 +253,20 @@ public sealed class ClawTableFilter
     /// <summary>Halsbandnummern - siehe <see cref="CowTableFilter.Cows"/>.</summary>
     public HashSet<string> Cows { get; } = new(StringComparer.OrdinalIgnoreCase);
 
-    public int ActiveCount => (Findings.Count > 0 ? 1 : 0) + (Cows.Count > 0 ? 1 : 0);
+    /// <summary>
+    /// Der Zeitraum, den diese Tabelle als EINZIGE der vier nicht hatte.
+    ///
+    /// Das war kein Schoenheitsfehler: eine Klauen-KPI mit "letzte 30 Tage" baut ihren Link mit
+    /// range=30, KpiDrillDown.ApplyTo fand hier aber nichts zum Setzen und liess ihn fallen. Die
+    /// Kachel zeigte 4, die Tabelle dahinter alle 80 Zeilen - genau die Uneinigkeit, gegen die
+    /// KpiDefinition den Zeitraum ueberhaupt auf DateRange eingenordet hat.
+    /// </summary>
+    public DateRange Range { get; set; } = DateRange.All;
+
+    public int ActiveCount
+        => (Findings.Count > 0 ? 1 : 0)
+           + (Cows.Count > 0 ? 1 : 0)
+           + (Range != DateRange.All ? 1 : 0);
 
     public bool HasAny => ActiveCount > 0 || !string.IsNullOrWhiteSpace(Search);
 
@@ -240,6 +274,7 @@ public sealed class ClawTableFilter
     {
         Findings.Clear();
         Cows.Clear();
+        Range = DateRange.All;
     }
 }
 
@@ -261,7 +296,8 @@ public enum PlannedDateRange
 {
     All,
     Next7,
-    Next30
+    Next30,
+    Next90
 }
 
 public static class PlannedDateRanges
@@ -269,13 +305,15 @@ public static class PlannedDateRanges
     public const string AllLabel = "Alle";
     public const string Next7Label = "Nächste 7 Tage";
     public const string Next30Label = "Nächste 30 Tage";
+    public const string Next90Label = "Nächste 90 Tage";
 
-    public static readonly string[] Labels = { AllLabel, Next7Label, Next30Label };
+    public static readonly string[] Labels = { AllLabel, Next7Label, Next30Label, Next90Label };
 
     public static PlannedDateRange Parse(string label) => label switch
     {
         Next7Label => PlannedDateRange.Next7,
         Next30Label => PlannedDateRange.Next30,
+        Next90Label => PlannedDateRange.Next90,
         _ => PlannedDateRange.All
     };
 
@@ -283,7 +321,29 @@ public static class PlannedDateRanges
     {
         PlannedDateRange.Next7 => Next7Label,
         PlannedDateRange.Next30 => Next30Label,
+        PlannedDateRange.Next90 => Next90Label,
         _ => AllLabel
+    };
+
+    /// <summary>Wie bei DateRanges: dieselbe Abbildung fuer beide Richtungen, und sie WIRFT.</summary>
+    public static KpiTimeframe ToTimeframe(PlannedDateRange range) => range switch
+    {
+        PlannedDateRange.All => KpiTimeframe.All,
+        PlannedDateRange.Next7 => KpiTimeframe.Days7,
+        PlannedDateRange.Next30 => KpiTimeframe.Days30,
+        PlannedDateRange.Next90 => KpiTimeframe.Days90,
+        _ => throw new ArgumentOutOfRangeException(
+            nameof(range), range, "Für diesen Zeitraum gibt es kein KPI-Gegenstück.")
+    };
+
+    public static PlannedDateRange FromTimeframe(KpiTimeframe timeframe) => timeframe switch
+    {
+        KpiTimeframe.All => PlannedDateRange.All,
+        KpiTimeframe.Days7 => PlannedDateRange.Next7,
+        KpiTimeframe.Days30 => PlannedDateRange.Next30,
+        KpiTimeframe.Days90 => PlannedDateRange.Next90,
+        _ => throw new ArgumentOutOfRangeException(
+            nameof(timeframe), timeframe, "Für diesen KPI-Zeitraum gibt es keinen Tabellen-Chip.")
     };
 
     public static bool Matches(PlannedDateRange range, DateTime date)
@@ -294,7 +354,7 @@ public static class PlannedDateRanges
         }
 
         var today = DateTime.Today;
-        var days = range == PlannedDateRange.Next7 ? 7 : 30;
+        var days = KpiTimeframes.Days(ToTimeframe(range));
         return date.Date >= today && date.Date <= today.AddDays(days);
     }
 }

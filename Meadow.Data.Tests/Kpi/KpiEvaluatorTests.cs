@@ -264,6 +264,44 @@ public class KpiEvaluatorTests
     }
 
     [Fact]
+    public void Days90_includes_both_boundaries_and_excludes_the_future()
+    {
+        // Same rule as Days7, and worth stating separately: 90 is the one timeframe an older build
+        // cannot read, so it had better behave exactly like its siblings in this one.
+        var rows = new[]
+        {
+            Row(date: Now),
+            Row(date: Now.AddDays(-90)),       // exactly the lower bound - in
+            Row(date: Now.AddDays(-91)),       // one day too old - out
+            Row(date: Now.AddDays(1))          // future - out
+        };
+
+        var result = Evaluate(Definition(timeframe: KpiTimeframe.Days90), rows);
+
+        Assert.Equal(2, result.Number);
+    }
+
+    [Fact]
+    public void The_previous_ninety_day_period_does_not_overlap_either()
+    {
+        // 91 calendar days, so the shift is 91. And 91 is exactly thirteen weeks, which is why the
+        // series divides evenly into weekly buckets.
+        var rows = new[]
+        {
+            Row(date: Now),                    // current
+            Row(date: Now.AddDays(-90)),       // current, lower bound
+            Row(date: Now.AddDays(-91)),       // previous, upper bound
+            Row(date: Now.AddDays(-181)),      // previous, lower bound
+            Row(date: Now.AddDays(-182))       // older than both
+        };
+
+        var result = Evaluate(Definition(timeframe: KpiTimeframe.Days90, compare: true), rows);
+
+        Assert.Equal(2, result.Number);
+        Assert.Equal(2, result.Previous);
+    }
+
+    [Fact]
     public void All_timeframe_keeps_future_rows()
     {
         var rows = new[] { Row(date: Now.AddDays(500)), Row(date: Now.AddYears(-3)) };

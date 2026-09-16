@@ -26,12 +26,8 @@ public static class KpiDrillDown
         var query = Parse(nav);
         Fill(filter.Medicines, query, KpiTagKeys.Medicine);
         Fill(filter.Cows, query, KpiTagKeys.Cow);
-        filter.Range = KpiDrillDownUrl.Range(query) switch
-        {
-            7 => DateRange.Days7,
-            30 => DateRange.Days30,
-            _ => filter.Range
-        };
+        Fill(filter.Reasons, query, KpiTagKeys.Reason);
+        filter.Range = Range(query, filter.Range);
         ReadSearch(query, s => filter.Search = s);
     }
 
@@ -42,6 +38,10 @@ public static class KpiDrillDown
         // im Filterpanel der Seite, wo sie mit ODER verknuepft sind.
         Fill(filter.Findings, query, KpiTagKeys.ClawFinding);
         Fill(filter.Cows, query, KpiTagKeys.Cow);
+        // Neu, und bis hierher ein echter Fehler: diese Tabelle hatte als einzige der vier keinen
+        // Zeitraum, also fiel range= wortlos unter den Tisch. Eine Klauen-Kachel mit "letzte 30
+        // Tage" zeigte 4 und oeffnete alle 80 Zeilen.
+        filter.Range = Range(query, filter.Range);
         ReadSearch(query, s => filter.Search = s);
     }
 
@@ -49,6 +49,7 @@ public static class KpiDrillDown
     {
         var query = Parse(nav);
         Fill(filter.Medicines, query, KpiTagKeys.Medicine);
+        Fill(filter.Reasons, query, KpiTagKeys.Reason);
         filter.Found = FlagStates.FromSelection(
             KpiDrillDownUrl.Values(query, KpiTagKeys.Found), FlagStates.FoundLabels);
         filter.Treated = FlagStates.FromSelection(
@@ -83,14 +84,19 @@ public static class KpiDrillDown
     private static IReadOnlyDictionary<string, string[]> Parse(NavigationManager nav)
         => KpiDrillDownUrl.Parse(new Uri(nav.Uri).Query);
 
+    // Ueber die Tabelle in KpiTimeframes und nicht als eigener switch: hier stand
+    // "7 => Days7, 30 => Days30, _ => unveraendert", und ein range=90 aenderte damit still gar
+    // nichts. Kommt kein oder ein unbekannter Zeitraum an, bleibt stehen, was die Seite hatte.
+    private static DateRange Range(IReadOnlyDictionary<string, string[]> query, DateRange current)
+        => KpiTimeframes.FromDays(KpiDrillDownUrl.Range(query)) is { } timeframe
+            ? DateRanges.FromTimeframe(timeframe)
+            : current;
+
     private static PlannedDateRange PlannedRange(
         IReadOnlyDictionary<string, string[]> query, PlannedDateRange current)
-        => KpiDrillDownUrl.Range(query) switch
-        {
-            7 => PlannedDateRange.Next7,
-            30 => PlannedDateRange.Next30,
-            _ => current
-        };
+        => KpiTimeframes.FromDays(KpiDrillDownUrl.Range(query)) is { } timeframe
+            ? PlannedDateRanges.FromTimeframe(timeframe)
+            : current;
 
     private static void Fill(
         HashSet<string> target, IReadOnlyDictionary<string, string[]> query, string key)
