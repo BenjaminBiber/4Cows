@@ -49,11 +49,16 @@
     </div>
 </div>
 
+@* Kurze Auswahl, halbe Breite. Ein Feld, das "Medikament" enthaelt, ueber 760px zu ziehen
+   macht es nicht lesbarer - es macht nur das Formular laenger, und dieses Formular scrollt
+   ohnehin genug. *@
 @if (Definition.RequiresGroupBy)
 {
-    <MeadowSingleSelect Label="Gruppieren nach" Options="GroupLabels"
-                        Value="@KpiDefinitionSummary.GroupBy(Definition.GroupBy)"
-                        ValueChanged="OnGroupChanged" />
+    <div class="mw-half">
+        <MeadowSingleSelect Label="Gruppieren nach" Options="GroupLabels"
+                            Value="@KpiDefinitionSummary.GroupBy(Definition.GroupBy)"
+                            ValueChanged="OnGroupChanged" />
+    </div>
 }
 
 @* Die Einheit haengt an "liefert eine Zahl", nicht an "misst eine Menge": KpiEvaluator.FromCount
@@ -63,7 +68,9 @@
 @if (Definition.YieldsNumber)
 {
     <div class="mw-field-row">
-        <div class="mw-col">
+        @* Ohne die Nachkommastellen daneben bliebe die Einheit allein in der Zeile und zoege
+           sich ueber die volle Breite - fuer ein Feld, in dem "ml" steht. *@
+        <div class="mw-col @(Definition.RequiresDosage ? "" : "mw-col--half")">
             <label class="mw-label" for="mw-kpi-unit">Einheit</label>
             <div class="mw-field">
                 <MudTextField T="string" InputId="mw-kpi-unit" Variant="Variant.Text"
@@ -85,19 +92,29 @@
     </div>
 }
 
-@foreach (var tag in Source.Tags)
-{
-    var key = tag.Key;
-    <MeadowMultiSelect Label="@tag.Label" Options="@OptionsFor(key)"
-                       Selected="@SelectedFor(key)"
-                       SelectionChanged="@(() => OnFilterChanged(key))" />
-}
+@* Zwei nebeneinander statt sieben untereinander. Die geplanten Kuh-Behandlungen haben sechs
+   Filtergruppen - gestapelt war das eine Bildschirmhoehe, durch die man scrollen musste, bevor
+   Zeitraum und Zielwert ueberhaupt auftauchten.
+
+   auto-fit statt fester Spaltenzahl: in der engen Ansicht (eine Dialogspalte) wird von selbst
+   eine Spalte daraus, ohne zweiten Umbruchpunkt. *@
+<div class="mw-kpi-filters">
+    @foreach (var tag in Source.Tags)
+    {
+        var key = tag.Key;
+        <MeadowMultiSelect Label="@tag.Label" Options="@OptionsFor(key)"
+                           Selected="@SelectedFor(key)"
+                           SelectionChanged="@(() => OnFilterChanged(key))" />
+    }
+</div>
 
 @if (Source.SupportsTimeframe)
 {
-    <MeadowSingleSelect Label="Zeitraum" Options="TimeframeLabels"
-                        Value="@KpiDefinitionSummary.TimeframeOption(Definition.Timeframe, Source.IsPlanned)"
-                        ValueChanged="OnTimeframeChanged" />
+    <div class="mw-half">
+        <MeadowSingleSelect Label="Zeitraum" Options="TimeframeLabels"
+                            Value="@KpiDefinitionSummary.TimeframeOption(Definition.Timeframe, Source.IsPlanned)"
+                            ValueChanged="OnTimeframeChanged" />
+    </div>
 }
 
 @if (Source.SupportsCompare)
@@ -118,9 +135,11 @@
    abhaengt: ohne Datumsspalte gibt es keine Reihe, und das weiss nur der Builder. *@
 @if (Definition.AllowsSeries && Source.HasDate)
 {
-    <MeadowSingleSelect Label="Verlauf" Options="SeriesLabels"
-                        Value="@SeriesLabel(Definition.SeriesDisplay)"
-                        ValueChanged="OnSeriesChanged" />
+    <div class="mw-half">
+        <MeadowSingleSelect Label="Verlauf" Options="SeriesLabels"
+                            Value="@SeriesLabel(Definition.SeriesDisplay)"
+                            ValueChanged="OnSeriesChanged" />
+    </div>
 
     @* Eigener Schalter und keine Eigenschaft des Diagramms: die zweite Zahl hilft auch ohne
        Kurve ("120, im Schnitt 8,2 pro Monat" braucht kein Bild), und ein Diagramm hilft auch

@@ -23,9 +23,11 @@
 
     @if (Enabled)
     {
-        <MeadowSingleSelect Label="Bewertung" Options="DirectionLabels"
-                            Value="@KpiDefinitionSummary.DirectionLabel(Definition.TargetDirection)"
-                            ValueChanged="OnDirectionChanged" />
+        <div class="mw-half">
+            <MeadowSingleSelect Label="Bewertung" Options="DirectionLabels"
+                                Value="@KpiDefinitionSummary.DirectionLabel(Definition.TargetDirection)"
+                                ValueChanged="OnDirectionChanged" />
+        </div>
 
         <div class="mw-field-row">
             <div class="mw-col">
