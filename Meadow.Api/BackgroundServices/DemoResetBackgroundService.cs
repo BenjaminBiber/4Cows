@@ -63,6 +63,14 @@ public sealed class DemoResetBackgroundService : BackgroundService
     private readonly ICowService _cows;
     private readonly IMedicineService _medicines;
     private readonly IWhereHowService _whereHows;
+
+    // Diese beiden fehlten, solange sie nur Anzeigenamen in Tabellen lieferten. Seit der
+    // Behandlungsgrund ein KPI-Filter ist, laufen die Kacheln nach dem naechtlichen Reset ueber
+    // einen Cache mit IDs, die es nicht mehr gibt - jede Kuh-Behandlung traegt dann den
+    // Sammelwert "Ohne Grund", und eine Kachel auf "Mastitis" zeigt still 0.
+    private readonly ITreatmentReasonService _reasons;
+    private readonly IClawFindingService _findings;
+
     private readonly IUdderService _udders;
     private readonly ICowTreatmentService _cowTreatments;
     private readonly IClawTreatmentService _clawTreatments;
@@ -85,6 +93,8 @@ public sealed class DemoResetBackgroundService : BackgroundService
         ICowService cows,
         IMedicineService medicines,
         IWhereHowService whereHows,
+        ITreatmentReasonService reasons,
+        IClawFindingService findings,
         IUdderService udders,
         ICowTreatmentService cowTreatments,
         IClawTreatmentService clawTreatments,
@@ -99,6 +109,8 @@ public sealed class DemoResetBackgroundService : BackgroundService
         _cows = cows;
         _medicines = medicines;
         _whereHows = whereHows;
+        _reasons = reasons;
+        _findings = findings;
         _udders = udders;
         _cowTreatments = cowTreatments;
         _clawTreatments = clawTreatments;
@@ -244,6 +256,8 @@ public sealed class DemoResetBackgroundService : BackgroundService
         await _cows.GetAllDataAsync();
         await _medicines.GetAllDataAsync();
         await _whereHows.GetAllDataAsync();
+        await _reasons.GetAllDataAsync();
+        await _findings.GetAllDataAsync();
         await _udders.GetAllDataAsync();
         await _cowTreatments.GetAllDataAsync();
         await _clawTreatments.GetAllDataAsync();

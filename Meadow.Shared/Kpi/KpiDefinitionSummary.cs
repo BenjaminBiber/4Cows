@@ -135,12 +135,16 @@ public static class KpiDefinitionSummary
         _ => measure.ToString()
     };
 
+    // Word for word the same as the matching KpiTagInfo label in KpiSourceRegistry: the same thing
+    // must not be called "Behandlungsgrund" in the filter list and "Grund" in the ranking.
     public static string GroupBy(KpiGroupBy groupBy) => groupBy switch
     {
         KpiGroupBy.Cow => "Kuh",
         KpiGroupBy.UdderQuarter => "Euterviertel",
         KpiGroupBy.Medicine => "Medikament",
         KpiGroupBy.ClawFinding => "Befund",
+        KpiGroupBy.Reason => "Behandlungsgrund",
+        KpiGroupBy.WhereHow => "Wie / Wo",
         _ => "ohne Gruppierung"
     };
 

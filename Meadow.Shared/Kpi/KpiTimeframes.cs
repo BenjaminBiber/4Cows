@@ -32,7 +32,22 @@ public static class KpiTimeframes
         KpiTimeframe.All => 0,
         KpiTimeframe.Days7 => 7,
         KpiTimeframe.Days30 => 30,
+        KpiTimeframe.Days90 => 90,
         _ => throw new ArgumentOutOfRangeException(
             nameof(timeframe), timeframe, "Für diesen Zeitraum ist kein Tageswert hinterlegt.")
     };
+
+    /// <summary>
+    /// The timeframe a drill-down link's "range=N" means, or null when no timeframe spans that many
+    /// days.
+    ///
+    /// Null rather than a fallback: the caller keeps whatever the page already had, which is what
+    /// "the link says nothing about the timeframe" should do. The alternative - guessing - is how
+    /// the drill-down adapters used to read "7 => Days7, 30 => Days30, _ => unchanged", where a 90
+    /// arrived and silently changed nothing.
+    /// </summary>
+    public static KpiTimeframe? FromDays(int? days)
+        => days is int value
+            ? All.Cast<KpiTimeframe?>().FirstOrDefault(t => t != KpiTimeframe.All && Days(t!.Value) == value)
+            : null;
 }

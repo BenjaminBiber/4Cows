@@ -101,11 +101,16 @@ public static class KpiSourceRegistry
             KpiMeasure.Count, KpiMeasure.CountDistinctCows,
             KpiMeasure.SumDosage, KpiMeasure.AvgDosage, KpiMeasure.TopValue
         },
-        Groupings = new[] { KpiGroupBy.Cow, KpiGroupBy.UdderQuarter, KpiGroupBy.Medicine },
+        Groupings = new[]
+        {
+            KpiGroupBy.Cow, KpiGroupBy.UdderQuarter, KpiGroupBy.Medicine,
+            KpiGroupBy.Reason, KpiGroupBy.WhereHow
+        },
         Tags = new[]
         {
             new KpiTagInfo(KpiTagKeys.Medicine, "Medikament"),
             new KpiTagInfo(KpiTagKeys.WhereHow, "Wie / Wo"),
+            new KpiTagInfo(KpiTagKeys.Reason, "Behandlungsgrund"),
             new KpiTagInfo(KpiTagKeys.UdderQuarter, "Euterviertel"),
             new KpiTagInfo(KpiTagKeys.Cow, "Kuh (Halsband)")
         },
@@ -125,6 +130,8 @@ public static class KpiSourceRegistry
                 Tags = Tags(
                     (KpiTagKeys.Medicine, One(l.MedicineName(t.MedicineId))),
                     (KpiTagKeys.WhereHow, One(l.WhereHowName(t.WhereHowId))),
+                    (KpiTagKeys.Reason,
+                        OneOr(l.TreatmentReasonName(t.TreatmentReasonId), KpiFlags.NoReason)),
                     (KpiTagKeys.UdderQuarter, One(l.UdderLabel(t.UdderId))),
                     (KpiTagKeys.Cow, One(collar)))
             };
@@ -174,11 +181,16 @@ public static class KpiSourceRegistry
             KpiMeasure.Count, KpiMeasure.CountDistinctCows,
             KpiMeasure.SumDosage, KpiMeasure.AvgDosage, KpiMeasure.TopValue
         },
-        Groupings = new[] { KpiGroupBy.Cow, KpiGroupBy.UdderQuarter, KpiGroupBy.Medicine },
+        Groupings = new[]
+        {
+            KpiGroupBy.Cow, KpiGroupBy.UdderQuarter, KpiGroupBy.Medicine,
+            KpiGroupBy.Reason, KpiGroupBy.WhereHow
+        },
         Tags = new[]
         {
             new KpiTagInfo(KpiTagKeys.Medicine, "Medikament"),
             new KpiTagInfo(KpiTagKeys.WhereHow, "Wie / Wo"),
+            new KpiTagInfo(KpiTagKeys.Reason, "Behandlungsgrund"),
             new KpiTagInfo(KpiTagKeys.UdderQuarter, "Euterviertel"),
             new KpiTagInfo(KpiTagKeys.Found, "Gefunden"),
             new KpiTagInfo(KpiTagKeys.Treated, "Behandelt"),
@@ -197,6 +209,8 @@ public static class KpiSourceRegistry
                 Tags = Tags(
                     (KpiTagKeys.Medicine, One(l.MedicineName(t.MedicineId))),
                     (KpiTagKeys.WhereHow, One(l.WhereHowName(t.WhereHowId))),
+                    (KpiTagKeys.Reason,
+                        OneOr(l.TreatmentReasonName(t.TreatmentReasonId), KpiFlags.NoReason)),
                     // Planned_Cow_Treatment names this column Udder_ID, not COW_QUARTER_ID.
                     (KpiTagKeys.UdderQuarter, One(l.UdderLabel(t.UdderId))),
                     (KpiTagKeys.Found, One(t.IsFound ? KpiFlags.Found : KpiFlags.NotFound)),
@@ -323,6 +337,22 @@ public static class KpiSourceRegistry
 
         var trimmed = value.Trim();
         return trimmed == UnknownPlaceholder ? Array.Empty<string>() : new[] { trimmed };
+    }
+
+    /// <summary>
+    /// A single value, or a stand-in when there is none - for groups where "nothing recorded" is
+    /// itself a selectable answer.
+    ///
+    /// The difference to <see cref="One"/> is deliberate and not cosmetic. A missing udder quarter
+    /// is a SENTINEL row and is meant to fall out of a ranking; a missing treatment reason is an
+    /// ANSWER, and "Ohne Grund" has to be rankable and filterable like any other. Because every row
+    /// then carries a value, OptionsFor only offers the stand-in when a row actually lacks a reason
+    /// - which is exactly the rule ReasonFilter.Options follows in the cow table.
+    /// </summary>
+    private static IReadOnlyList<string> OneOr(string? value, string fallback)
+    {
+        var one = One(value);
+        return one.Count > 0 ? one : new[] { fallback };
     }
 
     /// <summary>What CowService, MedicineService and WhereHowService return for an unknown id.</summary>

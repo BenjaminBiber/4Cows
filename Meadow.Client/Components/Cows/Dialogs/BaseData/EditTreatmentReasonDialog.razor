@@ -80,6 +80,18 @@
             return;
         }
 
+        // "Ohne Grund" steht in der Kuh-Tabelle und in KPI-Filtern als Sammelwert neben den
+        // echten Gruenden - siehe ReasonFilter.IsReservedReasonName. Ein Grund mit diesem Namen
+        // waere dort von den grundlosen Behandlungen nicht mehr zu unterscheiden, und eine
+        // gespeicherte Kachel zaehlte still beides.
+        if (ReasonFilter.IsReservedReasonName(name))
+        {
+            Snackbar.Add(
+                $"„{name}\" ist als Bezeichnung vergeben — der Filter zeigt darunter die Behandlungen ohne Grund.",
+                Severity.Error);
+            return;
+        }
+
         // Sich selbst ausnehmen: sonst meldet eine reine
         // Gross-/Kleinschreibungsaenderung ("mastitis" -> "Mastitis") eine
         // Kollision mit dem Eintrag, der gerade bearbeitet wird.

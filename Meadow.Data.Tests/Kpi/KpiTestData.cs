@@ -78,6 +78,9 @@ internal sealed class FakeKpiLookups : IKpiLookups
 
     public Dictionary<int, string> WhereHows { get; } = new();
 
+    /// <summary>Behandlungsgruende. Eine unbekannte ID liefert wie im echten Dienst leer.</summary>
+    public Dictionary<int, string> Reasons { get; } = new();
+
     /// <summary>Klauenbefunde. Eine unbekannte ID liefert wie im echten Dienst leer.</summary>
     public Dictionary<int, string> ClawFindings { get; } = new();
 
@@ -97,6 +100,9 @@ internal sealed class FakeKpiLookups : IKpiLookups
         => MedicineUnits.TryGetValue(medicineId, out var u) ? u : string.Empty;
 
     public string WhereHowName(int whereHowId) => WhereHows.TryGetValue(whereHowId, out var w) ? w : string.Empty;
+
+    public string TreatmentReasonName(int? treatmentReasonId)
+        => treatmentReasonId is int id && Reasons.TryGetValue(id, out var r) ? r : string.Empty;
 
     public string ClawFindingName(int? clawFindingId)
         => clawFindingId is int id && ClawFindings.TryGetValue(id, out var f) ? f : string.Empty;

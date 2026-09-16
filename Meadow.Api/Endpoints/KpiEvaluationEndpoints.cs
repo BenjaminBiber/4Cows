@@ -106,9 +106,10 @@ public static class KpiEvaluationEndpoints
             IClawTreatmentService clawTreatments,
             IPCowTreatmentService plannedCow,
             IPClawTreatmentService plannedClaw,
+            ITreatmentReasonService reasons,
             bool? addButton) =>
         {
-            // Ohne diese neun Zeilen liefert JEDE Builder-Kennzahl eine voellig
+            // Ohne diese zehn Zeilen liefert JEDE Builder-Kennzahl eine voellig
             // plausible 0 - und zwar ohne Fehler, ohne Log, ohne Hinweis.
             //
             // KpiRowProvider projiziert aus den Caches der Dienste. Im
@@ -129,7 +130,11 @@ public static class KpiEvaluationEndpoints
                 cowTreatments.GetAllDataAsync(),
                 clawTreatments.GetAllDataAsync(),
                 plannedCow.GetAllDataAsync(),
-                plannedClaw.GetAllDataAsync());
+                plannedClaw.GetAllDataAsync(),
+                // Zehnter Dienst, seit der Behandlungsgrund ein KPI-Filter ist. Ohne ihn traegt
+                // jede Kuh-Behandlung hier den Sammelwert "Ohne Grund", und eine Kachel, die auf
+                // "Mastitis" filtert, zeigte still 0.
+                reasons.GetAllDataAsync());
 
             return Results.Ok(await kpis.GetDashboardAsync(addButton ?? true));
         }).WithName("KpiDashboard");

@@ -72,6 +72,15 @@ public static class KpiTagKeys
     public const string UdderQuarter = "udderQuarter";
 
     /// <summary>
+    /// Why a cow treatment was given. Exists on the two cow-treatment sources only, because
+    /// Treatment_Reason_ID exists on those two tables only.
+    ///
+    /// Unlike every other tag here, EVERY row carries a value: a treatment without a reason gets
+    /// <see cref="KpiFlags.NoReason"/> rather than no value at all. See the comment there.
+    /// </summary>
+    public const string Reason = "reason";
+
+    /// <summary>
     /// Claw findings AND the two synthetic states "Verband"/"Klotz" - deliberately one group.
     ///
     /// Claw_Table offers them in a single multi-select, so they are OR-ed there. Splitting the
@@ -104,6 +113,8 @@ public static class KpiTagKeys
         KpiGroupBy.UdderQuarter => UdderQuarter,
         KpiGroupBy.Medicine => Medicine,
         KpiGroupBy.ClawFinding => ClawFinding,
+        KpiGroupBy.Reason => Reason,
+        KpiGroupBy.WhereHow => WhereHow,
         _ => null
     };
 }
@@ -136,4 +147,23 @@ public static class KpiFlags
 
     public const string Treated = "Behandelt";
     public const string NotTreated = "Nicht behandelt";
+
+    /// <summary>
+    /// The collective value for treatments recorded without a reason.
+    ///
+    /// A PURE DISPLAY OPTION: this text never reaches TreatmentReasonService.GetIdByNameAsync, and
+    /// no row in Treatment_Reason may ever be called this. The base-data editor enforces that, the
+    /// same way ClawTableFilter.IsReservedFindingName protects "Verband" and "Klotz".
+    ///
+    /// It lives here and not in ReasonFilter because Meadow.Shared cannot reference Meadow.Client;
+    /// ReasonFilter.NoneOption points at this constant, and a test asserts they are equal.
+    ///
+    /// NOT TreatmentReasonService.NoReasonText, which is "–". That one means "nothing here" inside
+    /// a table cell. This one is a thing you can tick in a filter list. Two different jobs that
+    /// must not collapse into one string inside KpiDefinition.Filters.
+    ///
+    /// And unlike a missing udder quarter, which is a sentinel row and is meant to drop out of a
+    /// ranking, "no reason" is an ANSWER: grouping by reason shows it as its own group.
+    /// </summary>
+    public const string NoReason = "Ohne Grund";
 }

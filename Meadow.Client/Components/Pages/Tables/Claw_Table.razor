@@ -45,6 +45,9 @@
                 <MeadowMultiSelect Label="Kuh (Halsband)" Options="CowOptions"
                                    Selected="_filter.Cows"
                                    SelectionChanged="Apply" />
+                <MeadowSingleSelect Label="Zeitraum" Options="DateRanges.Labels"
+                                    Value="@DateRanges.ToLabel(_filter.Range)"
+                                    ValueChanged="OnRangeChanged" />
             </ChildContent>
         </MeadowFilterPopover>
 
@@ -324,6 +327,11 @@
             query = query.Where(r => _filter.Cows.Contains(Collar(r)));
         }
 
+        // Dieselbe Regel wie in den anderen drei Tabellen: beidseitig einschliessend und ohne
+        // Zukunft, weil die Dialoge vordatieren koennen. Der Evaluator kopiert genau diese Regel
+        // (KpiEvaluator.Window), damit Kachel und Tabelle dieselbe Menge zeigen.
+        query = query.Where(r => DateRanges.Matches(_filter.Range, r.TreatmentDate));
+
         _rows = query.ToList();
     }
 
@@ -364,6 +372,12 @@
     private void OnSearchChanged(string value)
     {
         _filter.Search = value;
+        Apply();
+    }
+
+    private void OnRangeChanged(string label)
+    {
+        _filter.Range = DateRanges.Parse(label);
         Apply();
     }
 

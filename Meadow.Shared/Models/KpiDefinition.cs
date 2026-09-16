@@ -64,7 +64,12 @@ public enum KpiGroupBy
     Cow,
     UdderQuarter,
     Medicine,
-    ClawFinding
+    ClawFinding,
+
+    // Appended rather than inserted. The values persist as strings, so order does not matter to the
+    // data - but a diff that renumbers four members to add one is a diff nobody can read.
+    Reason,
+    WhereHow
 }
 
 /// <summary>
@@ -83,7 +88,21 @@ public enum KpiTimeframe
 {
     All,
     Days7,
-    Days30
+    Days30,
+
+    /// <summary>
+    /// The one timeframe that is NOT backwards compatible: an older build fails to parse
+    /// "Days90" at the JsonStringEnumConverter, Deserialize catches the JsonException and the tile
+    /// reads Error. Forwards is fine, and there are no downgrades here, so this is accepted rather
+    /// than unnoticed.
+    ///
+    /// It earns its place by having the same SHAPE as the other two - a sliding N-day window that
+    /// ends today, whose previous period is a clean offset and whose drill-down still says
+    /// "range=90". A calendar month or year has none of those properties and would need a real
+    /// from/to model through every table page; the twelve-month series answers that question
+    /// better anyway. And 91 days are exactly thirteen weeks, so the series divides evenly.
+    /// </summary>
+    Days90
 }
 
 /// <summary>
