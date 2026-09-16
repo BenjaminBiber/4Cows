@@ -2430,6 +2430,9 @@ a.mw-icon-btn { text-decoration: none; }
 .mw-tpl {
   display: flex;
   flex-direction: column;
+  /* Linksbuendig, nicht nur ueber text-align: als Flex-Spalte zentriert sonst
+     align-items die beiden Zeilen unabhaengig von der Textausrichtung. */
+  align-items: flex-start;
   gap: 2px;
   width: 100%;
   padding: 12px 14px;

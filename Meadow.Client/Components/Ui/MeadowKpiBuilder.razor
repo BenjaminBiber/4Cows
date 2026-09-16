@@ -282,7 +282,28 @@
 
     private string CompareHint => Definition.Measure == KpiMeasure.TopValue
         ? "Ein häufigster Wert ist keine Zahl und lässt sich nicht vergleichen."
-        : "Ohne Zeitraum gibt es keinen Vorzeitraum - wähle 7 oder 30 Tage.";
+        // Die Zeiträume kommen aus der Tabelle, nicht als Aufzählung im Text - sonst steht hier
+        // nach dem nächsten neuen Zeitraum wieder eine Liste, die einen davon nicht kennt.
+        : $"Ohne Zeitraum gibt es keinen Vorzeitraum - wähle {BoundedTimeframes}.";
+
+    /// <summary>„7, 30 oder 90 Tage" - aus KpiTimeframes, damit die Aufzählung mitwächst.</summary>
+    private static string BoundedTimeframes
+    {
+        get
+        {
+            var days = KpiTimeframes.All
+                .Where(t => t != KpiTimeframe.All)
+                .Select(t => KpiTimeframes.Days(t).ToString())
+                .ToList();
+
+            return days.Count switch
+            {
+                0 => "einen Zeitraum",
+                1 => $"{days[0]} Tage",
+                _ => $"{string.Join(", ", days.Take(days.Count - 1))} oder {days[^1]} Tage"
+            };
+        }
+    }
 
     // ---- Aenderungen ---------------------------------------------------
 

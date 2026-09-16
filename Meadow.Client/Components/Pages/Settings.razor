@@ -373,7 +373,10 @@ else
         var options = new DialogOptions
         {
             BackdropClick = false,
-            CloseOnEscapeKey = true,
+            // AUS, damit MudDialogProvider den Dialog nicht global wegescapet, bevor der
+            // Dirty-Check fragen kann. Die Taste faengt MeadowDialog selbst und reicht sie an
+            // KPIDialog.TryCancelAsync weiter - siehe den Kommentar in MeadowDialog.OnKeyDown.
+            CloseOnEscapeKey = false,
             MaxWidth = MaxWidth.Medium,
             FullWidth = true
         };
