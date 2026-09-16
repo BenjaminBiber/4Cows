@@ -89,6 +89,23 @@
   --mw-neg-fg:      #d02418;
   --mw-hoof-idle:   #c6d4d0;
 
+  /* ── Ampel der KPI-Kacheln ────────────────────────────────── */
+  /* Eigene Tokens und nicht direkt --mw-success/-warning/-danger: die drei
+     sind nur hier im hellen Block deklariert und im Dunkel-Block NICHT
+     nachgezogen. --mw-danger auf --mw-panel #262930 kaeme dort auf 1,95:1
+     und risse die 3:1 aus WCAG 1.4.11 fuer nicht-textuelle Grafik - und die
+     Ampelglyphe ist genau das.
+
+     Gemessen gegen --mw-panel (hell #ffffff):
+       good #1a8f4a -> 4,14:1   warn #b5730a -> 3,87:1   crit #d02418 -> 5,32:1
+
+     Farbe ist ohnehin nie der einzige Traeger: die drei Glyphen haben drei
+     verschiedene FORMEN (Kreis / Dreieck / Achteck), und daneben steht ein
+     mw-sr-only-Text. */
+  --mw-rate-good: var(--mw-success);
+  --mw-rate-warn: var(--mw-warning);
+  --mw-rate-crit: var(--mw-danger);
+
   /* ── Serienfarben (Kuchendiagramme) ───────────────────────── */
   /* Sechs Kategorien in fester Reihenfolge, danach faellt der Rest in
      "Weitere" (--mw-series-other).
@@ -221,6 +238,15 @@
   --mw-neg-bg:    #3a2726;
   --mw-neg-fg:    #f0a29c;
   --mw-hoof-idle: #41504d;
+
+  /* Ampel, fuer die dunkle Flaeche nachgezogen. Gemessen gegen
+     --mw-panel #262930 (Leuchtdichte 0,0221):
+       good #58c98a -> 7,03:1   warn #e0a53a -> 6,66:1   crit #f0a29c -> 7,18:1
+     Crit zeigt auf --mw-neg-fg, weil die Datei genau diesen Rotton schon fuer
+     Dunkelflaechen fuehrt - zwei Rot nebeneinander waeren ein Bruch. */
+  --mw-rate-good: #58c98a;
+  --mw-rate-warn: #e0a53a;
+  --mw-rate-crit: var(--mw-neg-fg);
 
   /* Dieselben sechs Farbtoene, fuer die dunkle Flaeche nachgezogen - siehe
      den hellen Block. --mw-series-other zeigt auf --mw-muted und folgt dem

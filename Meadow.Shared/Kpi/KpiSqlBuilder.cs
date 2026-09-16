@@ -65,6 +65,16 @@ public static class KpiSqlBuilder
             notes.Add("Wert, das Skript zeigt deshalb nur den aktuellen Zeitraum.");
         }
 
+        // Said out loud rather than swallowed, exactly like the comparison above. A target is not a
+        // property of the query at all - the script yields one formatted string, and there is no
+        // column an amber light could arrive in. Whoever switches to the expert mode should know
+        // that the light stays behind, not discover it on the dashboard.
+        if (definition.HasTarget && definition.AllowsTarget)
+        {
+            notes.Add("Zielwert und Ampel fehlen: ein Skript liefert nur den Wert, die Bewertung");
+            notes.Add("entsteht aus der Definition und gilt deshalb nur im Formularmodus.");
+        }
+
         var joins = new List<string>();
         var conditions = new List<string>();
 

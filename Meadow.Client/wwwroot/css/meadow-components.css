@@ -690,6 +690,53 @@ a.mw-icon-btn { text-decoration: none; }
   line-height: 1;
 }
 
+/* ── Ampel ────────────────────────────────────────────────────── */
+/* Das Delta oben bleibt grau, und das ist kein Widerspruch: es weiss nicht,
+   ob mehr gut ist. Die Ampel weiss es - weil jemand es in dieser einen
+   Definition ausdruecklich hingeschrieben hat (KpiTargetDirection). Sie
+   kehrt die Regel also nicht um, sie ist ihre Ausnahme mit Beleg.
+
+   Farbe ist nie der einzige Traeger: die drei Glyphen haben drei
+   verschiedene Formen, und daneben steht ein mw-sr-only-Text. Die
+   Dunkel-Fassungen der Tokens sind gegen --mw-panel gemessen, siehe
+   meadow-tokens.css. */
+.mw-kpi-flag {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  line-height: 0;
+}
+.mw-kpi-flag svg {
+  fill: currentColor;
+}
+/* Das Zeichen IN der Form wird ausgestanzt, nicht uebermalt: auf der
+   gefuellten Flaeche traegt es so den vollen Kontrast der Kachel. */
+.mw-kpi-flag__mark {
+  fill: none;
+  stroke: var(--mw-panel);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.mw-kpi-flag--good { color: var(--mw-rate-good); }
+.mw-kpi-flag--warn { color: var(--mw-rate-warn); }
+.mw-kpi-flag--crit { color: var(--mw-rate-crit); }
+
+/* Die Kante liegt INNEN per box-shadow und nicht als border-left: ein
+   Rahmen auf einer Seite verschoebe das Padding gegenueber allen anderen
+   Kacheln, und der rote Rahmen ist bereits von .mw-kpi--error belegt -
+   "ausserhalb des Ziels" und "nicht auswertbar" muessen unterscheidbar
+   bleiben. Deshalb Kante plus Glyphe und kein getoenter Hintergrund:
+   acht eingefaerbte Kacheln nebeneinander waeren ein Alarmfeld. */
+.mw-kpi--rate-good { box-shadow: inset 3px 0 0 var(--mw-rate-good), var(--mw-shadow-card); }
+.mw-kpi--rate-warn { box-shadow: inset 3px 0 0 var(--mw-rate-warn), var(--mw-shadow-card); }
+.mw-kpi--rate-crit { box-shadow: inset 3px 0 0 var(--mw-rate-crit), var(--mw-shadow-card); }
+@media (hover: hover) {
+  .mw-kpi--rate-good:hover { box-shadow: inset 3px 0 0 var(--mw-rate-good), var(--mw-shadow-pop); }
+  .mw-kpi--rate-warn:hover { box-shadow: inset 3px 0 0 var(--mw-rate-warn), var(--mw-shadow-pop); }
+  .mw-kpi--rate-crit:hover { box-shadow: inset 3px 0 0 var(--mw-rate-crit), var(--mw-shadow-pop); }
+}
+
 /* Das erzeugte SQL im KPI-Dialog. Kein Ace-Editor: der Text ist nur zum
    Lesen, und eine zweite Editor-Instanz im selben Dialog waere sowohl
    verwirrend als auch teuer (Ace misst beim Initialisieren, siehe .mw-ace). */
@@ -2088,6 +2135,47 @@ a.mw-icon-btn { text-decoration: none; }
 }
 
 .mw-hint { font-size: 12px; line-height: 1.5; color: var(--mw-muted); }
+
+/* Ein Hinweis, der eine Zahl in Zweifel zieht, ohne dass etwas kaputt ist -
+   gemischte Dosiereinheiten, ein Filterwert, den es nicht mehr gibt, eine
+   URL, die auf keine Seite zeigt. Der rote .mw-errbox daneben behauptet
+   "hier ist etwas kaputt" und war fuer diese Faelle zu laut. */
+.mw-hint--warn {
+  padding-left: 10px;
+  border-left: 2px solid var(--mw-rate-warn);
+  color: var(--mw-text);
+}
+
+/* Fehlermeldung direkt am Feld. Bisher sammelte der Dialog alles in einer
+   Box am Ende des scrollenden Koerpers - also moeglicherweise ausserhalb
+   des Sichtbereichs, wenn man gerade oben steht. */
+.mw-field-error {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--mw-danger);
+}
+.mw-field--invalid .mud-input-slot,
+.mw-field--invalid .mud-input {
+  border-color: var(--mw-danger);
+}
+
+/* Was eine Auswahl gerade still verworfen hat. Keine Fehlerfarbe: es ist
+   die richtige Korrektur, sie soll nur nicht unbemerkt bleiben. */
+.mw-notice {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--mw-soft);
+  border-radius: var(--mw-r-2xl);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--mw-soft-fg);
+}
+.mw-notice p { margin: 0; }
+.mw-notice p + p { margin-top: 4px; }
 .mw-readonly {
   padding: 10px 13px;
   border: 1px solid var(--mw-border);

@@ -56,8 +56,68 @@ public static class KpiDefinitionSummary
             parts.Add("mit Vergleich");
         }
 
+        var target = Target(definition);
+        if (target.Length > 0)
+        {
+            parts.Add(target);
+        }
+
         return string.Join(Separator, parts);
     }
+
+    /// <summary>
+    /// The target as one phrase, e.g. "Ziel: ≤ 3 gut, ≤ 6 Warnung". Empty when there is none.
+    ///
+    /// The comparison sign carries the direction, so the sentence reads the same way the bands are
+    /// evaluated - inclusive, and pointing the way that counts as good.
+    /// </summary>
+    public static string Target(KpiDefinition definition)
+    {
+        if (!definition.HasTarget || !definition.AllowsTarget)
+        {
+            return string.Empty;
+        }
+
+        var sign = definition.TargetDirection == KpiTargetDirection.LowerIsBetter ? "≤" : "≥";
+        var text = $"Ziel: {sign} {Number(definition.TargetGood!.Value)} gut";
+
+        if (definition.TargetWarning is double warning)
+        {
+            text += $", {sign} {Number(warning)} Warnung";
+        }
+
+        return text;
+    }
+
+    /// <summary>
+    /// How the direction reads in the dialog. A select and not a switch: "Höher ist besser: aus" is
+    /// not a sentence anyone can act on.
+    /// </summary>
+    public static string DirectionLabel(KpiTargetDirection direction) => direction switch
+    {
+        KpiTargetDirection.HigherIsBetter => "Höher ist besser",
+        KpiTargetDirection.LowerIsBetter => "Niedriger ist besser",
+        _ => "Kein Zielwert"
+    };
+
+    /// <summary>
+    /// The traffic light in words - for the tile's screen-reader text and its tooltip. Colour is
+    /// never the only carrier of this.
+    /// </summary>
+    public static string StatusLabel(KpiStatus status) => status switch
+    {
+        KpiStatus.Good => "im Zielbereich",
+        KpiStatus.Warning => "grenzwertig",
+        KpiStatus.Bad => "außerhalb des Ziels",
+        _ => ""
+    };
+
+    /// <summary>
+    /// Plain German number, no trailing zeroes. Thresholds are typed by hand, so "3" should read
+    /// as "3" and not as "3,00".
+    /// </summary>
+    private static string Number(double value)
+        => value.ToString("0.####", System.Globalization.CultureInfo.CurrentCulture);
 
     private static string Measure(KpiDefinition definition)
         => definition.Measure == KpiMeasure.TopValue

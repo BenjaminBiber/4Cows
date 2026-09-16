@@ -1,0 +1,169 @@
+@using Meadow.Shared.Models
+@using Meadow.Shared.Kpi
+
+@*
+    Der Zielwert-Abschnitt des KPI-Formulars.
+
+    Eigene Komponente und kein weiterer Block in MeadowKpiBuilder: der ist mit
+    ueber 300 Zeilen an der Grenze, und die Felder haben eine eigene
+    Zustandslogik (Richtung bestimmt Beschriftung UND Plausibilitaet).
+
+    Fortschreitend wie der Rest des Formulars: der Abschnitt erscheint gar
+    nicht, wenn die Kennzahl keine Zahl liefert - "Haeufigster Wert" hat keine
+    Schwelle. Deaktiviert dastehen waere die Alternative, und die Regel im Kopf
+    von MeadowKpiBuilder sagt ausdruecklich: was nicht geht, FEHLT.
+
+    Die Richtung ist ein Select und kein Schalter. "Hoeher ist besser: aus" ist
+    kein Satz, aus dem jemand ableiten kann, was dann gilt.
+*@
+
+@if (Definition.AllowsTarget)
+{
+    <MeadowSwitch Label="Zielwert festlegen" Value="Enabled" ValueChanged="OnEnabledChanged" />
+
+    @if (Enabled)
+    {
+        <MeadowSingleSelect Label="Bewertung" Options="DirectionLabels"
+                            Value="@KpiDefinitionSummary.DirectionLabel(Definition.TargetDirection)"
+                            ValueChanged="OnDirectionChanged" />
+
+        <div class="mw-field-row">
+            <div class="mw-col">
+                <label class="mw-label" for="mw-kpi-good">@GoodLabel</label>
+                <div class="mw-field">
+                    <MudNumericField T="double?" InputId="mw-kpi-good" Variant="Variant.Text"
+                                     HideSpinButtons="true" Culture="@Culture"
+                                     Value="Definition.TargetGood" ValueChanged="OnGoodChanged" />
+                </div>
+            </div>
+            <div class="mw-col">
+                <label class="mw-label" for="mw-kpi-warn">@WarnLabel</label>
+                <div class="mw-field">
+                    <MudNumericField T="double?" InputId="mw-kpi-warn" Variant="Variant.Text"
+                                     HideSpinButtons="true" Culture="@Culture"
+                                     Value="Definition.TargetWarning" ValueChanged="OnWarnChanged" />
+                </div>
+            </div>
+        </div>
+
+        @* Die eine Zeile, die "Richtung" wirklich erklaert - aus den eingegebenen
+           Zahlen gebaut, nicht als Beispiel danebengestellt. *@
+        @if (!Definition.TargetIsConsistent)
+        {
+            <p class="mw-field-error">
+                Die Warnschwelle liegt auf der falschen Seite des Zielwerts - so gibt es
+                keinen Warnbereich. @Correction
+            </p>
+        }
+        else if (Definition.HasTarget)
+        {
+            <p class="mw-hint">@Sentence</p>
+        }
+        else
+        {
+            <p class="mw-hint">
+                Ohne Zielwert bleibt die Ampel aus. Die Warnschwelle allein ergibt keinen Bereich.
+            </p>
+        }
+    }
+}
+
+@code {
+    [Parameter, EditorRequired] public KpiDefinition Definition { get; set; } = new();
+
+    [Parameter] public EventCallback Changed { get; set; }
+
+    /// <summary>Fuer die Beschriftungen, z.B. "Gut bis (ml)". Leer laesst die Klammer weg.</summary>
+    [Parameter] public string UnitSuffix { get; set; } = "";
+
+    /// <summary>
+    /// Die Anwendung laeuft fest auf de-DE (siehe Program.cs), also wird ein Komma als
+    /// Dezimaltrennzeichen getippt. MudNumericField braucht die Kultur ausdruecklich.
+    /// </summary>
+    private static readonly System.Globalization.CultureInfo Culture =
+        System.Globalization.CultureInfo.CurrentCulture;
+
+    private static readonly KpiTargetDirection[] Directions =
+        { KpiTargetDirection.LowerIsBetter, KpiTargetDirection.HigherIsBetter };
+
+    private bool Enabled => Definition.TargetDirection != KpiTargetDirection.None;
+
+    private bool Lower => Definition.TargetDirection != KpiTargetDirection.HigherIsBetter;
+
+    private IReadOnlyList<string> DirectionLabels
+        => Directions.Select(KpiDefinitionSummary.DirectionLabel).ToList();
+
+    private string Suffix => string.IsNullOrWhiteSpace(UnitSuffix) ? "" : $" ({UnitSuffix.Trim()})";
+
+    private string GoodLabel => (Lower ? "Gut bis" : "Gut ab") + Suffix;
+
+    private string WarnLabel => (Lower ? "Warnung bis" : "Warnung ab") + Suffix;
+
+    private string Sentence
+    {
+        get
+        {
+            var good = Format(Definition.TargetGood);
+
+            if (Definition.TargetWarning is not double warning)
+            {
+                return Lower
+                    ? $"Bis {good} gut, darüber kritisch."
+                    : $"Ab {good} gut, darunter kritisch.";
+            }
+
+            return Lower
+                ? $"Bis {good} gut, bis {Format(warning)} Warnung, darüber kritisch."
+                : $"Ab {good} gut, ab {Format(warning)} Warnung, darunter kritisch.";
+        }
+    }
+
+    private string Correction => Lower
+        ? "Die Warnschwelle muss größer oder gleich dem Zielwert sein."
+        : "Die Warnschwelle muss kleiner oder gleich dem Zielwert sein.";
+
+    private static string Format(double? value)
+        => value?.ToString("0.####", Culture) ?? "–";
+
+    private void OnEnabledChanged(bool value)
+    {
+        if (value)
+        {
+            // "Weniger ist besser" als Startwert: die Kennzahlen dieses Hofes zaehlen
+            // Behandlungen, offene Verbaende und nicht erledigte Termine - dort ist weniger
+            // fast immer das Ziel. Wer es andersherum will, sieht die Auswahl direkt darunter.
+            Definition.TargetDirection = KpiTargetDirection.LowerIsBetter;
+        }
+        else
+        {
+            // Beim Abschalten die Schwellen mitnehmen: eine Definition, die "keine Ampel" sagt
+            // und trotzdem Zahlen mitschleppt, waere beim naechsten Lesen mehrdeutig.
+            Definition.TargetDirection = KpiTargetDirection.None;
+            Definition.TargetGood = null;
+            Definition.TargetWarning = null;
+        }
+
+        Notify();
+    }
+
+    private void OnDirectionChanged(string label)
+    {
+        Definition.TargetDirection = Directions
+            .FirstOrDefault(d => KpiDefinitionSummary.DirectionLabel(d) == label);
+        Notify();
+    }
+
+    private void OnGoodChanged(double? value)
+    {
+        Definition.TargetGood = value;
+        Notify();
+    }
+
+    private void OnWarnChanged(double? value)
+    {
+        Definition.TargetWarning = value;
+        Notify();
+    }
+
+    private void Notify() => Changed.InvokeAsync();
+}

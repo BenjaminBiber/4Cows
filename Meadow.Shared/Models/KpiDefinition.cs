@@ -87,6 +87,23 @@ public enum KpiTimeframe
 }
 
 /// <summary>
+/// Which way is good.
+///
+/// There is deliberately no default "up is better". MeadowKpiTile's delta arrow refuses to judge
+/// for exactly that reason - more cow treatments is not per se worse, it depends on the farm and on
+/// the KPI. A traffic light does not contradict that rule, it inverts it: it may colour a tile
+/// BECAUSE someone wrote down, on this KPI, what good means. So the direction is part of the target
+/// rather than an assumption, and None means no light at all.
+/// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum KpiTargetDirection
+{
+    None,
+    HigherIsBetter,
+    LowerIsBetter
+}
+
+/// <summary>
 /// A KPI defined by clicking instead of by writing SQL. Persisted as JSON in KPI.Definition.
 ///
 /// JSON rather than normalised columns: the project has no fluent configuration and no declared
@@ -142,6 +159,24 @@ public sealed class KpiDefinition
     public Dictionary<string, List<string>> Filters { get; set; } = new();
 
     /// <summary>
+    /// Which way is good. <see cref="KpiTargetDirection.None"/> - the default, and therefore what
+    /// every definition written before targets existed says - means no traffic light.
+    /// </summary>
+    public KpiTargetDirection TargetDirection { get; set; }
+
+    /// <summary>
+    /// The threshold up to (or from) which the value counts as good. Inclusive.
+    /// </summary>
+    public double? TargetGood { get; set; }
+
+    /// <summary>
+    /// The threshold for the middle band, inclusive. Optional: without it there are two bands
+    /// rather than three. "Warning but no good" is not a band anybody could mean, which is why
+    /// <see cref="HasTarget"/> hangs on TargetGood alone.
+    /// </summary>
+    public double? TargetWarning { get; set; }
+
+    /// <summary>
     /// Everything a NEWER build wrote that this one does not know, carried through untouched.
     ///
     /// Not a nicety - it closes a data-loss hole. KPIDialog deserialises a definition, mutates it
@@ -170,6 +205,44 @@ public sealed class KpiDefinition
     /// <summary>Sum and average need a numeric field, which only the two cow-treatment sources have.</summary>
     [JsonIgnore]
     public bool RequiresDosage => Measure is KpiMeasure.SumDosage or KpiMeasure.AvgDosage;
+
+    /// <summary>
+    /// Whether the tile shows a number rather than a name. False only for a Top-1 ranking.
+    ///
+    /// One predicate for three questions the dialog asks - may it carry a unit, a target, a series -
+    /// so those three cannot drift apart.
+    /// </summary>
+    [JsonIgnore]
+    public bool YieldsNumber => Measure != KpiMeasure.TopValue;
+
+    /// <summary>
+    /// Only a number can miss a threshold. A Top-1 ranking yields a NAME - and its Number field
+    /// carries the winner's hit count, not the value on the tile, so rating it would colour the
+    /// tile by something nobody can see. Mirrors <see cref="AllowsComparison"/> on purpose, so the
+    /// dialog hides the section the same way it hides the comparison switch.
+    /// </summary>
+    [JsonIgnore]
+    public bool AllowsTarget => YieldsNumber;
+
+    /// <summary>A light needs both a direction and something to compare against.</summary>
+    [JsonIgnore]
+    public bool HasTarget => TargetDirection != KpiTargetDirection.None && TargetGood.HasValue;
+
+    /// <summary>
+    /// Whether the warning threshold lies on the far side of the good one.
+    ///
+    /// With "lower is better", good must be at most warning - otherwise the warning band is empty
+    /// and every value is either good or bad, which is not what the person who typed two numbers
+    /// meant. This is NOT an error: the number on the tile is still correct. The light is withheld
+    /// and the reason is said out loud, the same way a renamed filter value is reported.
+    /// </summary>
+    [JsonIgnore]
+    public bool TargetIsConsistent
+        => !HasTarget
+           || TargetWarning is not double warning
+           || (TargetDirection == KpiTargetDirection.LowerIsBetter
+               ? TargetGood!.Value <= warning
+               : TargetGood!.Value >= warning);
 
     public KpiDefinition Clone() => Deserialize(Serialize(this)) ?? new KpiDefinition();
 
