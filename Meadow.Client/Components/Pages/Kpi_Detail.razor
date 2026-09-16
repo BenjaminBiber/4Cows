@@ -353,7 +353,8 @@ else
         var options = new DialogOptions
         {
             BackdropClick = false,
-            CloseOnEscapeKey = true,
+            // Wie in den Einstellungen: aus, damit der Dirty-Check zum Zug kommt.
+            CloseOnEscapeKey = false,
             MaxWidth = MaxWidth.Medium,
             FullWidth = true
         };

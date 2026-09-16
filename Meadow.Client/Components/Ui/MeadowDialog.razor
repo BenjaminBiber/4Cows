@@ -122,7 +122,24 @@
 
     private async Task OnKeyDown(KeyboardEventArgs e)
     {
-        if (e.Key == "Escape" && Instance?.Options?.CloseOnEscapeKey != false)
+        if (e.Key != "Escape")
+        {
+            return;
+        }
+
+        // Mit OnClose gewinnt IMMER der Aufrufer - auch wenn CloseOnEscapeKey aus ist.
+        //
+        // Genau dafuer ist es aus: MudDialogProvider hoert Escape global mit und bricht den Dialog
+        // ab, bevor hier irgendetwas fragen koennte. Ein Dialog mit ungespeicherten Aenderungen
+        // setzt CloseOnEscapeKey deshalb auf false und faengt die Taste hier - das ist kein
+        // Widerspruch zur Option, sondern ihr einziger sinnvoller Gebrauch.
+        if (OnClose.HasDelegate)
+        {
+            await OnClose.InvokeAsync();
+            return;
+        }
+
+        if (Instance?.Options?.CloseOnEscapeKey != false)
         {
             await CloseAsync();
         }
