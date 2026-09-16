@@ -60,3 +60,22 @@ window.meadowChart = {
         window.destroyExistingChart(canvasId);
     }
 };
+
+/* Ein aufgeklapptes Auswahlmenue in den Blick scrollen.
+
+   Gebraucht, seit die Menues im KPI-Dialog ueberlagern statt zu schieben: der
+   Dialogkoerper scrollt (.mw-dlg-body.mw-scroll), und ein absolut
+   positioniertes Menue vergroessert seine Scrollhoehe nicht - beim untersten
+   Feld ragte es unten heraus und war abgeschnitten.
+
+   block: "nearest" scrollt genau so weit wie noetig und ruehrt sich nicht,
+   wenn das Menue ohnehin vollstaendig sichtbar ist. */
+window.meadowMenu = {
+    reveal: function (element) {
+        if (!element) {
+            return;
+        }
+
+        element.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+};

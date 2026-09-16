@@ -40,7 +40,11 @@
         else
         {
             <div>
-                <label class="mw-label" for="mw-kpi-title">Titel</label>
+                <label class="mw-label" for="mw-kpi-title">
+                    Titel
+                    <MeadowHelp For="Titel" Text="Steht als Überschrift auf der Kachel und ist der Name,
+                                unter dem du die Kennzahl in der Liste wiederfindest." />
+                </label>
                 <div class="@TitleFieldClass">
                     <MudTextField T="string" InputId="mw-kpi-title" Variant="Variant.Text"
                                   @ref="_titleField"
@@ -103,7 +107,12 @@
                 }
 
                 <div>
-                    <label class="mw-label" for="mw-kpi-url">URL</label>
+                    <label class="mw-label" for="mw-kpi-url">
+                        URL
+                        <MeadowHelp For="URL" Text="Wohin ein Klick auf die Kachel führt. Nur im
+                                    Expertenmodus von Hand: eine Kennzahl aus dem Formular leitet ihr
+                                    Ziel samt Filtern aus der Definition ab." />
+                    </label>
                     <div class="mw-field">
                         <MudTextField T="string" InputId="mw-kpi-url" Variant="Variant.Text"
                                       Value="@KPI.Url" ValueChanged="OnUrlChanged"

@@ -19,19 +19,19 @@
 
 @if (Definition.AllowsTarget)
 {
-    <MeadowSwitch Label="Zielwert festlegen" Value="Enabled" ValueChanged="OnEnabledChanged" />
+    <MeadowSwitch Label="Zielwert festlegen" Help="@HelpTarget" Value="Enabled" ValueChanged="OnEnabledChanged" />
 
     @if (Enabled)
     {
         <div class="mw-half">
-            <MeadowSingleSelect Label="Bewertung" Options="DirectionLabels"
+            <MeadowSingleSelect Label="Bewertung" Options="DirectionLabels" Help="@HelpDirection"
                                 Value="@KpiDefinitionSummary.DirectionLabel(Definition.TargetDirection)"
                                 ValueChanged="OnDirectionChanged" />
         </div>
 
         <div class="mw-field-row">
             <div class="mw-col">
-                <label class="mw-label" for="mw-kpi-good">@GoodLabel</label>
+                <label class="mw-label" for="mw-kpi-good">@GoodLabel <MeadowHelp Text="@HelpGood" For="@GoodLabel" /></label>
                 <div class="mw-field">
                     <MudNumericField T="double?" InputId="mw-kpi-good" Variant="Variant.Text"
                                      HideSpinButtons="true" Culture="@Culture"
@@ -39,7 +39,7 @@
                 </div>
             </div>
             <div class="mw-col">
-                <label class="mw-label" for="mw-kpi-warn">@WarnLabel</label>
+                <label class="mw-label" for="mw-kpi-warn">@WarnLabel <MeadowHelp Text="@HelpWarn" For="@WarnLabel" /></label>
                 <div class="mw-field">
                     <MudNumericField T="double?" InputId="mw-kpi-warn" Variant="Variant.Text"
                                      HideSpinButtons="true" Culture="@Culture"
@@ -84,6 +84,25 @@
     /// </summary>
     private static readonly System.Globalization.CultureInfo Culture =
         System.Globalization.CultureInfo.CurrentCulture;
+
+    // ---- Hilfetexte ----------------------------------------------------
+
+    private const string HelpTarget =
+        "Färbt die Zahl auf der Kachel, sobald du aufschreibst, welcher Wert gut ist. Ohne "
+        + "Zielwert bleibt sie in der Grundfarbe - und bei einer zweifelhaften Zahl (gemischte "
+        + "Einheiten, toter Filter) bleibt die Ampel auch mit Zielwert aus.";
+
+    private const string HelpDirection =
+        "In welche Richtung gut liegt. Ohne sie gäbe es keine Ampel: bei „offene Verbände“ ist "
+        + "weniger besser, bei „erledigte Termine“ mehr - das weiß nur, wer die Kennzahl gebaut hat.";
+
+    private const string HelpGood =
+        "Bis hierhin (bzw. ab hier) gilt der Wert als gut. Die Grenze zählt mit: bei „Gut bis 3“ "
+        + "ist eine 3 noch grün.";
+
+    private const string HelpWarn =
+        "Optional. Ohne sie gibt es nur gut und kritisch. Sie muss auf der anderen Seite des "
+        + "Zielwerts liegen, sonst gäbe es keinen Bereich dazwischen.";
 
     private static readonly KpiTargetDirection[] Directions =
         { KpiTargetDirection.LowerIsBetter, KpiTargetDirection.HigherIsBetter };

@@ -1,3 +1,5 @@
+@inject IJSRuntime JS
+
 @*
     Mehrfachauswahl-Dropdown fuer die Filterpanels — ersetzt MeadowChipSelect.
 
@@ -14,7 +16,16 @@
     ODER: eine Zeile passt, wenn sie EINEN der gewaehlten Werte traegt.
 *@
 <div class="mw-select">
-    <span class="mw-select__label" id="@_labelId">@Label</span>
+    @* Das Fragezeichen NEBEN dem beschrifteten Element, nicht darin - siehe MeadowSingleSelect:
+       Trigger und Gruppe zeigen per aria-labelledby hierher, und der Name waere sonst um den
+       ganzen Hilfetext gewachsen. *@
+    <span class="mw-select__labelrow">
+        <span class="mw-select__label" id="@_labelId">@Label</span>
+        @if (!string.IsNullOrWhiteSpace(Help))
+        {
+            <MeadowHelp Text="@Help" For="@Label" />
+        }
+    </span>
 
     <button type="button"
             class="@(_open ? "mw-select__trigger is-open" : "mw-select__trigger")"
@@ -25,6 +36,11 @@
         <MeadowIcon Name="MeadowIconName.ChevronDown" Size="16" />
     </button>
 
+    @* Eigener Rahmen um den offenen Teil, damit er sich als EIN Block positionieren laesst.
+       Standardmaessig fliesst er mit - siehe den Kopfkommentar oben, warum. Wo Platz und Aufbau
+       es hergeben, legt das CSS ihn ueber den Inhalt (.mw-select--overlay), statt den halben
+       Dialog nach unten zu schieben. *@
+    <div class="mw-select__menu" @ref="_menu">
     @if (_open)
     {
         @if (Options.Count == 0)
@@ -107,11 +123,15 @@
             </div>
         }
     }
+    </div>
 </div>
 
 @code {
     /// <summary>Gruppentitel, z.B. "Befund" oder "Medikament".</summary>
     [Parameter, EditorRequired] public string Label { get; set; } = "";
+
+    /// <summary>Erklaerung hinter einem Fragezeichen neben der Beschriftung. Leer: kein Zeichen.</summary>
+    [Parameter] public string? Help { get; set; }
 
     [Parameter] public IReadOnlyList<string> Options { get; set; } = Array.Empty<string>();
 
@@ -136,6 +156,8 @@
     private readonly string _labelId = $"sel-{Guid.NewGuid():N}";
 
     private bool _open;
+    private bool _justOpened;
+    private ElementReference _menu;
 
     private string _filter = "";
 
@@ -186,12 +208,31 @@
     private void Toggle()
     {
         _open = !_open;
+        _justOpened = _open;
+
         // Der Suchtext gilt fuer EINE Sitzung im offenen Zustand: beim naechsten Aufklappen soll
         // die volle Liste dastehen und nicht ein Rest von letzter Woche.
         if (!_open)
         {
             _filter = "";
         }
+    }
+
+    /// <summary>
+    /// Ein ueberlagerndes Menue vergroessert die Scrollhoehe seines Containers NICHT - beim
+    /// untersten Feld ragte es unten aus dem Dialogkoerper heraus und war abgeschnitten.
+    /// block: "nearest" scrollt genau so weit wie noetig und tut nichts, wenn es ohnehin
+    /// vollstaendig sichtbar ist (also ueberall dort, wo im Fluss geklappt wird).
+    /// </summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_justOpened)
+        {
+            return;
+        }
+
+        _justOpened = false;
+        await JS.InvokeVoidAsync("meadowMenu.reveal", _menu);
     }
 
     private Task ToggleOptionAsync(string option)

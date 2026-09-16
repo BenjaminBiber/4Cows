@@ -1,0 +1,39 @@
+@*
+    Das kleine Fragezeichen neben einer Beschriftung.
+
+    Ein BUTTON und kein title-Attribut. Der Tooltip des Browsers erscheint nur
+    beim Ueberfahren mit der Maus - auf dem Tablet, dem Hauptgeraet im Stall,
+    erreicht ihn niemand. Derselbe Fehler steckte in der KPI-Kachel, bis ihre
+    Fehlerursache eine eigene Zeile bekam.
+
+    Deshalb drei Wege zum selben Text: Maus drueber, Tastaturfokus, und ein
+    Tippen, das ihn stehen laesst, bis man wieder tippt.
+
+    aria-describedby statt aria-label: der Text BESCHREIBT das Feld daneben, er
+    ist nicht der Name des Knopfes. Ein Screenreader liest ihn dadurch beim
+    Feld vor, ohne dass man den Knopf ansteuern muss.
+*@
+<span class="mw-help @(_open ? "is-open" : "")">
+    <button type="button" class="mw-help__btn"
+            aria-expanded="@(_open ? "true" : "false")"
+            aria-label="@($"Hilfe zu {For}")"
+            @onclick="Toggle" @onclick:stopPropagation="true">
+        ?
+    </button>
+    <span class="mw-help__bubble" role="tooltip" id="@Id">@Text</span>
+</span>
+
+@code {
+    /// <summary>Der Hilfetext. Ein bis zwei Saetze - was das Feld TUT, nicht wie es heisst.</summary>
+    [Parameter, EditorRequired] public string Text { get; set; } = "";
+
+    /// <summary>Name des Feldes, nur fuer das aria-label des Knopfes.</summary>
+    [Parameter] public string For { get; set; } = "diesem Feld";
+
+    /// <summary>Damit das Feld daneben per aria-describedby darauf zeigen kann.</summary>
+    [Parameter] public string? Id { get; set; }
+
+    private bool _open;
+
+    private void Toggle() => _open = !_open;
+}

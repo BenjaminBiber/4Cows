@@ -1,3 +1,5 @@
+@inject IJSRuntime JS
+
 @*
     Einfachauswahl-Dropdown — optisch identisch zu MeadowMultiSelect, aber mit
     Radios.
@@ -11,7 +13,16 @@
     "Alle" ist eine echte Option in der Liste, nicht ein Sonderfall daneben.
 *@
 <div class="mw-select">
-    <span class="mw-select__label" id="@_labelId">@Label</span>
+    @* Das Fragezeichen steht NEBEN dem beschrifteten Element, nicht darin: der Trigger zeigt per
+       aria-labelledby auf #_labelId, und ein Screenreader liest den Namen aus dessen gesamtem
+       Textinhalt zusammen - der Hilfetext waere sonst Teil des Knopfnamens geworden. *@
+    <span class="mw-select__labelrow">
+        <span class="mw-select__label" id="@_labelId">@Label</span>
+        @if (!string.IsNullOrWhiteSpace(Help))
+        {
+            <MeadowHelp Text="@Help" For="@Label" />
+        }
+    </span>
 
     <button type="button"
             class="@(_open ? "mw-select__trigger is-open" : "mw-select__trigger")"
@@ -24,16 +35,22 @@
 
     @if (_open)
     {
-        <div class="mw-check-list" role="radiogroup" aria-labelledby="@_labelId">
-            @foreach (var option in Options)
-            {
-                var isOn = string.Equals(option, Value, StringComparison.OrdinalIgnoreCase);
-                <label class="@(isOn ? "mw-check is-on" : "mw-check")">
-                    <input type="radio" name="@_groupName" checked="@isOn"
-                           @onchange="() => PickAsync(option)" />
-                    <span>@option</span>
-                </label>
-            }
+        @* Eigener Rahmen um die offene Liste, damit sie sich als EIN Block positionieren
+           laesst. Standardmaessig fliesst er im Fluss mit - siehe den Kopfkommentar von
+           MeadowMultiSelect, warum das so ist. Wo Platz und Aufbau es hergeben, legt das CSS
+           ihn ueber den Inhalt statt ihn hineinzuschieben (.mw-select--overlay). *@
+        <div class="mw-select__menu" @ref="_menu">
+            <div class="mw-check-list" role="radiogroup" aria-labelledby="@_labelId">
+                @foreach (var option in Options)
+                {
+                    var isOn = string.Equals(option, Value, StringComparison.OrdinalIgnoreCase);
+                    <label class="@(isOn ? "mw-check is-on" : "mw-check")">
+                        <input type="radio" name="@_groupName" checked="@isOn"
+                               @onchange="() => PickAsync(option)" />
+                        <span>@option</span>
+                    </label>
+                }
+            </div>
         </div>
     }
 </div>
@@ -41,6 +58,9 @@
 @code {
     /// <summary>Gruppentitel, z.B. "Zeitraum".</summary>
     [Parameter, EditorRequired] public string Label { get; set; } = "";
+
+    /// <summary>Erklaerung hinter einem Fragezeichen neben der Beschriftung. Leer: kein Zeichen.</summary>
+    [Parameter] public string? Help { get; set; }
 
     [Parameter] public IReadOnlyList<string> Options { get; set; } = Array.Empty<string>();
 
@@ -55,8 +75,31 @@
     private readonly string _groupName = $"grp-{Guid.NewGuid():N}";
 
     private bool _open;
+    private bool _justOpened;
+    private ElementReference _menu;
 
-    private void Toggle() => _open = !_open;
+    private void Toggle()
+    {
+        _open = !_open;
+        _justOpened = _open;
+    }
+
+    /// <summary>
+    /// Ein ueberlagerndes Menue vergroessert die Scrollhoehe seines Containers NICHT - beim
+    /// untersten Feld ragte es unten aus dem Dialogkoerper heraus und war abgeschnitten.
+    /// block: "nearest" scrollt genau so weit wie noetig und tut nichts, wenn es ohnehin
+    /// vollstaendig sichtbar ist (also im Normalfall und ueberall dort, wo im Fluss geklappt wird).
+    /// </summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_justOpened)
+        {
+            return;
+        }
+
+        _justOpened = false;
+        await JS.InvokeVoidAsync("meadowMenu.reveal", _menu);
+    }
 
     private Task PickAsync(string option)
     {
