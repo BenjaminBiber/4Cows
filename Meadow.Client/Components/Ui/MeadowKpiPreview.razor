@@ -31,13 +31,18 @@
             <span class="mw-kpi-preview__delta">@Result.DeltaDisplay</span>
         }
         <MeadowKpiFlag Status="Result.Status" Size="18" />
-        @if (Series is { Count: > 2 } && SeriesDisplay != KpiSeriesDisplay.None)
+        @if (Values is { Count: > 2 })
         {
             @* Dieselbe Komponente wie auf der Kachel, damit man im Editor sieht, was danach
                auf dem Dashboard steht. *@
-            <MeadowSparkline Values="Series" Variant="KpiSeriesDisplay.Inline" Class="mw-spark--preview" />
+            <MeadowSparkline Values="Values" Variant="KpiSeriesDisplay.Inline" Class="mw-spark--preview" />
         }
     </div>
+
+    @if (Series?.AverageDisplay is { } average && SeriesDisplay == KpiSeriesDisplay.Chart)
+    {
+        <p class="mw-hint">@KpiDefinitionSummary.AverageLabel(Series.Bucket): @average</p>
+    }
 
     @if (!string.IsNullOrWhiteSpace(Result.Message))
     {
@@ -62,10 +67,13 @@
     /// <summary>Zeilen der Quelle insgesamt, also vor Zeitraum und Filtern.</summary>
     [Parameter] public int TotalRows { get; set; }
 
-    /// <summary>Werte des Verlaufs, aeltester zuerst. Null: die Definition will keinen.</summary>
-    [Parameter] public IReadOnlyList<double?>? Series { get; set; }
+    /// <summary>Der Verlauf, oder null wenn die Definition keinen will.</summary>
+    [Parameter] public KpiSeries? Series { get; set; }
 
     [Parameter] public KpiSeriesDisplay SeriesDisplay { get; set; }
+
+    private IReadOnlyList<double?>? Values
+        => Series?.Points.Select(p => p.Value).ToList();
 
     private const int AnnounceDelayMs = 700;
 

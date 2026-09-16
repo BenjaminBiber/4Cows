@@ -54,6 +54,19 @@ public sealed record KpiSeries
     /// <summary>Why there is no series, when there is none.</summary>
     public string? Message { get; init; }
 
+    /// <summary>
+    /// Mean over the sections that HAVE a value, already formatted with the definition's unit and
+    /// decimals. Null when there is nothing to average.
+    ///
+    /// The second number on the tile, and the reason the first one can be read at all: "120" says
+    /// little, "120, on average 10 a month" says something. Formatted here rather than on the tile
+    /// so it cannot end up spelled differently from the value above it.
+    ///
+    /// Sections without a value are skipped, not counted as zero - an average over an undefined
+    /// section is undefined, not nought (see <see cref="KpiSeriesPoint.Value"/>).
+    /// </summary>
+    public string? AverageDisplay { get; init; }
+
     /// <summary>At least one section actually has rows - the test for "worth drawing".</summary>
     public bool HasAny => Points.Any(p => p.MatchedRows > 0);
 

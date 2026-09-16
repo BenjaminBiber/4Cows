@@ -200,6 +200,67 @@ public class KpiSeriesTests
     }
 
     [Fact]
+    public void The_average_skips_sections_without_a_value_instead_of_counting_them_as_zero()
+    {
+        // The second figure on the tile. An average over an undefined section is undefined, not
+        // nought - counting the empty ones would halve every dosage average on a quiet week.
+        var rows = new[] { Row(0, dosage: 10), Row(1, dosage: 20) };
+        var definition = KpiTestData.Definition(
+            measure: KpiMeasure.AvgDosage, timeframe: KpiTimeframe.Days7, decimals: 1, unit: "ml");
+
+        var series = Series(definition, rows);
+
+        // Two sections have a value (10 and 20), six have none.
+        Assert.Equal("15,0 ml", series.AverageDisplay);
+    }
+
+    [Fact]
+    public void A_counted_average_keeps_one_decimal_even_though_the_tile_shows_none()
+    {
+        // 9 rows over 8 daily sections is 1,125 - rounding that to 1 would throw away the only
+        // thing that distinguishes the average from the tile's own figure.
+        var rows = Enumerable.Range(0, 8).Select(i => Row(i)).Append(Row(0)).ToArray();
+        var series = Series(KpiTestData.Definition(timeframe: KpiTimeframe.Days7), rows);
+
+        Assert.Equal("1,1", series.AverageDisplay);
+    }
+
+    [Fact]
+    public void The_average_carries_the_unit_of_the_value_above_it()
+    {
+        var rows = new[] { Row(0, dosage: 4), Row(2, dosage: 6) };
+        var definition = KpiTestData.Definition(
+            measure: KpiMeasure.SumDosage, timeframe: KpiTimeframe.Days7, decimals: 2, unit: "ml");
+
+        Assert.EndsWith("ml", Series(definition, rows).AverageDisplay);
+    }
+
+    [Fact]
+    public void An_empty_series_of_averages_has_no_average_at_all()
+    {
+        var series = Series(
+            KpiTestData.Definition(measure: KpiMeasure.AvgDosage, timeframe: KpiTimeframe.Days7),
+            Array.Empty<KpiRow>());
+
+        Assert.Null(series.AverageDisplay);
+    }
+
+    [Fact]
+    public void Every_bucket_has_a_label_for_the_average()
+    {
+        // The label names the SECTION, not the timeframe: "30 Tage" draws daily sections while
+        // "90 Tage" draws weekly ones, and "Ø pro Tag" over a weekly chart would be a different
+        // number from the one shown.
+        foreach (var timeframe in KpiTimeframes.All)
+        {
+            var series = Series(KpiTestData.Definition(timeframe: timeframe), Array.Empty<KpiRow>());
+            var label = KpiDefinitionSummary.AverageLabel(series.Bucket);
+
+            Assert.StartsWith("Ø pro ", label);
+        }
+    }
+
+    [Fact]
     public void TopValue_has_no_series_and_says_why()
     {
         var series = Series(

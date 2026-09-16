@@ -112,7 +112,10 @@ public enum KpiTimeframe
 /// matters for more than compatibility: the series is only COMPUTED when this is not None, so a
 /// dashboard of plain tiles still costs exactly what it used to.
 /// </summary>
-[JsonConverter(typeof(JsonStringEnumConverter))]
+// Nachsichtig, nicht streng: ein unbekannter Wert degradiert auf None, statt die ganze
+// Definition unlesbar zu machen. Siehe KpiLenientEnumConverter - das hier entscheidet nur das
+// Aussehen, nicht was gezaehlt wird.
+[JsonConverter(typeof(KpiLenientEnumConverter<KpiSeriesDisplay>))]
 public enum KpiSeriesDisplay
 {
     None,
@@ -120,8 +123,16 @@ public enum KpiSeriesDisplay
     /// <summary>A small line in the tile's footer, next to the delta. Costs no extra height.</summary>
     Inline,
 
-    /// <summary>A filled area behind the title and the value, Lely-Horizon style.</summary>
-    Background
+    /// <summary>
+    /// A chart band UNDER the value, Lely-Horizon style: filled area, a dot per period, and the
+    /// range labelled at the left edge.
+    ///
+    /// Under and not behind. Drawing it as a backdrop meant trading the value's contrast against
+    /// the chart's visibility and losing both a little; a band of its own costs about 56px and
+    /// settles the argument. It also earns the second number beside the value, because a figure
+    /// with a curve under it invites the question "compared to what".
+    /// </summary>
+    Chart
 }
 
 /// <summary>
@@ -133,7 +144,9 @@ public enum KpiSeriesDisplay
 /// BECAUSE someone wrote down, on this KPI, what good means. So the direction is part of the target
 /// rather than an assumption, and None means no light at all.
 /// </summary>
-[JsonConverter(typeof(JsonStringEnumConverter))]
+// Ebenfalls nachsichtig: ohne erkennbare Richtung gibt es keine Ampel, und das ist genau der
+// Zustand, den ein aelterer Build ohnehin gezeigt haette.
+[JsonConverter(typeof(KpiLenientEnumConverter<KpiTargetDirection>))]
 public enum KpiTargetDirection
 {
     None,

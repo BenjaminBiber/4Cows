@@ -187,10 +187,9 @@
     /// Zurueckhaltung wie in KpiDashboard: wer keine Linie will, soll sie nicht bezahlen, und
     /// diese Property laeuft bei JEDEM Tastendruck im Formular.
     /// </summary>
-    private IReadOnlyList<double?>? PreviewSeries
+    private KpiSeries? PreviewSeries
         => Definition.WantsSeries
             ? KpiEvaluator.Series(Definition, Source, _rows, DateTime.Now)
-                .Points.Select(p => p.Value).ToList()
             : null;
 
     /// <summary>
@@ -257,12 +256,12 @@
     };
 
     private static readonly KpiSeriesDisplay[] SeriesModes =
-        { KpiSeriesDisplay.None, KpiSeriesDisplay.Inline, KpiSeriesDisplay.Background };
+        { KpiSeriesDisplay.None, KpiSeriesDisplay.Inline, KpiSeriesDisplay.Chart };
 
     private static string SeriesLabel(KpiSeriesDisplay display) => display switch
     {
         KpiSeriesDisplay.Inline => "Kleine Linie",
-        KpiSeriesDisplay.Background => "Als Hintergrund",
+        KpiSeriesDisplay.Chart => "Diagramm mit Durchschnitt",
         _ => "Kein Verlauf"
     };
 

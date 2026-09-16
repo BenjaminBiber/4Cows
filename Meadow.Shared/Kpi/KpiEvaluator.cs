@@ -183,8 +183,29 @@ public static class KpiEvaluator
         {
             Bucket = bucket,
             Points = points,
-            CoversTimeframe = definition.Timeframe != KpiTimeframe.All
+            CoversTimeframe = definition.Timeframe != KpiTimeframe.All,
+            AverageDisplay = AverageOf(definition, points)
         };
+    }
+
+    /// <summary>
+    /// The mean across the sections that have a value, formatted exactly like the tile's own
+    /// figure - same decimals, same unit, same culture.
+    ///
+    /// A count averages to something fractional ("10,4 pro Monat"), so it gets one decimal even
+    /// though the value above it has none. Rounding that to 10 would throw away the only part of
+    /// the number that distinguishes it from the one already on the tile.
+    /// </summary>
+    private static string? AverageOf(KpiDefinition definition, IReadOnlyList<KpiSeriesPoint> points)
+    {
+        var values = points.Where(p => p.Value.HasValue).Select(p => p.Value!.Value).ToList();
+        if (values.Count == 0)
+        {
+            return null;
+        }
+
+        var decimals = definition.RequiresDosage ? definition.Decimals : 1;
+        return WithUnit(Format(values.Average(), decimals), definition.Unit);
     }
 
     /// <summary>

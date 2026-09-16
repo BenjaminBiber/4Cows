@@ -1,25 +1,28 @@
 @using System.Globalization
-@using Meadow.Shared.Kpi
+@using Meadow.Shared.Models
 
 @*
     Der Verlauf einer KPI-Kachel, als Inline-SVG.
 
     KEIN Chart.js, obwohl es seit dem Umzug ins Vendor-Verzeichnis lokal
     vorliegt und offline funktioniert. Die Gruende sind hier andere als bei
-    MeadowPieChart: das hier ist 72x22 gross, steht neben Text, und auf einem
-    Dashboard stehen acht bis zwoelf davon. Zwoelf Canvas-Kontexte plus zwoelf
-    Chart.js-Instanzen fuer zwoelf Polylinien - und beim Theme-Wechsel muessten
-    alle neu gezeichnet werden. Ein <path> erbt seine Farbe aus CSS und kostet
-    beim Umschalten nichts.
+    MeadowPieChart: auf einem Dashboard stehen acht bis zwoelf davon. Zwoelf
+    Canvas-Kontexte plus zwoelf Chart.js-Instanzen fuer zwoelf Linien - und
+    beim Theme-Wechsel muessten alle neu gezeichnet werden. Ein <path> erbt
+    seine Farbe aus CSS und kostet beim Umschalten nichts.
 
     Fuer das GROSSE Verlaufsdiagramm auf der Detailseite ist Chart.js dagegen
     richtig: zwoelf Punkte mit Achsen, Gitter und Tooltip sind genau das,
     wofuer die Bibliothek gebaut ist.
 
-    preserveAspectRatio="none" plus vector-effect: non-scaling-stroke im CSS:
-    die Linie darf gestaucht werden, weil sie einen VERLAUF zeigt und keine
-    Steigung - der Strich soll davon aber nicht dicker oder duenner werden.
-    Dasselbe Muster wie die Fuge in .mw-pie__slice.
+    preserveAspectRatio="none": die Linie darf gestaucht werden, weil sie einen
+    VERLAUF zeigt und keine Steigung. Strich und Punkte duerfen davon aber
+    nicht verzerrt werden - dafuer vector-effect: non-scaling-stroke.
+
+    DIE PUNKTE SIND KEINE <circle>. Ein Kreis wuerde vom Stauchen zur Ellipse.
+    Stattdessen Nulllaengen-Teilstrecken ("M x y L x y") mit
+    stroke-linecap: round: das zeichnet einen exakten Kreis vom Durchmesser der
+    Strichstaerke, und der haengt dank non-scaling-stroke nicht am viewBox.
 
     Unter drei Punkten wird NICHTS gezeichnet. Eine waagerechte Linie aus zwei
     Punkten behauptet einen Verlauf, den es nicht gibt.
@@ -29,16 +32,13 @@
 {
     <svg class="@CssClass" viewBox="0 0 100 32" preserveAspectRatio="none"
          aria-hidden="true" focusable="false">
-        @if (Variant == KpiSeriesDisplay.Background)
+        @if (Variant == KpiSeriesDisplay.Chart)
         {
-            @* Erst die Flaeche, dann die Linie darauf - so liegt die Kante oben sauber. *@
+            @* Erst die Flaeche, dann die Linie darauf - so bleibt die Oberkante sauber. *@
             <path class="mw-spark__area" d="@AreaPath" />
         }
         <polyline class="mw-spark__line" points="@Points" />
-        @if (ShowLast)
-        {
-            <circle class="mw-spark__dot" cx="@Num(_last.X)" cy="@Num(_last.Y)" r="@DotRadius" />
-        }
+        <path class="mw-spark__dots" d="@DotPath" />
     </svg>
 }
 
@@ -51,9 +51,6 @@
 
     [Parameter] public KpiSeriesDisplay Variant { get; set; } = KpiSeriesDisplay.Inline;
 
-    /// <summary>Punkt auf dem letzten Wert. Im Hintergrundmodus stoert er den Text.</summary>
-    [Parameter] public bool ShowLast { get; set; } = true;
-
     [Parameter] public string? Class { get; set; }
 
     private const int MinPoints = 3;
@@ -61,26 +58,18 @@
     private const double Width = 100;
 
     /// <summary>Oben und unten Luft, damit Hoch- und Tiefpunkt nicht am Rand abgeschnitten werden.</summary>
-    private const double Pad = 3;
-
-    private (double X, double Y) _last;
+    private const double Pad = 4;
 
     private List<(double X, double Y)> _points = new();
 
     private bool Drawable => _points.Count >= MinPoints;
 
-    private double DotRadius => Variant == KpiSeriesDisplay.Background ? 0 : 2.5;
-
     private string CssClass
         => "mw-spark"
-           + (Variant == KpiSeriesDisplay.Background ? " mw-spark--bg" : "")
+           + (Variant == KpiSeriesDisplay.Chart ? " mw-spark--chart" : "")
            + (string.IsNullOrWhiteSpace(Class) ? "" : " " + Class);
 
-    protected override void OnParametersSet()
-    {
-        _points = Plot();
-        _last = _points.Count > 0 ? _points[^1] : default;
-    }
+    protected override void OnParametersSet() => _points = Plot();
 
     private List<(double X, double Y)> Plot()
     {
@@ -129,6 +118,22 @@
     }
 
     private string Points => string.Join(" ", _points.Select(p => $"{Num(p.X)},{Num(p.Y)}"));
+
+    /// <summary>
+    /// Ein Punkt je Messwert, als Nulllaengen-Teilstrecke. Im Inline-Modus nur der letzte - bei
+    /// 72px Breite waeren zwoelf Punkte eine Perlenkette und keine Linie mehr.
+    /// </summary>
+    private string DotPath
+    {
+        get
+        {
+            var dots = Variant == KpiSeriesDisplay.Chart
+                ? _points
+                : _points.Count > 0 ? new List<(double X, double Y)> { _points[^1] } : _points;
+
+            return string.Join(" ", dots.Select(p => $"M {Num(p.X)} {Num(p.Y)} L {Num(p.X)} {Num(p.Y)}"));
+        }
+    }
 
     /// <summary>Dieselbe Linie, unten am viewBox-Rand geschlossen.</summary>
     private string AreaPath
