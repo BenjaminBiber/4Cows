@@ -11,12 +11,13 @@
 @inject MeadowDataLoader Data
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject NavigationManager Nav
 
 <div class="mw-tabs">
     @foreach (var tab in Tabs)
     {
         <button type="button" class="mw-tab @(_tab == tab ? "is-active" : "")"
-                @onclick="() => _tab = tab">
+                @onclick="() => SelectTab(tab)">
             @tab
         </button>
     }
@@ -24,12 +25,21 @@
 
 @if (_tab == TabKpi)
 {
-    <MeadowTable TItem="KPI" Items="_kpis" Columns="_kpiColumns"
+    @* Die einzige Tabelle der App ohne Suche - und ausgerechnet die, in der man nach "was
+       filtert eigentlich auf Penicillin" sucht. Gesucht wird deshalb ueber Titel UND
+       Definitionstext, nicht nur ueber den Namen. *@
+    <div class="mw-toolbar">
+        <MeadowSearchBox Value="@_kpiSearch" ValueChanged="OnKpiSearchChanged"
+                         Placeholder="KPI suchen…" AriaLabel="Kennzahlen durchsuchen" />
+    </div>
+
+    <MeadowTable TItem="KPI" Items="FilteredKpis" Columns="_kpiColumns"
                  RowKey="@(k => k.KPIId)"
                  DefaultSortTitle="Sortierung"
                  ShowMobileCards="false"
+                 IsLoading="@(!_kpisLoaded)"
                  PagerLabel="KPIs pro Seite"
-                 EmptyText="Noch keine KPIs angelegt." />
+                 EmptyText="@KpiEmptyText" />
 
     <div class="mw-table-foot">
         <button type="button" class="mw-btn mw-btn--primary"
@@ -126,8 +136,53 @@ else
 
     private List<KPI> _kpis = new();
     private string _fallbackDraft = "";
+    private string _kpiSearch = "";
+
+    /// <summary>
+    /// Getrennt vom "ist die Liste leer": bisher stand waehrend des Ladens der Leerzustand da, und
+    /// "noch nicht geladen" sah aus wie "keine angelegt". Jede andere Tabelle der App reicht
+    /// IsLoading durch, nur diese nicht.
+    /// </summary>
+    private bool _kpisLoaded;
+
+    /// <summary>Die zuletzt geloeschte Kennzahl, fuer das Rueckgaengig in der Snackbar.</summary>
+    private KPI? _lastDeleted;
+
+    private IReadOnlyList<KPI> FilteredKpis
+    {
+        get
+        {
+            var search = _kpiSearch.Trim();
+            if (search.Length == 0)
+            {
+                return _kpis;
+            }
+
+            return _kpis
+                .Where(k => k.Title.Contains(search, StringComparison.OrdinalIgnoreCase)
+                            || KpiDefinitionSummary.Describe(k)
+                                .Contains(search, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+    }
+
+    private string KpiEmptyText => _kpiSearch.Trim().Length > 0
+        ? "Keine KPI passt zur Suche."
+        : "Noch keine KPIs angelegt.";
+
+    private void OnKpiSearchChanged(string value) => _kpiSearch = value;
 
     private IReadOnlyList<MeadowColumn<KPI>> _kpiColumns = Array.Empty<MeadowColumn<KPI>>();
+
+    /// <summary>
+    /// Der Reiter steht in der URL, nicht nur im Feld.
+    ///
+    /// Ohne das gibt es keinen Link auf die KPI-Verwaltung - und genau dorthin zeigen jetzt der
+    /// Leerzustand des Dashboards und der Weg aus einer fehlerhaften Kachel. Ein Neuladen verwarf
+    /// die Unterauswahl ausserdem still.
+    /// </summary>
+    [SupplyParameterFromQuery(Name = "tab")]
+    public string? TabParam { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
@@ -137,6 +192,24 @@ else
         await Data.EnsureDashboardAsync();
         _fallbackDraft = Defaults.ClawFindingFallback;
         await LoadKpis();
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (!string.IsNullOrWhiteSpace(TabParam))
+        {
+            _tab = Tabs.FirstOrDefault(t => Slug(t) == TabParam.ToLowerInvariant()) ?? _tab;
+        }
+    }
+
+    /// <summary>Reiter-Name als URL-Fragment: "KPIs" -> "kpis", "Standardwerte" -> "standardwerte".</summary>
+    private static string Slug(string tab) => tab.ToLowerInvariant().Replace(" ", "-");
+
+    private void SelectTab(string tab)
+    {
+        _tab = tab;
+        // replace: true - der Reiterwechsel ist keine eigene Station in der Zurueck-Historie.
+        Nav.NavigateTo($"{MeadowRoutes.Settings}?tab={Slug(tab)}", replace: true);
     }
 
     // Sechs Spalten, sechs verschiedene Sortierschluessel - bisher sortierten
@@ -186,17 +259,33 @@ else
         },
         new()
         {
-            Title = "Link",
-            Text = k => k.Url,
-            SortBy = k => k.Url,
+            // Hier stand k.Url. Bei einer Builder-KPI ist das nur die nackte Route - der
+            // Rueckfall fuer den Fall, dass die Definition unlesbar wird - und damit NICHT das
+            // Ziel, auf dem ein Klick landet. Die Filter fehlten.
+            Title = "Link (Vorschau)",
+            Text = KpiDrillDownUrl.Build,
+            SortBy = k => KpiDrillDownUrl.Build(k),
             Style = MeadowCellStyle.Mono
         },
         new()
         {
             IsActions = true,
-            Width = "104px",
+            Width = "196px",
             Template = kpi =>
                 @<text>
+                    @* Pfeile und nicht Ziehen: HTML5-Drag&Drop feuert auf Touch nicht, und das
+                       Tablet ist das Hauptgeraet. Deaktiviert, sobald nach einer anderen Spalte
+                       sortiert wird - "eine Position nach oben" hat in einer alphabetischen
+                       Liste kein definiertes Ziel. *@
+                    <MeadowIconButton Icon="MeadowIconName.ChevronDown" Title="@UpTitle(kpi)"
+                                      Class="mw-icon-btn--up"
+                                      Disabled="@(!CanReorder || IsFirst(kpi))"
+                                      OnClick="() => MoveAsync(kpi, -1)" />
+                    <MeadowIconButton Icon="MeadowIconName.ChevronDown" Title="@DownTitle(kpi)"
+                                      Disabled="@(!CanReorder || IsLast(kpi))"
+                                      OnClick="() => MoveAsync(kpi, 1)" />
+                    <MeadowIconButton Icon="MeadowIconName.Plus" Title="KPI duplizieren"
+                                      OnClick="() => DuplicateKpi(kpi)" />
                     <MeadowIconButton Icon="MeadowIconName.Edit" Title="KPI bearbeiten"
                                       OnClick="() => OpenKpiDialog(kpi)" />
                     <MeadowIconButton Icon="MeadowIconName.Trash" Title="KPI löschen"
@@ -204,6 +293,63 @@ else
                 </text>
         }
     };
+
+    // ---- Reihenfolge ----------------------------------------------------
+
+    /// <summary>
+    /// Sortieren geht nur in der gespeicherten Reihenfolge - und nur ohne aktive Suche, weil man
+    /// sonst zwei Zeilen tauscht, zwischen denen ungezeigte liegen.
+    /// </summary>
+    private bool CanReorder => _kpiSearch.Trim().Length == 0;
+
+    private bool IsFirst(KPI kpi) => _kpis.Count > 0 && _kpis[0].KPIId == kpi.KPIId;
+
+    private bool IsLast(KPI kpi) => _kpis.Count > 0 && _kpis[^1].KPIId == kpi.KPIId;
+
+    private string UpTitle(KPI kpi)
+        => CanReorder
+            ? $"„{kpi.Title}\" eine Position nach oben"
+            : "Zum Sortieren erst die Suche leeren";
+
+    private string DownTitle(KPI kpi)
+        => CanReorder
+            ? $"„{kpi.Title}\" eine Position nach unten"
+            : "Zum Sortieren erst die Suche leeren";
+
+    /// <summary>
+    /// Verschiebt eine Kennzahl und normalisiert die Reihenfolge auf 0..n-1.
+    ///
+    /// Die Normalisierung ist der eigentliche Punkt: das frueher im Dialog editierbare Zahlenfeld
+    /// liess Duplikate zu, und bei gleichem Sortier-Index war die Reihenfolge der Kacheln beliebig.
+    /// Geschrieben wird nur, was sich wirklich geaendert hat.
+    /// </summary>
+    private async Task MoveAsync(KPI kpi, int direction)
+    {
+        var index = _kpis.FindIndex(k => k.KPIId == kpi.KPIId);
+        var target = index + direction;
+
+        if (index < 0 || target < 0 || target >= _kpis.Count)
+        {
+            return;
+        }
+
+        var ordered = _kpis.ToList();
+        (ordered[index], ordered[target]) = (ordered[target], ordered[index]);
+
+        for (var i = 0; i < ordered.Count; i++)
+        {
+            if (ordered[i].SortOrder == i)
+            {
+                continue;
+            }
+
+            var moved = ordered[i].Copy();
+            moved.SortOrder = i;
+            await KPIService.UpdateDataAsync(moved);
+        }
+
+        await LoadKpis();
+    }
 
 
     // Diese Liste zeigt Titel, Skript und Sortierung - nie einen berechneten Wert. GetAllKPIs
@@ -213,7 +359,13 @@ else
     private async Task LoadKpis()
     {
         await KPIService.GetAllDataAsync();
-        _kpis = KPIService.KPIs.Values.OrderBy(k => k.SortOrder).ToList();
+        // ThenBy auf den Titel, damit die Reihenfolge auch bei doppelten Sortier-Indizes
+        // feststeht - Altbestand kann sie haben, das frueher editierbare Zahlenfeld liess sie zu.
+        _kpis = KPIService.KPIs.Values
+            .OrderBy(k => k.SortOrder)
+            .ThenBy(k => k.Title, StringComparer.CurrentCulture)
+            .ToList();
+        _kpisLoaded = true;
     }
 
     private async Task OpenKpiDialog(KPI kpi, bool isNew = false)
@@ -266,9 +418,79 @@ else
             return;
         }
 
-        await KPIService.DeleteDataAsync(kpi.KPIId);
-        Snackbar.Add("KPI gelöscht.", Severity.Success);
+        if (!await KPIService.DeleteDataAsync(kpi.KPIId))
+        {
+            Snackbar.Add("Löschen fehlgeschlagen.", Severity.Error);
+            return;
+        }
+
+        _lastDeleted = kpi.Copy();
         await LoadKpis();
+
+        // Der Bestaetigungsdialog bleibt: Rueckgaengig ueber eine Snackbar ist ein Netz mit vier
+        // Sekunden Maschenweite, kein Ersatz fuer die Frage davor.
+        Snackbar.Add("KPI gelöscht.", Severity.Success, config =>
+        {
+            config.Action = "Rückgängig";
+            config.ActionColor = Color.Primary;
+            // MudBlazor 7 schreibt das Feld klein: Onclick, nicht OnClick.
+            config.Onclick = _ => UndoDeleteAsync();
+        });
+    }
+
+    /// <summary>
+    /// Legt die geloeschte Kennzahl wieder an.
+    ///
+    /// Sie bekommt dabei eine NEUE KPI_ID. Das ist in Ordnung - es gibt keine Fremdschluessel auf
+    /// KPI_ID, und die Detailseite wird nach dem Loeschen ohnehin nicht mehr geoeffnet - steht aber
+    /// hier, damit niemand spaeter eine Id-Stabilitaet annimmt, die es nicht gibt.
+    /// </summary>
+    private async Task UndoDeleteAsync()
+    {
+        if (_lastDeleted is null)
+        {
+            return;
+        }
+
+        var restored = _lastDeleted.Copy();
+        restored.KPIId = 0;
+        _lastDeleted = null;
+
+        if (await KPIService.InsertDataAsync(restored))
+        {
+            await LoadKpis();
+            StateHasChanged();
+        }
+        else
+        {
+            Snackbar.Add("Wiederherstellen fehlgeschlagen.", Severity.Error);
+        }
+    }
+
+    /// <summary>
+    /// Eine Kopie zum Bearbeiten, statt das Formular noch einmal von Hand auszufuellen.
+    ///
+    /// Script bleibt LEER, auch wenn das Original eines hatte: eine Builder-Kennzahl mit Skript
+    /// laeuft beim Speichern durch KpiScriptGuard und meldete dem Benutzer sonst einen Fehler ueber
+    /// SQL, das er nie gesehen hat. Die Definition wird ueber Clone() neu serialisiert und nicht
+    /// als Zeichenkette kopiert - so ist sichergestellt, dass die Kopie lesbar ist.
+    /// </summary>
+    private async Task DuplicateKpi(KPI kpi)
+    {
+        var definition = KpiDefinition.Deserialize(kpi.Definition);
+
+        var copy = new KPI
+        {
+            KPIId = 0,
+            Title = $"{kpi.Title} (Kopie)",
+            Url = kpi.Url,
+            Script = kpi.IsBuilder ? string.Empty : kpi.Script,
+            Kind = kpi.Kind,
+            Definition = definition is null ? null : KpiDefinition.Serialize(definition.Clone()),
+            SortOrder = _kpis.Count == 0 ? 0 : _kpis.Max(k => k.SortOrder) + 1
+        };
+
+        await OpenKpiDialog(copy, isNew: true);
     }
 
     private async Task SaveFallback()

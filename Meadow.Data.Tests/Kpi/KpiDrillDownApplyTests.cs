@@ -131,6 +131,35 @@ public class KpiDrillDownApplyTests
     }
 
     [Fact]
+    public void The_settings_preview_link_carries_the_filters_the_url_column_used_to_drop()
+    {
+        // The list printed KPI.Url, which for a builder KPI is only the bare route - the fallback
+        // for an unreadable definition, not the target a click takes.
+        var definition = KpiTestData.Definition(timeframe: KpiTimeframe.Days30);
+        definition.Filters[KpiTagKeys.Medicine] = new List<string> { "Penicillin" };
+
+        var kpi = new KPI
+        {
+            Kind = (int)KpiKind.Builder,
+            Definition = KpiDefinition.Serialize(definition),
+            Url = "Kuh_Daten"
+        };
+
+        var preview = KpiDrillDownUrl.Build(kpi);
+
+        Assert.Contains("medicine=Penicillin", preview);
+        Assert.Contains("range=30", preview);
+    }
+
+    [Fact]
+    public void The_preview_link_of_a_sql_kpi_is_still_its_hand_typed_url()
+    {
+        var kpi = new KPI { Kind = (int)KpiKind.Sql, Url = "Klauen_Daten", Script = "SELECT 1 AS value" };
+
+        Assert.Equal("Klauen_Daten", KpiDrillDownUrl.Build(kpi));
+    }
+
+    [Fact]
     public void The_claw_range_counts_towards_the_filter_badge()
     {
         // The badge, "reset" and the row counter all read ActiveCount. A range that filtered rows

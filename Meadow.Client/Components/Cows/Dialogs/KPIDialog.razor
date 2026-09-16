@@ -5,6 +5,7 @@
 @using Meadow.Client.Components.Services
 
 @inject IKPIService KPIService
+@inject IDialogService DialogService
 @inject ThemeState Theme
 
 @*
@@ -18,143 +19,194 @@
     Das URL-Feld erscheint nur noch im Expertenmodus. Builder-KPIs LEITEN ihr
     Klick-Ziel aus der Definition ab (KpiDrillDownUrl), inklusive der Filter -
     frueher war es Freitext, und ein Tippfehler fuehrte still ins 404.
+
+    Beim ANLEGEN steht zuerst die Vorlagenauswahl. Das Formular startete
+    bisher leer, obwohl KpiSeeds sieben fertige Definitionen kennt - und die
+    erste Frage beim Anlegen ist nun mal nicht "welche Datenquelle", sondern
+    "so etwas wie was".
+
+    Der Sortier-Index ist weg. Zwei Bedienelemente fuer dieselbe Eigenschaft,
+    von denen eines Duplikate erlaubt, waren die Ursache der beliebigen
+    Reihenfolge und nicht ihr Symptom - sortiert wird jetzt in der Liste.
 *@
-<MeadowDialog Title="@(IsSave ? "KPI hinzufügen" : "KPI bearbeiten")" Size="MeadowDialogSize.Wide">
+<MeadowDialog Title="@(IsSave ? "KPI hinzufügen" : "KPI bearbeiten")" Size="MeadowDialogSize.Wide"
+              OnClose="TryCancelAsync">
     <ChildContent>
-        <div class="mw-field-row">
-            <div class="mw-col mw-col--double">
-                <label class="mw-label" for="mw-kpi-title">Titel</label>
-                <div class="mw-field">
-                    <MudTextField T="string" InputId="mw-kpi-title" Variant="Variant.Text"
-                                  @bind-Value="KPI.Title" Placeholder="z.B. Offene Verbände" />
-                </div>
-            </div>
-            <div class="mw-col">
-                <label class="mw-label" for="mw-kpi-sort">Sortier-Index</label>
-                <div class="mw-field">
-                    <MudNumericField T="int" InputId="mw-kpi-sort" Variant="Variant.Text"
-                                     HideSpinButtons="true" @bind-Value="KPI.SortOrder" />
-                </div>
-            </div>
-        </div>
-
-        <div class="mw-check-bar">
-            <span class="mw-label">@(_expert ? "Eigenes SQL" : "Definition")</span>
-            <div>
-                @if (_expert)
-                {
-                    <button type="button" class="mw-btn mw-btn--ghost mw-btn--sm" @onclick="TestSQL">
-                        SQL testen
-                    </button>
-                }
-                <button type="button" class="mw-btn mw-btn--ghost mw-btn--sm" @onclick="ToggleExpert">
-                    @(_expert ? "Zum Formular" : "Expertenmodus: eigenes SQL")
-                </button>
-            </div>
-        </div>
-
-        @if (_expert)
+        @if (ShowTemplates)
         {
-            @if (!IsSave && KPI.IsBuilder)
-            {
-                <p class="mw-hint">
-                    Diese KPI ist als Formular definiert. Speichern im Expertenmodus ersetzt sie
-                    durch das Skript unten; die Definition bleibt gespeichert, wird aber nicht
-                    mehr ausgewertet.
-                </p>
-            }
-
-            @if (_scriptKept)
-            {
-                @* Nicht stillschweigend ueberschreiben: hier steht ein Skript, das nicht aus dem
-                   Formular kommt - selbst geschrieben oder von der Umstellung aufbewahrt. Ein
-                   Ausflug ins Formular soll es nicht kosten. *@
-                <div class="mw-check-bar">
-                    <span class="mw-hint">
-                        Das Skript unten stammt nicht aus dem Formular und wurde deshalb behalten.
-                    </span>
-                    <div>
-                        <button type="button" class="mw-btn mw-btn--ghost mw-btn--sm"
-                                @onclick="RegenerateSql">
-                            Aus Formular neu erzeugen
-                        </button>
-                    </div>
-                </div>
-            }
-
-            <div>
-                <label class="mw-label" for="mw-kpi-url">URL</label>
-                <div class="mw-field">
-                    <MudTextField T="string" InputId="mw-kpi-url" Variant="Variant.Text"
-                                  @bind-Value="KPI.Url" Placeholder="Klauen_Daten" />
-                </div>
-            </div>
-
-            @* Feste Hoehe per .mw-ace: der Editor misst beim Initialisieren und
-               wuerde in einem flexiblen Container mit Hoehe 0 unbrauchbar.
-
-               Der @key erzwingt einen Neuaufbau bei Theme-Wechsel: Ace liest
-               sein Theme nur beim Initialisieren.
-
-               Aus demselben Grund steht _scriptVersion mit im Key: Ace liest
-               auch seinen INHALT nur beim Initialisieren. Wird KPI.Script von
-               C# aus ersetzt ("Aus Formular neu erzeugen"), bekaeme der Editor
-               das sonst nie zu sehen. *@
-            <div class="mw-ace">
-                <AceJsEditor @key="(Theme.IsDark, _scriptVersion)" @bind-Value="@KPI.Script"
-                             Options="AceOptions" />
-            </div>
-
-            <p class="mw-hint">
-                Nur lesende Abfragen: eine einzelne Anweisung, die mit SELECT oder WITH beginnt.
-                Sie muss eine Zeile mit einer Spalte namens <code>value</code> als Text liefern.
-            </p>
-
-            @if (_sqlError.Length > 0)
-            {
-                <div class="mw-check-bar">
-                    <span class="mw-label">Fehler</span>
-                    <div>
-                        <button type="button" class="mw-btn mw-btn--ghost mw-btn--sm"
-                                @onclick="() => _expanded = !_expanded">
-                            @(_expanded ? "Verbergen" : "Anzeigen")
-                        </button>
-                    </div>
-                </div>
-                @if (_expanded)
-                {
-                    <div class="mw-errbox">@_sqlError</div>
-                }
-            }
-            else if (_testedOk)
-            {
-                <p class="mw-hint">SQL erfolgreich ausgeführt.</p>
-            }
+            <MeadowKpiTemplates Chosen="UseTemplate" />
         }
         else
         {
-            <MeadowKpiBuilder Definition="_definition" Changed="OnDefinitionChanged" />
-        }
+            <div>
+                <label class="mw-label" for="mw-kpi-title">Titel</label>
+                <div class="@TitleFieldClass">
+                    <MudTextField T="string" InputId="mw-kpi-title" Variant="Variant.Text"
+                                  @ref="_titleField"
+                                  Value="@KPI.Title" ValueChanged="OnTitleChanged"
+                                  OnBlur="ValidateTitle"
+                                  aria-invalid="@(_titleError.Length > 0)"
+                                  aria-describedby="mw-kpi-title-err"
+                                  Placeholder="z.B. Offene Verbände" />
+                </div>
+                @if (_titleError.Length > 0)
+                {
+                    <p class="mw-field-error" id="mw-kpi-title-err">@_titleError</p>
+                }
+            </div>
 
-        @if (_saveError.Length > 0)
-        {
-            <div class="mw-errbox">@_saveError</div>
+            <div class="mw-check-bar">
+                <span class="mw-label">@(_expert ? "Eigenes SQL" : "Definition")</span>
+                <div>
+                    @if (_expert)
+                    {
+                        <button type="button" class="mw-btn mw-btn--ghost mw-btn--sm"
+                                disabled="@_checking" @onclick="CheckScript">
+                            @(_checking ? "Wird geprüft…" : "Skript prüfen")
+                        </button>
+                    }
+                    <button type="button" class="mw-btn mw-btn--ghost mw-btn--sm" @onclick="ToggleExpert">
+                        @(_expert ? "Zum Formular" : "Expertenmodus: eigenes SQL")
+                    </button>
+                </div>
+            </div>
+
+            @if (_expert)
+            {
+                @if (!IsSave && KPI.IsBuilder)
+                {
+                    <p class="mw-hint mw-hint--warn">
+                        Diese KPI ist als Formular definiert. Speichern im Expertenmodus ersetzt sie
+                        durch das Skript unten; die Definition bleibt gespeichert, wird aber nicht
+                        mehr ausgewertet. Zielwert und Verlauf entstehen aus der Definition und
+                        gelten deshalb nur im Formularmodus.
+                    </p>
+                }
+
+                @if (_scriptKept)
+                {
+                    @* Nicht stillschweigend ueberschreiben: hier steht ein Skript, das nicht aus dem
+                       Formular kommt - selbst geschrieben oder von der Umstellung aufbewahrt. Ein
+                       Ausflug ins Formular soll es nicht kosten. *@
+                    <div class="mw-check-bar">
+                        <span class="mw-hint">
+                            Das Skript unten stammt nicht aus dem Formular und wurde deshalb behalten.
+                        </span>
+                        <div>
+                            <button type="button" class="mw-btn mw-btn--ghost mw-btn--sm"
+                                    @onclick="RegenerateSql">
+                                Aus Formular neu erzeugen
+                            </button>
+                        </div>
+                    </div>
+                }
+
+                <div>
+                    <label class="mw-label" for="mw-kpi-url">URL</label>
+                    <div class="mw-field">
+                        <MudTextField T="string" InputId="mw-kpi-url" Variant="Variant.Text"
+                                      Value="@KPI.Url" ValueChanged="OnUrlChanged"
+                                      Placeholder="Klauen_Daten" />
+                    </div>
+                    @if (_urlWarning.Length > 0)
+                    {
+                        <p class="mw-hint mw-hint--warn">@_urlWarning</p>
+                    }
+                </div>
+
+                @* Feste Hoehe per .mw-ace: der Editor misst beim Initialisieren und
+                   wuerde in einem flexiblen Container mit Hoehe 0 unbrauchbar.
+
+                   Der @key erzwingt einen Neuaufbau bei Theme-Wechsel: Ace liest
+                   sein Theme nur beim Initialisieren.
+
+                   Aus demselben Grund steht _scriptVersion mit im Key: Ace liest
+                   auch seinen INHALT nur beim Initialisieren. Wird KPI.Script von
+                   C# aus ersetzt ("Aus Formular neu erzeugen"), bekaeme der Editor
+                   das sonst nie zu sehen. *@
+                <div class="mw-ace">
+                    <AceJsEditor @key="(Theme.IsDark, _scriptVersion)" @bind-Value="@KPI.Script"
+                                 Options="AceOptions" />
+                </div>
+
+                <p class="mw-hint">
+                    Nur lesende Abfragen: eine einzelne Anweisung, die mit SELECT oder WITH beginnt.
+                    Sie muss eine Zeile mit einer Spalte namens <code>value</code> als Text liefern.
+                </p>
+
+                @if (_sqlError.Length > 0)
+                {
+                    <div class="mw-check-bar">
+                        <span class="mw-label">Fehler</span>
+                        <div>
+                            <button type="button" class="mw-btn mw-btn--ghost mw-btn--sm"
+                                    @onclick="() => _expanded = !_expanded">
+                                @(_expanded ? "Verbergen" : "Anzeigen")
+                            </button>
+                        </div>
+                    </div>
+                    @if (_expanded)
+                    {
+                        <div class="mw-errbox">@_sqlError</div>
+                    }
+                }
+                else if (_notRun)
+                {
+                    @* Kein roter Kasten: es ist nichts kaputt. Kpi:AllowScriptValidation ist
+                       standardmaessig aus, und das ist richtig so - die Anwendung hat keine
+                       Authentifizierung und verbindet als root. Bisher hat die Oberflaeche nur
+                       verschwiegen, dass sie aus ist. *@
+                    <p class="mw-hint mw-hint--warn">
+                        Das Skript ist formal in Ordnung. Ausgeführt wurde es nicht — die
+                        Skriptprüfung ist auf diesem Server abgeschaltet
+                        (<code>Kpi:AllowScriptValidation</code>).
+                    </p>
+                }
+                else if (_testedValue is not null)
+                {
+                    <p class="mw-hint">SQL erfolgreich ausgeführt. Ergebnis: @_testedValue</p>
+                }
+            }
+            else
+            {
+                <MeadowKpiBuilder Definition="_definition" Changed="OnDefinitionChanged" />
+            }
+
+            @if (_saveError.Length > 0)
+            {
+                <div class="mw-errbox">@_saveError</div>
+            }
         }
     </ChildContent>
     <Footer>
-        <button type="button" class="mw-btn mw-btn--plain mw-btn--wide" @onclick="Cancel">
-            Abbrechen
-        </button>
-        <button type="button" class="mw-btn mw-btn--primary mw-btn--wide" @onclick="SaveKPI">
-            Speichern
-        </button>
+        @if (ShowTemplates)
+        {
+            <button type="button" class="mw-btn mw-btn--plain mw-btn--wide" @onclick="TryCancelAsync">
+                Abbrechen
+            </button>
+        }
+        else
+        {
+            <button type="button" class="mw-btn mw-btn--plain mw-btn--wide" @onclick="TryCancelAsync">
+                Abbrechen
+            </button>
+            <button type="button" class="mw-btn mw-btn--primary mw-btn--wide" @onclick="SaveKPI">
+                Speichern
+            </button>
+        }
     </Footer>
 </MeadowDialog>
 
 @code {
     [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = default!;
 
+    /// <summary>
+    /// Eine KOPIE der Kennzahl - siehe KPI.Copy() und Settings.OpenKpiDialog. Der Dialog bindet
+    /// direkt auf dieses Objekt, und ohne Kopie stuende eine abgebrochene Aenderung trotzdem im
+    /// Cache und auf dem Dashboard.
+    /// </summary>
     [Parameter] public KPI KPI { get; set; } = new();
+
     [Parameter] public bool IsSave { get; set; } = true;
 
     /// <summary>
@@ -181,13 +233,35 @@
 
     private bool _scriptKept;
 
-    /// <summary>Teil des @key des Ace-Editors - siehe Kommentar dort.</summary>
+    /// <summary>Teil des @@key des Ace-Editors - siehe Kommentar dort.</summary>
     private int _scriptVersion;
 
     private string _sqlError = string.Empty;
     private string _saveError = string.Empty;
-    private bool _testedOk;
+    private string _titleError = string.Empty;
+    private string _urlWarning = string.Empty;
+    private string? _testedValue;
+    private bool _notRun;
+    private bool _checking;
     private bool _expanded = true;
+
+    private MudTextField<string>? _titleField;
+
+    /// <summary>Beim Anlegen steht die Vorlagenauswahl vor dem Formular.</summary>
+    private bool _templateChosen;
+
+    private bool ShowTemplates => IsSave && !_templateChosen;
+
+    /// <summary>
+    /// Der Zustand beim Oeffnen, als eine Zeichenkette. Reicht fuer die Frage "hat sich etwas
+    /// geaendert" und ist billiger als eine tiefe Kopie zum Vergleichen - und die Definition ist
+    /// ohnehin schon als JSON darstellbar.
+    /// </summary>
+    private string _snapshot = "";
+
+    private bool IsDirty => Fingerprint() != _snapshot;
+
+    private string TitleFieldClass => _titleError.Length > 0 ? "mw-field mw-field--invalid" : "mw-field";
 
     protected override void OnInitialized()
     {
@@ -197,6 +271,38 @@
         // Formular. Neue KPIs bekommen Kind erst beim Speichern gesetzt, denn KpiKind.Sql ist 0
         // und damit der Default eines frischen KPI-Objekts.
         _expert = !IsSave && !KPI.IsBuilder;
+
+        // Beim Bearbeiten gibt es nichts auszuwaehlen, und eine kopierte Kennzahl bringt ihre
+        // Definition schon mit - die Vorlagen stehen nur vor einem wirklich leeren Formular.
+        _templateChosen = !IsSave || KPI.IsBuilder || !string.IsNullOrWhiteSpace(KPI.Script);
+
+        _snapshot = Fingerprint();
+    }
+
+    private string Fingerprint()
+        => string.Join(
+            "\n",
+            KPI.Title ?? "",
+            KPI.Url ?? "",
+            KPI.Script ?? "",
+            _expert ? "sql" : "builder",
+            KpiDefinition.Serialize(_definition));
+
+    private void UseTemplate(KpiSeed? seed)
+    {
+        if (seed is not null)
+        {
+            _definition = seed.Definition.Clone();
+            if (string.IsNullOrWhiteSpace(KPI.Title))
+            {
+                KPI.Title = seed.Title;
+            }
+        }
+
+        _templateChosen = true;
+        // Der Schnappschuss wird NEU gesetzt: die Vorlage ist der Ausgangspunkt, nicht die erste
+        // Aenderung - sonst fragte der Abbrechen-Knopf sofort nach, ob man verwerfen will.
+        _snapshot = Fingerprint();
     }
 
     private void ToggleExpert()
@@ -220,9 +326,8 @@
         }
 
         _expert = !_expert;
-        _sqlError = string.Empty;
+        ClearCheck();
         _saveError = string.Empty;
-        _testedOk = false;
     }
 
     /// <summary>
@@ -259,27 +364,103 @@
     private void RegenerateSql()
     {
         AdoptGeneratedSql(force: true);
-        _sqlError = string.Empty;
-        _testedOk = false;
+        ClearCheck();
     }
 
     private void OnDefinitionChanged() => _saveError = string.Empty;
 
-    private void Cancel() => MudDialog.Cancel();
+    private void OnTitleChanged(string value)
+    {
+        KPI.Title = value;
+        if (_titleError.Length > 0)
+        {
+            ValidateTitle();
+        }
+    }
 
-    private async Task TestSQL()
+    private void OnUrlChanged(string value)
+    {
+        KPI.Url = value;
+
+        // Warnung, kein Speicherverbot: ein handgeschriebenes Skript darf bewusst irgendwohin
+        // zeigen, und die Adresse kann auch von einer anderen Installation stammen.
+        _urlWarning = string.IsNullOrWhiteSpace(value) || MeadowRoutes.Exists(value)
+            ? string.Empty
+            : "Diese Adresse gehört zu keiner Seite der Anwendung — der Klick auf die Kachel landet im 404.";
+    }
+
+    private void ValidateTitle()
+        => _titleError = string.IsNullOrWhiteSpace(KPI.Title)
+            ? "Ohne Titel wäre die Kachel nicht zu erkennen."
+            : string.Empty;
+
+    private void ClearCheck()
     {
         _sqlError = string.Empty;
-        _testedOk = false;
+        _testedValue = null;
+        _notRun = false;
+    }
+
+    private async Task TryCancelAsync()
+    {
+        if (!IsDirty)
+        {
+            MudDialog.Cancel();
+            return;
+        }
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var parameters = new DialogParameters<GenericDialog>
+        {
+            { x => x.HeaderText, "Änderungen verwerfen?" },
+            { x => x.Description, "Die Änderungen an dieser Kennzahl sind noch nicht gespeichert." },
+            { x => x.AcceptButtonText, "Verwerfen" },
+            { x => x.CancelButtonText, "Weiter bearbeiten" },
+            { x => x.ColorScheme, Color.Error }
+        };
+
+        var dialog = await DialogService.ShowAsync<GenericDialog>(string.Empty, parameters, options);
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled)
+        {
+            MudDialog.Cancel();
+        }
+    }
+
+    private async Task CheckScript()
+    {
+        ClearCheck();
+        _checking = true;
+
         try
         {
-            await KPIService.GetKPIValue(KPI, true);
-            _testedOk = true;
+            // Das Skript AUS DEM EDITOR, nicht die gespeicherte Zeile: der alte Knopf rief den
+            // Wert-Endpunkt fuer KPI.KPIId ab, und bei einer neuen Kennzahl gab es die noch nicht.
+            var check = await KPIService.CheckScriptAsync(KPI.Script);
+
+            if (check.Rejection is not null)
+            {
+                _sqlError = check.Rejection;
+                _expanded = true;
+            }
+            else if (check.NotRun)
+            {
+                _notRun = true;
+            }
+            else
+            {
+                _testedValue = check.Value;
+            }
         }
         catch (Exception e)
         {
             _sqlError = e.Message;
             _expanded = true;
+        }
+        finally
+        {
+            _checking = false;
         }
     }
 
@@ -287,9 +468,16 @@
     {
         _saveError = string.Empty;
 
-        if (string.IsNullOrWhiteSpace(KPI.Title))
+        ValidateTitle();
+        if (_titleError.Length > 0)
         {
-            _saveError = "Ohne Titel wäre die Kachel nicht zu erkennen.";
+            // Der Fokus springt zum Feld: die Fehlerbox stand frueher am Ende des scrollenden
+            // Koerpers und konnte ausserhalb des Sichtbereichs liegen.
+            if (_titleField is not null)
+            {
+                await _titleField.FocusAsync();
+            }
+
             return;
         }
 

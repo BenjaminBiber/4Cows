@@ -140,6 +140,17 @@ public static class MeadowRoutes
     }
 
     /// <summary>
+    /// Zeigt diese Adresse auf eine Seite, die es gibt?
+    ///
+    /// Gebraucht im Expertenmodus des KPI-Dialogs, wo die URL weiter Freitext ist. Eine
+    /// Builder-Kennzahl leitet ihr Klickziel aus der Definition ab; ein handgeschriebenes Skript
+    /// darf dagegen bewusst irgendwohin zeigen, deshalb ist das eine WARNUNG und kein Verbot.
+    /// </summary>
+    public static bool Exists(string? route)
+        => !string.IsNullOrWhiteSpace(route)
+           && TitleMap.ContainsKey(BaseOf(Normalize(route)));
+
+    /// <summary>
     /// Alle echten Routen stehen in der Tabelle - Root und Dashboard zeigen
     /// dabei auf dieselbe Seite, und die Kuh-Seite steht ueber BaseOf mit
     /// ihrem ersten Segment darin. Eine unbekannte

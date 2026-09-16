@@ -24,6 +24,14 @@ public interface IKPIService
 
     Task<string> GetKPIValue(KPI kpi, bool throwError = false);
 
+    /// <summary>
+    /// Prüft ein Skript, OHNE es zu speichern.
+    ///
+    /// Existiert, weil der bisherige "SQL testen"-Knopf die gespeicherte Zeile prüfte und bei einer
+    /// neuen Kennzahl deshalb gar nicht funktionieren konnte - die Zeile gab es noch nicht.
+    /// </summary>
+    Task<KpiScriptCheck> CheckScriptAsync(string? script);
+
     Task<IReadOnlyList<KpiTileModel>> GetDashboardAsync(bool addButtonKPI = true);
 
     Task<bool> UpdateDataAsync(KPI KPI);

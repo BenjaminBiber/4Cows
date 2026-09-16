@@ -160,6 +160,32 @@ public class KPIService : IKPIService
     }
 
     /// <summary>
+    /// Server-side counterpart of the dialog's script check.
+    ///
+    /// No configuration gate here: this path is only reachable from inside the process, never from
+    /// a request body. The gate lives on the endpoint, which is where the exposure is.
+    /// </summary>
+    public async Task<KpiScriptCheck> CheckScriptAsync(string? script)
+    {
+        var rejection = KpiScriptGuard.Reject(script);
+        if (rejection is not null)
+        {
+            return KpiScriptCheck.Rejected(rejection);
+        }
+
+        try
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var probe = new KPI { Script = script ?? string.Empty, Title = "Prüfung", Url = string.Empty };
+            return KpiScriptCheck.Ran(await GetKPIValueAsync(context, probe, throwError: true));
+        }
+        catch (Exception ex)
+        {
+            return KpiScriptCheck.Rejected(ex.Message);
+        }
+    }
+
+    /// <summary>
     /// Everything the dashboard needs, in one pass.
     ///
     /// This replaces GetAllKPIs, which opened a DbContext PER KPI - eight connections for a single

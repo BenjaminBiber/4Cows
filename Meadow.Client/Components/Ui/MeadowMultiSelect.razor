@@ -33,8 +33,19 @@
         }
         else
         {
+            @* Erst ab einer Laenge, bei der Scrollen zum Absuchen wird. Bei "Kuh (Halsband)"
+               sind das mehrere hundert Eintraege in einer 232px hohen Liste. *@
+            @if (Options.Count >= SearchThreshold)
+            {
+                <div class="mw-check-search">
+                    <MeadowSearchBox Value="@_filter" ValueChanged="OnFilterChanged"
+                                     Placeholder="Option suchen…" DebounceMs="120"
+                                     AriaLabel="@($"{Label} durchsuchen")" />
+                </div>
+            }
+
             <div class="mw-check-bar">
-                <span>@Selected.Count von @Options.Count gewählt</span>
+                <span>@CountText</span>
                 @if (Selected.Count > 0)
                 {
                     <div>
@@ -47,14 +58,35 @@
             </div>
 
             <div class="mw-check-list" role="group" aria-labelledby="@_labelId">
-                @foreach (var option in Options)
+                @* Gewaehlte zuerst und IMMER sichtbar, auch wenn sie nicht zum Suchtext passen.
+                   Sonst verschwaende eine gesetzte Auswahl beim Tippen und saehe aus wie
+                   geloescht. *@
+                @foreach (var option in Pinned)
                 {
-                    var isOn = Selected.Contains(option);
-                    <label class="@(isOn ? "mw-check is-on" : "mw-check")">
-                        <input type="checkbox" checked="@isOn"
+                    <label class="mw-check is-on">
+                        <input type="checkbox" checked="true"
                                @onchange="() => ToggleOptionAsync(option)" />
                         <span>@option</span>
                     </label>
+                }
+
+                @if (Pinned.Count > 0 && Matches.Count > 0)
+                {
+                    <div class="mw-check-sep"></div>
+                }
+
+                @foreach (var option in Matches)
+                {
+                    <label class="mw-check">
+                        <input type="checkbox" checked="false"
+                               @onchange="() => ToggleOptionAsync(option)" />
+                        <span>@option</span>
+                    </label>
+                }
+
+                @if (Pinned.Count == 0 && Matches.Count == 0)
+                {
+                    <p class="mw-hint">Kein Treffer.</p>
                 }
             </div>
         }
@@ -76,12 +108,41 @@
 
     [Parameter] public EventCallback SelectionChanged { get; set; }
 
+    /// <summary>
+    /// Ab so vielen Optionen bekommt die Liste ein Suchfeld. Zwoelf, weil die Liste bei
+    /// max-height 232px etwa dort zu scrollen anfaengt.
+    /// </summary>
+    [Parameter] public int SearchThreshold { get; set; } = 12;
+
     /// <summary>Was der Trigger zeigt, solange nichts gewaehlt ist.</summary>
     public const string AllLabel = "Alle";
 
     private readonly string _labelId = $"sel-{Guid.NewGuid():N}";
 
     private bool _open;
+
+    private string _filter = "";
+
+    /// <summary>Gewaehlte Optionen, in der Reihenfolge der Optionsliste - nicht der Auswahl.</summary>
+    private IReadOnlyList<string> Pinned
+        => Options.Where(Selected.Contains).ToList();
+
+    private IReadOnlyList<string> Matches
+        => Options
+            .Where(o => !Selected.Contains(o))
+            .Where(o => _filter.Length == 0 || o.Contains(_filter, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+    private string CountText
+    {
+        get
+        {
+            var text = $"{Selected.Count} von {Options.Count} gewählt";
+            return _filter.Length == 0 ? text : $"{text} ({Matches.Count} Treffer)";
+        }
+    }
+
+    private void OnFilterChanged(string value) => _filter = value;
 
     private string Summary => Selected.Count switch
     {
@@ -90,7 +151,16 @@
         _ => $"{Selected.Count} ausgewählt"
     };
 
-    private void Toggle() => _open = !_open;
+    private void Toggle()
+    {
+        _open = !_open;
+        // Der Suchtext gilt fuer EINE Sitzung im offenen Zustand: beim naechsten Aufklappen soll
+        // die volle Liste dastehen und nicht ein Rest von letzter Woche.
+        if (!_open)
+        {
+            _filter = "";
+        }
+    }
 
     private Task ToggleOptionAsync(string option)
     {

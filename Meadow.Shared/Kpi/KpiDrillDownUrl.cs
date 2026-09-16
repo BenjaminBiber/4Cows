@@ -28,6 +28,24 @@ public static class KpiDrillDownUrl
     /// Route plus query for a tile. Falls back to the stored Url for SQL KPIs and for the synthetic
     /// "+" tile, which keep their hand-typed target.
     /// </summary>
+    /// <summary>
+    /// The link WITHOUT a result, for the settings list.
+    ///
+    /// That column used to print KPI.Url, which for a builder KPI is only the bare route - the
+    /// fallback stored in case the definition ever becomes unreadable - and therefore not the
+    /// target a click actually takes. Showing the route without its filters was misleading in
+    /// exactly the cases the builder was meant to fix.
+    ///
+    /// The one thing it cannot include is the Top-1 winner, which only exists once the KPI has been
+    /// evaluated. The column says so rather than pretending otherwise.
+    /// </summary>
+    public static string Build(KPI kpi)
+        => Build(new KpiTileModel
+        {
+            Kpi = kpi,
+            Result = new KpiResult { State = KpiResultState.Empty, Display = string.Empty }
+        });
+
     public static string Build(KpiTileModel tile)
     {
         if (tile.IsAddTile || !tile.Kpi.IsBuilder)
