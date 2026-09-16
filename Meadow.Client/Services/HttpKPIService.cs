@@ -160,9 +160,11 @@ public class HttpKPIService : HttpServiceBase, IKPIService
     /// <summary>
     /// Alles, was das Dashboard braucht, in EINEM Durchlauf.
     ///
-    /// Die Schleife ist dieselbe wie in KPIService.GetDashboardAsync, nur dass
-    /// der SQL-Zweig ein HTTP-Aufruf ist statt eines SqlQueryRaw auf einem
-    /// geteilten Context.
+    /// Die Schleife selbst liegt in KpiDashboard und wird mit KPIService
+    /// geteilt. Hier bleibt genau das eine, was sich zwischen Server und
+    /// Browser wirklich unterscheidet: woher der Wert eines handgeschriebenen
+    /// Skripts kommt - dort ein SqlQueryRaw auf einem geteilten Context, hier
+    /// ein HTTP-Aufruf.
     ///
     /// /api/kpi/dashboard wird bewusst NICHT benutzt. Es gaebe dieselben
     /// Kacheln zurueck, kostete aber pro Builder-Kennzahl einen Netzaufruf -
@@ -175,42 +177,17 @@ public class HttpKPIService : HttpServiceBase, IKPIService
     {
         await GetAllDataAsync();
 
-        var tiles = new List<KpiTileModel>();
-
-        // Zeilen werden einmal je Datenquelle gebaut, nicht einmal je Kennzahl:
-        // fuenf Kennzahlen ueber Kuhbehandlungen teilen sich eine Projektion.
-        var rowsBySource = new Dictionary<KpiSourceId, IReadOnlyList<KpiRow>>();
-
-        foreach (var kpi in KPIs.Values.OrderBy(x => x.SortOrder))
-        {
-            if (kpi.IsBuilder)
-            {
-                tiles.Add(new KpiTileModel { Kpi = kpi, Result = EvaluateBuilder(kpi, rowsBySource) });
-                continue;
-            }
-
-            var value = await GetKPIValue(kpi);
-
-            tiles.Add(new KpiTileModel
-            {
-                Kpi = kpi,
-                // Ein Altskript liefert eine nackte Zeichenkette, Ok und Error
-                // sind hier also nicht zu unterscheiden - genau diesen
-                // Unterschied kauft der deklarative Weg.
-                Result = new KpiResult
-                {
-                    State = value == "--" ? KpiResultState.Empty : KpiResultState.Ok,
-                    Display = value
-                }
-            });
-        }
-
-        if (tiles.Count < 8 && addButtonKPI)
-        {
-            tiles.Add(KpiTileModel.AddTile());
-        }
-
-        return tiles;
+        return await KpiDashboard.BuildAsync(
+            KPIs.Values,
+            _rowProvider.Rows,
+            // Als Lambda und nicht als Methodengruppe: GetKPIValue hat einen
+            // optionalen zweiten Parameter, und den fuellt eine
+            // Methodengruppen-Konvertierung nicht auf.
+            kpi => GetKPIValue(kpi),
+            DateTime.Now,
+            (kpi, message) => Logger.LogError(
+                "KPI '{Title}' could not be evaluated: {Message}", kpi.Title, message),
+            addButtonKPI);
     }
 
     public async Task<bool> UpdateDataAsync(KPI KPI)
@@ -241,50 +218,5 @@ public class HttpKPIService : HttpServiceBase, IKPIService
         }
 
         return isSuccess;
-    }
-
-    /// <summary>
-    /// Wertet eine deklarative Kennzahl aus und benutzt dafuer die schon
-    /// gebaute Zeilenmenge ihrer Quelle. Gespiegelt aus
-    /// KPIService.EvaluateBuilder.
-    ///
-    /// Es gibt bewusst KEINEN Rueckfall auf <see cref="KPI.Script"/>, wenn die
-    /// Definition unbrauchbar ist: das fuehrte eine Abfrage aus, die der Autor
-    /// abgeschaltet glaubte. Ein sichtbarer Fehler ist die ehrliche Antwort.
-    /// </summary>
-    private KpiResult EvaluateBuilder(KPI kpi, Dictionary<KpiSourceId, IReadOnlyList<KpiRow>> rowsBySource)
-    {
-        var definition = KpiDefinition.Deserialize(kpi.Definition);
-        if (definition is null)
-        {
-            return Failed(kpi, "Die Definition dieser KPI ist unlesbar.");
-        }
-
-        var source = KpiSourceRegistry.Find(definition.Source);
-        if (source is null)
-        {
-            return Failed(kpi, $"Unbekannte Datenquelle: {definition.Source}.");
-        }
-
-        if (!rowsBySource.TryGetValue(definition.Source, out var rows))
-        {
-            rows = _rowProvider.Rows(definition.Source);
-            rowsBySource[definition.Source] = rows;
-        }
-
-        var result = KpiEvaluator.Evaluate(definition, source, rows, DateTime.Now);
-
-        if (result.State == KpiResultState.Error)
-        {
-            Logger.LogError("KPI '{Title}' could not be evaluated: {Message}", kpi.Title, result.Message);
-        }
-
-        return result;
-    }
-
-    private KpiResult Failed(KPI kpi, string message)
-    {
-        Logger.LogError("KPI '{Title}': {Message}", kpi.Title, message);
-        return KpiResult.Failed(message);
     }
 }

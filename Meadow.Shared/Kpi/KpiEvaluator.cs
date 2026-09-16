@@ -142,7 +142,7 @@ public static class KpiEvaluator
         }
 
         var today = now.Date;
-        var days = timeframe == KpiTimeframe.Days7 ? 7 : 30;
+        var days = KpiTimeframes.Days(timeframe);
 
         // The window is inclusive at both ends, so it spans days + 1 calendar days. The previous
         // period must be shifted by that full length, not by "days" - otherwise the two windows

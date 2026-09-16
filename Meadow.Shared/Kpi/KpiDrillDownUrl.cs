@@ -83,7 +83,7 @@ public static class KpiDrillDownUrl
         return parts.Count == 0 ? source.Route : $"{source.Route}?{string.Join("&", parts)}";
     }
 
-    public static int Days(KpiTimeframe timeframe) => timeframe == KpiTimeframe.Days7 ? 7 : 30;
+    public static int Days(KpiTimeframe timeframe) => KpiTimeframes.Days(timeframe);
 
     /// <summary>
     /// Key to values. Accepts a bare query string with or without the leading "?".
