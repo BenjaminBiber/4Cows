@@ -1,6 +1,14 @@
 @using Meadow.Shared.Kpi
+@using Meadow.Shared.Models
 @*
     kpiCard / st.kpiTitle / st.kpiVal — ersetzt KPI_Component.razor.
+
+    Die Wurzel ist ein <div>, der Hauptlink darin ein "stretched link"
+    (.mw-kpi__link::after deckt die ganze Karte ab). Vorher war die Kachel
+    selbst das <a>; das ging, solange sie genau ein Ziel hatte. Mit dem
+    Verlaufs-Knopf in der Ecke gaebe es zwei, und verschachtelte <a> sind
+    ungueltiges HTML. So bleibt die Karte als Ganzes anklickbar, und beide
+    Ziele sind mit der Tastatur erreichbar.
 
     Bleibt ein echtes <a href>: der Prototyp nutzt ein onClick-Div, aber die
     Kacheln zeigen auf Routen, und ein Link ist tastaturerreichbar und
@@ -9,11 +17,13 @@
     Die dritte Zeile des Prototyps (st.kpiSub) ist jetzt da - als Delta zum
     Vorzeitraum. Der frueher hier notierte Einwand ("die KPI-Tabelle hat kein
     Untertitel-Feld, und dafuer sollte es keine Migration geben") bleibt
-    erfuellt: das Delta wird berechnet, nicht gespeichert.
+    erfuellt: das Delta wird berechnet, nicht gespeichert. Dasselbe gilt fuer
+    den Verlauf.
 
-    Title kommt aus @Hint und traegt entweder den Fehlertext oder den Hinweis,
-    warum eine Kachel leer ist - beides war vorher unsichtbar, weil jede
-    Ursache als "--" endete.
+    Die Fehlerursache stand frueher NUR im title-Attribut. Auf dem Tablet, dem
+    Hauptgeraet im Stall, erreicht die niemand - sichtbar war allein der rote
+    Rahmen. Jetzt steht sie als dritte Zeile in der Kachel; der Tooltip bleibt
+    zusaetzlich, er kostet nichts und traegt am Desktop den vollen Text.
 
     Ohne Href bleibt das <a> OHNE href-Attribut (Blazor laesst null-Attribute
     weg) und ist damit kein Link - nicht fokussierbar, kein Klickziel. Auf der
@@ -23,22 +33,66 @@
     (Die Quelle "Kühe" war frueher derselbe Fall; sie zeigt seit /Kuehe auf die
     Kuh-Uebersicht.)
 *@
-<a class="@CssClass" href="@(string.IsNullOrWhiteSpace(Href) ? null : Href)" title="@Hint">
-    <span class="mw-kpi__title">@Title</span>
-    <span class="mw-kpi__value">@Value</span>
-
-    @if (!string.IsNullOrWhiteSpace(Delta))
+<div class="@CssClass" title="@Hint">
+    @if (HasBackgroundSeries)
     {
-        <span class="mw-kpi__delta">
-            @if (Arrow.Length > 0)
-            {
-                <span class="mw-kpi__delta-arrow" aria-hidden="true">@Arrow</span>
-            }
-            <span>@Delta</span>
-            <span class="mw-sr-only">gegenüber dem Vorzeitraum</span>
-        </span>
+        @* Liegt UNTER dem Inhalt und ist aria-hidden: Dekoration, die den Verlauf
+           andeutet. Der Wert bleibt vorn und lesbar - Kontrast ist hier die
+           Randbedingung, nicht die Optik. *@
+        <div class="mw-kpi__bg">
+            <MeadowSparkline Values="Series!" Variant="KpiSeriesDisplay.Background" ShowLast="false" />
+        </div>
     }
-</a>
+
+    <a class="mw-kpi__link" href="@(string.IsNullOrWhiteSpace(Href) ? null : Href)"
+       aria-label="@AriaLabel">
+        <span class="mw-kpi__head">
+            <span class="mw-kpi__title">@Title</span>
+            <MeadowKpiFlag Status="Status" />
+        </span>
+        <span class="mw-kpi__value">@Value</span>
+    </a>
+
+    @if (HasFoot)
+    {
+        <div class="mw-kpi__foot">
+            @if (!string.IsNullOrWhiteSpace(Delta))
+            {
+                <span class="mw-kpi__delta">
+                    @if (Arrow.Length > 0)
+                    {
+                        <span class="mw-kpi__delta-arrow" aria-hidden="true">@Arrow</span>
+                    }
+                    <span>@Delta</span>
+                    <span class="mw-sr-only">gegenüber dem Vorzeitraum</span>
+                </span>
+            }
+            else
+            {
+                <span></span>
+            }
+
+            @if (HasInlineSeries)
+            {
+                <MeadowSparkline Values="Series!" Variant="KpiSeriesDisplay.Inline" />
+            }
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(Hint))
+    {
+        <p class="mw-kpi__note">@Hint</p>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(DetailHref))
+    {
+        @* Zweiter, kleinerer Einstieg - der Hauptlink bleibt die Tabelle. Wer im
+           Stall auf "Offene Verbände" tippt, will die Liste, keinen Zwischenschritt. *@
+        <a class="mw-kpi__more" href="@DetailHref" aria-label="@($"Verlauf von {Title} ansehen")">
+            <MeadowIcon Name="MeadowIconName.Trend" Size="18" />
+        </a>
+    }
+</div>
 
 @code {
     [Parameter] public string Title { get; set; } = "";
@@ -56,11 +110,22 @@
 
     [Parameter] public KpiTrend Trend { get; set; }
 
+    /// <summary>Die Ampel. None heisst "nicht bewertet" und zeigt gar nichts.</summary>
+    [Parameter] public KpiStatus Status { get; set; }
+
     /// <summary>Die KPI liess sich nicht auswerten - nicht dasselbe wie "kein Ergebnis".</summary>
     [Parameter] public bool HasError { get; set; }
 
-    /// <summary>Tooltip: Fehlertext, oder warum die Kachel leer ist.</summary>
+    /// <summary>Fehlertext, oder warum die Kachel leer ist. Sichtbar UND als Tooltip.</summary>
     [Parameter] public string? Hint { get; set; }
+
+    /// <summary>Werte des Verlaufs, aeltester zuerst. Null oder zu kurz: kein Verlauf.</summary>
+    [Parameter] public IReadOnlyList<double?>? Series { get; set; }
+
+    [Parameter] public KpiSeriesDisplay SeriesDisplay { get; set; }
+
+    /// <summary>Ziel des Verlaufs-Knopfes in der Ecke. Leer: kein Knopf.</summary>
+    [Parameter] public string? DetailHref { get; set; }
 
     /// <summary>
     /// Zusatzklasse, wie bei MeadowChartCard. Gebraucht fuer .mw-kpi--text:
@@ -69,14 +134,34 @@
     /// </summary>
     [Parameter] public string? Class { get; set; }
 
+    private bool HasSeries => Series is { Count: > 2 };
+
+    private bool HasInlineSeries => HasSeries && SeriesDisplay == KpiSeriesDisplay.Inline;
+
+    private bool HasBackgroundSeries => HasSeries && SeriesDisplay == KpiSeriesDisplay.Background;
+
+    private bool HasFoot => !string.IsNullOrWhiteSpace(Delta) || HasInlineSeries;
+
     private string CssClass => (IsAddTile, HasError) switch
     {
         (true, _) => "mw-kpi mw-kpi--add",
         (_, true) => "mw-kpi mw-kpi--error",
         _ => "mw-kpi"
     }
-    + (string.IsNullOrWhiteSpace(Href) ? " mw-kpi--static" : "")
+    + RateClass
+    + (string.IsNullOrWhiteSpace(Href) && string.IsNullOrWhiteSpace(DetailHref) ? " mw-kpi--static" : "")
     + (string.IsNullOrWhiteSpace(Class) ? "" : " " + Class);
+
+    // Bei einem Fehler KEINE Ampel: der rote Rahmen ist dort schon vergeben, und "ausserhalb des
+    // Ziels" und "nicht auswertbar" muessen unterscheidbar bleiben. Der Evaluator liefert in dem
+    // Fall ohnehin Status.None - das hier ist der Guertel zum Hosentraeger.
+    private string RateClass => HasError ? "" : Status switch
+    {
+        KpiStatus.Good => " mw-kpi--rate-good",
+        KpiStatus.Warning => " mw-kpi--rate-warn",
+        KpiStatus.Bad => " mw-kpi--rate-crit",
+        _ => ""
+    };
 
     // Nur Richtung, keine Wertung: siehe den Kommentar zu .mw-kpi__delta.
     private string Arrow => Trend switch
@@ -86,4 +171,34 @@
         KpiTrend.Flat => "▬",
         _ => ""
     };
+
+    /// <summary>
+    /// Zusammengesetzt, damit ein Screenreader nicht "Titel, Zahl, Dreieck" vorliest. Der Zustand
+    /// steht als WORT darin - Farbe und Form sind beide unsichtbar, wenn man sie nicht sieht.
+    /// </summary>
+    private string AriaLabel
+    {
+        get
+        {
+            var text = $"{Title}: {Value}";
+
+            var state = KpiDefinitionSummary.StatusLabel(Status);
+            if (!HasError && state.Length > 0)
+            {
+                text += $", {state}";
+            }
+
+            if (!string.IsNullOrWhiteSpace(Delta))
+            {
+                text += $", {Delta} gegenüber dem Vorzeitraum";
+            }
+
+            if (!string.IsNullOrWhiteSpace(Hint))
+            {
+                text += $". {Hint}";
+            }
+
+            return text;
+        }
+    }
 }

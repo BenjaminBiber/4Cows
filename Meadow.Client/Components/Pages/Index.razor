@@ -5,6 +5,7 @@
 @using Meadow.Client.Components.Ui
 @using Meadow.Client.Components.Services
 @using Meadow.Shared.Kpi
+@using Meadow.Shared.Models
 
 @inject IDialogService DialogService
 @inject IJSRuntime JS
@@ -19,19 +20,59 @@
 @inject DatabaseConnectionState DatabaseConnectionState
 
 <div class="mw-dash-top">
-    <div class="mw-kpi-grid">
-        @foreach (var tile in _kpis)
+    @* Drei Zustaende statt eines stillen Nichts: bisher startete _kpis als leere
+       Liste, und waehrend des Ladens - sowie dauerhaft bei null Kennzahlen -
+       war der Bereich schlicht leer. *@
+    @if (_kpisLoading)
+    {
+        <div class="mw-kpi-grid">
+            @for (var i = 0; i < 4; i++)
+            {
+                <div class="mw-kpi mw-kpi--skeleton" aria-hidden="true"></div>
+            }
+        </div>
+        <span class="mw-sr-only" role="status">Kennzahlen werden geladen…</span>
+    }
+    else if (_tiles.Count == 0)
+    {
+        <div class="mw-kpi-empty">
+            <p>Noch keine Kennzahlen angelegt.</p>
+            <a class="mw-btn mw-btn--primary" href="@MeadowRoutes.SettingsKpis">
+                Die erste Kennzahl anlegen
+            </a>
+        </div>
+    }
+    else
+    {
+        <div class="@GridClass">
+            @foreach (var tile in _tiles)
+            {
+                <MeadowKpiTile Title="@tile.Kpi.Title"
+                               Value="@tile.Result.Display"
+                               Href="@KpiDrillDown.Href(tile)"
+                               IsAddTile="@tile.IsAddTile"
+                               Delta="@tile.Result.DeltaDisplay"
+                               Trend="@tile.Result.Trend"
+                               Status="@tile.Result.Status"
+                               Series="@SeriesOf(tile)"
+                               SeriesDisplay="@SeriesDisplayOf(tile)"
+                               DetailHref="@DetailHref(tile)"
+                               HasError="@(tile.Result.State == KpiResultState.Error)"
+                               Hint="@tile.Result.Message" />
+            }
+        </div>
+
+        @* Mobil blendet das Grid ab der fuenften Kachel aus. Das war bisher eine
+           Sackgasse: Kachel 5 bis 8 waren auf dem Telefon nicht erreichbar, ohne
+           dass irgendetwas darauf hingewiesen haette. *@
+        @if (_tiles.Count > MobileVisible)
         {
-            <MeadowKpiTile Title="@tile.Kpi.Title"
-                           Value="@tile.Result.Display"
-                           Href="@KpiDrillDown.Href(tile)"
-                           IsAddTile="@tile.IsAddTile"
-                           Delta="@tile.Result.DeltaDisplay"
-                           Trend="@tile.Result.Trend"
-                           HasError="@(tile.Result.State == KpiResultState.Error)"
-                           Hint="@tile.Result.Message" />
+            <button type="button" class="mw-kpi-more" aria-expanded="@_showAllTiles"
+                    @onclick="() => _showAllTiles = !_showAllTiles">
+                @(_showAllTiles ? "Weniger zeigen" : $"Alle {_tiles.Count} Kacheln zeigen")
+            </button>
         }
-    </div>
+    }
 
     @* Vier Aktionen auf Desktop, zwei mobil: dort deckt der FAB in der
        Tabbar die geplanten Behandlungen ab. *@
@@ -104,7 +145,47 @@
         "Juli", "August", "September", "Oktober", "November", "Dezember"
     };
 
+    /// <summary>Wie viele Kacheln das Grid mobil zeigt, bevor aufgeklappt wird (siehe CSS).</summary>
+    private const int MobileVisible = 4;
+
     private IReadOnlyList<KpiTileModel> _kpis = Array.Empty<KpiTileModel>();
+
+    /// <summary>
+    /// Bewusst ein eigenes Flag und nicht "_kpis ist leer": leer heisst waehrend des Ladens etwas
+    /// anderes als danach, und genau diese beiden Faelle waren vorher nicht zu unterscheiden.
+    /// </summary>
+    private bool _kpisLoading = true;
+
+    private bool _showAllTiles;
+
+    /// <summary>Alles ausser der synthetischen "+"-Kachel - die zaehlt nicht als Kennzahl.</summary>
+    private List<KpiTileModel> _tiles => _kpis.ToList();
+
+    private string GridClass => _showAllTiles ? "mw-kpi-grid is-expanded" : "mw-kpi-grid";
+
+    /// <summary>
+    /// Die Werte des Verlaufs, oder null. KpiDashboard rechnet die Reihe nur, wenn die Definition
+    /// sie anfordert - hier wird sie also nur noch weitergereicht.
+    /// </summary>
+    private IReadOnlyList<double?>? SeriesOf(KpiTileModel tile)
+        => tile.Series is { Points.Count: > 0 } series
+            ? series.Points.Select(p => p.Value).ToList()
+            : null;
+
+    private KpiSeriesDisplay SeriesDisplayOf(KpiTileModel tile)
+        => Definition(tile)?.SeriesDisplay ?? KpiSeriesDisplay.None;
+
+    /// <summary>
+    /// Der Verlaufs-Knopf erscheint nur, wenn es dort auch etwas zu sehen gibt - also nicht an der
+    /// "+"-Kachel und nicht an einer Kennzahl ohne Reihe.
+    /// </summary>
+    private string? DetailHref(KpiTileModel tile)
+        => tile.IsAddTile || tile.Series is not { Points.Count: > 0 }
+            ? null
+            : MeadowRoutes.KpiDetailFor(tile.Kpi.KPIId);
+
+    private static KpiDefinition? Definition(KpiTileModel tile)
+        => tile.IsAddTile ? null : KpiDefinition.Deserialize(tile.Kpi.Definition);
     private List<int> _selectedMedicines = new();
     private int _selectedYear = DateTime.Now.Year;
     private bool _medicineSubsetActive;
@@ -127,6 +208,7 @@
         // Diagramm waren sieben DB-Runden.
         await Data.EnsureDashboardAsync();
         _kpis = await KPIService.GetDashboardAsync();
+        _kpisLoading = false;
         _dataReady = true;
     }
 
@@ -402,6 +484,7 @@
     {
         await Data.EnsureDashboardAsync();
         _kpis = await KPIService.GetDashboardAsync();
+        _kpisLoading = false;
         StateHasChanged();
         await RenderChartsAsync(destroyFirst: true);
     });

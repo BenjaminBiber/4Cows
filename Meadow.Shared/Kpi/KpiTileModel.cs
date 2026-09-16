@@ -15,6 +15,16 @@ public sealed record KpiTileModel
 
     public required KpiResult Result { get; init; }
 
+    /// <summary>
+    /// The history, when the definition asks for one, and null otherwise.
+    ///
+    /// On the tile model rather than in KpiResult, because it is not part of the outcome - it is an
+    /// extra the DASHBOARD asks for. Keeping it here also keeps the promise that a plain tile costs
+    /// nothing: KpiDashboard only calls KpiEvaluator.Series for a definition whose SeriesDisplay
+    /// says so, and never for the "+" tile or a hand-written script.
+    /// </summary>
+    public KpiSeries? Series { get; init; }
+
     /// <summary>The synthetic "add a KPI" tile, which is not a KPI and is never evaluated.</summary>
     public bool IsAddTile { get; init; }
 

@@ -1,4 +1,5 @@
 @using Meadow.Shared.Kpi
+@using Meadow.Shared.Models
 @implements IDisposable
 
 @*
@@ -30,6 +31,12 @@
             <span class="mw-kpi-preview__delta">@Result.DeltaDisplay</span>
         }
         <MeadowKpiFlag Status="Result.Status" Size="18" />
+        @if (Series is { Count: > 2 } && SeriesDisplay != KpiSeriesDisplay.None)
+        {
+            @* Dieselbe Komponente wie auf der Kachel, damit man im Editor sieht, was danach
+               auf dem Dashboard steht. *@
+            <MeadowSparkline Values="Series" Variant="KpiSeriesDisplay.Inline" Class="mw-spark--preview" />
+        }
     </div>
 
     @if (!string.IsNullOrWhiteSpace(Result.Message))
@@ -54,6 +61,11 @@
 
     /// <summary>Zeilen der Quelle insgesamt, also vor Zeitraum und Filtern.</summary>
     [Parameter] public int TotalRows { get; set; }
+
+    /// <summary>Werte des Verlaufs, aeltester zuerst. Null: die Definition will keinen.</summary>
+    [Parameter] public IReadOnlyList<double?>? Series { get; set; }
+
+    [Parameter] public KpiSeriesDisplay SeriesDisplay { get; set; }
 
     private const int AnnounceDelayMs = 700;
 

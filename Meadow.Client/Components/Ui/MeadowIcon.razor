@@ -118,6 +118,13 @@
             <path d="M6 9l6 6 6-6" />
             break;
 
+        @* Ein Linienzug mit einem Punkt auf dem letzten Wert - dieselbe Form wie
+           die Sparkline daneben, damit der Knopf zeigt, wohin er fuehrt. *@
+        case MeadowIconName.Trend:
+            <path d="M4 16l4.5-5 3.5 3.5L20 7" />
+            <circle cx="20" cy="7" r="1.6" fill="currentColor" stroke="none" />
+            break;
+
         case MeadowIconName.Lock:
             <rect x="4" y="10" width="16" height="10" rx="2" />
             <path d="M8 10V7a4 4 0 018 0v3" />
@@ -177,6 +184,7 @@
         MeadowIconName.PlusBold => "2.2",
         MeadowIconName.Close => "1.8",
         MeadowIconName.ChevronDown => "2",
+        MeadowIconName.Trend => "2",
         // Haken und Pfeil sitzen neben 14px-Text und muessen dort noch
         // tragen, ohne dass man sie vergroessert.
         MeadowIconName.Check => "2.1",
@@ -197,6 +205,7 @@
         MeadowIconName.PlannedCow => "round",
         MeadowIconName.PlannedClaw => "round",
         MeadowIconName.ChevronDown => "round",
+        MeadowIconName.Trend => "round",
         MeadowIconName.Check => "round",
         MeadowIconName.ArrowRight => "round",
         MeadowIconName.Smartphone => "round",
@@ -210,6 +219,7 @@
         MeadowIconName.PlannedCow => "round",
         MeadowIconName.PlannedClaw => "round",
         MeadowIconName.ChevronDown => "round",
+        MeadowIconName.Trend => "round",
         MeadowIconName.Check => "round",
         MeadowIconName.ArrowRight => "round",
         MeadowIconName.Smartphone => "round",

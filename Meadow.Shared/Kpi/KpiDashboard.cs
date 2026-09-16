@@ -50,11 +50,8 @@ public static class KpiDashboard
         {
             if (kpi.IsBuilder)
             {
-                tiles.Add(new KpiTileModel
-                {
-                    Kpi = kpi,
-                    Result = Evaluate(kpi, rows, rowsBySource, now, onError)
-                });
+                var (result, series) = Evaluate(kpi, rows, rowsBySource, now, onError);
+                tiles.Add(new KpiTileModel { Kpi = kpi, Result = result, Series = series });
                 continue;
             }
 
@@ -91,7 +88,7 @@ public static class KpiDashboard
     /// unusable: that would run a query the author believed to be switched off. A visible error is
     /// the honest outcome.
     /// </summary>
-    private static KpiResult Evaluate(
+    private static (KpiResult Result, KpiSeries? Series) Evaluate(
         KPI kpi,
         Func<KpiSourceId, IReadOnlyList<KpiRow>> rows,
         Dictionary<KpiSourceId, IReadOnlyList<KpiRow>> rowsBySource,
@@ -101,13 +98,13 @@ public static class KpiDashboard
         var definition = KpiDefinition.Deserialize(kpi.Definition);
         if (definition is null)
         {
-            return Failed(kpi, "Die Definition dieser KPI ist unlesbar.", onError);
+            return (Failed(kpi, "Die Definition dieser KPI ist unlesbar.", onError), null);
         }
 
         var source = KpiSourceRegistry.Find(definition.Source);
         if (source is null)
         {
-            return Failed(kpi, $"Unbekannte Datenquelle: {definition.Source}.", onError);
+            return (Failed(kpi, $"Unbekannte Datenquelle: {definition.Source}.", onError), null);
         }
 
         if (!rowsBySource.TryGetValue(definition.Source, out var sourceRows))
@@ -121,9 +118,17 @@ public static class KpiDashboard
         if (result.State == KpiResultState.Error)
         {
             onError?.Invoke(kpi, result.Message ?? "Unbekannter Fehler.");
+            return (result, null);
         }
 
-        return result;
+        // ONLY when the definition asked for it. A history over twelve months costs twelve passes
+        // over the rows, and a dashboard of eight tiles that nobody asked for a chart on should
+        // still cost what it always cost.
+        var series = definition.WantsSeries
+            ? KpiEvaluator.Series(definition, source, sourceRows, now)
+            : null;
+
+        return (result, series);
     }
 
     private static KpiResult Failed(KPI kpi, string message, Action<KPI, string>? onError)

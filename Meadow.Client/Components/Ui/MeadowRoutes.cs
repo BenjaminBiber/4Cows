@@ -75,6 +75,23 @@ public static class MeadowRoutes
     public static string CowDetailFor(string cowId)
         => $"{CowDetail}/{Uri.EscapeDataString(cowId)}";
 
+    /// <summary>
+    /// Erstes Segment der Kennzahl-Seite; danach folgt die KPI_ID. Wie bei
+    /// <see cref="CowDetail"/> eine eigene Konstante, weil TitleFor, GroupFor und IsWide ueber
+    /// BaseOf nur dieses Segment sehen - ohne Eintrag hier liefert TitleFor den 404-Titel und
+    /// GroupFor NavGroup.None, und Drawer wie Tabbar verloeren ihre Markierung.
+    /// </summary>
+    public const string KpiDetail = "kennzahl";
+
+    public static string KpiDetailFor(int kpiId) => $"{KpiDetail}/{kpiId}";
+
+    /// <summary>
+    /// Die Einstellungen, direkt auf dem KPI-Reiter. Gebraucht vom Leerzustand des Dashboards und
+    /// von der Fehleranzeige einer Kachel - ohne den Query-Parameter landete man auf dem ersten
+    /// Reiter und muesste selbst weiterklicken.
+    /// </summary>
+    public const string SettingsKpis = Settings + "?tab=kpis";
+
     private static readonly Dictionary<string, string> TitleMap =
         new(StringComparer.OrdinalIgnoreCase)
         {
@@ -84,6 +101,9 @@ public static class MeadowRoutes
             // Eintrag trotzdem, liefert TitleFor unten den 404-Titel.
             [Root] = "Dashboard",
             [Dashboard] = "Dashboard",
+            // Ohne die KPI_ID - den Titel mit dem Namen der Kennzahl setzt die Seite selbst
+            // ueber LayoutState.SetPageTitle, genau wie die Kuh-Seite.
+            [KpiDetail] = "Kennzahl",
             [Cows] = "Kühe",
             // Ohne die Cow_ID - die steht in der Route, nicht in der Tabelle.
             // Den Titel mit Halsbandnummer setzt die Seite selbst ueber
@@ -138,7 +158,7 @@ public static class MeadowRoutes
     /// </summary>
     public static NavGroup GroupFor(string route) => BaseOf(route) switch
     {
-        Root or Dashboard => NavGroup.Dashboard,
+        Root or Dashboard or KpiDetail => NavGroup.Dashboard,
         Cows or CowDetail or CowTreatments or PlannedCowTreatments => NavGroup.Cow,
         ClawTreatments or PlannedClawTreatments or Bandages => NavGroup.Claw,
         Settings or Transfers => NavGroup.System,
@@ -152,7 +172,8 @@ public static class MeadowRoutes
     /// davon nichts haetten ausser laengeren Zeilen. Die Kuh-UEBERSICHT ist
     /// deshalb bewusst nicht dabei - die ist wieder eine Tabelle.
     /// </summary>
-    public static bool IsWide(string route) => BaseOf(route) is Root or Dashboard or CowDetail;
+    public static bool IsWide(string route)
+        => BaseOf(route) is Root or Dashboard or CowDetail or KpiDetail;
 
     // Reihenfolge wie im Drawer, damit man dieselbe Liste nicht in zwei
     // Anordnungen lernen muss.
@@ -184,6 +205,10 @@ public static class MeadowRoutes
         // Umschalten zwischen Gleichrangigen - es gibt hier aber nur einen
         // Weg heraus, und der steht als Zurueck-Pfeil daneben.
         CowDetail => Array.Empty<string>(),
+
+        // Aus demselben Grund: die Kennzahl-Seite ist EINE Kennzahl, keine Liste. Die
+        // Dashboard-Gruppe hat ohnehin keine Geschwister, das hier steht als Absicht da.
+        KpiDetail => Array.Empty<string>(),
 
         _ => GroupFor(route) switch
         {

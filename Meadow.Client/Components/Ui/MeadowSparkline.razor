@@ -1,0 +1,157 @@
+@using System.Globalization
+@using Meadow.Shared.Kpi
+
+@*
+    Der Verlauf einer KPI-Kachel, als Inline-SVG.
+
+    KEIN Chart.js, obwohl es seit dem Umzug ins Vendor-Verzeichnis lokal
+    vorliegt und offline funktioniert. Die Gruende sind hier andere als bei
+    MeadowPieChart: das hier ist 72x22 gross, steht neben Text, und auf einem
+    Dashboard stehen acht bis zwoelf davon. Zwoelf Canvas-Kontexte plus zwoelf
+    Chart.js-Instanzen fuer zwoelf Polylinien - und beim Theme-Wechsel muessten
+    alle neu gezeichnet werden. Ein <path> erbt seine Farbe aus CSS und kostet
+    beim Umschalten nichts.
+
+    Fuer das GROSSE Verlaufsdiagramm auf der Detailseite ist Chart.js dagegen
+    richtig: zwoelf Punkte mit Achsen, Gitter und Tooltip sind genau das,
+    wofuer die Bibliothek gebaut ist.
+
+    preserveAspectRatio="none" plus vector-effect: non-scaling-stroke im CSS:
+    die Linie darf gestaucht werden, weil sie einen VERLAUF zeigt und keine
+    Steigung - der Strich soll davon aber nicht dicker oder duenner werden.
+    Dasselbe Muster wie die Fuge in .mw-pie__slice.
+
+    Unter drei Punkten wird NICHTS gezeichnet. Eine waagerechte Linie aus zwei
+    Punkten behauptet einen Verlauf, den es nicht gibt.
+*@
+
+@if (Drawable)
+{
+    <svg class="@CssClass" viewBox="0 0 100 32" preserveAspectRatio="none"
+         aria-hidden="true" focusable="false">
+        @if (Variant == KpiSeriesDisplay.Background)
+        {
+            @* Erst die Flaeche, dann die Linie darauf - so liegt die Kante oben sauber. *@
+            <path class="mw-spark__area" d="@AreaPath" />
+        }
+        <polyline class="mw-spark__line" points="@Points" />
+        @if (ShowLast)
+        {
+            <circle class="mw-spark__dot" cx="@Num(_last.X)" cy="@Num(_last.Y)" r="@DotRadius" />
+        }
+    </svg>
+}
+
+@code {
+    /// <summary>
+    /// Die Werte, aeltester zuerst. Null steht fuer "hier ist kein Wert definiert" - das gibt es
+    /// nur beim Durchschnitt, und es wird als LUECKE gezeichnet, nicht als Tief auf der Null.
+    /// </summary>
+    [Parameter, EditorRequired] public IReadOnlyList<double?> Values { get; set; } = Array.Empty<double?>();
+
+    [Parameter] public KpiSeriesDisplay Variant { get; set; } = KpiSeriesDisplay.Inline;
+
+    /// <summary>Punkt auf dem letzten Wert. Im Hintergrundmodus stoert er den Text.</summary>
+    [Parameter] public bool ShowLast { get; set; } = true;
+
+    [Parameter] public string? Class { get; set; }
+
+    private const int MinPoints = 3;
+    private const double Height = 32;
+    private const double Width = 100;
+
+    /// <summary>Oben und unten Luft, damit Hoch- und Tiefpunkt nicht am Rand abgeschnitten werden.</summary>
+    private const double Pad = 3;
+
+    private (double X, double Y) _last;
+
+    private List<(double X, double Y)> _points = new();
+
+    private bool Drawable => _points.Count >= MinPoints;
+
+    private double DotRadius => Variant == KpiSeriesDisplay.Background ? 0 : 2.5;
+
+    private string CssClass
+        => "mw-spark"
+           + (Variant == KpiSeriesDisplay.Background ? " mw-spark--bg" : "")
+           + (string.IsNullOrWhiteSpace(Class) ? "" : " " + Class);
+
+    protected override void OnParametersSet()
+    {
+        _points = Plot();
+        _last = _points.Count > 0 ? _points[^1] : default;
+    }
+
+    private List<(double X, double Y)> Plot()
+    {
+        var values = Values;
+        if (values.Count < MinPoints)
+        {
+            return new List<(double, double)>();
+        }
+
+        var present = values.Where(v => v.HasValue).Select(v => v!.Value).ToList();
+        if (present.Count < MinPoints)
+        {
+            return new List<(double, double)>();
+        }
+
+        var max = present.Max();
+        var min = present.Min();
+        var span = max - min;
+
+        // Alle Werte gleich: eine Linie auf halber Hoehe statt einer Division durch null. Sie ist
+        // die ehrliche Aussage - es gab keine Bewegung.
+        if (span <= 0)
+        {
+            span = 1;
+            min = max - 0.5;
+        }
+
+        var step = values.Count > 1 ? Width / (values.Count - 1) : Width;
+        var usable = Height - 2 * Pad;
+
+        var points = new List<(double X, double Y)>(values.Count);
+        for (var i = 0; i < values.Count; i++)
+        {
+            if (values[i] is not double value)
+            {
+                // Luecke: der Punkt wird uebersprungen. Die Polylinie verbindet dann die
+                // Nachbarn - besser als ein erfundener Nullwert, der wie ein Absturz aussaehe.
+                continue;
+            }
+
+            // Y ist invertiert: im SVG waechst es nach unten.
+            points.Add((i * step, Pad + usable - (value - min) / span * usable));
+        }
+
+        return points;
+    }
+
+    private string Points => string.Join(" ", _points.Select(p => $"{Num(p.X)},{Num(p.Y)}"));
+
+    /// <summary>Dieselbe Linie, unten am viewBox-Rand geschlossen.</summary>
+    private string AreaPath
+    {
+        get
+        {
+            if (_points.Count == 0)
+            {
+                return "";
+            }
+
+            var line = string.Join(
+                " ", _points.Select((p, i) => $"{(i == 0 ? "M" : "L")} {Num(p.X)} {Num(p.Y)}"));
+
+            return $"{line} L {Num(_points[^1].X)} {Num(Height)} L {Num(_points[0].X)} {Num(Height)} Z";
+        }
+    }
+
+    /// <summary>
+    /// InvariantCulture ist Pflicht und keine Vorsicht: die Anwendung laeuft auf de-DE, und
+    /// "12,5" waere in einem SVG-Pfad ein ungueltiger Wert - die Linie fiele still aus.
+    /// Dasselbe Muster wie MeadowPieChart.Num.
+    /// </summary>
+    private static string Num(double value)
+        => value.ToString("0.###", CultureInfo.InvariantCulture);
+}

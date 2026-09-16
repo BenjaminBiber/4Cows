@@ -111,6 +111,173 @@ public static class KpiEvaluator
             ? "Die Warnschwelle liegt unter dem Zielwert - so gibt es keinen Warnbereich."
             : "Die Warnschwelle liegt über dem Zielwert - so gibt es keinen Warnbereich.";
 
+    // ---- Series --------------------------------------------------------
+
+    /// <summary>Rolling month window for <see cref="KpiTimeframe.All"/>.</summary>
+    /// <remarks>
+    /// Deliberately the same number as CowProfileBuilder.WindowMonths, and a test asserts they stay
+    /// equal. Not a reference to it: Meadow.Shared.Profile already depends on Meadow.Shared.Kpi
+    /// (for KpiTrend), and pointing back would be a cycle straight through the library.
+    /// </remarks>
+    public const int MonthWindow = 12;
+
+    /// <summary>
+    /// The same KPI, sliced into periods.
+    ///
+    /// The contract that makes it trustworthy: the buckets TILE the window that
+    /// <see cref="Evaluate"/> uses - same lower bound, same step - so for a count or a sum the
+    /// points add up to the number on the tile, and the last bucket alone equals the tile value for
+    /// a single-bucket window. A sparkline that disagrees with the figure above it is worse than no
+    /// sparkline, so that is a test and not a hope.
+    ///
+    /// CountDistinctCows is the documented exception: counted per bucket, not cumulatively, so the
+    /// same cow treated in two months counts twice and the points do NOT add up. The alternative -
+    /// a running distinct count - would be a different measure from the one on the tile.
+    /// </summary>
+    /// <param name="now">Injected like everywhere else here, so bucket boundaries are testable.</param>
+    public static KpiSeries Series(
+        KpiDefinition definition,
+        KpiSourceInfo source,
+        IReadOnlyList<KpiRow> rows,
+        DateTime now)
+    {
+        var invalid = Validate(definition, source);
+        if (invalid is not null)
+        {
+            return KpiSeries.Unavailable(invalid.Message ?? "Diese Kennzahl lässt sich nicht auswerten.");
+        }
+
+        if (!source.HasDate)
+        {
+            // Cow has Cow_ID, Ear_Tag_Number, Collar_Number, Is_Calv, IsGone - and no date at all,
+            // not even an arrival. "37 Kühe" has no past in this schema.
+            return KpiSeries.Unavailable($"„{source.Label}“ hat keine Datumsspalte - dafür gibt es keinen Verlauf.");
+        }
+
+        if (!definition.YieldsNumber)
+        {
+            // The winner changes from period to period, so a curve of "how often did the OVERALL
+            // winner occur each month" would be a different KPI from the one on the tile. Same
+            // restraint as SupportsCompare showing nothing for planned sources.
+            return KpiSeries.Unavailable(
+                "„Häufigster Wert“ liefert einen Namen, keine Zahl - dafür gibt es keinen Verlauf.");
+        }
+
+        var bucket = BucketOf(definition.Timeframe);
+        var spans = Buckets(definition.Timeframe, source.IsPlanned, now);
+        var selected = ApplyFilters(definition, rows).Where(r => r.Date.HasValue).ToList();
+
+        var points = new List<KpiSeriesPoint>(spans.Count);
+        foreach (var (from, to) in spans)
+        {
+            // One pass over the rows per bucket, but only ONE filtering pass overall - that is the
+            // part that used to be quadratic if written the obvious way.
+            var inBucket = selected
+                .Where(r => r.Date!.Value.Date >= from && r.Date.Value.Date <= to)
+                .ToList();
+
+            points.Add(new KpiSeriesPoint(from, MeasureOf(definition.Measure, inBucket), inBucket.Count));
+        }
+
+        return new KpiSeries
+        {
+            Bucket = bucket,
+            Points = points,
+            CoversTimeframe = definition.Timeframe != KpiTimeframe.All
+        };
+    }
+
+    /// <summary>
+    /// The filtered rows tallied by one dimension, largest first - what the detail page shows next
+    /// to the chart.
+    ///
+    /// Takes the dimension as a PARAMETER rather than reading definition.GroupBy, because the two
+    /// answer different questions: GroupBy is the ranking a Top-1 KPI is defined by, this is "what
+    /// is this number made of". A count of cow treatments has no GroupBy at all, and breaking it
+    /// down by medicine is exactly what makes the detail page worth opening.
+    ///
+    /// Empty when the source does not carry that dimension, so a caller can offer only the ones
+    /// that yield something.
+    /// </summary>
+    public static IReadOnlyList<(string Label, int Count)> Breakdown(
+        KpiDefinition definition,
+        KpiSourceInfo source,
+        IReadOnlyList<KpiRow> rows,
+        KpiGroupBy dimension,
+        DateTime now)
+    {
+        if (dimension == KpiGroupBy.None || !source.Supports(dimension))
+        {
+            return Array.Empty<(string, int)>();
+        }
+
+        var selected = Select(definition, source, rows, now, periodsBack: 0);
+
+        return Group(dimension, selected)
+            .OrderByDescending(r => r.Count)
+            .ThenBy(r => r.Label, StringComparer.CurrentCulture)
+            .Select(r => (r.Label, r.Count))
+            .ToList();
+    }
+
+    private static KpiBucket BucketOf(KpiTimeframe timeframe) => timeframe switch
+    {
+        KpiTimeframe.All => KpiBucket.Month,
+        // 91 days are exactly thirteen weeks, so the window divides without a remainder. Ninety-one
+        // daily points would also be unreadable at 72 pixels wide.
+        KpiTimeframe.Days90 => KpiBucket.Week,
+        _ => KpiBucket.Day
+    };
+
+    /// <summary>
+    /// The sections, oldest first.
+    ///
+    /// For a bounded timeframe they are cut out of <see cref="Window"/> itself, which is what
+    /// guarantees they tile exactly what the tile counts. For "all" there is no window, so a rolling
+    /// twelve months is used - copied from CowProfileBuilder.MonthSeries, including "rolling and not
+    /// calendar year", because in January a calendar year is eleven twelfths empty.
+    /// </summary>
+    private static IReadOnlyList<(DateTime From, DateTime To)> Buckets(
+        KpiTimeframe timeframe, bool planned, DateTime now)
+    {
+        if (timeframe == KpiTimeframe.All)
+        {
+            return MonthBuckets(planned, now);
+        }
+
+        var window = Window(timeframe, planned, now, periodsBack: 0)!.Value;
+        var size = BucketOf(timeframe) == KpiBucket.Week ? 7 : 1;
+
+        var spans = new List<(DateTime, DateTime)>();
+        for (var start = window.From; start <= window.To; start = start.AddDays(size))
+        {
+            // Clamped at the window's end so a size that does not divide evenly produces a shorter
+            // last section rather than reaching past what the tile counted.
+            var end = start.AddDays(size - 1);
+            spans.Add((start, end > window.To ? window.To : end));
+        }
+
+        return spans;
+    }
+
+    private static IReadOnlyList<(DateTime From, DateTime To)> MonthBuckets(bool planned, DateTime now)
+    {
+        var thisMonth = new DateTime(now.Year, now.Month, 1);
+
+        // Same direction rule as Window: planned treatments are future-dated, so their twelve
+        // months run FORWARD from this one. Looking back would show twelve empty bars.
+        var first = planned ? thisMonth : thisMonth.AddMonths(-(MonthWindow - 1));
+
+        var spans = new List<(DateTime, DateTime)>(MonthWindow);
+        for (var i = 0; i < MonthWindow; i++)
+        {
+            var start = first.AddMonths(i);
+            spans.Add((start, start.AddMonths(1).AddDays(-1)));
+        }
+
+        return spans;
+    }
+
     // ---- Validation ----------------------------------------------------
 
     /// <summary>
@@ -170,6 +337,20 @@ public static class KpiEvaluator
             query = query.Where(r => r.Date.HasValue && r.Date.Value.Date >= from && r.Date.Value.Date <= to);
         }
 
+        return ApplyFilters(definition, query).ToList();
+    }
+
+    /// <summary>
+    /// The filters, without the timeframe.
+    ///
+    /// Split out for the series, which slices ONE filtered set into buckets rather than filtering
+    /// once per bucket. Twelve buckets across eight tiles would otherwise be ninety-six passes over
+    /// the rows where one does.
+    /// </summary>
+    private static IEnumerable<KpiRow> ApplyFilters(KpiDefinition definition, IEnumerable<KpiRow> rows)
+    {
+        var query = rows;
+
         foreach (var (key, values) in definition.Filters)
         {
             // Empty or missing means "all", exactly as MeadowMultiSelect renders it. Groups are
@@ -184,7 +365,7 @@ public static class KpiEvaluator
                 r.TagValues(key).Any(v => selected.Contains(v, StringComparer.OrdinalIgnoreCase)));
         }
 
-        return query.ToList();
+        return query;
     }
 
     /// <summary>
@@ -317,7 +498,7 @@ public static class KpiEvaluator
 
     private static KpiResult FromTop(KpiDefinition definition, List<KpiRow> rows)
     {
-        var groups = Group(definition, rows)
+        var groups = Group(definition.GroupBy, rows)
             .Where(g => !string.IsNullOrWhiteSpace(g.Label))
             .OrderByDescending(g => g.Count)
             // The tiebreaker the old SQL never had: "ORDER BY COUNT(*) DESC LIMIT 1" leaves the
@@ -340,14 +521,14 @@ public static class KpiEvaluator
         };
     }
 
-    private static IEnumerable<Ranked> Group(KpiDefinition definition, List<KpiRow> rows)
+    private static IEnumerable<Ranked> Group(KpiGroupBy groupBy, List<KpiRow> rows)
     {
         // Ranking cows groups by the ANIMAL and only displays its collar number, which is what the
         // old query did with "GROUP BY ct.Ear_Tag_Number" while selecting Collar_Number. Grouping by
         // the collar instead would silently merge two animals whenever a number is re-issued - and
         // re-issuing is expected, since CowService.IsCollarInUse only reserves numbers of cows that
         // have not left the herd.
-        if (definition.GroupBy == KpiGroupBy.Cow)
+        if (groupBy == KpiGroupBy.Cow)
         {
             return rows
                 .Where(r => !string.IsNullOrWhiteSpace(r.CowId))
@@ -355,7 +536,7 @@ public static class KpiEvaluator
                 .Select(g => new Ranked(g.First().CowLabel, g.Count()));
         }
 
-        var key = KpiTagKeys.ForGroupBy(definition.GroupBy)!;
+        var key = KpiTagKeys.ForGroupBy(groupBy)!;
 
         return rows
             .SelectMany(r => r.TagValues(key))

@@ -106,6 +106,25 @@ public enum KpiTimeframe
 }
 
 /// <summary>
+/// Whether, and how, a tile shows its history.
+///
+/// None is the default and therefore what every definition written before this existed says - which
+/// matters for more than compatibility: the series is only COMPUTED when this is not None, so a
+/// dashboard of plain tiles still costs exactly what it used to.
+/// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum KpiSeriesDisplay
+{
+    None,
+
+    /// <summary>A small line in the tile's footer, next to the delta. Costs no extra height.</summary>
+    Inline,
+
+    /// <summary>A filled area behind the title and the value, Lely-Horizon style.</summary>
+    Background
+}
+
+/// <summary>
 /// Which way is good.
 ///
 /// There is deliberately no default "up is better". MeadowKpiTile's delta arrow refuses to judge
@@ -196,6 +215,11 @@ public sealed class KpiDefinition
     public double? TargetWarning { get; set; }
 
     /// <summary>
+    /// Whether the tile draws its history, and how. See <see cref="AllowsSeries"/> for when it can.
+    /// </summary>
+    public KpiSeriesDisplay SeriesDisplay { get; set; }
+
+    /// <summary>
     /// Everything a NEWER build wrote that this one does not know, carried through untouched.
     ///
     /// Not a nicety - it closes a data-loss hole. KPIDialog deserialises a definition, mutates it
@@ -242,6 +266,20 @@ public sealed class KpiDefinition
     /// </summary>
     [JsonIgnore]
     public bool AllowsTarget => YieldsNumber;
+
+    /// <summary>
+    /// Whether a history is even meaningful. Same reason as the target: a Top-1 winner changes from
+    /// period to period, so a curve of it would be a different KPI from the one on the tile.
+    ///
+    /// Whether the SOURCE has a date is not knowable from here - KpiSourceInfo.HasDate answers
+    /// that, and KpiEvaluator.Series checks it.
+    /// </summary>
+    [JsonIgnore]
+    public bool AllowsSeries => YieldsNumber;
+
+    /// <summary>The definition asks for a history AND could have one.</summary>
+    [JsonIgnore]
+    public bool WantsSeries => SeriesDisplay != KpiSeriesDisplay.None && AllowsSeries;
 
     /// <summary>A light needs both a direction and something to compare against.</summary>
     [JsonIgnore]
