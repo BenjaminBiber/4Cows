@@ -233,6 +233,17 @@ public sealed class KpiDefinition
     public KpiSeriesDisplay SeriesDisplay { get; set; }
 
     /// <summary>
+    /// Show the mean across the shown periods as a second figure beside the value.
+    ///
+    /// Its OWN switch and not a property of the chart: the second number is useful without a
+    /// curve ("120, im Schnitt 8,2 pro Monat" needs no picture), and a chart is useful without it.
+    /// Tying them together would have forced one to carry the other.
+    ///
+    /// It does need the series to be computed, though - see <see cref="WantsSeries"/>.
+    /// </summary>
+    public bool ShowAverage { get; set; }
+
+    /// <summary>
     /// Everything a NEWER build wrote that this one does not know, carried through untouched.
     ///
     /// Not a nicety - it closes a data-loss hole. KPIDialog deserialises a definition, mutates it
@@ -290,9 +301,13 @@ public sealed class KpiDefinition
     [JsonIgnore]
     public bool AllowsSeries => YieldsNumber;
 
-    /// <summary>The definition asks for a history AND could have one.</summary>
+    /// <summary>
+    /// The definition asks for something the series provides - a curve, the average, or both - AND
+    /// could have one. The average alone is reason enough to compute it.
+    /// </summary>
     [JsonIgnore]
-    public bool WantsSeries => SeriesDisplay != KpiSeriesDisplay.None && AllowsSeries;
+    public bool WantsSeries
+        => (SeriesDisplay != KpiSeriesDisplay.None || ShowAverage) && AllowsSeries;
 
     /// <summary>A light needs both a direction and something to compare against.</summary>
     [JsonIgnore]

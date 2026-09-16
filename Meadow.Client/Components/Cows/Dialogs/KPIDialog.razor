@@ -6,6 +6,7 @@
 
 @inject IKPIService KPIService
 @inject IDialogService DialogService
+@inject KpiRowProvider RowProvider
 @inject ThemeState Theme
 
 @*
@@ -29,7 +30,7 @@
     von denen eines Duplikate erlaubt, waren die Ursache der beliebigen
     Reihenfolge und nicht ihr Symptom - sortiert wird jetzt in der Liste.
 *@
-<MeadowDialog Title="@(IsSave ? "KPI hinzufügen" : "KPI bearbeiten")" Size="MeadowDialogSize.Wide"
+<MeadowDialog Title="@(IsSave ? "KPI hinzufügen" : "KPI bearbeiten")" Size="MeadowDialogSize.Split"
               OnClose="TryCancelAsync">
     <ChildContent>
         @if (ShowTemplates)
@@ -169,7 +170,33 @@
             }
             else
             {
-                <MeadowKpiBuilder Definition="_definition" Changed="OnDefinitionChanged" />
+                @* Zwei Spalten: links die Einstellung, rechts ihre Wirkung.
+                   Untereinander scrollte das eine aus dem Bild, sobald man am anderen drehte -
+                   und genau deshalb sah man die Kachel vorher nur als abstrakte Zahl statt als
+                   das, was hinterher auf dem Dashboard steht. *@
+                <div class="mw-kpi-split">
+                    <div class="mw-kpi-split__form">
+                        <MeadowKpiBuilder Definition="_definition" Rows="_rows"
+                                          Changed="OnDefinitionChanged" />
+                    </div>
+
+                    <aside class="mw-kpi-split__side">
+                        <MeadowKpiPreview Result="Preview" Definition="_definition"
+                                          Series="PreviewSeries" Title="@KPI.Title"
+                                          TotalRows="_rows.Count" />
+
+                        @* Dieselbe Auswahl, als SQL. Nicht nur zum Nachlesen: der Expertenmodus
+                           uebernimmt genau dieses Skript, man startet dort also nicht bei null.
+
+                           Erzeugt wird es aus derselben Definition, aus der die Kachel daneben
+                           rechnet, und es liefert nachweislich denselben Wert - inklusive der
+                           deutschen Zahlenformatierung und der Einheit. *@
+                        <div class="mw-kpi-split__sql">
+                            <span class="mw-label">Als SQL</span>
+                            <pre class="mw-sqlbox">@Script.Annotated</pre>
+                        </div>
+                    </aside>
+                </div>
             }
 
             @if (_saveError.Length > 0)
@@ -224,6 +251,43 @@
     private KpiDefinition _definition = new();
     private bool _expert;
 
+    /// <summary>
+    /// Die Zeilen der aktuellen Quelle. Der Dialog besitzt sie, nicht das Formular: Vorschau,
+    /// Reihe und Filteroptionen brauchen dieselben, und KpiRowProvider ist ausdruecklich nicht
+    /// gecacht (siehe seinen Kopfkommentar) - zwei Besitzer hiessen zwei Projektionen pro
+    /// Tastendruck.
+    /// </summary>
+    private IReadOnlyList<KpiRow> _rows = Array.Empty<KpiRow>();
+
+    private KpiSourceId? _rowsFor;
+
+    private KpiSourceInfo Source
+        => KpiSourceRegistry.Find(_definition.Source) ?? KpiSourceRegistry.All[0];
+
+    /// <summary>
+    /// Live, ohne Knopfdruck und ohne Datenbank: der Evaluator ist eine reine Funktion ueber die
+    /// Caches, die ohnehin im Speicher liegen. Das ist der spuerbarste Unterschied zum bisherigen
+    /// "SQL testen", das eine DB-Runde gekostet hat und an das man sich erinnern musste.
+    /// </summary>
+    private KpiResult Preview => KpiEvaluator.Evaluate(_definition, Source, _rows, DateTime.Now);
+
+    /// <summary>
+    /// Der Verlauf der Vorschau - nur gerechnet, wenn die Definition ihn auch anfordert. Dieselbe
+    /// Zurueckhaltung wie in KpiDashboard: wer weder Linie noch Durchschnitt will, soll sie nicht
+    /// bezahlen, und das hier laeuft bei JEDEM Tastendruck im Formular.
+    /// </summary>
+    private KpiSeries? PreviewSeries
+        => _definition.WantsSeries
+            ? KpiEvaluator.Series(_definition, Source, _rows, DateTime.Now)
+            : null;
+
+    /// <summary>
+    /// Dieselbe Definition als SQL. Reine Funktion, also einfach mitberechnet statt gecacht - und
+    /// AdoptGeneratedSql ruft dieselbe Funktion auf, sodass die Kachel daneben und das
+    /// uebernommene Skript nicht auseinanderlaufen koennen.
+    /// </summary>
+    private KpiSqlScript Script => KpiSqlBuilder.Build(_definition, Source);
+
     /// <summary>Das zuletzt aus dem Formular erzeugte Skript - der Vergleichswert dafuer, ob im
     /// Editor etwas von Hand geaendert wurde.</summary>
     private string? _generated;
@@ -276,7 +340,24 @@
         // Definition schon mit - die Vorlagen stehen nur vor einem wirklich leeren Formular.
         _templateChosen = !IsSave || KPI.IsBuilder || !string.IsNullOrWhiteSpace(KPI.Script);
 
+        LoadRows();
         _snapshot = Fingerprint();
+    }
+
+    /// <summary>
+    /// Holt die Zeilen, wenn sich die Quelle geaendert hat - und nur dann. Die Liste wird als
+    /// NEUE Referenz weitergereicht, daran erkennt das Formular, dass es seine Filteroptionen
+    /// neu aufbauen muss.
+    /// </summary>
+    private void LoadRows()
+    {
+        if (_rowsFor == _definition.Source)
+        {
+            return;
+        }
+
+        _rowsFor = _definition.Source;
+        _rows = RowProvider.Rows(_definition.Source);
     }
 
     private string Fingerprint()
@@ -300,6 +381,7 @@
         }
 
         _templateChosen = true;
+        LoadRows();
         // Der Schnappschuss wird NEU gesetzt: die Vorlage ist der Ausgangspunkt, nicht die erste
         // Aenderung - sonst fragte der Abbrechen-Knopf sofort nach, ob man verwerfen will.
         _snapshot = Fingerprint();
@@ -341,19 +423,13 @@
     /// </summary>
     private void AdoptGeneratedSql(bool force = false)
     {
-        var source = KpiSourceRegistry.Find(_definition.Source);
-        if (source is null)
-        {
-            return;
-        }
-
         if (!force && _handEdited)
         {
             _scriptKept = true;
             return;
         }
 
-        _generated = KpiSqlBuilder.Build(_definition, source).Annotated;
+        _generated = Script.Annotated;
         KPI.Script = _generated;
         _scriptKept = false;
         _handEdited = false;
@@ -367,7 +443,11 @@
         ClearCheck();
     }
 
-    private void OnDefinitionChanged() => _saveError = string.Empty;
+    private void OnDefinitionChanged()
+    {
+        _saveError = string.Empty;
+        LoadRows();
+    }
 
     private void OnTitleChanged(string value)
     {

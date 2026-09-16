@@ -5,18 +5,21 @@
 @*
     Die Live-Vorschau im KPI-Dialog.
 
-    Sie ersetzt den Knopf "SQL testen", der eine Datenbankrunde gekostet hat,
-    das Skript dabei tatsaechlich AUSGEFUEHRT hat und den rohen
-    DB-Ausnahmetext in den Browser geschrieben hat. Hier rechnet der
-    Evaluator ueber die Caches im Speicher - also sofort, bei jeder Aenderung,
-    und ohne dass man an etwas denken muss.
+    Sie zeigt die ECHTE Kachel - dieselbe Komponente, die danach auf dem
+    Dashboard steht, mit denselben Parametern. Vorher stand hier eine eigene,
+    abstrakte Darstellung: Zahl plus Delta plus Zeilenzaehler. Die beantwortete
+    "rechnet das richtig", aber nicht "sieht das richtig aus", und genau das ist
+    beim Einstellen von Ampel, Verlauf und Durchschnitt die Frage.
+
+    Sie ersetzt ausserdem weiterhin den Knopf "SQL testen", der eine
+    Datenbankrunde gekostet hat, das Skript dabei tatsaechlich AUSGEFUEHRT hat
+    und den rohen DB-Ausnahmetext in den Browser geschrieben hat. Hier rechnet
+    der Evaluator ueber die Caches im Speicher - also sofort, bei jeder
+    Aenderung, und ohne dass man an etwas denken muss.
 
     "n von m Zeilen" nach dem Vorbild von CountText in den Tabellen: es macht
     den Unterschied zwischen "der Filter trifft nichts" und "die Kennzahl ist
     nun mal 0" sichtbar, statt beides als eine Null zu zeigen.
-
-    Die Ampel steht hier mit derselben Komponente wie auf der Kachel: was man
-    im Editor sieht, soll danach auf dem Dashboard stehen.
 *@
 <div class="mw-kpi-preview">
     <div class="mw-kpi-preview__head">
@@ -24,56 +27,47 @@
         <span class="mw-result-count">@CountText</span>
     </div>
 
-    <div class="@ValueClass">
-        <span class="mw-kpi-preview__value">@Result.Display</span>
-        @if (!string.IsNullOrWhiteSpace(Result.DeltaDisplay))
-        {
-            <span class="mw-kpi-preview__delta">@Result.DeltaDisplay</span>
-        }
-        <MeadowKpiFlag Status="Result.Status" Size="18" />
-        @if (Values is { Count: > 2 })
-        {
-            @* Dieselbe Komponente wie auf der Kachel, damit man im Editor sieht, was danach
-               auf dem Dashboard steht. *@
-            <MeadowSparkline Values="Values" Variant="KpiSeriesDisplay.Inline" Class="mw-spark--preview" />
-        }
+    @* Auf einer Flaeche in Dashboard-Farbe, damit die weisse Kachel als Kachel
+       zu erkennen ist und nicht mit dem Dialoghintergrund verschwimmt. *@
+    <div class="mw-kpi-preview__stage">
+        <MeadowKpiTile Title="@TileTitle"
+                       Value="@Result.Display"
+                       Delta="@Result.DeltaDisplay"
+                       Trend="@Result.Trend"
+                       Status="@Result.Status"
+                       Series="@Values"
+                       SeriesDisplay="@Definition.SeriesDisplay"
+                       Average="@AverageDisplay"
+                       AverageLabel="@AverageLabel"
+                       HasError="@IsError"
+                       Hint="@Result.Message" />
     </div>
-
-    @if (Series?.AverageDisplay is { } average && SeriesDisplay == KpiSeriesDisplay.Chart)
-    {
-        <p class="mw-hint">@KpiDefinitionSummary.AverageLabel(Series.Bucket): @average</p>
-    }
-
-    @if (!string.IsNullOrWhiteSpace(Result.Message))
-    {
-        <div class="@MessageClass">@Result.Message</div>
-    }
 </div>
 
 @*
     Die Ansage fuer Screenreader steht BEWUSST in einem eigenen, unsichtbaren
-    Element und nicht als aria-live am Wert oben.
+    Element und nicht als aria-live an der Kachel.
 
-    Die Vorschau rechnet bei jedem Tastendruck neu. Ein aria-live direkt auf
-    dem Wert liesse jede Zwischenzahl vorlesen - beim Tippen von "12" also
-    erst "1", dann "12". Entprellt wie MeadowSearchBox: angesagt wird, was
-    nach der letzten Aenderung stehen bleibt.
+    Die Vorschau rechnet bei jedem Tastendruck neu. Ein aria-live direkt am
+    Wert liesse jede Zwischenzahl vorlesen - beim Tippen von "12" also erst
+    "1", dann "12". Entprellt wie MeadowSearchBox: angesagt wird, was nach der
+    letzten Aenderung stehen bleibt.
 *@
 <span class="mw-sr-only" role="status" aria-live="polite" aria-atomic="true">@_announced</span>
 
 @code {
     [Parameter, EditorRequired] public KpiResult Result { get; set; } = default!;
 
-    /// <summary>Zeilen der Quelle insgesamt, also vor Zeitraum und Filtern.</summary>
-    [Parameter] public int TotalRows { get; set; }
+    [Parameter, EditorRequired] public KpiDefinition Definition { get; set; } = new();
 
     /// <summary>Der Verlauf, oder null wenn die Definition keinen will.</summary>
     [Parameter] public KpiSeries? Series { get; set; }
 
-    [Parameter] public KpiSeriesDisplay SeriesDisplay { get; set; }
+    /// <summary>Der eingetippte Titel. Leer: Platzhalter, damit die Kachel nicht kopflos wirkt.</summary>
+    [Parameter] public string? Title { get; set; }
 
-    private IReadOnlyList<double?>? Values
-        => Series?.Points.Select(p => p.Value).ToList();
+    /// <summary>Zeilen der Quelle insgesamt, also vor Zeitraum und Filtern.</summary>
+    [Parameter] public int TotalRows { get; set; }
 
     private const int AnnounceDelayMs = 700;
 
@@ -83,15 +77,17 @@
 
     private bool IsError => Result.State == KpiResultState.Error;
 
-    private string ValueClass => IsError
-        ? "mw-kpi-preview__row is-error"
-        : "mw-kpi-preview__row";
+    private string TileTitle
+        => string.IsNullOrWhiteSpace(Title) ? "Ohne Titel" : Title!;
 
-    /// <summary>
-    /// Ein Hinweis ist kein Fehler. Gemischte Dosiereinheiten und ein toter Filterwert sagen
-    /// "diese Zahl ist zweifelhaft" - der rote Kasten sagte bisher "hier ist etwas kaputt".
-    /// </summary>
-    private string MessageClass => IsError ? "mw-errbox" : "mw-hint mw-hint--warn";
+    private IReadOnlyList<double?>? Values
+        => Series?.Points.Select(p => p.Value).ToList();
+
+    private string? AverageDisplay
+        => Definition.ShowAverage ? Series?.AverageDisplay : null;
+
+    private string? AverageLabel
+        => Series is { } series ? KpiDefinitionSummary.AverageLabel(series.Bucket) : null;
 
     private string CountText => IsError
         ? "nicht berechenbar"

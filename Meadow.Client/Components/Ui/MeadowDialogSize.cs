@@ -16,5 +16,15 @@ public enum MeadowDialogSize
     Claw,
 
     /// <summary>760px — KPI-Dialog mit SQL-Editor; zeichnet das Design nicht.</summary>
-    Wide
+    Wide,
+
+    /// <summary>
+    /// 1040px — zwei Spalten: Optionen links, die fertig gerenderte Kachel und ihr SQL rechts.
+    ///
+    /// Breiter als alles andere, weil hier zwei Dinge NEBENEINANDER stehen muessen: die
+    /// Einstellung und ihre Wirkung. Untereinander scrollt das eine aus dem Bild, sobald man am
+    /// anderen dreht - und genau das war der Grund, warum man die Kachel vorher nur als abstrakte
+    /// Zahl sah statt als das, was hinterher auf dem Dashboard steht.
+    /// </summary>
+    Split
 }

@@ -1057,16 +1057,74 @@ a.mw-icon-btn { text-decoration: none; }
   font-size: 32px;
 }
 
+/* ── Zweispaltiger KPI-Dialog ─────────────────────────────────── */
+/* Links die Einstellung, rechts ihre Wirkung. Untereinander scrollt das eine
+   aus dem Bild, sobald man am anderen dreht - und genau deshalb sah man die
+   Kachel vorher nur als abstrakte Zahl statt als das, was hinterher auf dem
+   Dashboard steht.
+
+   minmax(0, 1fr) und nicht 1fr: sonst zwingt der <pre> mit dem SQL die Spalte
+   auf seine Inhaltsbreite und die Aufteilung kippt. */
+.mw-kpi-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 20px;
+  align-items: start;
+}
+.mw-kpi-split__form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.mw-kpi-split__side {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  /* Klebt beim Scrollen im Dialogkoerper mit: die Kachel ist der Grund, warum
+     man hier scrollt, und soll nicht als Erstes verschwinden. */
+  position: sticky;
+  top: 0;
+}
+.mw-kpi-split__sql {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* Eine Spalte, sobald 320px daneben nicht mehr ehrlich unterzubringen sind.
+   Die Vorschau steht dann ZUERST, damit man beim Scrollen durch die Optionen
+   nicht erst am Ende erfaehrt, was man gebaut hat. */
+@media (max-width: 899.98px) {
+  .mw-kpi-split { grid-template-columns: 1fr; }
+  .mw-kpi-split__side { position: static; order: -1; }
+}
+
 /* ── Live-Vorschau im KPI-Dialog ──────────────────────────────── */
+/* Kein Rahmen und kein Panel mehr: die ECHTE Kachel steckt jetzt darin, und
+   eine Karte in einer Karte macht aus der Vorschau eine eigene Sache statt
+   eines Blicks aufs Ergebnis. */
 .mw-kpi-preview {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-top: 4px;
-  padding: 12px 14px;
-  background: var(--mw-panel);
-  border: 1px solid var(--mw-border);
+  min-width: 0;
+}
+
+/* Die Buehne traegt die Dashboard-Farbe, damit die weisse Kachel als Kachel zu
+   erkennen ist und nicht mit dem Dialoghintergrund verschwimmt. */
+.mw-kpi-preview__stage {
+  padding: 14px;
+  background: var(--mw-canvas);
   border-radius: var(--mw-r-2xl);
+}
+/* Im Dialog hat die Kachel kein Klickziel - der Zeigefinger versprach sonst
+   eine Navigation, die es hier nicht gibt. */
+.mw-kpi-preview__stage .mw-kpi { cursor: default; }
+@media (hover: hover) {
+  .mw-kpi-preview__stage .mw-kpi:hover { transform: none; box-shadow: var(--mw-shadow-card); }
 }
 .mw-kpi-preview__head {
   display: flex;
@@ -2326,6 +2384,7 @@ a.mw-icon-btn { text-decoration: none; }
 .mw-dlg--showclaw { --mw-dlg-w: 520px; }
 .mw-dlg--claw     { --mw-dlg-w: 560px; }
 .mw-dlg--wide     { --mw-dlg-w: 760px; }
+.mw-dlg--split    { --mw-dlg-w: 1040px; }
 
 /* st.dlgHead / st.dlgTitle / st.dlgClose */
 .mw-dlg-head {
