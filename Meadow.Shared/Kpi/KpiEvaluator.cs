@@ -42,9 +42,74 @@ public static class KpiEvaluator
 
         result = result with { MatchedRows = current.Count };
         result = WithComparison(result, definition, source, rows, now);
+        result = result with { Message = result.Message ?? StaleFilterHint(definition, rows) };
 
-        return result with { Message = result.Message ?? StaleFilterHint(definition, rows) };
+        return WithStatus(result, definition);
     }
+
+    // ---- Traffic light -------------------------------------------------
+
+    /// <summary>
+    /// Applies the target, if there is one that can be applied.
+    ///
+    /// Withheld - deliberately, and each for its own reason:
+    /// - no target, or a measure that yields a label rather than a number;
+    /// - an error, which has no number at all;
+    /// - a null Number, which is what an average over nothing is;
+    /// - thresholds in the wrong order, which is a mistake in the definition rather than in the data;
+    /// - ANY message. Mixed dosage units and a dead filter value both say "this number is doubtful",
+    ///   and a green light on a doubtful number reads as reassurance that nobody checked.
+    ///
+    /// Note what is NOT withheld: a zero. FromCount reports State = Empty for it, but Number is 0,
+    /// and "0 open bandages" is the single most useful green tile on the dashboard. That is exactly
+    /// why the condition hangs on Number and not on State.
+    /// </summary>
+    private static KpiResult WithStatus(KpiResult result, KpiDefinition definition)
+    {
+        if (!definition.HasTarget
+            || !definition.AllowsTarget
+            || result.State == KpiResultState.Error
+            || result.Number is not double value)
+        {
+            return result;
+        }
+
+        if (!definition.TargetIsConsistent)
+        {
+            return result with
+            {
+                Message = result.Message ?? InconsistentTargetHint(definition)
+            };
+        }
+
+        return result.Message is null
+            ? result with { Status = Rate(definition, value) }
+            : result;
+    }
+
+    /// <summary>Bands are inclusive at their boundary: with "good up to 3", a 3 is good.</summary>
+    private static KpiStatus Rate(KpiDefinition definition, double value)
+    {
+        var good = definition.TargetGood!.Value;
+        var lower = definition.TargetDirection == KpiTargetDirection.LowerIsBetter;
+
+        if (lower ? value <= good : value >= good)
+        {
+            return KpiStatus.Good;
+        }
+
+        if (definition.TargetWarning is not double warning)
+        {
+            return KpiStatus.Bad;
+        }
+
+        return (lower ? value <= warning : value >= warning) ? KpiStatus.Warning : KpiStatus.Bad;
+    }
+
+    private static string InconsistentTargetHint(KpiDefinition definition)
+        => definition.TargetDirection == KpiTargetDirection.LowerIsBetter
+            ? "Die Warnschwelle liegt unter dem Zielwert - so gibt es keinen Warnbereich."
+            : "Die Warnschwelle liegt über dem Zielwert - so gibt es keinen Warnbereich.";
 
     // ---- Validation ----------------------------------------------------
 
@@ -156,6 +221,30 @@ public static class KpiEvaluator
 
     private static int DistinctCows(IEnumerable<KpiRow> rows)
         => rows.Select(r => r.CowId).Distinct(StringComparer.Ordinal).Count();
+
+    /// <summary>
+    /// The bare number a measure produces over a set of rows - no formatting, no state, no unit.
+    ///
+    /// Null means "not a number here": a Top-1 ranking yields a label, and an average over nothing
+    /// is undefined rather than zero. A count or a sum over nothing IS zero, and that difference
+    /// matters: a gap in a series is not a dip to the floor, and "0 open bandages" deserves a green
+    /// light where "no doses to average" deserves none.
+    ///
+    /// Extracted because the same switch was written twice - once to build the result, once to
+    /// compute the previous period - and the series in KpiSeries would have been the third copy.
+    /// </summary>
+    private static double? MeasureOf(KpiMeasure measure, IReadOnlyList<KpiRow> rows) => measure switch
+    {
+        KpiMeasure.Count => rows.Count,
+        KpiMeasure.CountDistinctCows => DistinctCows(rows),
+        KpiMeasure.SumDosage => rows.Where(r => r.Dosage.HasValue).Sum(r => r.Dosage!.Value),
+        // Average over a nullable sequence returns null when it is empty - exactly the wanted
+        // "undefined", without a NaN sentinel to remember to check for.
+        KpiMeasure.AvgDosage => rows.Where(r => r.Dosage.HasValue)
+            .Select(r => (double?)r.Dosage!.Value)
+            .Average(),
+        _ => null
+    };
 
     // ---- Measures ------------------------------------------------------
 
@@ -297,24 +386,13 @@ public static class KpiEvaluator
         }
 
         var previousRows = Select(definition, source, rows, now, periodsBack: 1);
-
-        double previous = definition.Measure switch
-        {
-            KpiMeasure.Count => previousRows.Count,
-            KpiMeasure.CountDistinctCows => DistinctCows(previousRows),
-            KpiMeasure.SumDosage => previousRows.Where(r => r.Dosage.HasValue).Sum(r => r.Dosage!.Value),
-            KpiMeasure.AvgDosage => previousRows.Where(r => r.Dosage.HasValue)
-                .Select(r => r.Dosage!.Value)
-                .DefaultIfEmpty(double.NaN)
-                .Average(),
-            _ => double.NaN
-        };
+        var previousValue = MeasureOf(definition.Measure, previousRows);
 
         // A previous value of zero has no percentage: the change from 0 to anything is not "infinite
         // growth", it is simply not a ratio. Showing no trend beats showing a meaningless one.
-        if (double.IsNaN(previous) || previous == 0)
+        if (previousValue is not double previous || previous == 0)
         {
-            return result with { Previous = double.IsNaN(previous) ? null : previous };
+            return result with { Previous = previousValue };
         }
 
         var delta = (result.Number.Value - previous) / previous * 100.0;

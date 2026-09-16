@@ -19,6 +19,25 @@
     dazustehen - die Faehigkeiten stehen in KpiSourceRegistry, nicht hier.
 *@
 
+@* Was der Quellen- oder Kennzahlwechsel verworfen hat, steht hier - direkt unter der Auswahl,
+   die es ausgeloest hat. Vorher aenderte Normalize() Kennzahl, Gruppierung und Zeitraum still
+   und leerte die Filter dazu; man merkte es erst an einer Kachel, die etwas anderes zaehlte
+   als gedacht. *@
+@if (_changes.Count > 0)
+{
+    <div class="mw-notice" role="status">
+        <div>
+            @foreach (var change in _changes)
+            {
+                <p>@change</p>
+            }
+        </div>
+        <button type="button" class="mw-btn mw-btn--ghost mw-btn--sm" @onclick="DismissChanges">
+            Verstanden
+        </button>
+    </div>
+}
+
 <div class="mw-field-row">
     <div class="mw-col">
         <MeadowSingleSelect Label="Datenquelle" Options="SourceLabels"
@@ -38,7 +57,11 @@
                         ValueChanged="OnGroupChanged" />
 }
 
-@if (Definition.RequiresDosage)
+@* Die Einheit haengt an "liefert eine Zahl", nicht an "misst eine Menge": KpiEvaluator.FromCount
+   haengt sie laengst an, nur das Formular hat sie hinter RequiresDosage versteckt - eine Zaehlung
+   konnte deshalb kein "Kühe" oder "Fälle" tragen. Die Nachkommastellen bleiben bei den Mengen,
+   dort haben sie als einzige eine Bedeutung. *@
+@if (Definition.YieldsNumber)
 {
     <div class="mw-field-row">
         <div class="mw-col">
@@ -46,17 +69,20 @@
             <div class="mw-field">
                 <MudTextField T="string" InputId="mw-kpi-unit" Variant="Variant.Text"
                               Value="@(Definition.Unit ?? "")"
-                              ValueChanged="OnUnitChanged" Placeholder="z.B. ml" />
+                              ValueChanged="OnUnitChanged" Placeholder="@UnitPlaceholder" />
             </div>
         </div>
-        <div class="mw-col">
-            <label class="mw-label" for="mw-kpi-dec">Nachkommastellen</label>
-            <div class="mw-field">
-                <MudNumericField T="int" InputId="mw-kpi-dec" Variant="Variant.Text"
-                                 HideSpinButtons="true" Min="0" Max="4"
-                                 Value="Definition.Decimals" ValueChanged="OnDecimalsChanged" />
+        @if (Definition.RequiresDosage)
+        {
+            <div class="mw-col">
+                <label class="mw-label" for="mw-kpi-dec">Nachkommastellen</label>
+                <div class="mw-field">
+                    <MudNumericField T="int" InputId="mw-kpi-dec" Variant="Variant.Text"
+                                     HideSpinButtons="true" Min="0" Max="4"
+                                     Value="Definition.Decimals" ValueChanged="OnDecimalsChanged" />
+                </div>
             </div>
-        </div>
+        }
     </div>
 }
 
@@ -87,6 +113,8 @@
     }
 }
 
+<MeadowKpiTargetFields Definition="Definition" Changed="Notify" UnitSuffix="@(Definition.Unit ?? "")" />
+
 <MeadowKpiPreview Result="Preview" TotalRows="_rows.Count" />
 
 @* Dieselbe Auswahl, als SQL. Nicht nur zum Nachlesen: der Expertenmodus
@@ -114,8 +142,15 @@
 
     [Parameter] public EventCallback Changed { get; set; }
 
-    private static readonly KpiTimeframe[] AllTimeframes =
-        { KpiTimeframe.All, KpiTimeframe.Days7, KpiTimeframe.Days30 };
+    // Aus der Tabelle in Shared, nicht als eigene Liste: ein neuer Zeitraum soll hier von selbst
+    // auftauchen und nicht an einer vergessenen Aufzaehlung haengenbleiben.
+    private static readonly IReadOnlyList<KpiTimeframe> AllTimeframes = KpiTimeframes.All;
+
+    /// <summary>
+    /// Was Normalize() bei der LETZTEN Aktion korrigiert hat. Wird zu Beginn jeder Aktion geleert,
+    /// damit der Hinweis immer den gerade ausgeloesten Schaden beschreibt und sich nichts aufstaut.
+    /// </summary>
+    private readonly List<string> _changes = new();
 
     private IReadOnlyList<KpiRow> _rows = Array.Empty<KpiRow>();
     private readonly Dictionary<string, HashSet<string>> _selected = new(StringComparer.Ordinal);
@@ -187,6 +222,14 @@
     private IReadOnlyList<string> TimeframeLabels
         => AllTimeframes.Select(t => KpiDefinitionSummary.TimeframeOption(t, Source.IsPlanned)).ToList();
 
+    /// <summary>Passt sich der Kennzahl an, damit das Feld nicht nach "ml" aussieht, wo "Kühe" hingehört.</summary>
+    private string UnitPlaceholder => Definition.Measure switch
+    {
+        KpiMeasure.SumDosage or KpiMeasure.AvgDosage => "z.B. ml",
+        KpiMeasure.CountDistinctCows => "z.B. Kühe",
+        _ => "z.B. Fälle"
+    };
+
     private string CompareHint => Definition.Measure == KpiMeasure.TopValue
         ? "Ein häufigster Wert ist keine Zahl und lässt sich nicht vergleichen."
         : "Ohne Zeitraum gibt es keinen Vorzeitraum - wähle 7 oder 30 Tage.";
@@ -201,10 +244,17 @@
             return;
         }
 
+        _changes.Clear();
         Definition.Source = source.Id;
+
         // Die Filter der alten Quelle gelten hier nicht: sie wuerden als unbekannte Schluessel
         // liegen bleiben und die Kachel still auf null Treffer filtern.
-        Definition.Filters.Clear();
+        if (Definition.Filters.Count > 0)
+        {
+            Definition.Filters.Clear();
+            Note("Die Filter der vorherigen Datenquelle gelten hier nicht und wurden entfernt.");
+        }
+
         Load();
         Normalize();
         Notify();
@@ -212,6 +262,7 @@
 
     private void OnMeasureChanged(string label)
     {
+        _changes.Clear();
         var measure = Source.Measures
             .FirstOrDefault(m => KpiDefinitionSummary.MeasureLabel(m) == label);
         Definition.Measure = measure;
@@ -228,6 +279,7 @@
 
     private void OnTimeframeChanged(string label)
     {
+        _changes.Clear();
         Definition.Timeframe = AllTimeframes
             .FirstOrDefault(t => KpiDefinitionSummary.TimeframeOption(t, Source.IsPlanned) == label);
         Normalize();
@@ -278,14 +330,23 @@
     {
         if (!Source.Supports(Definition.Measure))
         {
+            var was = KpiDefinitionSummary.MeasureLabel(Definition.Measure);
             Definition.Measure = Source.Measures.First();
+            Note($"„{was}\" gibt es für diese Quelle nicht - die Berechnung steht jetzt auf "
+                 + $"„{KpiDefinitionSummary.MeasureLabel(Definition.Measure)}\".");
         }
 
         if (Definition.RequiresGroupBy)
         {
             if (!Source.Supports(Definition.GroupBy))
             {
+                var was = Definition.GroupBy;
                 Definition.GroupBy = Source.Groupings.FirstOrDefault();
+                if (was != KpiGroupBy.None)
+                {
+                    Note($"Nach „{KpiDefinitionSummary.GroupBy(was)}\" lässt sich hier nicht "
+                         + $"gruppieren - jetzt nach „{KpiDefinitionSummary.GroupBy(Definition.GroupBy)}\".");
+                }
             }
         }
         else
@@ -293,22 +354,41 @@
             Definition.GroupBy = KpiGroupBy.None;
         }
 
-        if (!Source.SupportsTimeframe)
+        if (!Source.SupportsTimeframe && Definition.Timeframe != KpiTimeframe.All)
         {
             Definition.Timeframe = KpiTimeframe.All;
+            Note($"„{Source.Label}\" hat keine Datumsspalte - der Zeitraum steht jetzt auf „Alle\".");
         }
 
-        if (!Definition.AllowsComparison || !Source.SupportsCompare)
+        if ((!Definition.AllowsComparison || !Source.SupportsCompare) && Definition.CompareToPrevious)
         {
             Definition.CompareToPrevious = false;
+            Note("Der Vergleich zum Vorzeitraum ist hier nicht möglich und wurde abgeschaltet.");
+        }
+
+        if (!Definition.YieldsNumber && Definition.Unit is not null)
+        {
+            Definition.Unit = null;
+            Note("„Häufigster Wert\" liefert einen Namen - die Einheit wurde entfernt.");
         }
 
         if (!Definition.RequiresDosage)
         {
-            Definition.Unit = null;
             Definition.Decimals = 0;
         }
+
+        if (!Definition.AllowsTarget && Definition.TargetDirection != KpiTargetDirection.None)
+        {
+            Definition.TargetDirection = KpiTargetDirection.None;
+            Definition.TargetGood = null;
+            Definition.TargetWarning = null;
+            Note("Ein Name lässt sich nicht gegen einen Zielwert prüfen - die Ampel wurde entfernt.");
+        }
     }
+
+    private void Note(string text) => _changes.Add(text);
+
+    private void DismissChanges() => _changes.Clear();
 
     private void Notify() => Changed.InvokeAsync();
 }

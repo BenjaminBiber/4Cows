@@ -19,6 +19,23 @@ public enum KpiResultState
     Error
 }
 
+/// <summary>
+/// The traffic light, once a KPI carries a target.
+///
+/// None is not a fourth colour, it means "not rated" - no target set, nothing rateable (a Top-1
+/// label), or the value itself is under suspicion. That last case is the one worth naming: mixed
+/// dosage units and a filter value that occurs nowhere both mean "this number is doubtful", and a
+/// green dot on a doubtful number is worse than no dot at all. So the light stays silent for as
+/// long as the tile has something to complain about.
+/// </summary>
+public enum KpiStatus
+{
+    None,
+    Good,
+    Warning,
+    Bad
+}
+
 /// <summary>Direction of the previous-period delta, for the tile to render.</summary>
 public enum KpiTrend
 {
@@ -53,6 +70,13 @@ public sealed record KpiResult
     public string? DeltaDisplay { get; init; }
 
     public KpiTrend Trend { get; init; }
+
+    /// <summary>
+    /// The traffic light. <see cref="KpiStatus.None"/> unless the definition carries a target the
+    /// evaluator could actually apply - which is also what every result computed before targets
+    /// existed says, so nothing that does not opt in changes colour.
+    /// </summary>
+    public KpiStatus Status { get; init; }
 
     /// <summary>How many rows the filters and timeframe left. Lets "0" be told apart from "broken".</summary>
     public int MatchedRows { get; init; }

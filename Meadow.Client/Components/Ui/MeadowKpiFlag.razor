@@ -1,0 +1,63 @@
+@using Meadow.Shared.Kpi
+
+@*
+    Die Ampel einer KPI-Kachel.
+
+    DREI FORMEN, nicht drei Farben: Kreis, Dreieck, Achteck. Die Form traegt
+    die Auskunft, die Farbe bestaetigt sie nur - dieselbe Regel, nach der die
+    Serienfarben der Kuchendiagramme auf Farbfehlsichtigkeit geprueft wurden.
+    Wer Rot und Gruen nicht unterscheidet, liest hier trotzdem mit.
+
+    Daneben steht immer ein mw-sr-only-Text, und die Kachel nimmt denselben
+    Text zusaetzlich in ihr aria-label auf. Der Titel-Tooltip ist nur die
+    Zugabe fuer die Maus - auf dem Tablet erreicht ihn niemand.
+
+    Eigene Komponente, weil Kachel UND Live-Vorschau im Dialog dasselbe
+    Zeichen zeigen muessen: was man im Editor sieht, soll danach auf dem
+    Dashboard stehen.
+*@
+
+@if (Status != KpiStatus.None)
+{
+    <span class="@CssClass" title="@Text">
+        <svg viewBox="0 0 16 16" width="@Size" height="@Size" aria-hidden="true" focusable="false">
+            @switch (Status)
+            {
+                case KpiStatus.Good:
+                    <circle cx="8" cy="8" r="7" />
+                    <path class="mw-kpi-flag__mark" d="M4.6 8.2 L7 10.6 L11.4 5.8" />
+                    break;
+
+                case KpiStatus.Warning:
+                    <path d="M8 1 L15.4 14.4 L0.6 14.4 Z" />
+                    <path class="mw-kpi-flag__mark" d="M8 5.8 V9.6" />
+                    <path class="mw-kpi-flag__mark" d="M8 11.9 V12.0" />
+                    break;
+
+                case KpiStatus.Bad:
+                    <path d="M5.3 0.9 H10.7 L14.9 5.1 V10.5 L10.7 14.7 H5.3 L1.1 10.5 V5.1 Z" />
+                    <path class="mw-kpi-flag__mark" d="M8 4.4 V8.6" />
+                    <path class="mw-kpi-flag__mark" d="M8 11.1 V11.2" />
+                    break;
+            }
+        </svg>
+        <span class="mw-sr-only">@Text</span>
+    </span>
+}
+
+@code {
+    [Parameter] public KpiStatus Status { get; set; }
+
+    /// <summary>Kantenlaenge in Pixeln. 14 auf der Kachel, groesser auf der Detailseite.</summary>
+    [Parameter] public int Size { get; set; } = 14;
+
+    private string Text => KpiDefinitionSummary.StatusLabel(Status);
+
+    private string CssClass => "mw-kpi-flag " + Status switch
+    {
+        KpiStatus.Good => "mw-kpi-flag--good",
+        KpiStatus.Warning => "mw-kpi-flag--warn",
+        KpiStatus.Bad => "mw-kpi-flag--crit",
+        _ => ""
+    };
+}
