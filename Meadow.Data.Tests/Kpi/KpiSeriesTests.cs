@@ -236,6 +236,36 @@ public class KpiSeriesTests
     }
 
     [Fact]
+    public void The_average_alone_is_reason_enough_to_compute_the_series()
+    {
+        // The second figure is its own switch, not a property of the chart: "120, im Schnitt 8,2
+        // pro Monat" needs no picture. So asking for the average must make KpiDashboard compute
+        // the series even with no curve to draw.
+        var definition = KpiTestData.Definition(timeframe: KpiTimeframe.Days7);
+
+        Assert.False(definition.WantsSeries);
+
+        definition.ShowAverage = true;
+        Assert.True(definition.WantsSeries);
+
+        definition.ShowAverage = false;
+        definition.SeriesDisplay = KpiSeriesDisplay.Inline;
+        Assert.True(definition.WantsSeries);
+    }
+
+    [Fact]
+    public void A_label_measure_wants_no_series_however_it_is_asked()
+    {
+        // Neither switch can talk a Top-1 ranking into a history.
+        var definition = KpiTestData.Definition(
+            measure: KpiMeasure.TopValue, groupBy: KpiGroupBy.Medicine);
+        definition.ShowAverage = true;
+        definition.SeriesDisplay = KpiSeriesDisplay.Chart;
+
+        Assert.False(definition.WantsSeries);
+    }
+
+    [Fact]
     public void An_empty_series_of_averages_has_no_average_at_all()
     {
         var series = Series(

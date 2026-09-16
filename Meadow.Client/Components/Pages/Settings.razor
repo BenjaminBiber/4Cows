@@ -377,7 +377,10 @@ else
             // Dirty-Check fragen kann. Die Taste faengt MeadowDialog selbst und reicht sie an
             // KPIDialog.TryCancelAsync weiter - siehe den Kommentar in MeadowDialog.OnKeyDown.
             CloseOnEscapeKey = false,
-            MaxWidth = MaxWidth.Medium,
+            // Large und nicht Medium: Medium deckelt bei 960px und schnitte die 1040px ab, die
+            // MeadowDialogSize.Split fuer die zwei Spalten braucht. Die tatsaechliche Breite setzt
+            // weiterhin das CSS (--mw-dlg-w), das hier ist nur die Obergrenze von MudBlazor.
+            MaxWidth = MaxWidth.Large,
             FullWidth = true
         };
         var parameters = new DialogParameters<KPIDialog>

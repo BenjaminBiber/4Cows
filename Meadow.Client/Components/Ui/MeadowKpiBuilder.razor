@@ -1,6 +1,5 @@
 @using Meadow.Shared.Models
 @using Meadow.Shared.Kpi
-@inject KpiRowProvider RowProvider
 
 @*
     Das gefuehrte Formular, das den SQL-Editor als Standardweg ersetzt.
@@ -123,39 +122,33 @@
                         Value="@SeriesLabel(Definition.SeriesDisplay)"
                         ValueChanged="OnSeriesChanged" />
 
-    @if (Definition.SeriesDisplay != KpiSeriesDisplay.None)
+    @* Eigener Schalter und keine Eigenschaft des Diagramms: die zweite Zahl hilft auch ohne
+       Kurve ("120, im Schnitt 8,2 pro Monat" braucht kein Bild), und ein Diagramm hilft auch
+       ohne sie. *@
+    <MeadowSwitch Label="Durchschnitt anzeigen"
+                  Value="Definition.ShowAverage" ValueChanged="OnAverageChanged" />
+
+    @if (Definition.WantsSeries)
     {
         <p class="mw-hint">@SeriesHint</p>
     }
-}
-
-<MeadowKpiPreview Result="Preview" TotalRows="_rows.Count"
-                 Series="PreviewSeries" SeriesDisplay="Definition.SeriesDisplay" />
-
-@* Dieselbe Auswahl, als SQL. Nicht nur zum Nachlesen: der Expertenmodus
-   uebernimmt genau dieses Skript, man startet dort also nicht bei null.
-
-   Erzeugt wird es aus derselben Definition, aus der die Vorschau oben
-   rechnet, und es liefert nachweislich denselben Wert - inklusive der
-   deutschen Zahlenformatierung und der Einheit. *@
-<div class="mw-check-bar">
-    <span class="mw-label">Als SQL</span>
-    <div>
-        <button type="button" class="mw-btn mw-btn--ghost mw-btn--sm" @onclick="ToggleSql">
-            @(_sqlOpen ? "Verbergen" : "Anzeigen")
-        </button>
-    </div>
-</div>
-
-@if (_sqlOpen)
-{
-    <pre class="mw-sqlbox">@Script.Annotated</pre>
 }
 
 @code {
     [Parameter, EditorRequired] public KpiDefinition Definition { get; set; } = new();
 
     [Parameter] public EventCallback Changed { get; set; }
+
+    /// <summary>
+    /// Die Zeilen der aktuellen Datenquelle - vom Dialog geladen, nicht hier.
+    ///
+    /// Frueher holte sich dieses Formular sie selbst aus KpiRowProvider. Seit die Vorschau die
+    /// echte Kachel zeigt, braucht der Dialog dieselben Zeilen fuer Auswertung, Reihe und SQL -
+    /// und zwei Besitzer haetten den Provider bei jedem Tastendruck doppelt laufen lassen. Der
+    /// ist ausdruecklich nicht gecacht (siehe seinen Kopfkommentar), also hat er genau einen
+    /// Besitzer zu haben.
+    /// </summary>
+    [Parameter] public IReadOnlyList<KpiRow> Rows { get; set; } = Array.Empty<KpiRow>();
 
     // Aus der Tabelle in Shared, nicht als eigene Liste: ein neuer Zeitraum soll hier von selbst
     // auftauchen und nicht an einer vergessenen Aufzaehlung haengenbleiben.
@@ -167,45 +160,24 @@
     /// </summary>
     private readonly List<string> _changes = new();
 
-    private IReadOnlyList<KpiRow> _rows = Array.Empty<KpiRow>();
     private readonly Dictionary<string, HashSet<string>> _selected = new(StringComparer.Ordinal);
     private readonly Dictionary<string, IReadOnlyList<string>> _options = new(StringComparer.Ordinal);
     private KpiSourceId? _loaded;
+    private IReadOnlyList<KpiRow>? _loadedRows;
 
     private KpiSourceInfo Source
         => KpiSourceRegistry.Find(Definition.Source) ?? KpiSourceRegistry.All[0];
 
     /// <summary>
-    /// Live, ohne Knopfdruck und ohne Datenbank: der Evaluator ist eine reine Funktion ueber die
-    /// Caches, die ohnehin im Speicher liegen. Das ist der spuerbarste Unterschied zum bisherigen
-    /// "SQL testen", das eine DB-Runde gekostet hat und an das man sich erinnern musste.
+    /// Neu aufbauen, wenn die Quelle gewechselt hat ODER der Dialog andere Zeilen geschickt hat.
+    ///
+    /// Beides noetig: der Quellenwechsel passiert hier, die neuen Zeilen kommen einen Umlauf
+    /// spaeter vom Dialog. Ohne die zweite Bedingung stuenden die Filteroptionen der alten Quelle
+    /// noch da, bis irgendetwas anderes ein Neuladen ausloest.
     /// </summary>
-    private KpiResult Preview => KpiEvaluator.Evaluate(Definition, Source, _rows, DateTime.Now);
-
-    /// <summary>
-    /// Der Verlauf der Vorschau - nur gerechnet, wenn die Definition ihn auch anfordert. Dieselbe
-    /// Zurueckhaltung wie in KpiDashboard: wer keine Linie will, soll sie nicht bezahlen, und
-    /// diese Property laeuft bei JEDEM Tastendruck im Formular.
-    /// </summary>
-    private KpiSeries? PreviewSeries
-        => Definition.WantsSeries
-            ? KpiEvaluator.Series(Definition, Source, _rows, DateTime.Now)
-            : null;
-
-    /// <summary>
-    /// Dieselbe Definition als SQL. Reine Funktion, also einfach mitberechnet statt gecacht - und
-    /// der Dialog ruft beim Wechsel in den Expertenmodus dieselbe Funktion auf, sodass Vorschau und
-    /// uebernommenes Skript nicht auseinanderlaufen koennen.
-    /// </summary>
-    private KpiSqlScript Script => KpiSqlBuilder.Build(Definition, Source);
-
-    private bool _sqlOpen;
-
-    private void ToggleSql() => _sqlOpen = !_sqlOpen;
-
     protected override void OnParametersSet()
     {
-        if (_loaded != Definition.Source)
+        if (_loaded != Definition.Source || !ReferenceEquals(_loadedRows, Rows))
         {
             Load();
         }
@@ -214,7 +186,7 @@
     private void Load()
     {
         _loaded = Definition.Source;
-        _rows = RowProvider.Rows(Definition.Source);
+        _loadedRows = Rows;
 
         _options.Clear();
         _selected.Clear();
@@ -222,7 +194,7 @@
         {
             // Optionen aus den TATSAECHLICH vorkommenden Werten, nicht aus den Lookup-Tabellen -
             // die enthalten automatisch angelegte, nie benutzte Namen (siehe Cow_Table).
-            _options[tag.Key] = Source.OptionsFor(tag.Key, _rows);
+            _options[tag.Key] = Source.OptionsFor(tag.Key, Rows);
             _selected[tag.Key] = Definition.Filters.TryGetValue(tag.Key, out var values)
                 ? new HashSet<string>(values, StringComparer.OrdinalIgnoreCase)
                 : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -261,7 +233,7 @@
     private static string SeriesLabel(KpiSeriesDisplay display) => display switch
     {
         KpiSeriesDisplay.Inline => "Kleine Linie",
-        KpiSeriesDisplay.Chart => "Diagramm mit Durchschnitt",
+        KpiSeriesDisplay.Chart => "Als Diagramm",
         _ => "Kein Verlauf"
     };
 
@@ -325,7 +297,9 @@
             Note("Die Filter der vorherigen Datenquelle gelten hier nicht und wurden entfernt.");
         }
 
-        Load();
+        // KEIN Load() hier: die Zeilen der neuen Quelle kommen erst mit dem naechsten
+        // OnParametersSet vom Dialog. Load() jetzt aufzurufen baute die Optionen aus den Zeilen
+        // der ALTEN Quelle - also aus lauter Werten, die es hier nicht gibt.
         Normalize();
         Notify();
     }
@@ -365,6 +339,12 @@
     private void OnSeriesChanged(string label)
     {
         Definition.SeriesDisplay = SeriesModes.FirstOrDefault(m => SeriesLabel(m) == label);
+        Notify();
+    }
+
+    private void OnAverageChanged(bool value)
+    {
+        Definition.ShowAverage = value;
         Notify();
     }
 
@@ -461,13 +441,14 @@
             Note("Ein Name lässt sich nicht gegen einen Zielwert prüfen - die Ampel wurde entfernt.");
         }
 
-        if (Definition.SeriesDisplay != KpiSeriesDisplay.None
+        if ((Definition.SeriesDisplay != KpiSeriesDisplay.None || Definition.ShowAverage)
             && (!Definition.AllowsSeries || !Source.HasDate))
         {
             Definition.SeriesDisplay = KpiSeriesDisplay.None;
+            Definition.ShowAverage = false;
             Note(Source.HasDate
-                ? "„Häufigster Wert“ liefert einen Namen - der Verlauf wurde entfernt."
-                : $"„{Source.Label}“ hat keine Datumsspalte - der Verlauf wurde entfernt.");
+                ? "„Häufigster Wert“ liefert einen Namen - Verlauf und Durchschnitt wurden entfernt."
+                : $"„{Source.Label}“ hat keine Datumsspalte - Verlauf und Durchschnitt wurden entfernt.");
         }
     }
 

@@ -173,8 +173,11 @@
 
     private bool HasChartSeries => HasSeries && SeriesDisplay == KpiSeriesDisplay.Chart;
 
-    /// <summary>Der Vergleichswert gehoert zum Diagrammband - allein stuende er ohne Bezug da.</summary>
-    private bool HasAverage => HasChartSeries && !string.IsNullOrWhiteSpace(Average);
+    /// <summary>
+    /// Unabhaengig vom Diagramm: die zweite Zahl hilft auch ohne Kurve, und die Kurve auch ohne
+    /// sie. Der Aufrufer reicht sie nur durch, wenn die Definition sie angefordert hat.
+    /// </summary>
+    private bool HasAverage => !string.IsNullOrWhiteSpace(Average);
 
     private bool HasFoot => !string.IsNullOrWhiteSpace(Delta) || HasInlineSeries;
 
