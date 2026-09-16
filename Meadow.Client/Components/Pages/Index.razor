@@ -56,6 +56,8 @@
                                Status="@tile.Result.Status"
                                Series="@SeriesOf(tile)"
                                SeriesDisplay="@SeriesDisplayOf(tile)"
+                               Average="@tile.Series?.AverageDisplay"
+                               AverageLabel="@AverageLabelOf(tile)"
                                DetailHref="@DetailHref(tile)"
                                HasError="@(tile.Result.State == KpiResultState.Error)"
                                Hint="@tile.Result.Message" />
@@ -174,6 +176,9 @@
 
     private KpiSeriesDisplay SeriesDisplayOf(KpiTileModel tile)
         => Definition(tile)?.SeriesDisplay ?? KpiSeriesDisplay.None;
+
+    private string? AverageLabelOf(KpiTileModel tile)
+        => tile.Series is { } series ? KpiDefinitionSummary.AverageLabel(series.Bucket) : null;
 
     /// <summary>
     /// Der Verlaufs-Knopf erscheint nur, wenn es dort auch etwas zu sehen gibt - also nicht an der

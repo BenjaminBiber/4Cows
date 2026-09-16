@@ -34,24 +34,51 @@
     Kuh-Uebersicht.)
 *@
 <div class="@CssClass" title="@Hint">
-    @if (HasBackgroundSeries)
-    {
-        @* Liegt UNTER dem Inhalt und ist aria-hidden: Dekoration, die den Verlauf
-           andeutet. Der Wert bleibt vorn und lesbar - Kontrast ist hier die
-           Randbedingung, nicht die Optik. *@
-        <div class="mw-kpi__bg">
-            <MeadowSparkline Values="Series!" Variant="KpiSeriesDisplay.Background" ShowLast="false" />
-        </div>
-    }
-
     <a class="mw-kpi__link" href="@(string.IsNullOrWhiteSpace(Href) ? null : Href)"
        aria-label="@AriaLabel">
         <span class="mw-kpi__head">
             <span class="mw-kpi__title">@Title</span>
             <MeadowKpiFlag Status="Status" />
         </span>
-        <span class="mw-kpi__value">@Value</span>
+
+        @if (HasAverage)
+        {
+            @* Zwei Zahlen statt einer. Eine Zahl ohne Bezug sagt wenig - "120" wird erst
+               lesbar neben "Ø 10 pro Monat". Die Beschriftungen stehen in einer eigenen
+               Zeile darueber, damit beide Spalten dieselbe Grundlinie behalten. *@
+            <span class="mw-kpi__labels">
+                <span>Aktuell</span>
+                <span>@AverageLabel</span>
+            </span>
+        }
+
+        <span class="mw-kpi__values">
+            <span class="mw-kpi__value">@Value</span>
+            @if (HasAverage)
+            {
+                <span class="mw-kpi__avg">@Average</span>
+            }
+        </span>
     </a>
+
+    @if (HasChartSeries)
+    {
+        @* UNTER dem Wert, nicht dahinter: als Hintergrund musste die Deckkraft zwischen
+           Lesbarkeit der Zahl und Sichtbarkeit der Kurve vermitteln und verlor beides ein
+           wenig. Ein eigenes Band kostet ~56px und beendet den Streit.
+
+           Die Spanne steht am linken Rand - ohne sie ist eine Kurve nur eine Form. *@
+        <div class="mw-kpi__chart">
+            @if (Range is { } range)
+            {
+                <span class="mw-kpi__axis" aria-hidden="true">
+                    <span>@range.Max</span>
+                    <span>@range.Min</span>
+                </span>
+            }
+            <MeadowSparkline Values="Series!" Variant="KpiSeriesDisplay.Chart" />
+        </div>
+    }
 
     @if (HasFoot)
     {
@@ -124,6 +151,12 @@
 
     [Parameter] public KpiSeriesDisplay SeriesDisplay { get; set; }
 
+    /// <summary>Fertig formatierter Durchschnitt ueber die gezeigten Perioden.</summary>
+    [Parameter] public string? Average { get; set; }
+
+    /// <summary>Beschriftung dazu, z.B. "Ø pro Monat".</summary>
+    [Parameter] public string? AverageLabel { get; set; }
+
     /// <summary>Ziel des Verlaufs-Knopfes in der Ecke. Leer: kein Knopf.</summary>
     [Parameter] public string? DetailHref { get; set; }
 
@@ -138,9 +171,31 @@
 
     private bool HasInlineSeries => HasSeries && SeriesDisplay == KpiSeriesDisplay.Inline;
 
-    private bool HasBackgroundSeries => HasSeries && SeriesDisplay == KpiSeriesDisplay.Background;
+    private bool HasChartSeries => HasSeries && SeriesDisplay == KpiSeriesDisplay.Chart;
+
+    /// <summary>Der Vergleichswert gehoert zum Diagrammband - allein stuende er ohne Bezug da.</summary>
+    private bool HasAverage => HasChartSeries && !string.IsNullOrWhiteSpace(Average);
 
     private bool HasFoot => !string.IsNullOrWhiteSpace(Delta) || HasInlineSeries;
+
+    /// <summary>
+    /// Spanne der gezeichneten Werte, als Achsenbeschriftung. Ohne Nachkommastellen: an dieser
+    /// Stelle geht es um die Groessenordnung, nicht um Genauigkeit - die steht oben.
+    /// </summary>
+    private (string Min, string Max)? Range
+    {
+        get
+        {
+            var values = Series?.Where(v => v.HasValue).Select(v => v!.Value).ToList();
+            if (values is not { Count: > 0 })
+            {
+                return null;
+            }
+
+            var culture = System.Globalization.CultureInfo.CurrentCulture;
+            return (values.Min().ToString("N0", culture), values.Max().ToString("N0", culture));
+        }
+    }
 
     private string CssClass => (IsAddTile, HasError) switch
     {
@@ -181,6 +236,11 @@
         get
         {
             var text = $"{Title}: {Value}";
+
+            if (HasAverage)
+            {
+                text += $", {AverageLabel} {Average}";
+            }
 
             var state = KpiDefinitionSummary.StatusLabel(Status);
             if (!HasError && state.Length > 0)

@@ -772,16 +772,45 @@ a.mw-icon-btn { text-decoration: none; }
   .mw-kpi__more:hover { color: var(--mw-primary); background: var(--mw-tint); }
 }
 
+/* ── Zwei Zahlen statt einer ──────────────────────────────────── */
+/* Eine Zahl ohne Bezug sagt wenig. Beschriftungszeile darueber, damit die
+   beiden Spalten dieselbe Grundlinie behalten - genau die Aufteilung, die
+   Lely Horizon mit "Current / Weekly avg." macht. */
+.mw-kpi__labels {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  color: var(--mw-muted);
+}
+.mw-kpi__values {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.mw-kpi__avg {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--mw-muted);
+  white-space: nowrap;
+}
+
 /* ── Verlauf ──────────────────────────────────────────────────── */
-/* Inline-SVG und nicht Chart.js: das hier ist 72x22 gross und steht acht- bis
-   zwoelfmal auf einem Dashboard. Ein <path> erbt seine Farbe aus CSS und
-   kostet beim Theme-Wechsel nichts, waehrend zwoelf Chart.js-Instanzen alle
-   neu gezeichnet werden muessten. Fuer das grosse Diagramm auf der
-   Detailseite ist Chart.js dagegen richtig.
+/* Inline-SVG und nicht Chart.js: das hier steht acht- bis zwoelfmal auf einem
+   Dashboard. Ein <path> erbt seine Farbe aus CSS und kostet beim
+   Theme-Wechsel nichts, waehrend zwoelf Chart.js-Instanzen alle neu
+   gezeichnet werden muessten. Fuer das grosse Diagramm auf der Detailseite
+   ist Chart.js dagegen richtig.
 
    non-scaling-stroke ist Pflicht, weil preserveAspectRatio="none" die Linie
-   staucht: sie zeigt einen Verlauf, keine Steigung - der Strich soll davon
-   aber nicht dicker werden. Dasselbe Muster wie die Fuge in .mw-pie__slice. */
+   staucht: sie zeigt einen Verlauf, keine Steigung - Strich und Punkte sollen
+   davon aber nicht verzerrt werden. Dasselbe Muster wie die Fuge in
+   .mw-pie__slice. Die Punkte sind deshalb auch keine <circle>, sondern
+   Nulllaengen-Strecken mit runder Kappe (siehe MeadowSparkline). */
 .mw-spark {
   flex-shrink: 0;
   width: 72px;
@@ -796,41 +825,79 @@ a.mw-icon-btn { text-decoration: none; }
   stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
 }
-.mw-spark__dot { fill: var(--mw-primary); }
-.mw-spark__area { fill: currentColor; stroke: none; }
-
-/* Die Hintergrund-Variante: vollflaechig unter dem Inhalt, niedrige Deckkraft.
-   Der Wert bleibt vorn und lesbar - Kontrast ist hier die Randbedingung, nicht
-   die Optik, deshalb 0.14 und keine Volltonflaeche. */
-.mw-kpi__bg {
-  position: absolute;
-  inset: auto 0 0 0;
-  height: 62%;
-  pointer-events: none;
-  color: var(--mw-primary);
-  opacity: .14;
+.mw-spark__dots {
+  fill: none;
+  stroke: var(--mw-primary);
+  stroke-width: 5;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
 }
-.mw-kpi__bg .mw-spark {
-  width: 100%;
+.mw-spark__area {
+  fill: var(--mw-primary);
+  stroke: none;
+  opacity: .16;
+}
+
+/* Das Diagrammband UNTER dem Wert. Eigene Flaeche statt Hintergrund: als
+   Backdrop musste die Deckkraft zwischen der Lesbarkeit der Zahl und der
+   Sichtbarkeit der Kurve vermitteln und verlor beides ein wenig. */
+.mw-kpi__chart {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  height: 56px;
+  margin-top: 8px;
+  padding-top: 8px;
+  /* Platz fuer den Verlaufs-Knopf in der Ecke. Ohne das laeuft die Kurve unter
+     ihn - und zwar genau dort, wo der letzte und wichtigste Messwert sitzt. */
+  padding-right: 30px;
+  border-top: 1px solid var(--mw-border);
+}
+.mw-kpi__chart .mw-spark {
+  flex: 1 1 auto;
+  width: auto;
   height: 100%;
+  overflow: visible;
 }
-.mw-kpi__bg .mw-spark__line { stroke-width: 1.5; }
+.mw-kpi__chart .mw-spark__dots { stroke-width: 4; }
 
-/* Die Ampel faerbt den Verlauf mit: eine kritische Kachel mit einer
-   primaerfarbenen Kurve saehe aus, als widerspraechen sich die beiden. */
-.mw-kpi--rate-good .mw-spark__line, .mw-kpi--rate-good .mw-spark__dot { stroke: var(--mw-rate-good); }
-.mw-kpi--rate-good .mw-spark__dot { fill: var(--mw-rate-good); }
-.mw-kpi--rate-good .mw-kpi__bg { color: var(--mw-rate-good); }
-.mw-kpi--rate-warn .mw-spark__line { stroke: var(--mw-rate-warn); }
-.mw-kpi--rate-warn .mw-spark__dot { fill: var(--mw-rate-warn); }
-.mw-kpi--rate-warn .mw-kpi__bg { color: var(--mw-rate-warn); }
-.mw-kpi--rate-crit .mw-spark__line { stroke: var(--mw-rate-crit); }
-.mw-kpi--rate-crit .mw-spark__dot { fill: var(--mw-rate-crit); }
-.mw-kpi--rate-crit .mw-kpi__bg { color: var(--mw-rate-crit); }
+/* Die Spanne am linken Rand - ohne sie ist eine Kurve nur eine Form. */
+.mw-kpi__axis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  flex-shrink: 0;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--mw-muted);
+  font-variant-numeric: tabular-nums;
+}
 
-/* Im Dunkelmodus traegt eine Flaeche mit 14 % auf dunklem Grund kaum - dort
-   darf sie etwas kraeftiger sein, ohne den Wert zu bedraengen. */
-:root[data-mw-theme="dark"] .mw-kpi__bg { opacity: .22; }
+/* Die Ampel faerbt Wert, Kurve und Flaeche. Der Rand allein war zu leise:
+   auf einem Dashboard sucht man die eine Kachel, die etwas will, und findet
+   sie an der Zahl, nicht an einer 3px-Kante.
+
+   Das Delta darunter bleibt trotzdem grau - es weiss nicht, ob mehr gut ist.
+   Die Ampel weiss es, weil jemand es in DIESER Definition hingeschrieben hat. */
+.mw-kpi--rate-good .mw-kpi__value,
+.mw-kpi--rate-good .mw-spark__line,
+.mw-kpi--rate-good .mw-spark__dots { color: var(--mw-rate-good); stroke: var(--mw-rate-good); }
+.mw-kpi--rate-good .mw-spark__area { fill: var(--mw-rate-good); }
+
+.mw-kpi--rate-warn .mw-kpi__value,
+.mw-kpi--rate-warn .mw-spark__line,
+.mw-kpi--rate-warn .mw-spark__dots { color: var(--mw-rate-warn); stroke: var(--mw-rate-warn); }
+.mw-kpi--rate-warn .mw-spark__area { fill: var(--mw-rate-warn); }
+
+.mw-kpi--rate-crit .mw-kpi__value,
+.mw-kpi--rate-crit .mw-spark__line,
+.mw-kpi--rate-crit .mw-spark__dots { color: var(--mw-rate-crit); stroke: var(--mw-rate-crit); }
+.mw-kpi--rate-crit .mw-spark__area { fill: var(--mw-rate-crit); }
+
+/* Auf dunklem Grund traegt eine Flaeche mit 16 % kaum. */
+:root[data-mw-theme="dark"] .mw-spark__area { opacity: .26; }
 
 /* Platzhalter waehrend des Ladens. Bisher war der Bereich schlicht leer und
    "laedt noch" von "es gibt keine" nicht zu unterscheiden. mwFade respektiert
@@ -942,20 +1009,14 @@ a.mw-icon-btn { text-decoration: none; }
 .mw-kpi-flag--warn { color: var(--mw-rate-warn); }
 .mw-kpi-flag--crit { color: var(--mw-rate-crit); }
 
-/* Die Kante liegt INNEN per box-shadow und nicht als border-left: ein
-   Rahmen auf einer Seite verschoebe das Padding gegenueber allen anderen
-   Kacheln, und der rote Rahmen ist bereits von .mw-kpi--error belegt -
-   "ausserhalb des Ziels" und "nicht auswertbar" muessen unterscheidbar
-   bleiben. Deshalb Kante plus Glyphe und kein getoenter Hintergrund:
-   acht eingefaerbte Kacheln nebeneinander waeren ein Alarmfeld. */
-.mw-kpi--rate-good { box-shadow: inset 3px 0 0 var(--mw-rate-good), var(--mw-shadow-card); }
-.mw-kpi--rate-warn { box-shadow: inset 3px 0 0 var(--mw-rate-warn), var(--mw-shadow-card); }
-.mw-kpi--rate-crit { box-shadow: inset 3px 0 0 var(--mw-rate-crit), var(--mw-shadow-card); }
-@media (hover: hover) {
-  .mw-kpi--rate-good:hover { box-shadow: inset 3px 0 0 var(--mw-rate-good), var(--mw-shadow-pop); }
-  .mw-kpi--rate-warn:hover { box-shadow: inset 3px 0 0 var(--mw-rate-warn), var(--mw-shadow-pop); }
-  .mw-kpi--rate-crit:hover { box-shadow: inset 3px 0 0 var(--mw-rate-crit), var(--mw-shadow-pop); }
-}
+/* KEINE zusaetzliche Randkante mehr.
+   Es gab hier eine 3px-Innenkante links. Seit der WERT die Ampelfarbe traegt,
+   waeren Kante, Glyphe und Zahl drei Signale fuer dieselbe Aussage - und die
+   Kante ist das schwaechste davon. Die Glyphe bleibt, weil sie als einzige
+   eine FORM hat und damit ohne Farbe auskommt.
+
+   Getoenter Kachelhintergrund weiterhin nicht: acht eingefaerbte Flaechen
+   nebeneinander waeren ein Alarmfeld. Gefaerbt wird die Zahl, nicht die Karte. */
 
 /* Das erzeugte SQL im KPI-Dialog. Kein Ace-Editor: der Text ist nur zum
    Lesen, und eine zweite Editor-Instanz im selben Dialog waere sowohl

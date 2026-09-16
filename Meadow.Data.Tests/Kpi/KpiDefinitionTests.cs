@@ -103,6 +103,51 @@ public class KpiDefinitionTests
         Assert.DoesNotContain("extra", json, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Theory]
+    [InlineData("seriesDisplay")]
+    [InlineData("targetDirection")]
+    public void An_unknown_presentation_value_degrades_instead_of_killing_the_definition(string field)
+    {
+        // Found by renaming a KpiSeriesDisplay member: every tile whose definition had been
+        // written by the previous build went to "Definition unlesbar", because
+        // JsonStringEnumConverter throws on a name it does not know and Deserialize turns that
+        // into null. A field that only decides how a tile LOOKS must not be able to do that.
+        var restored = KpiDefinition.Deserialize(
+            $$"""{"source":"ClawTreatment","measure":"Count","{{field}}":"GibtEsNichtMehr"}""");
+
+        Assert.NotNull(restored);
+        Assert.Equal(KpiSourceId.ClawTreatment, restored!.Source);
+        Assert.Equal(KpiSeriesDisplay.None, restored.SeriesDisplay);
+        Assert.Equal(KpiTargetDirection.None, restored.TargetDirection);
+    }
+
+    [Theory]
+    [InlineData("source")]
+    [InlineData("measure")]
+    [InlineData("groupBy")]
+    [InlineData("timeframe")]
+    public void An_unknown_counting_value_still_fails_loudly(string field)
+    {
+        // The other half of the same decision. These four change WHAT is counted, so a silent
+        // fallback would leave a tile quietly counting something else - worse than an error.
+        Assert.Null(KpiDefinition.Deserialize(
+            $$"""{"source":"CowTreatment","measure":"Count","{{field}}":"GibtEsNichtMehr"}"""));
+    }
+
+    [Fact]
+    public void A_presentation_value_is_still_written_as_a_name()
+    {
+        var json = KpiDefinition.Serialize(new KpiDefinition
+        {
+            Source = KpiSourceId.Cow,
+            SeriesDisplay = KpiSeriesDisplay.Chart,
+            TargetDirection = KpiTargetDirection.LowerIsBetter
+        });
+
+        Assert.Contains("\"Chart\"", json);
+        Assert.Contains("\"LowerIsBetter\"", json);
+    }
+
     [Fact]
     public void Fills_missing_properties_with_defaults()
     {

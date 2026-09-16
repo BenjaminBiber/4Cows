@@ -101,6 +101,21 @@ public static class KpiDefinitionSummary
     };
 
     /// <summary>
+    /// Label for the tile's second figure, e.g. "Ø pro Monat".
+    ///
+    /// Named after the SECTION, not after the timeframe: the same "30 Tage" draws daily sections
+    /// while "90 Tage" draws weekly ones, and "Ø pro Tag" against a weekly chart would be a
+    /// different number from the one shown.
+    /// </summary>
+    public static string AverageLabel(KpiBucket bucket) => bucket switch
+    {
+        KpiBucket.Day => "Ø pro Tag",
+        KpiBucket.Week => "Ø pro Woche",
+        KpiBucket.Month => "Ø pro Monat",
+        _ => "Ø"
+    };
+
+    /// <summary>
     /// The traffic light in words - for the tile's screen-reader text and its tooltip. Colour is
     /// never the only carrier of this.
     /// </summary>
