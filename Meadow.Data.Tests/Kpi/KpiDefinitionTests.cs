@@ -61,6 +61,49 @@ public class KpiDefinitionTests
     }
 
     [Fact]
+    public void Carries_properties_it_does_not_know_back_out_again()
+    {
+        // Not crashing was never enough. KPIDialog deserialises, mutates and serialises back, so a
+        // client still served from an older ServiceWorker precache would STRIP every field it
+        // predates - on any edit at all, even one that only fixed the title. This is the guarantee
+        // that made it safe to add fields to the definition in the first place.
+        const string json =
+            """{"source":"CowTreatment","measure":"Count","somethingFromTheFuture":{"a":1}}""";
+
+        var restored = KpiDefinition.Deserialize(json)!;
+        restored.Timeframe = KpiTimeframe.Days7;
+
+        var rewritten = KpiDefinition.Serialize(restored);
+
+        Assert.Contains("somethingFromTheFuture", rewritten);
+        Assert.Contains("\"Days7\"", rewritten);
+    }
+
+    [Fact]
+    public void Clone_keeps_properties_it_does_not_know()
+    {
+        // Clone() runs the same round trip, and the settings list clones before editing.
+        var restored = KpiDefinition.Deserialize(
+            """{"source":"Cow","measure":"Count","somethingFromTheFuture":7}""")!;
+
+        Assert.Contains("somethingFromTheFuture", KpiDefinition.Serialize(restored.Clone()));
+    }
+
+    [Fact]
+    public void A_plain_definition_writes_no_extension_data()
+    {
+        // ConvertCountKpisToBuilder compares stored JSON against literals EXACTLY, in both
+        // directions. An empty extension bag that serialised to "extra":{} would break its Down().
+        var json = KpiDefinition.Serialize(new KpiDefinition
+        {
+            Source = KpiSourceId.CowTreatment,
+            Measure = KpiMeasure.Count
+        });
+
+        Assert.DoesNotContain("extra", json, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void Fills_missing_properties_with_defaults()
     {
         // Also protects hand-written JSON, which only ever carries the fields it needs.

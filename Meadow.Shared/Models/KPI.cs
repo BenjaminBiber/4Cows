@@ -63,4 +63,28 @@ public class KPI
         Script = script;
         SortOrder = sortOrder;
     }
+
+    /// <summary>
+    /// A detached copy, for editing.
+    ///
+    /// The settings list used to hand the dialog the very instance held in KPIService's cache, and
+    /// the dialog binds straight onto it (@bind-Value="KPI.Title"). Changing a title and pressing
+    /// Escape therefore left the new title in the cache and on the dashboard, with nothing on disk
+    /// to match - until something else happened to reload. A dirty check cannot be built on top of
+    /// that, because by the time it asks, the damage is already visible.
+    ///
+    /// Definition is copied as the raw string on purpose: it must come back byte-identical,
+    /// including anything a newer build wrote that this one cannot name (see
+    /// KpiDefinition.Extra).
+    /// </summary>
+    public KPI Copy() => new()
+    {
+        KPIId = KPIId,
+        Title = Title,
+        Url = Url,
+        Script = Script,
+        SortOrder = SortOrder,
+        Kind = Kind,
+        Definition = Definition
+    };
 }

@@ -96,7 +96,7 @@ public static class KpiDefinitionSummary
             return string.Empty;
         }
 
-        var days = timeframe == KpiTimeframe.Days7 ? 7 : 30;
+        var days = KpiTimeframes.Days(timeframe);
         return planned ? $"nächste {days} Tage" : $"letzte {days} Tage";
     }
 

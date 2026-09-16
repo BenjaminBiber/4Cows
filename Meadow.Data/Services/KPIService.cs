@@ -166,46 +166,34 @@ public class KPIService : IKPIService
     /// dashboard render, plus one more for the fake "+" tile's script. Now: one round trip for the
     /// definitions, zero for every declarative KPI (they are computed from caches that are already
     /// in memory), and a single shared context for whatever hand-written SQL is left.
+    ///
+    /// The loop itself lives in KpiDashboard, shared with HttpKPIService. What is left here is the
+    /// one thing that genuinely differs between server and browser: where a hand-written script's
+    /// value comes from. The context is created LAZILY inside that delegate, so a dashboard made
+    /// only of declarative KPIs still touches the database exactly once - for the definitions.
     /// </summary>
     public async Task<IReadOnlyList<KpiTileModel>> GetDashboardAsync(bool addButtonKPI = true)
     {
         await GetAllDataAsync();
 
-        var tiles = new List<KpiTileModel>();
-
-        // Rows are built once per distinct source, not once per KPI: five KPIs over cow treatments
-        // share one projection.
-        var rowsBySource = new Dictionary<KpiSourceId, IReadOnlyList<KpiRow>>();
-
-        // Created lazily and only if some KPI still carries hand-written SQL. On a fresh database
-        // that is never, so the dashboard touches the database exactly once.
         DatabaseContext? sqlContext = null;
 
         try
         {
-            foreach (var kpi in KPIs.Values.OrderBy(x => x.SortOrder))
-            {
-                if (kpi.IsBuilder)
+            return await KpiDashboard.BuildAsync(
+                KPIs.Values,
+                _rowProvider.Rows,
+                async kpi =>
                 {
-                    tiles.Add(new KpiTileModel { Kpi = kpi, Result = EvaluateBuilder(kpi, rowsBySource) });
-                    continue;
-                }
-
-                sqlContext ??= await _contextFactory.CreateDbContextAsync();
-                var value = await GetKPIValueAsync(sqlContext, kpi);
-
-                tiles.Add(new KpiTileModel
-                {
-                    Kpi = kpi,
-                    // A legacy script yields a bare string, so Ok/Error cannot be told apart here -
-                    // that distinction is exactly what the declarative path buys.
-                    Result = new KpiResult
-                    {
-                        State = value == "--" ? KpiResultState.Empty : KpiResultState.Ok,
-                        Display = value
-                    }
-                });
-            }
+                    sqlContext ??= await _contextFactory.CreateDbContextAsync();
+                    return await GetKPIValueAsync(sqlContext, kpi);
+                },
+                DateTime.Now,
+                (kpi, message) => LoggerService.LogError(
+                    typeof(KPIService),
+                    $"KPI '{kpi.Title}' could not be evaluated: {message}",
+                    new InvalidOperationException(message)),
+                addButtonKPI);
         }
         finally
         {
@@ -214,60 +202,6 @@ public class KPIService : IKPIService
                 await sqlContext.DisposeAsync();
             }
         }
-
-        if (tiles.Count < 8 && addButtonKPI)
-        {
-            tiles.Add(KpiTileModel.AddTile());
-        }
-
-        return tiles;
-    }
-
-    /// <summary>
-    /// Evaluates one declarative KPI, reusing an already-built row set for its source.
-    ///
-    /// Note there is no fallback to <see cref="KPI.Script"/> when the definition is unusable: doing
-    /// so would run a query the author believed to be switched off. A visible error is the honest
-    /// outcome.
-    /// </summary>
-    private KpiResult EvaluateBuilder(KPI kpi, Dictionary<KpiSourceId, IReadOnlyList<KpiRow>> rowsBySource)
-    {
-        var definition = KpiDefinition.Deserialize(kpi.Definition);
-        if (definition is null)
-        {
-            return Failed(kpi, "Die Definition dieser KPI ist unlesbar.");
-        }
-
-        var source = KpiSourceRegistry.Find(definition.Source);
-        if (source is null)
-        {
-            return Failed(kpi, $"Unbekannte Datenquelle: {definition.Source}.");
-        }
-
-        if (!rowsBySource.TryGetValue(definition.Source, out var rows))
-        {
-            rows = _rowProvider.Rows(definition.Source);
-            rowsBySource[definition.Source] = rows;
-        }
-
-        var result = KpiEvaluator.Evaluate(definition, source, rows, DateTime.Now);
-
-        if (result.State == KpiResultState.Error)
-        {
-            LoggerService.LogError(
-                typeof(KPIService),
-                $"KPI '{kpi.Title}' could not be evaluated: {result.Message}",
-                new InvalidOperationException(result.Message));
-        }
-
-        return result;
-    }
-
-    private static KpiResult Failed(KPI kpi, string message)
-    {
-        LoggerService.LogError(
-            typeof(KPIService), $"KPI '{kpi.Title}': {message}", new InvalidOperationException(message));
-        return KpiResult.Failed(message);
     }
     
     public async Task<bool> UpdateDataAsync(KPI KPI)

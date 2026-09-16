@@ -1,4 +1,5 @@
 using Meadow.Shared.Kpi;
+using Meadow.Shared.Models;
 using Meadow.Shared.Profile;
 
 namespace Meadow.Client.Components.Ui;
@@ -39,6 +40,30 @@ public static class DateRanges
         _ => AllLabel
     };
 
+    /// <summary>
+    /// Die Chip-Reihe und KpiTimeframe sind absichtlich deckungsgleich: eine Kachel drillt in diese
+    /// Tabelle, und beide muessen dieselbe Menge zeigen. Frueher war das nur ein Kommentar und zwei
+    /// getrennte "? 7 : 30"-Ausdruecke. Jetzt ist es eine Abbildung, die bei einem neuen Zeitraum
+    /// WIRFT statt still auf 30 Tage zu fallen - und ueber die KpiTotalityTests laufen kann.
+    /// </summary>
+    public static KpiTimeframe ToTimeframe(DateRange range) => range switch
+    {
+        DateRange.All => KpiTimeframe.All,
+        DateRange.Days7 => KpiTimeframe.Days7,
+        DateRange.Days30 => KpiTimeframe.Days30,
+        _ => throw new ArgumentOutOfRangeException(
+            nameof(range), range, "Für diesen Zeitraum gibt es kein KPI-Gegenstück.")
+    };
+
+    public static DateRange FromTimeframe(KpiTimeframe timeframe) => timeframe switch
+    {
+        KpiTimeframe.All => DateRange.All,
+        KpiTimeframe.Days7 => DateRange.Days7,
+        KpiTimeframe.Days30 => DateRange.Days30,
+        _ => throw new ArgumentOutOfRangeException(
+            nameof(timeframe), timeframe, "Für diesen KPI-Zeitraum gibt es keinen Tabellen-Chip.")
+    };
+
     public static bool Matches(DateRange range, DateTime date)
     {
         if (range == DateRange.All)
@@ -47,7 +72,7 @@ public static class DateRanges
         }
 
         var today = DateTime.Today;
-        var days = range == DateRange.Days7 ? 7 : 30;
+        var days = KpiTimeframes.Days(ToTimeframe(range));
         return date.Date >= today.AddDays(-days) && date.Date <= today;
     }
 }

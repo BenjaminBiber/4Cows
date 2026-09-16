@@ -227,7 +227,10 @@ else
         };
         var parameters = new DialogParameters<KPIDialog>
         {
-            { x => x.KPI, kpi },
+            // Eine KOPIE, nicht die Instanz aus dem Cache von KPIService: der Dialog bindet direkt
+            // auf das Objekt (@bind-Value="KPI.Title"), und ohne Kopie stand eine abgebrochene
+            // Aenderung trotzdem im Cache und auf dem Dashboard. Siehe KPI.Copy().
+            { x => x.KPI, kpi.Copy() },
             { x => x.IsSave, isNew }
         };
 

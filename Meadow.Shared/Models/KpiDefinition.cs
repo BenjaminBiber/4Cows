@@ -141,6 +141,23 @@ public sealed class KpiDefinition
     /// </summary>
     public Dictionary<string, List<string>> Filters { get; set; } = new();
 
+    /// <summary>
+    /// Everything a NEWER build wrote that this one does not know, carried through untouched.
+    ///
+    /// Not a nicety - it closes a data-loss hole. KPIDialog deserialises a definition, mutates it
+    /// and serialises it back (see its OnInitialized and SaveKPI). System.Text.Json drops unknown
+    /// members on the way in, so a client still being served from an older ServiceWorker precache
+    /// would silently strip every field it predates - on ANY edit, even one that only fixed a typo
+    /// in the title. Clone() runs the same round trip.
+    ///
+    /// The existing guarantee was only that an old build does not CRASH on new JSON
+    /// (KpiDefinitionTests.Ignores_properties_it_does_not_know). This is what makes the fields
+    /// SURVIVE. It has to ship before the first new field does: the version that is missing a
+    /// property is exactly the version that deletes it.
+    /// </summary>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Extra { get; set; }
+
     /// <summary>A previous period only exists for a bounded timeframe, and only numbers can be compared.</summary>
     [JsonIgnore]
     public bool AllowsComparison
