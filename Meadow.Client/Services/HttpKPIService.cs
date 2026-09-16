@@ -158,6 +158,73 @@ public class HttpKPIService : HttpServiceBase, IKPIService
     }
 
     /// <summary>
+    /// Prueft ein Skript, ohne es zu speichern - in zwei Stufen.
+    ///
+    /// Stufe eins laeuft IMMER und ohne Netz: KpiScriptGuard ist reine Logik aus Meadow.Shared und
+    /// faengt genau die haeufigen Faelle ab (kein SELECT, mehr als eine Anweisung, INTO OUTFILE).
+    /// Das ist die Pruefung, die der Dialog bisher erst beim SPEICHERN machte.
+    ///
+    /// Stufe zwei fuehrt es tatsaechlich aus - aber nur, wenn der Server das erlaubt. Ist es
+    /// abgeschaltet (die Vorgabe, und zwar zu Recht: die Anwendung hat keine Authentifizierung und
+    /// verbindet als root), kommt 403 zurueck und daraus wird ein HINWEIS, kein Fehler. Kaputt ist
+    /// nichts - es wurde nur nicht gelaufen.
+    ///
+    /// Und es prueft das Skript AUS DEM EDITOR. Der alte Knopf rief den Wert-Endpunkt fuer die
+    /// gespeicherte Zeile ab; bei einer neuen Kennzahl gab es die noch gar nicht.
+    /// </summary>
+    public async Task<KpiScriptCheck> CheckScriptAsync(string? script)
+    {
+        var rejection = KpiScriptGuard.Reject(script);
+        if (rejection is not null)
+        {
+            return KpiScriptCheck.Rejected(rejection);
+        }
+
+        HttpResponseMessage response;
+        try
+        {
+            response = await PostAsync("api/kpi/validate", new { Script = script });
+        }
+        catch (Exception ex)
+        {
+            ReportFailure();
+            Logger.LogError(ex, "Failed to reach the KPI validation endpoint.");
+            // Offline ist das Skript nicht pruefbar, aber auch nicht widerlegt - dasselbe
+            // "es wurde nicht gelaufen" wie bei abgeschalteter Pruefung.
+            return KpiScriptCheck.Skipped();
+        }
+
+        using (response)
+        {
+            if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+            {
+                return KpiScriptCheck.Skipped();
+            }
+
+            var body = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return KpiScriptCheck.Rejected(body);
+            }
+
+            // { "value": "..." } - nur das eine Feld, deshalb kein eigener Antworttyp.
+            try
+            {
+                using var json = System.Text.Json.JsonDocument.Parse(body);
+                return KpiScriptCheck.Ran(
+                    json.RootElement.TryGetProperty("value", out var value)
+                        ? value.GetString() ?? ""
+                        : "");
+            }
+            catch (System.Text.Json.JsonException)
+            {
+                return KpiScriptCheck.Ran("");
+            }
+        }
+    }
+
+    /// <summary>
     /// Alles, was das Dashboard braucht, in EINEM Durchlauf.
     ///
     /// Die Schleife selbst liegt in KpiDashboard und wird mit KPIService

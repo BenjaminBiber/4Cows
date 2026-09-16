@@ -180,6 +180,9 @@
    derselbe wie ueberall, nur gedreht; genauso macht es .mw-pager__btn--prev. */
 a.mw-icon-btn { text-decoration: none; }
 .mw-icon-btn--back svg { transform: rotate(90deg); }
+/* Der Chevron zeigt nach unten - fuer "nach oben" gedreht, statt ein zweites
+   Icon fuer dieselbe Form einzufuehren. Dasselbe Mittel wie --back. */
+.mw-icon-btn--up svg { transform: rotate(180deg); }
 
 .mw-icon-btn-sm {
   display: inline-flex;
@@ -2401,6 +2404,49 @@ a.mw-icon-btn { text-decoration: none; }
 }
 .mw-notice p { margin: 0; }
 .mw-notice p + p { margin-top: 4px; }
+
+/* Suchfeld in einer langen Mehrfachauswahl. Klebt oben, damit es beim
+   Scrollen durch die Treffer stehen bleibt. */
+.mw-check-search {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding-bottom: 6px;
+  background: var(--mw-panel);
+}
+/* Trenner zwischen "gewaehlt" und "Treffer". */
+.mw-check-sep {
+  height: 1px;
+  margin: 6px 0;
+  background: var(--mw-border);
+}
+
+/* Vorlagenauswahl beim Anlegen einer Kennzahl. */
+.mw-tpl-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mw-tpl {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 12px 14px;
+  background: var(--mw-panel);
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-2xl);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--mw-t), background var(--mw-t);
+}
+@media (hover: hover) {
+  .mw-tpl:hover { border-color: var(--mw-primary); background: var(--mw-tint); }
+}
+.mw-tpl__title { font-size: 14px; font-weight: 700; color: var(--mw-text); }
+.mw-tpl__desc { font-size: 12px; line-height: 1.4; color: var(--mw-muted); }
+.mw-tpl--blank { border-style: dashed; }
 .mw-readonly {
   padding: 10px 13px;
   border: 1px solid var(--mw-border);

@@ -1,0 +1,43 @@
+@using Meadow.Shared.Kpi
+
+@*
+    Der erste Schritt beim Anlegen einer Kennzahl.
+
+    Das Formular startete bisher leer, obwohl KpiSeeds sieben fertige
+    Definitionen kennt - dieselben sieben, mit denen jede frische Installation
+    ausgeliefert wird. Und die erste Frage beim Anlegen ist nicht "welche
+    Datenquelle", sondern "so etwas wie was".
+
+    Kein Dialog davor und kein Stepper: das ist genau die Regel, die
+    MeadowKpiBuilder in seinem Kopf aufstellt - Abschnitte erscheinen, sobald
+    der vorige sie moeglich macht. Hier ist die Auswahl der erste Abschnitt und
+    verschwindet, sobald sie getroffen ist.
+
+    Die Vorlagen leben im CODE und nicht in einer Tabelle. Treatment_Reason und
+    Freunde fallen im naechtlichen Demo-Reset um; eine Vorlagentabelle taete
+    dasselbe, und danach staende die Auswahl leer.
+*@
+
+<p class="mw-hint">Womit soll die Kennzahl anfangen?</p>
+
+<div class="mw-tpl-list">
+    @foreach (var seed in KpiSeeds.Default)
+    {
+        <button type="button" class="mw-tpl" @onclick="() => Pick(seed)">
+            <span class="mw-tpl__title">@seed.Title</span>
+            <span class="mw-tpl__desc">@KpiDefinitionSummary.Describe(seed.Definition)</span>
+        </button>
+    }
+
+    <button type="button" class="mw-tpl mw-tpl--blank" @onclick="() => Pick(null)">
+        <span class="mw-tpl__title">Leer beginnen</span>
+        <span class="mw-tpl__desc">Datenquelle und Berechnung selbst wählen.</span>
+    </button>
+</div>
+
+@code {
+    /// <summary>Die gewaehlte Vorlage, oder null fuer "leer beginnen".</summary>
+    [Parameter] public EventCallback<KpiSeed?> Chosen { get; set; }
+
+    private Task Pick(KpiSeed? seed) => Chosen.InvokeAsync(seed);
+}
