@@ -25,6 +25,7 @@
                   Subtitle="@Layout.PageSubtitle"
                   Tags="@Layout.PageTags"
                   BackHref="@Layout.PageBackHref"
+                  HomeHref="@_home"
                   HasSiblings="@_hasSiblings"
                   IsDark="@Theme.IsDark"
                   OnMenu="@Layout.ToggleDrawer"
@@ -56,6 +57,9 @@
 @code {
     private string _route = "";
     private string _routeTitle = "Dashboard";
+
+    /// <summary>Ziel des Titels im Kopf, oder null auf dem Dashboard selbst.</summary>
+    private string? _home;
     private string _fabTitle = "Hinzufügen";
     private bool _hasSiblings;
     private bool _wide;
@@ -95,6 +99,7 @@
     {
         _route = MeadowRoutes.Normalize(Nav.ToBaseRelativePath(Nav.Uri));
         _routeTitle = MeadowRoutes.TitleFor(_route);
+        _home = MeadowRoutes.HomeFor(_route);
         _hasSiblings = MeadowRoutes.HasSiblings(_route);
         _fabTitle = MeadowDialogLauncher.FabTitleFor(_route);
         _wide = MeadowRoutes.IsWide(_route);

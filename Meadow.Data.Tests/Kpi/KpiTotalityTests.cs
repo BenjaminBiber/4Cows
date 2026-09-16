@@ -68,6 +68,31 @@ public class KpiTotalityTests
         }
     }
 
+    [Theory]
+    [InlineData("", false)]                 // Root IST das Dashboard
+    [InlineData("app", false)]
+    [InlineData("Kuh_Daten", true)]
+    [InlineData("Klauen_Daten", true)]
+    [InlineData("Settings", true)]
+    [InlineData("Settings?tab=kpis", true)] // Query darf die Entscheidung nicht kippen
+    [InlineData("Kuh/DE 08 1523 1042", true)]
+    [InlineData("kennzahl/7", true)]
+    [InlineData("nicht-gefunden", true)]
+    public void The_header_title_leads_home_from_everywhere_but_home(string route, bool expectLink)
+    {
+        // Der Titel im Kopf fuehrt aufs Dashboard - ausser man ist schon dort, denn ein Link auf
+        // die eigene Seite verspricht etwas, das nicht passiert. Auch von einer Detailseite und
+        // von der 404-Seite aus, weil "egal auf welcher Seite" genau das heisst.
+        var home = MeadowRoutes.HomeFor(route);
+
+        Assert.Equal(expectLink, home is not null);
+
+        if (expectLink)
+        {
+            Assert.Equal(MeadowRoutes.Dashboard, home);
+        }
+    }
+
     [Fact]
     public void Every_grouping_but_none_reads_a_tag()
     {

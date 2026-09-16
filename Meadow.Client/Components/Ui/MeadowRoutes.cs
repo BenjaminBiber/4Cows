@@ -140,6 +140,21 @@ public static class MeadowRoutes
     }
 
     /// <summary>
+    /// Ob diese Route bereits das Dashboard ist. Beide Adressen zaehlen: Root rendert es im
+    /// Betriebsmodus, im Demo-Modus liegt dort die Landing-Page.
+    /// </summary>
+    public static bool IsDashboard(string route) => BaseOf(Normalize(route)) is Root or Dashboard;
+
+    /// <summary>
+    /// Wohin der Titel im Kopf fuehrt, oder null, wenn man schon dort ist.
+    ///
+    /// Die Geste, die man von jedem Produktnamen oben links kennt. Und die Entscheidung gehoert
+    /// hierher und nicht ins Layout: ob eine Route das Dashboard IST, ist eine Routenfrage, und
+    /// alle anderen werden auch hier beantwortet.
+    /// </summary>
+    public static string? HomeFor(string route) => IsDashboard(route) ? null : Dashboard;
+
+    /// <summary>
     /// Zeigt diese Adresse auf eine Seite, die es gibt?
     ///
     /// Gebraucht im Expertenmodus des KPI-Dialogs, wo die URL weiter Freitext ist. Eine

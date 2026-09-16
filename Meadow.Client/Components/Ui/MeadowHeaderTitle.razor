@@ -1,0 +1,36 @@
+@*
+    Der Titeltext im Kopf - als Link aufs Dashboard, wenn es eines zu erreichen
+    gibt.
+
+    Eigene Komponente, weil dieselbe Entscheidung im Kopf an drei Stellen faellt
+    (mit Geschwistern am Desktop, mit Geschwistern mobil, ohne Geschwister) und
+    sie dreimal auszuschreiben hiesse, sie dreimal pflegen zu muessen.
+
+    Ohne HomeHref bleibt es ein <span>: auf dem Dashboard selbst gibt es nichts
+    zu verlinken, und ein Link auf die eigene Seite verspricht etwas, das nicht
+    passiert. Dasselbe Argument wie bei der KPI-Kachel ohne Drill-down-Ziel.
+*@
+
+@if (string.IsNullOrWhiteSpace(HomeHref))
+{
+    <span class="@Css">@Text</span>
+}
+else
+{
+    <a class="@Css" href="@HomeHref" title="Zum Dashboard">@Text</a>
+}
+
+@code {
+    [Parameter, EditorRequired] public string Text { get; set; } = "";
+
+    /// <summary>Ziel des Titels. Leer: kein Link (also auf dem Dashboard selbst).</summary>
+    [Parameter] public string? HomeHref { get; set; }
+
+    /// <summary>Zusatzklasse, z.B. mw-only-desktop.</summary>
+    [Parameter] public string? Class { get; set; }
+
+    private string Css
+        => "mw-title-btn__label"
+           + (string.IsNullOrWhiteSpace(HomeHref) ? "" : " mw-title-btn__label--link")
+           + (string.IsNullOrWhiteSpace(Class) ? "" : " " + Class);
+}

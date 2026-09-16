@@ -52,27 +52,43 @@
     <div class="mw-header__heading">
         @* aria-label, weil beide Titel-Varianten im DOM stehen: ohne das liest
            ein Screenreader die Ueberschrift doppelt vor. *@
+        @*
+            Der Titel fuehrt aufs Dashboard - die Geste, die man von jedem
+            Produktnamen oben links kennt. HomeHref ist null, WENN man schon
+            dort ist: ein Link auf die eigene Seite verspricht etwas, das nicht
+            passiert.
+
+            Auf der Kuh- und der Kennzahl-Seite steht im Titel der Name des
+            Tieres bzw. der Kennzahl. Dass der aufs Dashboard fuehrt, klingt
+            zunaechst schief - der Weg "eine Ebene hoch" ist aber der
+            Zurueck-Pfeil links daneben, und das hier ist der Weg ganz nach
+            oben. Zwei verschiedene Gesten, zwei verschiedene Ziele.
+        *@
         <h1 class="mw-header__title" tabindex="-1" aria-label="@PageTitle">
             @if (HasSiblings)
             {
-                <span class="mw-title-btn__label mw-only-desktop">@PageTitle</span>
+                <MeadowHeaderTitle Text="@PageTitle" HomeHref="@HomeHref"
+                                   Class="mw-only-desktop" />
 
-                <button type="button" class="mw-title-btn mw-only-mobile" @onclick="OnTitle"
-                        aria-haspopup="true"
-                        aria-label="@($"{PageTitle} – Ansicht wechseln")">
-                    <span class="mw-title-btn__label">@PageTitle</span>
-                    <MeadowIcon Name="MeadowIconName.ChevronDown" Size="17"
-                                Class="mw-title-btn__chevron" />
-                </button>
+                @* Mobil traegt der Titel zwei Ziele: der Text fuehrt nach Hause,
+                   der Chevron oeffnet den Ansichtswechsel. Frueher war der ganze
+                   Titel der Wechsel-Knopf - der Chevron bekommt dafuer eine
+                   eigene, volle Tippflaeche, und er ist ohnehin das Zeichen, auf
+                   das man fuer ein Ausklappen zielt. *@
+                <span class="mw-title-split mw-only-mobile">
+                    <MeadowHeaderTitle Text="@PageTitle" HomeHref="@HomeHref" />
+
+                    <button type="button" class="mw-title-chevron" @onclick="OnTitle"
+                            aria-haspopup="true"
+                            aria-label="@($"{PageTitle} – Ansicht wechseln")">
+                        <MeadowIcon Name="MeadowIconName.ChevronDown" Size="17"
+                                    Class="mw-title-btn__chevron" />
+                    </button>
+                </span>
             }
             else
             {
-                @* Ohne Geschwister gibt es nichts zu waehlen - dann ist der
-                   Titel auf BEIDEN Breiten reiner Text. Ein Knopf ohne
-                   Chevron sieht zwar unscheinbar aus, bleibt aber
-                   fokussierbar und tut auf Enter nichts; dasselbe Argument
-                   steht seit jeher an der Desktop-Variante. *@
-                <span class="mw-title-btn__label">@PageTitle</span>
+                <MeadowHeaderTitle Text="@PageTitle" HomeHref="@HomeHref" />
             }
         </h1>
 
@@ -125,6 +141,12 @@
 
     /// <summary>Wohin der Pfeil fuehrt - als Tooltip und fuer Screenreader.</summary>
     [Parameter] public string BackTitle { get; set; } = "Zurück zur Übersicht";
+
+    /// <summary>
+    /// Ziel des Titels - das Dashboard. Null auf dem Dashboard selbst, dann bleibt der Titel
+    /// reiner Text.
+    /// </summary>
+    [Parameter] public string? HomeHref { get; set; }
 
     [Parameter] public bool HasSiblings { get; set; }
     [Parameter] public bool IsDark { get; set; }
