@@ -1,0 +1,400 @@
+@page "/kennzahl/{KpiId:int}"
+@implements IDisposable
+
+@using Meadow.Client.Components.Cows.Dialogs
+@using Meadow.Client.Components.Ui
+@using Meadow.Client.Components.Services
+@using Meadow.Shared.Kpi
+@using Meadow.Shared.Models
+
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject IDialogService DialogService
+@inject MeadowDataLoader Data
+@inject MeadowDataChanges Changes
+@inject LayoutState Layout
+@inject ThemeState Theme
+@inject IKPIService KPIService
+@inject KpiRowProvider RowProvider
+
+@*
+    Der Verlauf EINER Kennzahl.
+
+    Sie ERSETZT den Drill-down nicht, sie ergaenzt ihn. Wer im Stall auf
+    "Offene Verbände" tippt, will die Liste - ein Zwischenschritt waere auf
+    dem Hauptgeraet ein zusaetzlicher Tipp fuer jeden Weg, den heute jemand
+    geht. Die Kachel behaelt deshalb ihr Ziel, und hierher fuehrt der kleine
+    Knopf in ihrer Ecke.
+
+    Gerechnet wird clientseitig, OHNE neuen Endpunkt. meadow-db.js spiegelt
+    genau zwoelf Pfade nach IndexedDB; ein dreizehnter waere offline leer,
+    waehrend der KpiRowProvider aus Caches rechnet, die ohnehin im Speicher
+    liegen. Die Seite funktioniert damit im Stall ohne Netz.
+
+    Chart.js hier und Inline-SVG auf der Kachel - das ist kein Widerspruch:
+    zwoelf Punkte mit Achsen, Gitter und Tooltip sind genau das, wofuer die
+    Bibliothek gebaut ist, waehrend acht bis zwoelf Instanzen fuer 72px breite
+    Linien es nicht sind.
+*@
+
+<PageTitle>@Heading · Meadow</PageTitle>
+
+@if (!_loaded)
+{
+    @* Nichts. Solange die Caches laden, ist NICHT bekannt, ob es die Kennzahl
+       gibt - dieselbe Begruendung wie auf der Kuh-Seite. *@
+}
+else if (_kpi is null)
+{
+    <MeadowNotFound Title="Kennzahl nicht gefunden"
+                    Text="Zu dieser Adresse gibt es keine Kennzahl (mehr)." />
+}
+else
+{
+    <div class="mw-kpi-detail">
+        <div class="mw-kpi-detail__head">
+            <MeadowKpiTile Title="@_kpi.Title"
+                           Value="@_result.Display"
+                           Delta="@_result.DeltaDisplay"
+                           Trend="@_result.Trend"
+                           Status="@_result.Status"
+                           HasError="@(_result.State == KpiResultState.Error)"
+                           Hint="@_result.Message"
+                           Class="mw-kpi--hero" />
+
+            <div class="mw-kpi-detail__actions">
+                @if (!string.IsNullOrWhiteSpace(_tableHref))
+                {
+                    <a class="mw-btn mw-btn--primary" href="@_tableHref">In der Tabelle öffnen</a>
+                }
+                <button type="button" class="mw-btn mw-btn--plain" @onclick="EditAsync">
+                    Kennzahl bearbeiten
+                </button>
+            </div>
+        </div>
+
+        @if (_definition is null)
+        {
+            <p class="mw-hint mw-hint--warn">
+                Für eine handgeschriebene Kennzahl gibt es keinen Verlauf und keine Aufschlüsselung -
+                das Skript liefert genau einen Wert, und was dahinter steckt, weiß nur die Abfrage.
+            </p>
+        }
+        else
+        {
+            <MeadowChartCard Title="Verlauf">
+                <ChildContent>
+                    @if (_series is null || !_series.HasAny)
+                    {
+                        <p class="mw-hint">@(_series?.Message ?? "Für diesen Zeitraum gibt es keine Daten.")</p>
+                    }
+                    else
+                    {
+                        <div class="mw-chart-canvas">
+                            <canvas id="KpiSeriesChart"></canvas>
+                        </div>
+                        @if (!_series.CoversTimeframe)
+                        {
+                            <p class="mw-hint">
+                                Der Verlauf zeigt die letzten 12 Monate. Ältere Zeilen zählt die Zahl
+                                oben mit.
+                            </p>
+                        }
+                        @if (_chartError is not null)
+                        {
+                            <div class="mw-chart-error">@_chartError</div>
+                        }
+                    }
+                </ChildContent>
+            </MeadowChartCard>
+
+            @if (_dimensions.Count > 0)
+            {
+                <MeadowChartCard Title="Aufschlüsselung">
+                    <Tools>
+                        <MeadowSingleSelect Label="" Options="DimensionLabels"
+                                            Value="@KpiDefinitionSummary.GroupBy(_dimension)"
+                                            ValueChanged="OnDimensionChanged" />
+                    </Tools>
+                    <ChildContent>
+                        <MeadowPieChart Items="_breakdown" Class="mw-pie--large"
+                                        EmptyText="Für diesen Zeitraum gibt es keine Daten." />
+                    </ChildContent>
+                </MeadowChartCard>
+            }
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public int KpiId { get; set; }
+
+    private bool _loaded;
+    private KPI? _kpi;
+    private KpiDefinition? _definition;
+    private KpiSourceInfo? _source;
+    private KpiResult _result = new() { State = KpiResultState.Empty, Display = "–" };
+    private KpiSeries? _series;
+    private string? _tableHref;
+    private string? _chartError;
+    private bool _chartDrawn;
+
+    private KpiGroupBy _dimension = KpiGroupBy.None;
+    private IReadOnlyList<KpiGroupBy> _dimensions = Array.Empty<KpiGroupBy>();
+    private IReadOnlyList<MeadowPieChart.Item> _breakdown = Array.Empty<MeadowPieChart.Item>();
+
+    private string Heading => _kpi?.Title ?? "Kennzahl";
+
+    private IReadOnlyList<string> DimensionLabels
+        => _dimensions.Select(KpiDefinitionSummary.GroupBy).ToList();
+
+    private static readonly string[] MonthNames =
+    {
+        "Januar", "Februar", "März", "April", "Mai", "Juni",
+        "Juli", "August", "September", "Oktober", "November", "Dezember"
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        Changes.Changed += OnDataChanged;
+        Theme.Changed += OnThemeChanged;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        await Data.EnsureDashboardAsync();
+        await KPIService.GetAllDataAsync();
+
+        _kpi = KPIService.KPIs.Values.FirstOrDefault(k => k.KPIId == KpiId);
+        _loaded = true;
+
+        if (_kpi is null)
+        {
+            Layout.SetPageHeading(null);
+            return;
+        }
+
+        // Titel plus Kurzfassung der Definition im Kopf der Anwendung, mit Weg zurueck aufs
+        // Dashboard - dasselbe Muster wie die Kuh-Seite, die dort Halsbandnummer und Ohrmarke
+        // zeigt. Die Seite selbst wiederholt den Titel damit nicht.
+        Layout.SetPageHeading(
+            _kpi.Title,
+            KpiDefinitionSummary.Describe(_kpi),
+            backHref: MeadowRoutes.Dashboard);
+
+        _definition = _kpi.IsBuilder ? KpiDefinition.Deserialize(_kpi.Definition) : null;
+        _source = _definition is null ? null : KpiSourceRegistry.Find(_definition.Source);
+
+        if (_definition is null || _source is null)
+        {
+            // Eine SQL-Kennzahl kann hier nur ihren Wert zeigen, und den kennt der Server. Ein
+            // Fehlwert waere schlimmer als gar keiner, deshalb der Weg ueber den Dienst.
+            var value = _kpi.IsBuilder ? "!" : await KPIService.GetKPIValue(_kpi);
+            _result = new KpiResult
+            {
+                State = value == "--" ? KpiResultState.Empty : KpiResultState.Ok,
+                Display = value
+            };
+            _tableHref = string.IsNullOrWhiteSpace(_kpi.Url) ? null : _kpi.Url;
+            return;
+        }
+
+        var rows = RowProvider.Rows(_definition.Source);
+        var now = DateTime.Now;
+
+        _result = KpiEvaluator.Evaluate(_definition, _source, rows, now);
+        _series = KpiEvaluator.Series(_definition, _source, rows, now);
+
+        // Exakt derselbe Aufruf wie auf der Kachel, nicht neu zusammengebaut: die Zusage, dass
+        // Build und Parse Inverse sind, behaelt damit eine einzige Quelle.
+        _tableHref = KpiDrillDown.Href(new KpiTileModel { Kpi = _kpi, Result = _result });
+
+        _dimensions = _source.Groupings;
+        if (!_dimensions.Contains(_dimension))
+        {
+            _dimension = _dimensions.FirstOrDefault();
+        }
+
+        Breakdown(rows, now);
+        _chartDrawn = false;
+    }
+
+    private void Breakdown(IReadOnlyList<KpiRow> rows, DateTime now)
+    {
+        if (_definition is null || _source is null || _dimension == KpiGroupBy.None)
+        {
+            _breakdown = Array.Empty<MeadowPieChart.Item>();
+            return;
+        }
+
+        _breakdown = KpiEvaluator
+            .Breakdown(_definition, _source, rows, _dimension, now)
+            .Select(b => new MeadowPieChart.Item(b.Label, b.Count))
+            .ToList();
+    }
+
+    private void OnDimensionChanged(string label)
+    {
+        _dimension = _dimensions.FirstOrDefault(d => KpiDefinitionSummary.GroupBy(d) == label);
+
+        if (_definition is not null)
+        {
+            Breakdown(RowProvider.Rows(_definition.Source), DateTime.Now);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_chartDrawn && _series is { } series && series.HasAny)
+        {
+            _chartDrawn = true;
+            await RenderChartAsync();
+        }
+    }
+
+    private async Task RenderChartAsync()
+    {
+        if (_series is not { } series || _definition is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var tokens = await JS.InvokeAsync<Dictionary<string, string>>(
+                "meadowTheme.tokens", new[] { "primary", "muted", "border" });
+
+            string Token(string key, string fallback)
+                => tokens.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value)
+                    ? value
+                    : fallback;
+
+            var primary = Token("primary", "#2C7DA0");
+            var muted = Token("muted", "#6c7b78");
+            var border = Token("border", "#e6ecea");
+
+            var config = new
+            {
+                type = "line",
+                data = new
+                {
+                    labels = series.Points.Select(p => LabelFor(p.Start, series.Bucket)).ToArray(),
+                    datasets = new object[]
+                    {
+                        new
+                        {
+                            label = _kpi!.Title,
+                            data = series.Points.Select(p => p.Value).ToArray(),
+                            borderColor = primary,
+                            backgroundColor = primary,
+                            borderWidth = 2,
+                            tension = .25,
+                            pointRadius = 3,
+                            fill = false,
+                            // Eine Luecke bleibt eine Luecke: ohne das verbindet Chart.js sie und
+                            // erfindet einen Wert, den es nicht gibt (siehe KpiSeriesPoint.Value).
+                            spanGaps = false
+                        }
+                    }
+                },
+                options = new
+                {
+                    responsive = true,
+                    maintainAspectRatio = false,
+                    interaction = new { intersect = false, mode = "index" },
+                    scales = new
+                    {
+                        x = new
+                        {
+                            grid = new { display = false },
+                            border = new { color = border },
+                            ticks = new { color = muted, font = new { size = 10 }, maxRotation = 0 }
+                        },
+                        y = new
+                        {
+                            beginAtZero = true,
+                            grid = new { color = border },
+                            border = new { display = false },
+                            ticks = new { color = muted, precision = 0, font = new { size = 10 } }
+                        }
+                    },
+                    plugins = new { legend = new { display = false } }
+                }
+            };
+
+            await JS.InvokeVoidAsync("meadowChart.render", "KpiSeriesChart", config, MonthNames);
+            _chartError = null;
+        }
+        catch (Exception e)
+        {
+            _chartError = $"Das Diagramm konnte nicht gezeichnet werden: {e.Message}";
+        }
+    }
+
+    private static string LabelFor(DateTime start, KpiBucket bucket) => bucket switch
+    {
+        KpiBucket.Month => MonthNames[start.Month - 1][..3],
+        KpiBucket.Week => $"ab {start:dd.MM.}",
+        _ => start.ToString("dd.MM.")
+    };
+
+    private async Task EditAsync()
+    {
+        if (_kpi is null)
+        {
+            return;
+        }
+
+        var options = new DialogOptions
+        {
+            BackdropClick = false,
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true
+        };
+
+        // Eine Kopie, wie in den Einstellungen: der Dialog bindet direkt auf das Objekt, und ein
+        // Abbruch darf den Cache nicht veraendert zuruecklassen.
+        var parameters = new DialogParameters<KPIDialog>
+        {
+            { x => x.KPI, _kpi.Copy() },
+            { x => x.IsSave, false }
+        };
+
+        var dialog = await DialogService.ShowAsync<KPIDialog>(string.Empty, parameters, options);
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled)
+        {
+            await LoadAsync();
+            StateHasChanged();
+        }
+    }
+
+    private void OnDataChanged(MeadowDataKind kind) => _ = InvokeAsync(async () =>
+    {
+        await LoadAsync();
+        StateHasChanged();
+    });
+
+    private void OnThemeChanged() => _ = InvokeAsync(async () =>
+    {
+        // Chart.js liest seine Farben beim Zeichnen, nicht aus CSS - beim Theme-Wechsel muss es
+        // also neu gezeichnet werden. Dasselbe Muster wie auf dem Dashboard.
+        _chartDrawn = false;
+        StateHasChanged();
+    });
+
+    public void Dispose()
+    {
+        Changes.Changed -= OnDataChanged;
+        Theme.Changed -= OnThemeChanged;
+        // Sonst traegt die naechste Seite noch den Namen dieser Kennzahl im Kopf.
+        Layout.SetPageHeading(null);
+    }
+}

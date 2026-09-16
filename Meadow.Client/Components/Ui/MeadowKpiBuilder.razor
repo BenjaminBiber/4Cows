@@ -115,7 +115,22 @@
 
 <MeadowKpiTargetFields Definition="Definition" Changed="Notify" UnitSuffix="@(Definition.Unit ?? "")" />
 
-<MeadowKpiPreview Result="Preview" TotalRows="_rows.Count" />
+@* Der Verlauf steht hier und nicht in den Zielwert-Feldern, weil er als einziger von der QUELLE
+   abhaengt: ohne Datumsspalte gibt es keine Reihe, und das weiss nur der Builder. *@
+@if (Definition.AllowsSeries && Source.HasDate)
+{
+    <MeadowSingleSelect Label="Verlauf" Options="SeriesLabels"
+                        Value="@SeriesLabel(Definition.SeriesDisplay)"
+                        ValueChanged="OnSeriesChanged" />
+
+    @if (Definition.SeriesDisplay != KpiSeriesDisplay.None)
+    {
+        <p class="mw-hint">@SeriesHint</p>
+    }
+}
+
+<MeadowKpiPreview Result="Preview" TotalRows="_rows.Count"
+                 Series="PreviewSeries" SeriesDisplay="Definition.SeriesDisplay" />
 
 @* Dieselbe Auswahl, als SQL. Nicht nur zum Nachlesen: der Expertenmodus
    uebernimmt genau dieses Skript, man startet dort also nicht bei null.
@@ -166,6 +181,17 @@
     /// "SQL testen", das eine DB-Runde gekostet hat und an das man sich erinnern musste.
     /// </summary>
     private KpiResult Preview => KpiEvaluator.Evaluate(Definition, Source, _rows, DateTime.Now);
+
+    /// <summary>
+    /// Der Verlauf der Vorschau - nur gerechnet, wenn die Definition ihn auch anfordert. Dieselbe
+    /// Zurueckhaltung wie in KpiDashboard: wer keine Linie will, soll sie nicht bezahlen, und
+    /// diese Property laeuft bei JEDEM Tastendruck im Formular.
+    /// </summary>
+    private IReadOnlyList<double?>? PreviewSeries
+        => Definition.WantsSeries
+            ? KpiEvaluator.Series(Definition, Source, _rows, DateTime.Now)
+                .Points.Select(p => p.Value).ToList()
+            : null;
 
     /// <summary>
     /// Dieselbe Definition als SQL. Reine Funktion, also einfach mitberechnet statt gecacht - und
@@ -230,6 +256,30 @@
         _ => "z.B. Fälle"
     };
 
+    private static readonly KpiSeriesDisplay[] SeriesModes =
+        { KpiSeriesDisplay.None, KpiSeriesDisplay.Inline, KpiSeriesDisplay.Background };
+
+    private static string SeriesLabel(KpiSeriesDisplay display) => display switch
+    {
+        KpiSeriesDisplay.Inline => "Kleine Linie",
+        KpiSeriesDisplay.Background => "Als Hintergrund",
+        _ => "Kein Verlauf"
+    };
+
+    private IReadOnlyList<string> SeriesLabels => SeriesModes.Select(SeriesLabel).ToList();
+
+    /// <summary>
+    /// Sagt, WELCHE Perioden gezeichnet werden. Die Einteilung folgt dem Zeitraum und ist nicht
+    /// einstellbar - ein eigenes Feld dafuer koennte dem Zeitraum widersprechen.
+    /// </summary>
+    private string SeriesHint => Definition.Timeframe switch
+    {
+        KpiTimeframe.Days7 => "Acht Tagespunkte - der Zeitraum schließt beide Enden ein.",
+        KpiTimeframe.Days30 => "31 Tagespunkte - der Zeitraum schließt beide Enden ein.",
+        KpiTimeframe.Days90 => "13 Wochenpunkte.",
+        _ => "Die letzten 12 Monate. Ältere Zeilen zählt die Kachel mit, der Verlauf zeigt sie nicht."
+    };
+
     private string CompareHint => Definition.Measure == KpiMeasure.TopValue
         ? "Ein häufigster Wert ist keine Zahl und lässt sich nicht vergleichen."
         : "Ohne Zeitraum gibt es keinen Vorzeitraum - wähle 7 oder 30 Tage.";
@@ -289,6 +339,12 @@
     private void OnCompareChanged(bool value)
     {
         Definition.CompareToPrevious = value;
+        Notify();
+    }
+
+    private void OnSeriesChanged(string label)
+    {
+        Definition.SeriesDisplay = SeriesModes.FirstOrDefault(m => SeriesLabel(m) == label);
         Notify();
     }
 
@@ -383,6 +439,15 @@
             Definition.TargetGood = null;
             Definition.TargetWarning = null;
             Note("Ein Name lässt sich nicht gegen einen Zielwert prüfen - die Ampel wurde entfernt.");
+        }
+
+        if (Definition.SeriesDisplay != KpiSeriesDisplay.None
+            && (!Definition.AllowsSeries || !Source.HasDate))
+        {
+            Definition.SeriesDisplay = KpiSeriesDisplay.None;
+            Note(Source.HasDate
+                ? "„Häufigster Wert“ liefert einen Namen - der Verlauf wurde entfernt."
+                : $"„{Source.Label}“ hat keine Datumsspalte - der Verlauf wurde entfernt.");
         }
     }
 

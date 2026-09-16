@@ -36,6 +36,9 @@ public enum MeadowIconName
     Download,
     Trash,
     ChevronDown,
+
+    /// <summary>Steigende Linie - der Verlaufs-Knopf in der Ecke einer KPI-Kachel.</summary>
+    Trend,
     Lock,
     CloudOff,
 

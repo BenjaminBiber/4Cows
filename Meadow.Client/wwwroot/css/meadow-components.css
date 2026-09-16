@@ -638,7 +638,13 @@ a.mw-icon-btn { text-decoration: none; }
 }
 
 /* kpiCard */
+/* position/overflow tragen die zwei neuen Ebenen: den Verlauf als Hintergrund
+   (.mw-kpi__bg, absolut unter dem Inhalt) und den Verlaufs-Knopf in der Ecke
+   (.mw-kpi__more, absolut darueber). overflow: hidden haelt die Flaeche in der
+   Rundung der Karte. */
 .mw-kpi {
+  position: relative;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -653,6 +659,34 @@ a.mw-icon-btn { text-decoration: none; }
 }
 @media (hover: hover) {
   .mw-kpi:hover { transform: translateY(-2px); box-shadow: var(--mw-shadow-pop); }
+}
+
+/* Der "stretched link": das <a> traegt nur Titel und Wert, sein ::after deckt
+   aber die ganze Karte ab. So bleibt die Kachel als Ganzes ein Klickziel,
+   OHNE dass zwei <a> ineinander liegen - was ungueltiges HTML waere, seit der
+   Verlaufs-Knopf dazugekommen ist. */
+.mw-kpi__link {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: inherit;
+  text-decoration: none;
+}
+.mw-kpi__link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+/* Ohne href ist es kein Link - dann darf es auch nicht die Karte ueberdecken,
+   sonst laege eine unsichtbare Flaeche ueber dem Verlaufs-Knopf. */
+.mw-kpi__link:not([href])::after { content: none; }
+
+.mw-kpi__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .mw-kpi__title {
@@ -688,6 +722,189 @@ a.mw-icon-btn { text-decoration: none; }
 .mw-kpi__delta-arrow {
   font-size: 10px;
   line-height: 1;
+}
+
+/* Delta links, Sparkline rechts. Dadurch kostet der Verlauf NULL zusaetzliche
+   Hoehe, solange ein Delta da ist - wichtig bei minmax(210px, 1fr). */
+.mw-kpi__foot {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: auto;
+}
+
+/* Die Fehlerursache, sichtbar statt nur im title-Attribut. Zwei Zeilen
+   geklemmt: der volle Text steht weiter im Tooltip und im aria-label. */
+.mw-kpi__note {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--mw-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.mw-kpi--error .mw-kpi__note { color: var(--mw-danger); }
+
+/* Der zweite, kleinere Einstieg: Verlauf statt Tabelle. z-index ueber dem
+   stretched link, 44px Tippflaeche am Daumen. */
+.mw-kpi__more {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--mw-r-lg);
+  color: var(--mw-muted);
+  text-decoration: none;
+  transition: color var(--mw-t), background var(--mw-t);
+}
+@media (hover: hover) {
+  .mw-kpi__more:hover { color: var(--mw-primary); background: var(--mw-tint); }
+}
+
+/* ── Verlauf ──────────────────────────────────────────────────── */
+/* Inline-SVG und nicht Chart.js: das hier ist 72x22 gross und steht acht- bis
+   zwoelfmal auf einem Dashboard. Ein <path> erbt seine Farbe aus CSS und
+   kostet beim Theme-Wechsel nichts, waehrend zwoelf Chart.js-Instanzen alle
+   neu gezeichnet werden muessten. Fuer das grosse Diagramm auf der
+   Detailseite ist Chart.js dagegen richtig.
+
+   non-scaling-stroke ist Pflicht, weil preserveAspectRatio="none" die Linie
+   staucht: sie zeigt einen Verlauf, keine Steigung - der Strich soll davon
+   aber nicht dicker werden. Dasselbe Muster wie die Fuge in .mw-pie__slice. */
+.mw-spark {
+  flex-shrink: 0;
+  width: 72px;
+  height: 22px;
+  overflow: visible;
+}
+.mw-spark__line {
+  fill: none;
+  stroke: var(--mw-primary);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+.mw-spark__dot { fill: var(--mw-primary); }
+.mw-spark__area { fill: currentColor; stroke: none; }
+
+/* Die Hintergrund-Variante: vollflaechig unter dem Inhalt, niedrige Deckkraft.
+   Der Wert bleibt vorn und lesbar - Kontrast ist hier die Randbedingung, nicht
+   die Optik, deshalb 0.14 und keine Volltonflaeche. */
+.mw-kpi__bg {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 62%;
+  pointer-events: none;
+  color: var(--mw-primary);
+  opacity: .14;
+}
+.mw-kpi__bg .mw-spark {
+  width: 100%;
+  height: 100%;
+}
+.mw-kpi__bg .mw-spark__line { stroke-width: 1.5; }
+
+/* Die Ampel faerbt den Verlauf mit: eine kritische Kachel mit einer
+   primaerfarbenen Kurve saehe aus, als widerspraechen sich die beiden. */
+.mw-kpi--rate-good .mw-spark__line, .mw-kpi--rate-good .mw-spark__dot { stroke: var(--mw-rate-good); }
+.mw-kpi--rate-good .mw-spark__dot { fill: var(--mw-rate-good); }
+.mw-kpi--rate-good .mw-kpi__bg { color: var(--mw-rate-good); }
+.mw-kpi--rate-warn .mw-spark__line { stroke: var(--mw-rate-warn); }
+.mw-kpi--rate-warn .mw-spark__dot { fill: var(--mw-rate-warn); }
+.mw-kpi--rate-warn .mw-kpi__bg { color: var(--mw-rate-warn); }
+.mw-kpi--rate-crit .mw-spark__line { stroke: var(--mw-rate-crit); }
+.mw-kpi--rate-crit .mw-spark__dot { fill: var(--mw-rate-crit); }
+.mw-kpi--rate-crit .mw-kpi__bg { color: var(--mw-rate-crit); }
+
+/* Im Dunkelmodus traegt eine Flaeche mit 14 % auf dunklem Grund kaum - dort
+   darf sie etwas kraeftiger sein, ohne den Wert zu bedraengen. */
+:root[data-mw-theme="dark"] .mw-kpi__bg { opacity: .22; }
+
+/* Platzhalter waehrend des Ladens. Bisher war der Bereich schlicht leer und
+   "laedt noch" von "es gibt keine" nicht zu unterscheiden. mwFade respektiert
+   prefers-reduced-motion ueber die globale Regel. */
+.mw-kpi--skeleton {
+  min-height: 104px;
+  cursor: default;
+  background: var(--mw-tint);
+  border-style: dashed;
+  box-shadow: none;
+  animation: mwFade var(--mw-t) ease-out;
+}
+@media (hover: hover) {
+  .mw-kpi--skeleton:hover { transform: none; box-shadow: none; }
+}
+
+/* Echter Leerzustand statt einer allein stehenden "+"-Kachel. */
+.mw-kpi-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 20px;
+  background: var(--mw-panel);
+  border: 1px dashed var(--mw-border);
+  border-radius: var(--mw-r-2xl);
+  color: var(--mw-muted);
+}
+.mw-kpi-empty p { margin: 0; }
+
+/* ── Kennzahl-Detailseite ─────────────────────────────────────── */
+.mw-kpi-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.mw-kpi-detail__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+.mw-kpi-detail__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Die Kachel im Kopf der Detailseite: dieselbe Komponente, nur groesser und
+   ohne Klickziel - sie steht hier fuer sich und fuehrt nirgendwohin. */
+.mw-kpi--hero {
+  flex: 1 1 260px;
+  max-width: 420px;
+}
+.mw-kpi--hero .mw-kpi__value { font-size: 56px; }
+
+/* In der Vorschau steht die Linie neben Wert und Delta, nicht in einer
+   eigenen Zeile - der Dialog scrollt ohnehin genug. */
+.mw-spark--preview { width: 84px; height: 26px; margin-left: auto; }
+
+/* Nur mobil sichtbar - am Desktop zeigt das Grid ohnehin alles. */
+.mw-kpi-more {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px 14px;
+  background: transparent;
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-2xl);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--mw-primary);
+  cursor: pointer;
 }
 
 /* ── Ampel ────────────────────────────────────────────────────── */
@@ -974,8 +1191,16 @@ a.mw-icon-btn { text-decoration: none; }
     gap: 10px;
   }
   /* Das Design zeigt mobil vier Kacheln - heute waren es nur zwei
-     (d-lg-flex d-none ab dem dritten Element). */
-  .mw-kpi-grid > *:nth-child(n+5) { display: none; }
+     (d-lg-flex d-none ab dem dritten Element).
+
+     :not(.is-expanded) ist neu, und es schliesst eine Sackgasse: bis hierher
+     waren Kachel 5 bis 8 auf dem Telefon schlicht unerreichbar, ohne dass
+     irgendetwas darauf hingewiesen haette. Der Aufklapper darunter setzt die
+     Klasse. Dasselbe Muster benutzt das Kuh-Grid weiter unten, nur
+     andersherum - deshalb hier kein Karussell. */
+  .mw-kpi-grid:not(.is-expanded) > *:nth-child(n+5) { display: none; }
+
+  .mw-kpi-more { display: inline-flex; }
 
   .mw-kpi { padding: 12px 14px; gap: 4px; }
   .mw-kpi__value { font-size: 32px; }
