@@ -61,30 +61,46 @@
                 @* Gewaehlte zuerst und IMMER sichtbar, auch wenn sie nicht zum Suchtext passen.
                    Sonst verschwaende eine gesetzte Auswahl beim Tippen und saehe aus wie
                    geloescht. *@
-                @foreach (var option in Pinned)
+                @* EINE Schleife, ein Elementtyp, jedes Element mit @key.
+
+                   Beides ist noetig, und beides steht hier, weil es je einen sichtbaren Fehler
+                   gekostet hat:
+
+                   @key - die gewaehlten Optionen stehen oben, die Liste sortiert sich beim
+                   Anklicken also um. Ohne @key ordnet Blazor die DOM-Knoten der REIHE NACH zu: der
+                   Knoten, den der Browser gerade angehakt hat, bleibt stehen und vererbt sein
+                   Haekchen an die Option, die dort jetzt steht ("Novaminsulfon" gewaehlt, Haekchen
+                   bei "Resflor").
+
+                   Eine Schleife - mit zwei getrennten @foreach wandert eine Option beim Waehlen aus
+                   dem einen Block in den anderen. Derselbe Schluessel in zwei Regionen ist fuer das
+                   Diffing kein Umzug, und die Knoten kamen mit leerer Klasse heraus.
+
+                   Die Grenze zwischen "gewaehlt" und "Treffer" traegt deshalb eine Klasse am ersten
+                   ungewaehlten Eintrag und kein eigenes Trennelement: ein Geschwister, das je nach
+                   Auswahl seine Position wechselt, ist genau die Art Strukturaenderung, die das
+                   Ganze eben zerlegt hat.
+
+                   Und checked als AUSDRUCK: checked="true" waere ein statisches Attribut, und ein
+                   vorhandenes checked-Attribut hakt an, egal was darin steht. *@
+                @{
+                    // Einmal je Render statt einmal je Eintrag - Pinned und Matches filtern beide
+                    // ueber die volle Optionsliste.
+                    var pinned = Pinned;
+                    var matches = Matches;
+                    var firstFree = pinned.Count > 0 ? matches.FirstOrDefault() : null;
+                }
+
+                @foreach (var option in pinned.Concat(matches))
                 {
-                    <label class="mw-check is-on">
-                        <input type="checkbox" checked="true"
+                    <label class="@CheckClass(option, firstFree)" @key="option">
+                        <input type="checkbox" checked="@Selected.Contains(option)"
                                @onchange="() => ToggleOptionAsync(option)" />
                         <span>@option</span>
                     </label>
                 }
 
-                @if (Pinned.Count > 0 && Matches.Count > 0)
-                {
-                    <div class="mw-check-sep"></div>
-                }
-
-                @foreach (var option in Matches)
-                {
-                    <label class="mw-check">
-                        <input type="checkbox" checked="false"
-                               @onchange="() => ToggleOptionAsync(option)" />
-                        <span>@option</span>
-                    </label>
-                }
-
-                @if (Pinned.Count == 0 && Matches.Count == 0)
+                @if (pinned.Count == 0 && matches.Count == 0)
                 {
                     <p class="mw-hint">Kein Treffer.</p>
                 }
@@ -132,6 +148,22 @@
             .Where(o => !Selected.Contains(o))
             .Where(o => _filter.Length == 0 || o.Contains(_filter, StringComparison.OrdinalIgnoreCase))
             .ToList();
+
+    /// <summary>
+    /// Die Klasse eines Eintrags. Der erste ungewaehlte bekommt zusaetzlich die Trennlinie -
+    /// als Rahmen an ihm selbst, nicht als eigenes Element dazwischen.
+    /// </summary>
+    private string CheckClass(string option, string? firstFree)
+    {
+        if (Selected.Contains(option))
+        {
+            return "mw-check is-on";
+        }
+
+        return string.Equals(option, firstFree, StringComparison.Ordinal)
+            ? "mw-check mw-check--first-free"
+            : "mw-check";
+    }
 
     private string CountText
     {

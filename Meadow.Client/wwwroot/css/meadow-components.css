@@ -1067,8 +1067,8 @@ a.mw-icon-btn { text-decoration: none; }
    auf seine Inhaltsbreite und die Aufteilung kippt. */
 .mw-kpi-split {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
-  gap: 20px;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 24px;
   align-items: start;
 }
 .mw-kpi-split__form {
@@ -1076,6 +1076,20 @@ a.mw-icon-btn { text-decoration: none; }
   flex-direction: column;
   gap: 12px;
   min-width: 0;
+}
+
+/* Die Filtergruppen zweispaltig. Die geplanten Kuh-Behandlungen haben sechs
+   davon - gestapelt war das eine Bildschirmhoehe, bevor Zeitraum und Zielwert
+   ueberhaupt auftauchten.
+
+   align-items: start ist Pflicht: MeadowMultiSelect klappt INLINE auf (siehe
+   seinen Kopfkommentar). Ohne das streckte die geoeffnete Liste die Nachbarin
+   auf dieselbe Hoehe. */
+.mw-kpi-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  align-items: start;
+  gap: 12px;
 }
 .mw-kpi-split__side {
   display: flex;
@@ -1093,6 +1107,15 @@ a.mw-icon-btn { text-decoration: none; }
   gap: 6px;
   min-width: 0;
 }
+/* Eine feste Hoehe statt "so hoch wie der Inhalt": das erzeugte Skript ist bei
+   einer Zaehlung zwei Zeilen und bei einem Ranking ueber Klauenbefunde
+   dreissig. Waechst der Kasten mit, springt die halbe Spalte bei jedem
+   Klick - und zwei Zeilen in einem 360px-Feld sehen ausserdem nicht aus wie
+   etwas, das man lesen soll. */
+.mw-kpi-split__sql .mw-sqlbox {
+  min-height: 260px;
+  max-height: 340px;
+}
 
 /* Eine Spalte, sobald 320px daneben nicht mehr ehrlich unterzubringen sind.
    Die Vorschau steht dann ZUERST, damit man beim Scrollen durch die Optionen
@@ -1100,6 +1123,9 @@ a.mw-icon-btn { text-decoration: none; }
 @media (max-width: 899.98px) {
   .mw-kpi-split { grid-template-columns: 1fr; }
   .mw-kpi-split__side { position: static; order: -1; }
+  /* In einer Spalte ist die halbe Breite keine Wohltat mehr, sondern ein
+     Feld, das die Haelfte der Zeile leer laesst. */
+  .mw-half, .mw-col--half { max-width: none; flex: 1; }
 }
 
 /* ── Live-Vorschau im KPI-Dialog ──────────────────────────────── */
@@ -2384,7 +2410,7 @@ a.mw-icon-btn { text-decoration: none; }
 .mw-dlg--showclaw { --mw-dlg-w: 520px; }
 .mw-dlg--claw     { --mw-dlg-w: 560px; }
 .mw-dlg--wide     { --mw-dlg-w: 760px; }
-.mw-dlg--split    { --mw-dlg-w: 1040px; }
+.mw-dlg--split    { --mw-dlg-w: 1200px; }
 
 /* st.dlgHead / st.dlgTitle / st.dlgClose */
 .mw-dlg-head {
@@ -2534,11 +2560,14 @@ a.mw-icon-btn { text-decoration: none; }
   padding-bottom: 6px;
   background: var(--mw-panel);
 }
-/* Trenner zwischen "gewaehlt" und "Treffer". */
-.mw-check-sep {
-  height: 1px;
-  margin: 6px 0;
-  background: var(--mw-border);
+/* Die Grenze zwischen "gewaehlt" und "Treffer" - als Rahmen AM ersten
+   ungewaehlten Eintrag, nicht als eigenes Element dazwischen. Ein Geschwister,
+   das je nach Auswahl seine Position wechselt, bringt Blazors Diffing in einer
+   sortierten, keyed Liste durcheinander (siehe MeadowMultiSelect). */
+.mw-check--first-free {
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--mw-border);
 }
 
 /* Vorlagenauswahl beim Anlegen einer Kennzahl. */
@@ -2904,6 +2933,14 @@ a.mw-icon-btn { text-decoration: none; }
 .mw-col--wide  { flex: 1.4; }
 .mw-col--narrow{ flex: .7; }
 .mw-col--double{ flex: 2; }
+/* Haelt die halbe Breite auch dann, wenn die Nachbarspalte gerade fehlt - sonst
+   zieht sich ein Feld fuer "ml" ueber die ganze Zeile. */
+.mw-col--half  { flex: 0 0 calc(50% - 5px); }
+
+/* Dasselbe fuer ein Feld, das gar nicht in einer .mw-field-row steckt. Kurze
+   Auswahlen (Zeitraum, Verlauf, Bewertung, Gruppierung) brauchen keine 760px;
+   die Breite macht sie nicht lesbarer, nur das Formular laenger. */
+.mw-half { max-width: calc(50% - 5px); }
 
 /* Euterviertel-Auswahl (ersetzt .UdderButton*) */
 .mw-quarter-grid {
