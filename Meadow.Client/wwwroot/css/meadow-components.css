@@ -1057,6 +1057,87 @@ a.mw-icon-btn { text-decoration: none; }
   font-size: 32px;
 }
 
+/* Schalter plus Fragezeichen. Das Zeichen steht AUSSERHALB des <label>, sonst
+   legte ein Klick darauf den Schalter um. */
+.mw-switch-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── Hilfe-Fragezeichen ───────────────────────────────────────── */
+.mw-help {
+  position: relative;
+  display: inline-flex;
+  vertical-align: middle;
+  line-height: 0;
+}
+.mw-help__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--mw-border);
+  border-radius: 50%;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--mw-muted);
+  cursor: help;
+  transition: color var(--mw-t), border-color var(--mw-t);
+}
+@media (hover: hover) {
+  .mw-help__btn:hover { color: var(--mw-primary); border-color: var(--mw-primary); }
+}
+.mw-help__btn:focus-visible { outline: 2px solid var(--mw-primary); outline-offset: 2px; }
+
+/* Ueber allem, was scrollt, und breiter als das Feld daneben: ein Hilfetext,
+   der selbst umbricht wie ein Datenfeld, hilft niemandem. */
+/* Nach UNTEN, nicht nach oben. Der Dialogkoerper scrollt (.mw-dlg-body), und
+   was ueber seine Oberkante ragt, wird abgeschnitten - beim obersten Feld fehlten
+   58px der Blase. Nach unten waechst das Formular ohnehin, dort ist fast immer
+   Platz; die eine Ausnahme faengt die Regel darunter ab. */
+.mw-help__bubble {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: -8px;
+  z-index: 40;
+  display: none;
+  width: max-content;
+  max-width: 260px;
+  padding: 8px 10px;
+  background: var(--mw-text);
+  border-radius: var(--mw-r-lg);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.45;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--mw-panel);
+  box-shadow: var(--mw-shadow-pop);
+}
+/* Drei Wege, und der dritte ist der wichtige: auf dem Tablet gibt es kein
+   Ueberfahren. */
+.mw-help:hover .mw-help__bubble,
+.mw-help:focus-within .mw-help__bubble,
+.mw-help.is-open .mw-help__bubble { display: block; }
+
+/* Nahe am rechten Rand nach links ausrichten, damit die Blase nicht aus der
+   Spalte laeuft. */
+.mw-kpi-filters > *:last-child .mw-help__bubble,
+.mw-field-row > *:last-child .mw-help__bubble { left: auto; right: -8px; }
+
+/* Das letzte Element des Formulars hat nach unten nichts mehr - dort zurueck
+   nach oben. Die einzige Stelle, an der die Grundrichtung nicht aufgeht. */
+.mw-kpi-split__form > *:last-child .mw-help__bubble {
+  top: auto;
+  bottom: calc(100% + 8px);
+}
+
 /* ── Zweispaltiger KPI-Dialog ─────────────────────────────────── */
 /* Links die Einstellung, rechts ihre Wirkung. Untereinander scrollt das eine
    aus dem Bild, sobald man am anderen dreht - und genau deshalb sah man die
@@ -1605,6 +1686,52 @@ a.mw-icon-btn { text-decoration: none; }
   flex-direction: column;
   gap: 8px;
 }
+
+/* Beschriftung plus Fragezeichen. Getrennte Elemente, damit aria-labelledby
+   weiter nur auf den Text zeigt - siehe MeadowSingleSelect. */
+.mw-select__labelrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Der offene Teil als EIN Block. Im Fluss aendert das nichts - nur so laesst er
+   sich dort, wo es geht, als Ganzes ueberlagern. */
+.mw-select__menu {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+/* Ein leerer Rahmen (geschlossene Mehrfachauswahl) darf keine Luecke erzeugen. */
+.mw-select__menu:empty { display: none; }
+
+/* ── Ueberlagern statt schieben ───────────────────────────────── */
+/* Im Fluss aufzuklappen war eine bewusste Entscheidung: das Filterpanel ist
+   mobil ein scrollendes Bottom-Sheet (.mw-pop), und ein absolut positioniertes
+   Menue darin waere an dessen overflow abgeschnitten. Genau deshalb steht das
+   hier NICHT global, sondern nur dort, wo die Voraussetzung eine andere ist.
+
+   Im KPI-Dialog schob eine geoeffnete Liste den halben Dialog nach unten -
+   Datenquelle rutschte unter die aufgeklappte Berechnung, und die Kachel
+   daneben wanderte aus dem Blick. Hier hat die Liste Platz ueber dem Inhalt. */
+.mw-kpi-split .mw-select { position: relative; }
+.mw-kpi-split .mw-select__menu:not(:empty) {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  margin-top: 6px;
+  padding: 8px;
+  background: var(--mw-panel);
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-2xl);
+  box-shadow: var(--mw-shadow-pop);
+}
+/* Die Liste bringt ihren eigenen Rahmen mit - im Menuekasten waeren es zwei. */
+.mw-kpi-split .mw-select__menu .mw-check-list { border: 0; }
+/* Ueber der Vorschau-Spalte und ueber dem darunterliegenden Feld. */
+.mw-kpi-split .mw-select:focus-within { z-index: 21; }
 
 .mw-select__trigger {
   display: flex;

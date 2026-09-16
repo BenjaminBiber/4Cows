@@ -39,11 +39,11 @@
 
 <div class="mw-field-row">
     <div class="mw-col">
-        <MeadowSingleSelect Label="Datenquelle" Options="SourceLabels"
+        <MeadowSingleSelect Label="Datenquelle" Options="SourceLabels" Help="@HelpSource"
                             Value="@Source.Label" ValueChanged="OnSourceChanged" />
     </div>
     <div class="mw-col">
-        <MeadowSingleSelect Label="Berechnung" Options="MeasureLabels"
+        <MeadowSingleSelect Label="Berechnung" Options="MeasureLabels" Help="@HelpMeasure"
                             Value="@KpiDefinitionSummary.MeasureLabel(Definition.Measure)"
                             ValueChanged="OnMeasureChanged" />
     </div>
@@ -55,7 +55,7 @@
 @if (Definition.RequiresGroupBy)
 {
     <div class="mw-half">
-        <MeadowSingleSelect Label="Gruppieren nach" Options="GroupLabels"
+        <MeadowSingleSelect Label="Gruppieren nach" Options="GroupLabels" Help="@HelpGroup"
                             Value="@KpiDefinitionSummary.GroupBy(Definition.GroupBy)"
                             ValueChanged="OnGroupChanged" />
     </div>
@@ -71,7 +71,10 @@
         @* Ohne die Nachkommastellen daneben bliebe die Einheit allein in der Zeile und zoege
            sich ueber die volle Breite - fuer ein Feld, in dem "ml" steht. *@
         <div class="mw-col @(Definition.RequiresDosage ? "" : "mw-col--half")">
-            <label class="mw-label" for="mw-kpi-unit">Einheit</label>
+            <label class="mw-label" for="mw-kpi-unit">
+                Einheit
+                <MeadowHelp Text="@HelpUnit" For="Einheit" />
+            </label>
             <div class="mw-field">
                 <MudTextField T="string" InputId="mw-kpi-unit" Variant="Variant.Text"
                               Value="@(Definition.Unit ?? "")"
@@ -81,7 +84,10 @@
         @if (Definition.RequiresDosage)
         {
             <div class="mw-col">
-                <label class="mw-label" for="mw-kpi-dec">Nachkommastellen</label>
+                <label class="mw-label" for="mw-kpi-dec">
+                    Nachkommastellen
+                    <MeadowHelp Text="@HelpDecimals" For="Nachkommastellen" />
+                </label>
                 <div class="mw-field">
                     <MudNumericField T="int" InputId="mw-kpi-dec" Variant="Variant.Text"
                                      HideSpinButtons="true" Min="0" Max="4"
@@ -102,7 +108,7 @@
     @foreach (var tag in Source.Tags)
     {
         var key = tag.Key;
-        <MeadowMultiSelect Label="@tag.Label" Options="@OptionsFor(key)"
+        <MeadowMultiSelect Label="@tag.Label" Options="@OptionsFor(key)" Help="@HelpFilter"
                            Selected="@SelectedFor(key)"
                            SelectionChanged="@(() => OnFilterChanged(key))" />
     }
@@ -111,7 +117,7 @@
 @if (Source.SupportsTimeframe)
 {
     <div class="mw-half">
-        <MeadowSingleSelect Label="Zeitraum" Options="TimeframeLabels"
+        <MeadowSingleSelect Label="Zeitraum" Options="TimeframeLabels" Help="@HelpTimeframe"
                             Value="@KpiDefinitionSummary.TimeframeOption(Definition.Timeframe, Source.IsPlanned)"
                             ValueChanged="OnTimeframeChanged" />
     </div>
@@ -119,7 +125,7 @@
 
 @if (Source.SupportsCompare)
 {
-    <MeadowSwitch Label="Vergleich zum Vorzeitraum"
+    <MeadowSwitch Label="Vergleich zum Vorzeitraum" Help="@HelpCompare"
                   Value="Definition.CompareToPrevious && Definition.AllowsComparison"
                   ValueChanged="OnCompareChanged" />
 
@@ -136,7 +142,7 @@
 @if (Definition.AllowsSeries && Source.HasDate)
 {
     <div class="mw-half">
-        <MeadowSingleSelect Label="Verlauf" Options="SeriesLabels"
+        <MeadowSingleSelect Label="Verlauf" Options="SeriesLabels" Help="@HelpSeries"
                             Value="@SeriesLabel(Definition.SeriesDisplay)"
                             ValueChanged="OnSeriesChanged" />
     </div>
@@ -144,7 +150,7 @@
     @* Eigener Schalter und keine Eigenschaft des Diagramms: die zweite Zahl hilft auch ohne
        Kurve ("120, im Schnitt 8,2 pro Monat" braucht kein Bild), und ein Diagramm hilft auch
        ohne sie. *@
-    <MeadowSwitch Label="Durchschnitt anzeigen"
+    <MeadowSwitch Label="Durchschnitt anzeigen" Help="@HelpAverage"
                   Value="Definition.ShowAverage" ValueChanged="OnAverageChanged" />
 
     @if (Definition.WantsSeries)
@@ -168,6 +174,55 @@
     /// Besitzer zu haben.
     /// </summary>
     [Parameter] public IReadOnlyList<KpiRow> Rows { get; set; } = Array.Empty<KpiRow>();
+
+    // ---- Hilfetexte ----------------------------------------------------
+    //
+    // Sie stehen hier und nicht in KpiDefinitionSummary: dort liegen die Beschriftungen der
+    // WERTE ("Anzahl", "letzte 30 Tage"), hier geht es um das FELD - was es tut und was es
+    // nebenbei mitentscheidet. Jeder Text sagt etwas, das nicht schon in der Beschriftung steht;
+    // "Datenquelle: die Datenquelle" waere ein Fragezeichen, das man einmal anklickt und danach
+    // nie wieder.
+
+    private const string HelpSource =
+        "Welche Tabelle gezählt wird. Sie entscheidet mit, welche Berechnungen und Filter es "
+        + "überhaupt gibt - und wohin ein Klick auf die fertige Kachel führt.";
+
+    private const string HelpMeasure =
+        "Was aus den gefilterten Zeilen wird. „Häufigster Wert“ ist der Sonderfall: er liefert "
+        + "einen Namen statt einer Zahl und kann deshalb weder verglichen noch bewertet werden.";
+
+    private const string HelpGroup =
+        "Wonach für „Häufigster Wert“ gezählt wird. Gewinnt die Gruppe mit den meisten Zeilen; "
+        + "bei Gleichstand entscheidet die alphabetische Reihenfolge, damit die Kachel nicht "
+        + "zwischen zwei Aufrufen springt.";
+
+    private const string HelpFilter =
+        "Leer heißt alle. Mehrere Werte in einer Gruppe gelten als ODER, verschiedene Gruppen "
+        + "als UND. Angeboten wird nur, was in den Daten wirklich vorkommt.";
+
+    private const string HelpTimeframe =
+        "Beidseitig einschließend: „7 Tage“ umfasst heute und die sieben Tage davor. Zukünftig "
+        + "datierte Zeilen fallen heraus - außer bei geplanten Behandlungen, dort zählt der "
+        + "Zeitraum nach vorn.";
+
+    private const string HelpCompare =
+        "Zeigt die Veränderung gegenüber dem gleich langen Zeitraum davor. Der Pfeil zeigt nur "
+        + "die Richtung und wertet nicht - dafür ist der Zielwert da.";
+
+    private const string HelpSeries =
+        "Zeichnet die Kennzahl über die Zeit: als kleine Linie in der Fußzeile oder als Diagramm "
+        + "unter dem Wert. Die Einteilung folgt dem Zeitraum und ist nicht einstellbar.";
+
+    private const string HelpAverage =
+        "Stellt dem Wert den Mittelwert über die gezeigten Perioden zur Seite. Geht auch ohne "
+        + "Diagramm - eine Zahl wird erst mit einem Bezug lesbar.";
+
+    private const string HelpUnit =
+        "Wird hinter den Wert gesetzt, z.B. „ml“ oder „Fälle“. Reine Beschriftung, sie ändert "
+        + "nichts an der Rechnung und nichts am Drill-down.";
+
+    private const string HelpDecimals =
+        "Nur für Summe und Ø Menge. Eine Anzahl hat keine Nachkommastellen.";
 
     // Aus der Tabelle in Shared, nicht als eigene Liste: ein neuer Zeitraum soll hier von selbst
     // auftauchen und nicht an einer vergessenen Aufzaehlung haengenbleiben.

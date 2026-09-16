@@ -1,14 +1,27 @@
 @* Ersetzt MudSwitch — genutzt fuer "Simple Ansicht" (Stall-Modus). *@
-<label class="mw-switch @Class">
-    <input type="checkbox" checked="@Value" @onchange="OnChange" />
-    <span class="mw-switch__track"></span>
-    <span>@Label</span>
-</label>
+<span class="mw-switch-row">
+    <label class="mw-switch @Class">
+        <input type="checkbox" checked="@Value" @onchange="OnChange" />
+        <span class="mw-switch__track"></span>
+        <span>@Label</span>
+    </label>
+
+    @* Ausserhalb des <label>: ein Klick auf das Fragezeichen wuerde sonst den Schalter
+       umlegen, weil alles im Label den Schalter bedient. *@
+    @if (!string.IsNullOrWhiteSpace(Help))
+    {
+        <MeadowHelp Text="@Help" For="@Label" />
+    }
+</span>
 
 @code {
     [Parameter] public bool Value { get; set; }
     [Parameter] public EventCallback<bool> ValueChanged { get; set; }
     [Parameter] public string Label { get; set; } = "";
+
+    /// <summary>Erklaerung hinter einem Fragezeichen neben der Beschriftung. Leer: kein Zeichen.</summary>
+    [Parameter] public string? Help { get; set; }
+
     [Parameter] public string? Class { get; set; }
 
     private Task OnChange(ChangeEventArgs e)
