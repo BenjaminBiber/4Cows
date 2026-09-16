@@ -82,45 +82,52 @@ else
         }
         else
         {
-            <MeadowChartCard Title="Verlauf">
-                <ChildContent>
-                    @if (_series is null || !_series.HasAny)
-                    {
-                        <p class="mw-hint">@(_series?.Message ?? "Für diesen Zeitraum gibt es keine Daten.")</p>
-                    }
-                    else
-                    {
-                        <div class="mw-chart-canvas">
-                            <canvas id="KpiSeriesChart"></canvas>
-                        </div>
-                        @if (!_series.CoversTimeframe)
-                        {
-                            <p class="mw-hint">
-                                Der Verlauf zeigt die letzten 12 Monate. Ältere Zeilen zählt die Zahl
-                                oben mit.
-                            </p>
-                        }
-                        @if (_chartError is not null)
-                        {
-                            <div class="mw-chart-error">@_chartError</div>
-                        }
-                    }
-                </ChildContent>
-            </MeadowChartCard>
-
-            @if (_dimensions.Count > 0)
-            {
-                <MeadowChartCard Title="Aufschlüsselung">
-                    <Tools>
-                        <MeadowSingleSelect Label="" Options="DimensionLabels"
-                                            Value="@KpiDefinitionSummary.GroupBy(_dimension)"
-                                            ValueChanged="OnDimensionChanged" />
-                    </Tools>
+            @* Am Desktop nebeneinander und auf Fensterhoehe festgenagelt - dieselbe Aufteilung
+               wie auf der Kuh-Seite (.mw-cow-page). Untereinander waren Kopf, Verlauf und
+               Aufschluesselung zusammen hoeher als jeder Bildschirm, und man musste scrollen,
+               um die zweite Haelfte einer Seite zu sehen, die aus genau zwei Karten besteht.
+               Mobil bleibt es ein Stapel, dort ist Scrollen die richtige Antwort. *@
+            <div class="mw-kpi-detail__split">
+                <MeadowChartCard Title="Verlauf">
                     <ChildContent>
-                        <MeadowPieChart Items="_breakdown" Class="mw-pie--large"
-                                        EmptyText="Für diesen Zeitraum gibt es keine Daten." />
+                        @if (_series is null || !_series.HasAny)
+                        {
+                            <p class="mw-hint">@(_series?.Message ?? "Für diesen Zeitraum gibt es keine Daten.")</p>
+                        }
+                        else
+                        {
+                            <canvas id="KpiSeriesChart"></canvas>
+                        }
                     </ChildContent>
                 </MeadowChartCard>
+
+                @if (_dimensions.Count > 0)
+                {
+                    <MeadowChartCard Title="Aufschlüsselung">
+                        <Tools>
+                            <MeadowSingleSelect Label="" Options="DimensionLabels"
+                                                Value="@KpiDefinitionSummary.GroupBy(_dimension)"
+                                                ValueChanged="OnDimensionChanged" />
+                        </Tools>
+                        <ChildContent>
+                            <MeadowPieChart Items="_breakdown" Class="mw-pie--large"
+                                            EmptyText="Für diesen Zeitraum gibt es keine Daten." />
+                        </ChildContent>
+                    </MeadowChartCard>
+                }
+            </div>
+
+            @* Unter der Aufteilung und nicht in der Verlaufskarte: beides sind Randnotizen zum
+               Diagramm, und in der Karte fraessen sie die Hoehe, die das Diagramm braucht. *@
+            @if (_series is { CoversTimeframe: false, } && _series.HasAny)
+            {
+                <p class="mw-hint">
+                    Der Verlauf zeigt die letzten 12 Monate. Ältere Zeilen zählt die Zahl oben mit.
+                </p>
+            }
+            @if (_chartError is not null)
+            {
+                <div class="mw-chart-error">@_chartError</div>
             }
         }
     </div>

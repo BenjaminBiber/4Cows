@@ -984,16 +984,90 @@ a.mw-icon-btn { text-decoration: none; }
 .mw-kpi-empty p { margin: 0; }
 
 /* ── Kennzahl-Detailseite ─────────────────────────────────────── */
+/* Mobil ein Stapel, am Desktop zwei Spalten in Fensterhoehe - dasselbe
+   Geruest wie .mw-cow-page, aus demselben Grund: eine Seite aus zwei Karten
+   soll man nicht scrollen muessen, um ihre zweite Haelfte zu sehen. */
 .mw-kpi-detail {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
+/* Kopf und Randnotizen sind so hoch wie ihr Inhalt. Wer wachsen darf, sagt
+   die Regel im Desktop-Block. */
+.mw-kpi-detail > * { flex: 0 0 auto; }
+
 .mw-kpi-detail__head {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 16px;
+}
+
+.mw-kpi-detail__split {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+@media (min-width: 1024px) {
+  /* Genau der Platz, den .mw-content seinem Inhalt laesst: Fensterhoehe minus
+     Kopfzeile minus dessen Innenabstand. Die Tabbar zaehlt nicht mit, die ist
+     am Desktop display:none. Ein height:100% waere wirkungslos - siehe die
+     ausfuehrliche Begruendung an .mw-cow-page. */
+  .mw-kpi-detail {
+    height: calc(100dvh - var(--mw-header-h) - 2 * var(--mw-content-pad));
+  }
+
+  .mw-kpi-detail__split {
+    display: grid;
+    /* minmax(0,...) und nicht 1fr: ein langer Befundname in der Legende des
+       Kuchens reichte sonst seine Breite nach oben durch und schoebe das
+       Verlaufsdiagramm schmaler. */
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    flex: 1;
+    min-height: 0;
+  }
+
+  /* Die Karten fuellen ihre Spalte, statt so hoch zu sein wie ihr Inhalt. */
+  .mw-kpi-detail__split > .mw-card {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  /* Und der Inhalt fuellt die Karte. .mw-chart-canvas traegt sonst eine feste
+     Hoehe (clamp ueber --mw-bars-h) - die ist fuer die Diagrammreihe des
+     Dashboards gedacht, wo die Karte so hoch ist wie ihr Canvas. Hier ist es
+     andersherum.
+
+     flex-basis 0 und nicht auto: Chart.js schreibt dem Canvas eine Pixelhoehe,
+     und die zaehlte bei auto in die Grundgroesse des Elternteils zurueck - der
+     Klassiker, bei dem ein Diagramm bei jedem Neuzeichnen ein Stueck waechst.
+     Genau das ist hier passiert: bei 720px Fensterhoehe stand ein 545px hoher
+     Canvas, und die Seite scrollte wieder. Dieselbe Falle und dieselbe Antwort
+     wie in .mw-cow-col. */
+  .mw-kpi-detail__split .mw-chart-canvas {
+    flex: 1 1 0;
+    height: auto;
+    min-height: 120px;
+
+    /* overflow statt position:absolute am Canvas: beides haelt die zuletzt
+       gezeichnete Pixelhoehe aus dem Seitenlayout, aber absolut gesetzt faende
+       der Beobachter in ChartHelper.js seinen Kasten nicht mehr.
+
+       Das Zurueckschrumpfen erledigt nicht das CSS - Chart.js bemerkt die
+       kleiner gewordene Karte von selbst nicht (gemessen: Canvas 545px,
+       Kasten 285px, auch nach einem ausdruecklichen chart.resize()). Dafuer
+       gibt es watchContainer in ChartHelper.js. overflow: hidden faengt nur
+       die Einzelbilder dazwischen ab, in denen der Canvas noch zu gross ist. */
+    overflow: hidden;
+  }
+
+  /* Alleine in der Zeile (eine Quelle ohne Gruppierungen, also ohne
+     Aufschluesselung) soll das Verlaufsdiagramm nicht die halbe Breite leer
+     lassen. */
+  .mw-kpi-detail__split > .mw-card:only-child { grid-column: 1 / -1; }
 }
 .mw-kpi-detail__actions {
   display: flex;
