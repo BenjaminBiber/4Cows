@@ -8,6 +8,7 @@
 @inject IUdderService UdderService
 @inject ITreatmentReasonService TreatmentReasonService
 @inject ISettingsService SettingsService
+@inject IDialogService DialogService
 @inject DatabaseConnectionState Connection
 
 <MeadowDialog Title="Kuh Behandlung hinzufügen" Size="MeadowDialogSize.Cow">
@@ -30,13 +31,13 @@
                 <div class="mw-col mw-col--wide">
                     <span class="mw-label">Kuh / Kalb</span>
                     <div class="mw-field">
-                        <MudAutocomplete T="string" Label="Kuh / Kalb" Variant="Variant.Text"
-                                         SearchFunc="cowService.SearchCows"
-                                         ToStringFunc="cowService.GetDisplayLabel"
-                                         ResetValueOnEmptyText="true" Immediate="true"
-                                         Value="@entry.EarValue"
-                                         ValueChanged="@(v => OnCowChanged(entry, v))"
-                                         Placeholder="DE 08 1523 …" />
+                        <MeadowAutocomplete Label="Kuh / Kalb"
+                                            SearchFunc="cowService.SearchCows"
+                                            ToStringFunc="cowService.GetDisplayLabel"
+                                            ResetValueOnEmptyText="true"
+                                            Value="@entry.EarValue"
+                                            ValueChanged="@(v => OnCowChanged(entry, v))"
+                                            Placeholder="DE 08 1523 …" />
                     </div>
                 </div>
                 @if (_numbers.Count > 1)
@@ -68,12 +69,12 @@
                 @* Optional: leer lassen ist erlaubt und loest in Save keine
                    Meldung aus. CoerceValue wie beim Medikament - ein
                    unbekannter Grund wird beim Speichern angelegt. *@
-                <MudAutocomplete T="string" InputId="mw-reason" Variant="Variant.Text"
-                                 SelectValueOnTab="true" CoerceValue="true"
-                                 ResetValueOnEmptyText="true"
-                                 @bind-Value="ReasonName"
-                                 SearchFunc="TreatmentReasonService.SearchAsync"
-                                 Placeholder="optional, z.B. Mastitis" />
+                <MeadowAutocomplete InputId="mw-reason"
+                                    SelectValueOnTab="true" CoerceValue="true"
+                                    ResetValueOnEmptyText="true"
+                                    @bind-Value="ReasonName"
+                                    SearchFunc="TreatmentReasonService.SearchAsync"
+                                    Placeholder="optional, z.B. Mastitis" />
             </div>
         </div>
 
@@ -241,7 +242,8 @@
         // irgendetwas geschrieben wird. Die Meldung kommt aus ResolveAsync
         // selbst, null heisst abbrechen.
         var medications = await MedicationRows.ResolveAsync(
-            _medications, medicineService, WhereHowService, UdderService, Connection, Snackbar);
+            _medications, medicineService, WhereHowService, UdderService, Connection, Snackbar,
+            DialogService);
 
         if (medications is null)
         {
