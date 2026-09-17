@@ -188,6 +188,87 @@ public class WhereHowLookupsTests
         Assert.Equal(int.MinValue, WhereHowLookups.FindIdByName(whereHows, eingabe));
     }
 
+    // ---- Aehnliche Namen --------------------------------------------------
+    //
+    // Diese Regel steht zwischen einem Tippfehler und einem neuen Stammdatum:
+    // bevor das Speichern einer Behandlung ein unbekanntes Wie/Wo anlegt,
+    // nennt die Rueckfrage die Treffer von hier. Faellt sie aus, entsteht
+    // wieder still, was diese Tabelle heute schon hat - jeden Namen doppelt.
+
+    [Fact]
+    public void Abbreviations_match_whether_they_carry_dots_or_not()
+    {
+        // Der haeufigste Fall im Stall: "im" statt "i.m." getippt.
+        var whereHows = new[] { W(1, "i.m."), W(2, "oral") };
+
+        Assert.Equal(new[] { "i.m." }, WhereHowLookups.FindSimilarNames(whereHows, "im"));
+    }
+
+    [Fact]
+    public void A_name_that_contains_the_input_counts_as_similar()
+    {
+        var whereHows = new[] { W(1, "IZ"), W(2, "oral") };
+
+        Assert.Equal(new[] { "IZ" }, WhereHowLookups.FindSimilarNames(whereHows, "IZZ"));
+    }
+
+    [Fact]
+    public void An_input_that_contains_the_name_counts_as_similar()
+    {
+        var whereHows = new[] { W(1, "Euter"), W(2, "i.v.") };
+
+        Assert.Equal(new[] { "Euter" }, WhereHowLookups.FindSimilarNames(whereHows, "Euter hinten"));
+    }
+
+    [Fact]
+    public void Nothing_in_common_is_no_match()
+    {
+        var whereHows = new[] { W(1, "IZ"), W(2, "oral"), W(3, "i.m.") };
+
+        Assert.Empty(WhereHowLookups.FindSimilarNames(whereHows, "Klotz"));
+    }
+
+    [Fact]
+    public void The_exact_name_is_left_out()
+    {
+        // Gaebe es den exakten Treffer, wuerde gar nicht erst gefragt - er
+        // stuende sonst als Vorschlag neben sich selbst.
+        var whereHows = new[] { W(1, "oral"), W(2, "oral ") };
+
+        Assert.Empty(WhereHowLookups.FindSimilarNames(whereHows, "ORAL"));
+    }
+
+    [Fact]
+    public void The_shortest_names_come_first_and_the_list_is_capped()
+    {
+        // Die Rueckfrage ist ein Satz, keine Liste. Drei Namen passen hinein,
+        // und im Stall ist die kurze Schreibweise die brauchbarere. Bei
+        // gleicher Laenge entscheidet das Alphabet, damit die Reihenfolge
+        // reproduzierbar ist und nicht an der Cache-Sortierung haengt.
+        var whereHows = new[]
+        {
+            W(1, "Euter komplett vorne"), W(2, "Euter rechts"), W(3, "Euter hinten"),
+            W(4, "Euter links"), W(5, "oral")
+        };
+
+        var result = WhereHowLookups.FindSimilarNames(whereHows, "Euter ");
+
+        Assert.Equal(new[] { "Euter links", "Euter hinten", "Euter rechts" }, result);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("  .. ")]
+    public void An_empty_or_punctuation_only_input_matches_nothing(string? eingabe)
+    {
+        // Ohne diesen Riegel waere der leere Kern in JEDEM Namen enthalten und
+        // die Rueckfrage schluege alle Eintraege auf einmal vor.
+        var whereHows = new[] { W(1, "IZ"), W(2, "oral") };
+
+        Assert.Empty(WhereHowLookups.FindSimilarNames(whereHows, eingabe));
+    }
+
     [Fact]
     public void The_empty_where_how_keeps_the_id_that_caused_the_bug()
     {

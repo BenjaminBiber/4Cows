@@ -50,6 +50,65 @@ public static class WhereHowLookups
     }
 
     /// <summary>
+    /// Bestehende Eintraege, die dem eingegebenen Namen aehnlich sehen -
+    /// hoechstens <paramref name="limit"/>, nach Laenge und dann alphabetisch,
+    /// damit im Stall die kurze Schreibweise oben steht.
+    ///
+    /// Gebraucht wird das an genau einer Stelle: bevor beim Speichern einer
+    /// Behandlung ein unbekanntes Wie/Wo angelegt wird. Die Rueckfrage nennt
+    /// die Treffer, und der Nutzer sieht, dass es "IZ" schon gibt, bevor er
+    /// "IZZ" daneben stellt. Diese Tabelle fuehrt jeden ihrer Namen heute
+    /// mehrfach, WEIL diese Frage bisher nie gestellt wurde.
+    ///
+    /// Bewusst keine Editierdistanz: die echten Verwechslungen hier sind
+    /// Abkuerzungen mit und ohne Punkte ("i.m." / "im") und Teilwoerter
+    /// ("Euter" / "Euter hinten"). Beides faengt der Vergleich unten, und er
+    /// laesst sich ohne Bibliothek lesen und pruefen.
+    ///
+    /// Der exakte Treffer ist ausgeschlossen: gaebe es ihn, wuerde gar nicht
+    /// erst gefragt.
+    /// </summary>
+    public static List<string> FindSimilarNames(
+        IEnumerable<WhereHow> whereHows, string? name, int limit = 3)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return new List<string>();
+        }
+
+        var gesucht = name.Trim();
+        var kern = Squeeze(gesucht);
+
+        if (kern.Length == 0)
+        {
+            return new List<string>();
+        }
+
+        return whereHows
+            .Select(w => w.WhereHowName?.Trim() ?? "")
+            .Where(n => n.Length > 0)
+            .Where(n => !string.Equals(n, gesucht, StringComparison.OrdinalIgnoreCase))
+            .Where(n => IsSimilar(Squeeze(n), kern))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(n => n.Length)
+            .ThenBy(n => n, StringComparer.CurrentCulture)
+            .Take(limit)
+            .ToList();
+    }
+
+    /// <summary>
+    /// Punkte, Leerzeichen und Bindestriche raus, klein geschrieben - damit
+    /// "i.m.", "i. m." und "im" derselbe Kern sind.
+    /// </summary>
+    private static string Squeeze(string value)
+        => new(value.Where(c => c is not ('.' or ' ' or '-' or '/'))
+            .Select(char.ToLowerInvariant).ToArray());
+
+    private static bool IsSimilar(string kandidat, string kern)
+        => kandidat.Length > 0
+           && (kandidat == kern || kandidat.Contains(kern) || kern.Contains(kandidat));
+
+    /// <summary>
     /// Bei Fehltreffer ein frisches, leeres WhereHow - kein null. Die
     /// Aufrufstellen lesen den Namen direkt.
     /// </summary>

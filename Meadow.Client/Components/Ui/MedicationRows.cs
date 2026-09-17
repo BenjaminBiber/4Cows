@@ -1,4 +1,6 @@
+using Meadow.Client.Components.Cows.Dialogs;
 using Meadow.Client.Components.Services;
+using Meadow.Shared.Lookups;
 using Meadow.Shared.Services;
 using Meadow.Shared.Models;
 using MudBlazor;
@@ -198,6 +200,53 @@ public static class MedicationRows
                + $"{was}-Eintraege anlegen - bitte einen bestehenden waehlen.";
     }
 
+    /// <summary>
+    /// Die Rueckfrage, bevor ein Wie/Wo entsteht.
+    ///
+    /// Drei Saetze, und jeder beantwortet eine Frage, die der Nutzer sonst erst
+    /// hinterher stellt: Was wird angelegt? Fragt es kuenftig nach dem
+    /// Euterviertel? Und gibt es schon etwas, das genauso gemeint ist?
+    ///
+    /// Die Viertel-Einstellung steht mit im Text, weil sie hier nur an einem
+    /// 16px grossen Umschalt-Icon neben dem Feld haengt - wer es nie
+    /// angetippt hat, legt sonst unbemerkt ein Wie/Wo an, das bei jeder
+    /// kuenftigen Behandlung nach dem Viertel fragt.
+    /// </summary>
+    private static async Task<bool> ConfirmNewWhereHowAsync(
+        IDialogService dialogService,
+        IWhereHowService whereHowService,
+        MedicationEntry row,
+        string prefix)
+    {
+        var name = row.WhereHowName.Trim();
+
+        var text = $"{prefix}„{name}\" gibt es noch nicht und wird als Wie / Wo angelegt. ";
+
+        text += row.ShowDialogForNewWhereHow
+            ? "Künftige Behandlungen damit fragen nach dem Euterviertel."
+            : "Künftige Behandlungen damit fragen nicht nach dem Euterviertel.";
+
+        var similar = WhereHowLookups.FindSimilarNames(whereHowService.WhereHows.Values, name);
+        if (similar.Count > 0)
+        {
+            text += $" Ähnlich gibt es bereits: {string.Join(", ", similar)}.";
+        }
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var parameters = new DialogParameters<GenericDialog>
+        {
+            { x => x.HeaderText, "Neues Wie / Wo" },
+            { x => x.Description, text },
+            { x => x.AcceptButtonText, "Anlegen" },
+            { x => x.CancelButtonText, "Abbrechen" },
+            { x => x.ColorScheme, Color.Warning }
+        };
+
+        var dialog = await dialogService.ShowAsync<GenericDialog>(string.Empty, parameters, options);
+        var result = await dialog.Result;
+        return result is not null && !result.Canceled;
+    }
+
     private static Medicine? FindMedicine(string? medicineName, IMedicineService medicineService)
     {
         if (string.IsNullOrWhiteSpace(medicineName))
@@ -227,6 +276,14 @@ public static class MedicationRows
     /// dazu: nur mit ihr laesst sich "kenne ich nicht" von "kann ich gerade
     /// nicht anlegen" unterscheiden, und nur das zweite ist etwas, das der
     /// Nutzer im Stall durch Warten loest.
+    ///
+    /// Ein unbekanntes Wie/Wo wird seit dieser Aenderung NICHT mehr
+    /// stillschweigend angelegt - es gibt eine Rueckfrage, und die nennt
+    /// aehnlich geschriebene bestehende Eintraege. Der Grund steht in der
+    /// Datenbank: die Tabelle WhereHow fuehrt heute jeden ihrer Namen
+    /// mehrfach, weil das Feld jahrelang jeden Tippfehler zu einem Stammdatum
+    /// befoerdert hat. Die Rueckfrage laeuft VOR dem ersten Schreibvorgang,
+    /// ein Abbruch laesst also auch nichts halb Angelegtes zurueck.
     /// </summary>
     public static async Task<List<ResolvedMedication>?> ResolveAsync(
         IReadOnlyList<MedicationEntry> rows,
@@ -234,7 +291,8 @@ public static class MedicationRows
         IWhereHowService whereHowService,
         IUdderService udderService,
         DatabaseConnectionState connection,
-        ISnackbar snackbar)
+        ISnackbar snackbar,
+        IDialogService dialogService)
     {
         if (rows.Count == 0)
         {
@@ -283,6 +341,17 @@ public static class MedicationRows
             {
                 snackbar.Add(OfflineAblehnung(connection, "Medikament", row.MedicineName, prefix)
                              ?? $"{prefix}Medikament nicht gefunden!", Severity.Error);
+                return null;
+            }
+
+            // Unbekannt? Dann erst fragen. Ohne Verbindung wird NICHT gefragt:
+            // dort laesst sich ohnehin nichts anlegen, und die Meldung dazu
+            // steht ein paar Zeilen weiter unten - eine Rueckfrage, deren
+            // Zustimmung dann doch scheitert, waere eine Zumutung.
+            if (connection.IsConnected
+                && WhereHowLookups.FindIdByName(whereHowService.WhereHows, row.WhereHowName) == int.MinValue
+                && !await ConfirmNewWhereHowAsync(dialogService, whereHowService, row, prefix))
+            {
                 return null;
             }
 
