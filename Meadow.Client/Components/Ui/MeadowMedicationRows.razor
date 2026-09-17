@@ -51,13 +51,12 @@
                    ValueChanged statt @bind-Value, damit die Auswahl Einheit
                    und Wie/Wo DIESER Zeile vorbelegen kann - dasselbe Muster
                    wie beim Wie/Wo-Feld darunter. *@
-                <MudAutocomplete T="string" Label="Medikament" Variant="Variant.Text"
-                                 SelectValueOnTab="true" CoerceValue="true"
-                                 Value="@entry.MedicineName"
-                                 ValueChanged="@(v => OnMedicineChanged(entry, v))"
-                                 SearchFunc="@((string s, CancellationToken c) =>
-                                     CowTreatmentService.SearchCowTreatmentMedicaments(s, c, MedicineService))"
-                                 Placeholder="Medikament suchen…" />
+                <MeadowAutocomplete Label="Medikament"
+                                    SelectValueOnTab="true" CoerceValue="true"
+                                    Value="@entry.MedicineName"
+                                    ValueChanged="@(v => OnMedicineChanged(entry, v))"
+                                    SearchFunc="SearchMedicines"
+                                    Placeholder="Medikament suchen…" />
             </div>
         </div>
 
@@ -67,14 +66,23 @@
                 @* Die Icons bleiben Geschwister des Feldes: MudAutocomplete
                    erlaubt nur ein Adornment, hier braucht es bis zu zwei. *@
                 <div class="mw-field mw-field--row">
-                    <MudAutocomplete T="string" Label="Wie / Wo" Variant="Variant.Text"
-                                     SelectValueOnTab="true" CoerceValue="true" CoerceText="true"
-                                     Immediate="true"
-                                     Value="@entry.WhereHowName"
-                                     ValueChanged="@(v => OnWhereHowChanged(entry, v))"
-                                     SearchFunc="@((string s, CancellationToken c) =>
-                                         CowTreatmentService.SearchCowTreatmentWhereHow(s, c))"
-                                     Placeholder="z.B. Euter · VL" />
+                    @* CoerceText ist hier RAUS, CoerceValue bleibt. Die beiden
+                       ziehen in entgegengesetzte Richtungen: CoerceText setzt
+                       beim Schliessen der Vorschlagsliste den Text aus dem
+                       Wert, CoerceValue beim Verlassen des Feldes den Wert aus
+                       dem Text. Das Schliessen kommt zuerst - der frisch
+                       getippte Name war also weg, bevor CoerceValue ihn lesen
+                       konnte, und ein neues Wie/Wo liess sich ueberhaupt nur
+                       noch durch Anklicken des Vorschlags eingeben. Genau
+                       diese Eingabe ist aber der Zweck des Feldes: an ihr
+                       haengen der Speichern-Knopf daneben und die Rueckfrage
+                       in MedicationRows.ResolveAsync. *@
+                    <MeadowAutocomplete Label="Wie / Wo"
+                                        SelectValueOnTab="true" CoerceValue="true"
+                                        Value="@entry.WhereHowName"
+                                        ValueChanged="@(v => OnWhereHowChanged(entry, v))"
+                                        SearchFunc="SearchWhereHows"
+                                        Placeholder="z.B. Euter · VL" />
 
                     @if (entry.ShowEditWhereHowOptions)
                     {
@@ -115,10 +123,13 @@
     </div>
 }
 
-<button type="button" class="mw-add-row" @onclick="AddRow">
-    <MeadowIcon Name="MeadowIconName.Plus" Size="16" />
-    <span>Weiteres Medikament hinzufügen</span>
-</button>
+@if (AllowMultiple)
+{
+    <button type="button" class="mw-add-row" @onclick="AddRow">
+        <MeadowIcon Name="MeadowIconName.Plus" Size="16" />
+        <span>Weiteres Medikament hinzufügen</span>
+    </button>
+}
 
 @code {
     /// <summary>
@@ -138,6 +149,25 @@
     /// diese Zahl braucht die Tierzeilen, die es hier nicht gibt.
     /// </summary>
     [Parameter] public EventCallback OnChanged { get; set; }
+
+    /// <summary>
+    /// Ob weitere Medikamentenzeilen angelegt werden duerfen. Aus im
+    /// Bearbeiten-Dialog: dort steht die Komponente fuer GENAU EINE bereits
+    /// gespeicherte Behandlung, und eine zweite Zeile haette dort keinen
+    /// Datensatz, in den sie gehoerte.
+    /// </summary>
+    [Parameter] public bool AllowMultiple { get; set; } = true;
+
+    /// <summary>
+    /// Stabile Methodengruppen statt Inline-Lambdas: ein Lambda im Markup ist
+    /// bei jedem Render eine neue Delegate-Instanz, und Blazors Change
+    /// Detection stuft den Parameter damit immer als geaendert ein.
+    /// </summary>
+    private Task<IEnumerable<string>> SearchMedicines(string value, CancellationToken token)
+        => CowTreatmentService.SearchCowTreatmentMedicaments(value, token, MedicineService);
+
+    private Task<IEnumerable<string>> SearchWhereHows(string value, CancellationToken token)
+        => CowTreatmentService.SearchCowTreatmentWhereHow(value, token);
 
     private Task AddRow()
     {

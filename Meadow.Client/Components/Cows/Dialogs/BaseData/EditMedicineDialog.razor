@@ -20,12 +20,17 @@
             <label class="mw-label" for="mw-medicine-unit">Dosiereinheit</label>
             <div class="mw-field">
                 @* CoerceValue: ein Betrieb darf eine eigene Einheit eintragen
-                   ("Bolus"), die Vorschlaege sind nur die gaengigen vier. *@
-                <MudAutocomplete T="string" InputId="mw-medicine-unit" Variant="Variant.Text"
-                                 SelectValueOnTab="true" CoerceValue="true" CoerceText="true"
-                                 @bind-Value="_unit"
-                                 SearchFunc="SearchUnits"
-                                 Placeholder="z.B. ml" />
+                   ("Bolus"), die Vorschlaege sind nur die gaengigen vier.
+
+                   CoerceText ist raus - es setzte beim Schliessen der
+                   Vorschlagsliste den Text aus dem Wert zurueck, und damit war
+                   die eigene Einheit weg, bevor CoerceValue sie uebernehmen
+                   konnte. Dieselbe Falle wie beim Wie/Wo-Feld. *@
+                <MeadowAutocomplete InputId="mw-medicine-unit"
+                                    SelectValueOnTab="true" CoerceValue="true"
+                                    Value="@_unit" ValueChanged="@(v => _unit = v ?? "")"
+                                    SearchFunc="SearchUnits"
+                                    Placeholder="z.B. ml" />
             </div>
 
             <label class="mw-label" for="mw-medicine-wherehow">Verabreichungsart (Standard)</label>
@@ -34,12 +39,12 @@
                    dem das Hausmuster umgedreht ist. Eine Vorbelegung muss auf
                    eine bestehende "Wie / Wo"-Zeile zeigen; ein Tippfehler
                    wuerde hier sonst zu einem Stammdatensatz befoerdert. *@
-                <MudAutocomplete T="string" InputId="mw-medicine-wherehow" Variant="Variant.Text"
-                                 SelectValueOnTab="true" CoerceValue="false"
-                                 @bind-Value="_whereHowName"
-                                 SearchFunc="SearchWhereHows"
-                                 Clearable="true"
-                                 Placeholder="optional, z.B. IZ" />
+                <MeadowAutocomplete InputId="mw-medicine-wherehow"
+                                    SelectValueOnTab="true" CoerceValue="false"
+                                    Value="@_whereHowName" ValueChanged="@(v => _whereHowName = v ?? "")"
+                                    SearchFunc="SearchWhereHows"
+                                    Clearable="true"
+                                    Placeholder="optional, z.B. IZ" />
             </div>
         </MudForm>
 

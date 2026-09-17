@@ -14,11 +14,11 @@
             @* CoerceValue FALSE: ein Ziel muss existieren. Ein per Tippfehler
                erfundenes Ziel wuerde die Klauen auf eine ID umhaengen,
                die es nicht gibt. *@
-            <MudAutocomplete T="string" InputId="mw-merge-finding-target" Variant="Variant.Text"
-                             SelectValueOnTab="true" CoerceValue="false"
-                             Value="@_targetName" ValueChanged="OnTargetChanged"
-                             SearchFunc="SearchTargets"
-                             Placeholder="Klauenbefund suchen…" />
+            <MeadowAutocomplete InputId="mw-merge-finding-target"
+                                SelectValueOnTab="true" CoerceValue="false"
+                                Value="@_targetName" ValueChanged="OnTargetChanged"
+                                SearchFunc="SearchTargets"
+                                Placeholder="Klauenbefund suchen…" />
         </div>
 
         <label class="mw-label">Welcher Name bleibt?</label>
@@ -90,7 +90,7 @@
         _targetName = Target?.ClawFindingName ?? "";
     }
 
-    private void OnTargetChanged(string value)
+    private void OnTargetChanged(string? value)
     {
         _targetName = value ?? "";
 

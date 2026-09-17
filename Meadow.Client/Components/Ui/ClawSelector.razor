@@ -49,11 +49,11 @@
 
                 <label class="mw-label mw-label--spaced" for="mw-finding">Befund</label>
                 <div class="mw-field">
-                    <MudAutocomplete T="string" InputId="mw-finding" Variant="Variant.Text"
-                                     Value="@DraftOf(position)"
-                                     ValueChanged="@(v => SetFindingAsync(position, v))"
-                                     SearchFunc="SearchFindings" CoerceValue="true"
-                                     Placeholder="z.B. Mortellaro, Pflege…" />
+                    <MeadowAutocomplete InputId="mw-finding"
+                                        Value="@DraftOf(position)"
+                                        ValueChanged="@(v => SetFindingAsync(position, v))"
+                                        SearchFunc="SearchFindings" CoerceValue="true"
+                                        Placeholder="z.B. Mortellaro, Pflege…" />
                 </div>
 
                 <div class="mw-toggle-row">

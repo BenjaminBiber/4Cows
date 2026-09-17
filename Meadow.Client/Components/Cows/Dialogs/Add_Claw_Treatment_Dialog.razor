@@ -24,13 +24,13 @@
             <div class="mw-col mw-col--wide">
                 <label class="mw-label" for="mw-cow">Kuh / Kalb</label>
                 <div class="mw-field">
-                    <MudAutocomplete T="string" InputId="mw-cow" Variant="Variant.Text"
-                                     SearchFunc="cowService.SearchCows"
-                                     ToStringFunc="cowService.GetDisplayLabel"
-                                     ResetValueOnEmptyText="true" Immediate="true"
-                                     Value="@Claw_Treatment.EarTagNumber"
-                                     ValueChanged="OnCowChanged"
-                                     Placeholder="DE 08 1523 …" />
+                    <MeadowAutocomplete InputId="mw-cow"
+                                        SearchFunc="cowService.SearchCows"
+                                        ToStringFunc="cowService.GetDisplayLabel"
+                                        ResetValueOnEmptyText="true"
+                                        Value="@Claw_Treatment.EarTagNumber"
+                                        ValueChanged="OnCowChanged"
+                                        Placeholder="DE 08 1523 …" />
                 </div>
             </div>
         </div>

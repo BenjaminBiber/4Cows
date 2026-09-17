@@ -79,7 +79,39 @@
     private readonly string _titleId = $"mw-dlg-{Guid.NewGuid():N}";
     private ElementReference _root;
 
+    /// <summary>
+    /// Ob der naechste Render durchgelassen wird. Gesetzt wird das Flag nur von
+    /// <see cref="SetParametersAsync"/> - also von einem echten Elternrender,
+    /// der neue Slots bringt.
+    ///
+    /// Ohne diese Bremse zeichnet JEDER Tastendruck das ganze Formular neu: das
+    /// keydown des Eingabefeldes blubbert bis zur .mw-dlg-shell hoch, Blazor
+    /// ruft OnKeyDown (der nur auf Escape prueft) und rendert danach
+    /// @ChildContent mit. MudBaseInput setzt dabei den gerade getippten Text aus
+    /// Value zurueck - seine Gegenmassnahme (TextUpdateSuppression) ist
+    /// ausdruecklich auf Blazor Server beschraenkt und greift in WebAssembly
+    /// nicht. Im Feld heisst das: es laesst sich genau ein Buchstabe eingeben.
+    /// </summary>
+    private bool _renderRequested = true;
+
     private RenderFragment DefaultTitle => builder => builder.AddContent(0, Title);
+
+    public override Task SetParametersAsync(ParameterView parameters)
+    {
+        _renderRequested = true;
+        return base.SetParametersAsync(parameters);
+    }
+
+    protected override bool ShouldRender()
+    {
+        if (!_renderRequested)
+        {
+            return false;
+        }
+
+        _renderRequested = false;
+        return true;
+    }
 
     private string CssClass => $"mw-dlg mw-dlg--{SizeClass} {Class}".TrimEnd();
 
