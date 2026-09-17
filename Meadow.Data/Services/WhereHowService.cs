@@ -78,8 +78,18 @@ public class WhereHowService : IWhereHowService
                     .Select(g => new { Id = g.Key, Count = g.Count() })
                     .ToListAsync();
 
+                // Medikamente zaehlen mit. Ohne sie galt ein Wie/Wo, das nur
+                // als Standard-Verabreichungsart eines Medikaments dient, als
+                // "nirgends benutzt" - der Papierkorb war frei, und danach
+                // zeigte Default_WhereHow_ID ins Leere.
+                var defaults = await context.Medicines
+                    .Where(m => m.DefaultWhereHowId != null)
+                    .GroupBy(m => m.DefaultWhereHowId!.Value)
+                    .Select(g => new { Id = g.Key, Count = g.Count() })
+                    .ToListAsync();
+
                 var counts = new Dictionary<int, int>();
-                foreach (var row in treated.Concat(planned))
+                foreach (var row in treated.Concat(planned).Concat(defaults))
                 {
                     counts[row.Id] = counts.GetValueOrDefault(row.Id) + row.Count;
                 }
@@ -156,8 +166,17 @@ public class WhereHowService : IWhereHowService
         /// <paramref name="targetId"/> um und loescht die Quelle. Der Weg, um
         /// einen Tippfehler-Eintrag loszuwerden, der schon benutzt wird und
         /// deshalb nicht loeschbar ist.
+        ///
+        /// <paramref name="survivingName"/> setzt den Namen des Ziels - damit
+        /// kann im Zusammenfuehren-Dialog die Schreibweise der Quelle gewinnen.
+        ///
+        /// Umgehaengt wird auch Medicine.Default_WhereHow_ID. Das fehlte, und
+        /// die Folge war sichtbar: nach einem Merge zeigte die
+        /// Standard-Verabreichungsart eines Medikaments auf eine geloeschte Id,
+        /// und im Behandlungs-Dialog stand dort nichts mehr. MedicationRows
+        /// faengt den leeren Namen zwar ab - aber die Vorbelegung war weg.
         /// </summary>
-        public async Task<bool> MergeAsync(int sourceId, int targetId)
+        public async Task<bool> MergeAsync(int sourceId, int targetId, string? survivingName = null)
         {
             // Ohne diesen Guard wuerde ein Merge auf sich selbst erst umhaengen
             // und dann genau das Ziel loeschen. Erreichbar ueber eine reine
@@ -180,6 +199,21 @@ public class WhereHowService : IWhereHowService
                 await context.PlannedCowTreatments
                     .Where(t => t.WhereHowId == sourceId)
                     .ExecuteUpdateAsync(setters => setters.SetProperty(t => t.WhereHowId, targetId));
+
+                // Die dritte Spalte, die auf ein Wie/Wo zeigt. Fremdschluessel
+                // gibt es im Schema keine, also haelt die Datenbank hier nichts
+                // auf - vergessen heisst verwaist.
+                await context.Medicines
+                    .Where(m => m.DefaultWhereHowId == sourceId)
+                    .ExecuteUpdateAsync(setters => setters.SetProperty(m => m.DefaultWhereHowId, targetId));
+
+                if (!string.IsNullOrWhiteSpace(survivingName))
+                {
+                    var name = survivingName.Trim();
+                    await context.WhereHows
+                        .Where(w => w.WhereHowId == targetId)
+                        .ExecuteUpdateAsync(setters => setters.SetProperty(w => w.WhereHowName, name));
+                }
 
                 await context.WhereHows
                     .Where(w => w.WhereHowId == sourceId)
@@ -217,7 +251,10 @@ public class WhereHowService : IWhereHowService
                 // Deshalb zaehlt der Service unmittelbar vor dem Delete selbst
                 // nach, statt dem Aufrufer zu glauben.
                 var inUse = await context.CowTreatments.AnyAsync(t => t.WhereHowId == whereHowId)
-                            || await context.PlannedCowTreatments.AnyAsync(t => t.WhereHowId == whereHowId);
+                            || await context.PlannedCowTreatments.AnyAsync(t => t.WhereHowId == whereHowId)
+                            // Dieselbe Spalte wie im Zaehler: ein Medikament,
+                            // das dieses Wie/Wo vorbelegt, ist eine Verwendung.
+                            || await context.Medicines.AnyAsync(m => m.DefaultWhereHowId == whereHowId);
 
                 if (inUse)
                 {
