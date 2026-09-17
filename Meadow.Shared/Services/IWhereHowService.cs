@@ -28,7 +28,14 @@ public interface IWhereHowService
 
     Task<bool> UpdateDataAsync(WhereHow whereHow);
 
-    Task<bool> MergeAsync(int sourceId, int targetId);
+    /// <summary>
+    /// <paramref name="survivingName"/> setzt den Namen des Ziels - damit kann
+    /// im Zusammenfuehren-Dialog die Schreibweise der Quelle gewinnen. Optional
+    /// und nachtraeglich ergaenzt: der Aufruf ohne den Parameter
+    /// (EditWhereHowDialog beim Umbenennen auf einen vergebenen Namen) laeuft
+    /// unveraendert weiter.
+    /// </summary>
+    Task<bool> MergeAsync(int sourceId, int targetId, string? survivingName = null);
 
     Task<bool> RemoveByIdAsync(int whereHowId);
 

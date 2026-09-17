@@ -89,7 +89,7 @@ public class HttpWhereHowService : HttpServiceBase, IWhereHowService
         return isSuccess;
     }
 
-    public async Task<bool> MergeAsync(int sourceId, int targetId)
+    public async Task<bool> MergeAsync(int sourceId, int targetId, string? survivingName = null)
     {
         // Derselbe Guard wie in der EF-Fassung: ein Merge auf sich selbst
         // wuerde erst umhaengen und dann genau das Ziel loeschen.
@@ -99,7 +99,11 @@ public class HttpWhereHowService : HttpServiceBase, IWhereHowService
         }
 
         var isSuccess = await WriteAsync(
-            () => PostAsync($"api/where-hows/{sourceId}/merge", new MergeRequest(targetId)),
+            // NamedMergeRequest statt MergeRequest: der Endpunkt nimmt jetzt
+            // auch den ueberlebenden Namen - dieselbe Form wie bei Medikament
+            // und Klauenbefund.
+            () => PostAsync($"api/where-hows/{sourceId}/merge",
+                new NamedMergeRequest(targetId, survivingName)),
             $"Failed to merge WhereHow {sourceId} into {targetId}.");
 
         if (isSuccess)

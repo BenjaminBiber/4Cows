@@ -5,10 +5,11 @@ using Meadow.Shared.Services;
 namespace Meadow.Api.Endpoints;
 
 /// <summary>
-/// Rumpf von POST /where-hows/{whereHowId}/merge. IWhereHowService.MergeAsync
-/// kennt keinen ueberlebenden Namen - anders als beim Medikament.
+/// Rumpf von POST /where-hows/{whereHowId}/merge. survivingName ist optional -
+/// fehlt er, behaelt das Ziel seinen Namen. Gleiche Form wie beim Medikament
+/// und beim Klauenbefund.
 /// </summary>
-public sealed record WhereHowMergeRequest(int TargetId);
+public sealed record WhereHowMergeRequest(int TargetId, string? SurvivingName);
 
 /// <summary>
 /// Rumpf von POST /where-hows/by-name.
@@ -125,11 +126,15 @@ public static class WhereHowEndpoints
                 return EndpointCommon.Invalid("targetId", $"Wie/Wo {body.TargetId} gibt es nicht.");
             }
 
-            var ok = await svc.MergeAsync(whereHowId, body.TargetId);
+            var ok = await svc.MergeAsync(whereHowId, body.TargetId, body.SurvivingName);
             return ok
                 ? Results.NoContent()
                 : EndpointCommon.WriteFailed($"Wie/Wo {whereHowId} konnte nicht auf {body.TargetId} verschmolzen werden.");
-        }).BumpsOnWrite(DataScope.WhereHows, DataScope.CowTreatments, DataScope.PlannedCowTreatments)
+            // Medicines kommt dazu, seit der Merge auch Default_WhereHow_ID
+            // umhaengt - ohne den Bump zeigten andere Clients danach weiter auf
+            // die geloeschte Id.
+        }).BumpsOnWrite(DataScope.WhereHows, DataScope.CowTreatments, DataScope.PlannedCowTreatments,
+                        DataScope.Medicines)
           .WithName("WhereHowMerge");
 
         return api;

@@ -5,6 +5,7 @@
 @inject IWhereHowService WhereHowService
 @inject ICowTreatmentService CowTreatmentService
 @inject IPCowTreatmentService PCowTreatmentService
+@inject IMedicineService MedicineService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 
@@ -94,7 +95,7 @@
                     @if (row.IsDuplicate)
                     {
                         <span class="mw-pill mw-pill--overdue"
-                              title="Diese Bezeichnung gibt es mehrfach. Umbenennen auf den anderen Eintrag führt beide zusammen.">
+                              title="Diese Bezeichnung gibt es mehrfach. Über „Zusammenführen“ lassen sich beide Einträge vereinen.">
                             doppelt
                         </span>
                     }
@@ -118,11 +119,14 @@
         new()
         {
             IsActions = true,
-            Width = "104px",
+            Width = "144px",
             Template = row =>
                 @<text>
                     <MeadowIconButton Icon="MeadowIconName.Edit" Title="Wie / Wo ändern"
                                       OnClick="() => OpenEditDialog(row)" />
+                    <MeadowIconButton Icon="MeadowIconName.ArrowRight"
+                                      Title="Mit einem anderen Wie / Wo zusammenführen"
+                                      OnClick="() => OpenMergeDialog(row)" />
                     <MeadowIconButton Icon="MeadowIconName.Trash" Title="@DeleteTitle(row)"
                                       Danger="true" Disabled="@(row.UsageCount is not 0)"
                                       OnClick="() => Delete(row)" />
@@ -130,12 +134,17 @@
         }
     };
 
+    /// <summary>
+    /// Gezaehlt werden Behandlungen, geplante Behandlungen UND Medikamente, die
+    /// diesen Eintrag als Standard-Verabreichungsart fuehren. Deshalb steht
+    /// hier "Verwendungen" und nicht "Behandlungen" - die dritte Art ist keine.
+    /// </summary>
     private static string DeleteTitle(Row row) => row.UsageCount switch
     {
         null => "Verwendungen unbekannt — Löschen gesperrt",
         0 => "Wie / Wo löschen",
-        1 => "Wird in 1 Behandlung verwendet",
-        var n => $"Wird in {n} Behandlungen verwendet"
+        1 => "Hat 1 Verwendung",
+        var n => $"Hat {n} Verwendungen"
     };
 
     private void OnSearchChanged(string value)
@@ -182,13 +191,52 @@
             return;
         }
 
-        // Ein Merge haengt Behandlungen um. Ohne dieses Nachladen zeigen die
-        // Behandlungstabellen im selben Circuit noch die verschwundene ID und
-        // damit einen leeren Namen.
+        await ReloadDependentsAsync();
+        await LoadAsync();
+    }
+
+    private async Task OpenMergeDialog(Row row)
+    {
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true,
+            BackdropClick = false
+        };
+        var parameters = new DialogParameters<MergeWhereHowDialog>
+        {
+            { x => x.Source, row.Entry },
+            { x => x.SourceUsageCount, row.UsageCount ?? 0 }
+        };
+
+        var dialog = await DialogService.ShowAsync<MergeWhereHowDialog>(
+            string.Empty, parameters, options);
+        var result = await dialog.Result;
+
+        if (result is null || result.Canceled)
+        {
+            return;
+        }
+
+        await ReloadDependentsAsync();
+        await LoadAsync();
+    }
+
+    /// <summary>
+    /// Ein Merge haengt Behandlungen um. Ohne dieses Nachladen zeigen die
+    /// Behandlungstabellen im selben Circuit noch die verschwundene ID und
+    /// damit einen leeren Namen.
+    ///
+    /// Die Medikamente stehen mit dabei, seit der Merge auch
+    /// Default_WhereHow_ID umhaengt - sonst zeigt die Spalte
+    /// "Verabreichungsart" in den Basisdaten weiter auf den geloeschten
+    /// Eintrag.
+    /// </summary>
+    private async Task ReloadDependentsAsync()
+    {
         await CowTreatmentService.GetAllDataAsync();
         await PCowTreatmentService.GetAllDataAsync();
-
-        await LoadAsync();
+        await MedicineService.GetAllDataAsync();
     }
 
     private async Task Delete(Row row)
