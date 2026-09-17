@@ -89,9 +89,14 @@
         new()
         {
             IsActions = true,
+            Width = "104px",
             Template = row =>
-                @<MeadowIconButton Icon="MeadowIconName.Trash" Title="Behandlung löschen"
-                                   Danger="true" OnClick="() => Delete(row)" />
+                @<text>
+                    <MeadowIconButton Icon="MeadowIconName.Edit" Title="Behandlung bearbeiten"
+                                      OnClick="() => Edit(row)" />
+                    <MeadowIconButton Icon="MeadowIconName.Trash" Title="Behandlung löschen"
+                                      Danger="true" OnClick="() => Delete(row)" />
+                </text>
         }
     };
 
@@ -125,6 +130,42 @@
                     .Contains(term, StringComparison.OrdinalIgnoreCase)
                 || MedicineService.GetMedicineNameById(r.MedicineId)
                     .Contains(term, StringComparison.OrdinalIgnoreCase)).ToList();
+    }
+
+    /// <summary>
+    /// Eigener Dialog und nicht Add_Cow_Treatment_Dialog: der legt ein
+    /// Kreuzprodukt aus Tieren und Medikamenten an, hier wird genau eine
+    /// bestehende Zeile geaendert.
+    ///
+    /// Uebergeben wird eine KOPIE - der Dialog schreibt sein Parameter-Objekt
+    /// beim Speichern voll, und das waere hier die Instanz aus dem
+    /// Service-Cache.
+    /// </summary>
+    private async Task Edit(CowTreatment row)
+    {
+        var options = new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true
+        };
+        var parameters = new DialogParameters<Edit_Cow_Treatment_Dialog>
+        {
+            { x => x.Treatment, row.Copy() }
+        };
+
+        var dialog = await DialogService.ShowAsync<Edit_Cow_Treatment_Dialog>(
+            string.Empty, parameters, options);
+        var result = await dialog.Result;
+
+        if (result is null || result.Canceled)
+        {
+            return;
+        }
+
+        await CowTreatmentService.GetAllDataAsync();
+        _all = CowTreatmentService.Treatments.Values.ToList();
+        ApplyFilter();
     }
 
     private async Task Delete(CowTreatment row)

@@ -133,6 +133,40 @@ public class CowTreatmentService : ICowTreatmentService
         }
     }
 
+    /// <summary>
+    /// Aendert eine bestehende Kuhbehandlung. Wortgleich zu
+    /// ClawTreatmentService.UpdateDataAsync - dieselbe Aufgabe, dieselbe Form.
+    /// </summary>
+    public async Task<bool> UpdateDataAsync(CowTreatment treatment)
+    {
+        try
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            context.CowTreatments.Update(treatment);
+            var isSuccess = await context.SaveChangesAsync() > 0;
+            _databaseStatusService.ReportSuccess();
+
+            if (isSuccess)
+            {
+                // Neu laden statt den Cache punktuell zu setzen: Update schreibt
+                // die ganze Zeile, und im Cache liegt noch die Instanz von vor
+                // der Bearbeitung.
+                await GetAllDataAsync();
+                LoggerService.LogInformation(typeof(CowTreatmentService),
+                    "Updated cow treatment {Id}.", treatment.CowTreatmentId);
+            }
+
+            return isSuccess;
+        }
+        catch (Exception ex)
+        {
+            _databaseStatusService.ReportFailure();
+            LoggerService.LogError(typeof(CowTreatmentService),
+                "Failed to update cow treatment, with {@Message}", ex, ex.Message);
+            return false;
+        }
+    }
+
     public async Task DeleteDataAsync(int id)
     {
         try

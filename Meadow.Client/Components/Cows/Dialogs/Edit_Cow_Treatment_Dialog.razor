@@ -1,0 +1,234 @@
+@using Meadow.Client.Components.Ui
+
+@inject ISnackbar Snackbar
+@inject ICowTreatmentService cowTreatmentService
+@inject ICowService cowService
+@inject IMedicineService medicineService
+@inject IWhereHowService WhereHowService
+@inject IUdderService UdderService
+@inject ITreatmentReasonService TreatmentReasonService
+@inject ISettingsService SettingsService
+@inject IDialogService DialogService
+@inject DatabaseConnectionState Connection
+
+@*
+    EINE bestehende Kuhbehandlung aendern.
+
+    Warum nicht Add_Cow_Treatment_Dialog um einen Bearbeiten-Modus erweitern:
+    der baut ein KREUZPRODUKT aus n Tieren und m Medikamenten und ruft
+    InsertRangeAsync. Hier gibt es genau eine gespeicherte Zeile, und es muss
+    genau eine bleiben - ein zweites Tier oder ein zweites Medikament haette
+    keinen Datensatz, in den es gehoerte.
+
+    Die Medikamentenzeile kommt trotzdem aus MeadowMedicationRows, mit einer
+    Liste von genau einem Eintrag und AllowMultiple="false". An der haengen
+    Einheit, Euter-Knopf und die Wie/Wo-Vorbelegung - die hier Zeile fuer Zeile
+    nachzubauen hiesse, die heikelste Stelle des Projekts ein zweites Mal zu
+    schreiben.
+*@
+<MeadowDialog Title="Kuh Behandlung bearbeiten" Size="MeadowDialogSize.Cow">
+    <ChildContent>
+        <div class="mw-field-row">
+            <div class="mw-col">
+                <span class="mw-label">Halsbandnummer</span>
+                <div class="mw-field">
+                    <MudNumericField T="int?" Label="Halsbandnummer" Variant="Variant.Text"
+                                     HideSpinButtons="true" Immediate="true" Value="@_collar"
+                                     ValueChanged="OnCollarChanged"
+                                     Placeholder="z.B. 142" />
+                </div>
+            </div>
+            <div class="mw-col mw-col--wide">
+                <span class="mw-label">Kuh / Kalb</span>
+                <div class="mw-field">
+                    <MeadowAutocomplete Label="Kuh / Kalb"
+                                        SearchFunc="cowService.SearchCows"
+                                        ToStringFunc="cowService.GetDisplayLabel"
+                                        ResetValueOnEmptyText="true"
+                                        Value="@_earTag"
+                                        ValueChanged="OnCowChanged"
+                                        Placeholder="DE 08 1523 …" />
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <span class="mw-label">Verabreichungsdatum</span>
+            <div class="mw-field">
+                <MudDatePicker Label="Verabreichungsdatum" Variant="Variant.Text" Editable="true"
+                               DateFormat="dd.MM.yyyy" @bind-Date="_date" />
+            </div>
+        </div>
+
+        <MeadowMedicationRows Rows="_medications" AllowMultiple="false" OnChanged="StateHasChanged" />
+
+        <div>
+            <label class="mw-label" for="mw-edit-reason">Behandlungsgrund</label>
+            <div class="mw-field">
+                @* Optional: leer lassen ist erlaubt und loescht den Grund. *@
+                <MeadowAutocomplete InputId="mw-edit-reason"
+                                    SelectValueOnTab="true" CoerceValue="true"
+                                    ResetValueOnEmptyText="true"
+                                    @bind-Value="_reasonName"
+                                    SearchFunc="TreatmentReasonService.SearchAsync"
+                                    Placeholder="optional, z.B. Mastitis" />
+            </div>
+        </div>
+    </ChildContent>
+    <Footer>
+        <button type="button" class="mw-btn mw-btn--plain mw-btn--wide" @onclick="Cancel">
+            Abbrechen
+        </button>
+        <button type="button" class="mw-btn mw-btn--primary mw-btn--wide" @onclick="Save">
+            Änderungen speichern
+        </button>
+    </Footer>
+</MeadowDialog>
+
+@code {
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = default!;
+
+    /// <summary>
+    /// Die zu aendernde Behandlung. Der Aufrufer reicht eine KOPIE herein
+    /// (CowTreatment.Copy) - dieser Dialog schreibt sie in Save voll, und das
+    /// waere sonst die Instanz aus dem Service-Cache.
+    /// </summary>
+    [Parameter] public CowTreatment Treatment { get; set; } = new();
+
+    private readonly List<MedicationEntry> _medications = new();
+    private int? _collar;
+    private string? _earTag;
+    private DateTime? _date;
+    private string? _reasonName;
+
+    protected override void OnInitialized()
+    {
+        _earTag = Treatment.EarTagNumber;
+
+        var collar = cowService.GetCollarNumberByCowId(Treatment.EarTagNumber);
+        _collar = collar == int.MinValue ? null : collar;
+
+        _date = Treatment.AdministrationDate == default
+            ? DateTime.Now
+            : Treatment.AdministrationDate;
+
+        var row = new MedicationEntry { Dosage = Treatment.MedicineDosage };
+
+        // Ueber den Cache und NICHT ueber GetMedicineNameById: das liefert bei
+        // unbekannter ID "--", und diese Striche stuenden dann im Eingabefeld -
+        // und wuerden beim Speichern als Medikament angelegt. Dieselbe Falle
+        // wie beim Behandlungsgrund weiter unten.
+        if (medicineService.Medicines.TryGetValue(Treatment.MedicineId, out var medicine))
+        {
+            row.MedicineName = medicine.MedicineName;
+        }
+
+        row.DosageUnit = MedicationRows.ResolveUnit(row.MedicineName, medicineService, SettingsService);
+
+        // ERST die Viertel uebernehmen, DANN das Wie/Wo setzen: ApplyWhereHow
+        // loescht die Viertel, wenn das Wie/Wo keine Auswahl traegt.
+        row.UdderId = Treatment.UdderId;
+
+        MedicationRows.ApplyWhereHow(
+            row, WhereHowService.GetWhereHowNameById(Treatment.WhereHowId), WhereHowService);
+
+        // Der gespeicherte Wert ist gesetzt worden, nicht vorbelegt: ein
+        // spaeterer Medikamentenwechsel darf ihn nicht ueberschreiben.
+        row.WhereHowAutoFilled = false;
+
+        _medications.Add(row);
+
+        // Ueber den Cache und nicht ueber GetNameById - siehe oben.
+        if (Treatment.TreatmentReasonId is int reasonId
+            && TreatmentReasonService.Reasons.TryGetValue(reasonId, out var reason))
+        {
+            _reasonName = reason.TreatmentReasonName;
+        }
+    }
+
+    // Halsbandnummer und Kuh/Kalb befuellen sich gegenseitig - wie in den
+    // beiden Anlege-Dialogen.
+    private void OnCollarChanged(int? value)
+    {
+        _collar = value;
+        _earTag = value.HasValue ? cowService.GetCowIdByCollarNumber(value.Value) : null;
+    }
+
+    private void OnCowChanged(string? cowId)
+    {
+        _earTag = cowId;
+        if (string.IsNullOrEmpty(cowId))
+        {
+            _collar = null;
+            return;
+        }
+
+        var collar = cowService.GetCollarNumberByCowId(cowId);
+        _collar = collar == int.MinValue ? null : collar;
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Save()
+    {
+        if (_date is null)
+        {
+            Snackbar.Add("Bitte ein Verabreichungsdatum wählen.", Severity.Error);
+            return;
+        }
+
+        if (string.IsNullOrEmpty(_earTag))
+        {
+            Snackbar.Add("Hals- und Ohrmarkennummer müssen gesetzt sein.", Severity.Error);
+            return;
+        }
+
+        // Dieselbe Pruefung wie beim Anlegen - inklusive der Rueckfrage, bevor
+        // ein unbekanntes Wie/Wo angelegt wird. Null heisst abbrechen, die
+        // Meldung ist dann schon gezeigt.
+        var medications = await MedicationRows.ResolveAsync(
+            _medications, medicineService, WhereHowService, UdderService,
+            Connection, Snackbar, DialogService);
+
+        if (medications is null)
+        {
+            return;
+        }
+
+        var medication = medications[0];
+
+        // Optional: ein leeres Feld ist gueltig und ergibt null - damit laesst
+        // sich ein Grund auch wieder entfernen. Aufgeloest VOR dem Schreiben.
+        int? reasonId = null;
+        if (!string.IsNullOrWhiteSpace(_reasonName))
+        {
+            var resolved = await TreatmentReasonService.GetIdByNameAsync(_reasonName);
+            if (resolved == int.MinValue)
+            {
+                Snackbar.Add("Behandlungsgrund konnte nicht gespeichert werden.", Severity.Error);
+                return;
+            }
+
+            reasonId = resolved;
+        }
+
+        Treatment.EarTagNumber = _earTag;
+        Treatment.AdministrationDate = _date.Value;
+        Treatment.MedicineId = medication.MedicineId;
+        Treatment.MedicineDosage = medication.Dosage;
+        Treatment.WhereHowId = medication.WhereHowId;
+        Treatment.UdderId = medication.UdderId;
+        Treatment.TreatmentReasonId = reasonId;
+
+        if (!await cowTreatmentService.UpdateDataAsync(Treatment))
+        {
+            // Der Dialog bleibt OFFEN: es ist nichts gespeichert, und die
+            // Eingaben sollen fuer einen zweiten Versuch stehenbleiben.
+            Snackbar.Add("Speichern fehlgeschlagen.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add("Änderungen gespeichert.", Severity.Success);
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+}

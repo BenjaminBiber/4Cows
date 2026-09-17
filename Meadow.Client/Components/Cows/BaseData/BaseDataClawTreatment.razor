@@ -67,9 +67,14 @@
         new()
         {
             IsActions = true,
+            Width = "104px",
             Template = row =>
-                @<MeadowIconButton Icon="MeadowIconName.Trash" Title="Behandlung löschen"
-                                   Danger="true" OnClick="() => Delete(row)" />
+                @<text>
+                    <MeadowIconButton Icon="MeadowIconName.Edit" Title="Behandlung bearbeiten"
+                                      OnClick="() => Edit(row)" />
+                    <MeadowIconButton Icon="MeadowIconName.Trash" Title="Behandlung löschen"
+                                      Danger="true" OnClick="() => Delete(row)" />
+                </text>
         }
     };
 
@@ -112,6 +117,41 @@
             : _all.Where(r =>
                 CollarText(r).Contains(term, StringComparison.OrdinalIgnoreCase)
                 || Summary(r).Contains(term, StringComparison.OrdinalIgnoreCase)).ToList();
+    }
+
+    /// <summary>
+    /// Derselbe Dialog wie beim Anlegen - er erkennt am gesetzten
+    /// ClawTreatmentId, dass geaendert und nicht eingefuegt wird.
+    ///
+    /// Uebergeben wird eine KOPIE: der Dialog schreibt Datum, Tier und Befunde
+    /// in sein Parameter-Objekt, und das waere hier die Instanz aus dem
+    /// Service-Cache. Ein Abbrechen liesse sonst die halbe Aenderung in der
+    /// Tabelle stehen.
+    /// </summary>
+    private async Task Edit(ClawTreatment row)
+    {
+        var options = new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true
+        };
+        var parameters = new DialogParameters<Add_Claw_Treatment_Dialog>
+        {
+            { x => x.Claw_Treatment, row.Copy() }
+        };
+
+        var dialog = await DialogService.ShowAsync<Add_Claw_Treatment_Dialog>(
+            string.Empty, parameters, options);
+        var result = await dialog.Result;
+
+        if (result is null || result.Canceled)
+        {
+            return;
+        }
+
+        await ClawTreatmentService.GetAllDataAsync();
+        Rebuild();
     }
 
     private async Task Delete(ClawTreatment row)

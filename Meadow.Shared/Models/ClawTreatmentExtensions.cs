@@ -92,6 +92,29 @@ public static class ClawTreatmentExtensions
             ? Enumerable.Empty<HoofPosition>()
             : HoofPositions.All.Where(t.GetBandage);
 
+    /// <summary>
+    /// Eine flache Kopie fuer einen Bearbeiten-Dialog.
+    ///
+    /// Die Dialoge schreiben in ihr Parameter-Objekt (Add_Claw_Treatment_Dialog
+    /// setzt Datum, Tier und die vier Befunde direkt in Save). Wird ihnen die
+    /// Instanz aus dem Service-Cache gereicht, bleibt nach einem Abbrechen die
+    /// halbe Aenderung in der Tabelle stehen, bis irgendwer neu laedt.
+    ///
+    /// Die ClientId wird MITGENOMMEN und nicht neu vergeben: sie ist der
+    /// Idempotenzschluessel derselben Behandlung, nicht die Kennung dieser
+    /// Kopie.
+    /// </summary>
+    public static ClawTreatment Copy(this ClawTreatment t) => new(
+        t.ClawTreatmentId, t.EarTagNumber, t.TreatmentDate,
+        t.ClawFindingLVId, t.BandageLV, t.BlockLV,
+        t.ClawFindingLHId, t.BandageLH, t.BlockLH,
+        t.ClawFindingRVId, t.BandageRV, t.BlockRV,
+        t.ClawFindingRHId, t.BandageRH, t.BlockRH,
+        t.IsBandageRemoved)
+    {
+        ClientId = t.ClientId
+    };
+
     public static bool GetFlag(this PlannedClawTreatment t, HoofPosition p) => p switch
     {
         HoofPosition.LV => t.ClawFindingLV,
