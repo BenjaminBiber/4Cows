@@ -1,0 +1,116 @@
+@*
+    Ein MudAutocomplete, in das sich mehr als ein Buchstabe eingeben laesst.
+
+    Das Problem
+    -----------
+    MudBaseInput.SetParametersAsync (MudBlazor 7.15) setzt den Text aus dem Wert
+    zurueck, sobald der Parameter Value geliefert wird und Text nicht:
+
+        if (hasValue && !hasText) {
+            var updateText = true;
+            if (_isFocused && !_forceTextUpdate) {
+                // Text update suppression, only in BSS (not in WASM).
+                if (RuntimeLocation.IsServerSide && TextUpdateSuppression)
+                    updateText = false;
+            }
+            if (updateText) await UpdateTextPropertyAsync(false);
+        }
+
+    Die Schutzschaltung fuer das fokussierte Feld greift ausdruecklich NUR in
+    Blazor Server. Seit die Oberflaeche im Browser laeuft, greift sie nicht mehr:
+    jeder Render des Elternteils wirft den gerade getippten Text weg und ersetzt
+    ihn durch den Modellwert. Und Elternrender gibt es reichlich - Blazors
+    Change Detection haelt SearchFunc und ValueChanged als Delegates nie fuer
+    unveraendert, also laeuft SetParametersAsync bei JEDEM Elternrender.
+
+    Die Loesung
+    -----------
+    Diese Komponente liefert BEIDES - Value und Text. Damit trifft weder
+    "hasValue && !hasText" noch "hasText && !hasValue" zu, und Mud fasst den
+    Text nicht mehr an. Das Nachfuehren des Textes bei einer Wertaenderung von
+    aussen uebernimmt dafuer OnParametersSet - genau die Zusicherung, die Mud in
+    Blazor Server selbst gibt. Gebraucht wird sie, weil Dialoge Felder
+    programmatisch vorbelegen (MedicationRows.ApplyMedicine setzt das Wie/Wo
+    des gewaehlten Medikaments).
+
+    Immediate wird bewusst NICHT durchgereicht. MudAutocomplete fuehrt sein
+    inneres MudInput ohnehin mit Immediate="true" und ruft beim Tippen
+    SetTextAsync(text, updateValue: false) - CoerceValue und
+    ResetValueOnEmptyText laufen erst beim Verlassen des Feldes. Das aeussere
+    Immediate kostete nur eine Renderrunde je Zeichen.
+*@
+<MudAutocomplete T="string" Variant="@Variant"
+                 Label="@Label" InputId="@InputId" Placeholder="@Placeholder"
+                 SearchFunc="@SearchFunc" ToStringFunc="@ToStringFunc"
+                 CoerceValue="@CoerceValue" CoerceText="@CoerceText"
+                 Clearable="@Clearable" SelectValueOnTab="@SelectValueOnTab"
+                 ResetValueOnEmptyText="@ResetValueOnEmptyText"
+                 Value="@_value" ValueChanged="OnValueChanged"
+                 Text="@_text" TextChanged="OnTextChanged" />
+
+@code {
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public EventCallback<string?> ValueChanged { get; set; }
+
+    [Parameter, EditorRequired]
+    public Func<string, CancellationToken, Task<IEnumerable<string>>>? SearchFunc { get; set; }
+
+    /// <summary>
+    /// Wie ein Wert im Feld erscheint. Die Tierauswahl zeigt damit ein Label,
+    /// waehrend der Wert die Ohrmarke bleibt.
+    /// </summary>
+    [Parameter] public Func<string, string>? ToStringFunc { get; set; }
+
+    [Parameter] public string? Label { get; set; }
+    [Parameter] public string? InputId { get; set; }
+    [Parameter] public string? Placeholder { get; set; }
+    [Parameter] public Variant Variant { get; set; } = Variant.Text;
+    [Parameter] public bool CoerceValue { get; set; }
+    [Parameter] public bool CoerceText { get; set; }
+    [Parameter] public bool Clearable { get; set; }
+    [Parameter] public bool SelectValueOnTab { get; set; }
+    [Parameter] public bool ResetValueOnEmptyText { get; set; }
+
+    /// <summary>
+    /// Der zuletzt gesehene Wert - Quelle und Ziel des Vergleichs in
+    /// OnParametersSet. Nicht Value selbst lesen: der Parameter traegt auch den
+    /// Wert, den diese Komponente selbst gerade gemeldet hat, und dann darf der
+    /// Text nicht angefasst werden.
+    /// </summary>
+    private string? _value;
+
+    private string? _text;
+
+    protected override void OnParametersSet()
+    {
+        if (string.Equals(Value, _value, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        // Von aussen geaendert - erst jetzt wird der Text nachgezogen.
+        _value = Value;
+        _text = Display(Value);
+    }
+
+    private string? Display(string? value)
+    {
+        if (value is null)
+        {
+            return null;
+        }
+
+        return ToStringFunc is null ? value : ToStringFunc(value);
+    }
+
+    private async Task OnValueChanged(string? value)
+    {
+        _value = value;
+        _text = Display(value);
+        await ValueChanged.InvokeAsync(value);
+    }
+
+    // Reine Buchfuehrung: der Text gehoert dieser Komponente, damit Mud ihn
+    // beim naechsten Elternrender wiederbekommt statt ihn zu ueberschreiben.
+    private void OnTextChanged(string? text) => _text = text;
+}

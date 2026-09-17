@@ -15,11 +15,11 @@
             @* CoerceValue FALSE: ein Ziel muss existieren. Ein per Tippfehler
                erfundenes Ziel wuerde die Behandlungen auf eine ID umhaengen,
                die es nicht gibt. *@
-            <MudAutocomplete T="string" InputId="mw-merge-target" Variant="Variant.Text"
-                             SelectValueOnTab="true" CoerceValue="false"
-                             Value="@_targetName" ValueChanged="OnTargetChanged"
-                             SearchFunc="SearchTargets"
-                             Placeholder="Medikament suchen…" />
+            <MeadowAutocomplete InputId="mw-merge-target"
+                                SelectValueOnTab="true" CoerceValue="false"
+                                Value="@_targetName" ValueChanged="OnTargetChanged"
+                                SearchFunc="SearchTargets"
+                                Placeholder="Medikament suchen…" />
         </div>
 
         <label class="mw-label">Welcher Name bleibt?</label>
@@ -119,7 +119,7 @@
         _targetName = Target?.MedicineName ?? "";
     }
 
-    private void OnTargetChanged(string value)
+    private void OnTargetChanged(string? value)
     {
         _targetName = value ?? "";
 
