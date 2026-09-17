@@ -77,27 +77,35 @@
     }
 
     @* Vier Aktionen auf Desktop, zwei mobil: dort deckt der FAB in der
-       Tabbar die geplanten Behandlungen ab. *@
-    <div class="mw-dash-actions">
-        <MeadowActionButton Label="Klauen Behandlung hinzufügen"
-                            Icon="MeadowIconName.Claw"
-                            OnClick="@Launcher.OpenClawTreatmentAsync" />
+       Tabbar die geplanten Behandlungen ab.
 
+       Sortiert nach TIER, nicht nach "erfasst/geplant": erst beide Kuh-, dann
+       beide Klauen-Aktionen. Wer zur Kuh greift, sucht die geplante Kuhgabe
+       direkt darunter und nicht zwei Knoepfe weiter. Die Farbe traegt dieselbe
+       Gruppierung - Kuh teal, Klaue blau -, und damit steht jetzt Paar unter
+       Paar statt abwechselnd. Dieselbe Reihenfolge wie im Hinzufuegen-Menue
+       ueber dem FAB (MeadowAddMenu). *@
+    <div class="mw-dash-actions">
         <MeadowActionButton Label="Kuh Behandlung hinzufügen"
                             Icon="MeadowIconName.Cow"
                             Teal="true"
                             OnClick="@Launcher.OpenCowTreatmentAsync" />
-
-        <MeadowActionButton Label="Geplante Klauen Behandlung"
-                            Icon="MeadowIconName.PlannedClaw"
-                            Class="mw-only-desktop"
-                            OnClick="@Launcher.OpenPlannedClawTreatmentAsync" />
 
         <MeadowActionButton Label="Geplante Kuh Behandlung"
                             Icon="MeadowIconName.PlannedCow"
                             Teal="true"
                             Class="mw-only-desktop"
                             OnClick="@Launcher.OpenPlannedCowTreatmentAsync" />
+
+        <MeadowActionButton Label="Klauen Behandlung hinzufügen"
+                            Icon="MeadowIconName.Claw"
+                            Class="mw-act--group"
+                            OnClick="@Launcher.OpenClawTreatmentAsync" />
+
+        <MeadowActionButton Label="Geplante Klauen Behandlung"
+                            Icon="MeadowIconName.PlannedClaw"
+                            Class="mw-only-desktop"
+                            OnClick="@Launcher.OpenPlannedClawTreatmentAsync" />
     </div>
 </div>
 

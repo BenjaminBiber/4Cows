@@ -1435,6 +1435,16 @@ a.mw-icon-btn { text-decoration: none; }
 .mw-act > svg { flex-shrink: 0; }
 .mw-act--primary { background: var(--mw-primary); box-shadow: var(--mw-glow-primary); }
 .mw-act--teal    { background: var(--mw-teal);    box-shadow: var(--mw-glow-teal); }
+
+/* Der Absatz zwischen Kuh- und Klauen-Aktionen. Als margin-top am ERSTEN
+   Knopf der zweiten Gruppe und nicht als Trennelement dazwischen: die Spalte
+   ist ein Flex-Container mit gap, und ein leeres Element bekaeme links und
+   rechts davon je einen weiteren Abstand.
+   Zaehlt zum gap von 12px dazu, ergibt also 22px - genug, um zwei Paare zu
+   sehen, zu wenig, um wie zwei getrennte Bloecke zu wirken. Mobil faellt der
+   geplante Kuh-Knopf weg, der Absatz steht dann zwischen den beiden
+   verbleibenden und trennt dieselben zwei Gruppen. */
+.mw-act--group { margin-top: 10px; }
 @media (hover: hover) {
   .mw-act:hover { filter: brightness(1.06); transform: translateY(-1px); }
 }
