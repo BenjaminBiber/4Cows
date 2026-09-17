@@ -70,6 +70,27 @@ public static class CowTreatmentEndpoints
                    ?? EndpointCommon.WriteFailed($"Die {treatments.Count} Kuhbehandlungen konnten nicht angelegt werden.");
         }).BumpsOnWrite(DataScope.CowTreatments).WithName("CowTreatmentCreateBatch");
 
+        // Wortgleich zum Klauenpendant. Die Id kommt aus der Route und
+        // ueberschreibt, was im Rumpf steht: sonst liesse sich mit einem
+        // abweichenden Rumpf eine ANDERE Behandlung ueberschreiben, als die
+        // Route benennt.
+        api.MapPut("/cow-treatments/{treatmentId:int}", async (int treatmentId, CowTreatment treatment, ICowTreatmentService svc) =>
+        {
+            if (!await EndpointCommon.ExistsAsync(() => svc.Treatments, treatmentId, svc.GetAllDataAsync))
+            {
+                return EndpointCommon.NotFound("Kuhbehandlung", treatmentId);
+            }
+
+            treatment.CowTreatmentId = treatmentId;
+
+            var ok = await svc.UpdateDataAsync(treatment);
+            return ok
+                ? Results.NoContent()
+                : await EndpointCommon.WriteFailedOrGoneAsync(
+                    () => svc.Treatments, treatmentId, svc.GetAllDataAsync, "Kuhbehandlung",
+                    $"Kuhbehandlung {treatmentId} konnte nicht geaendert werden.");
+        }).BumpsOnWrite(DataScope.CowTreatments).WithName("CowTreatmentUpdate");
+
         // DeleteDataAsync gibt ein blankes Task zurueck und faengt jede Ausnahme
         // in eine Logzeile ab - "geloescht", "gab es nie" und "ist
         // fehlgeschlagen" kommen hier gleich an. Die 204 ist damit eine Zusage
@@ -84,8 +105,6 @@ public static class CowTreatmentEndpoints
             return Results.NoContent();
         }).BumpsOnWrite(DataScope.CowTreatments).WithName("CowTreatmentDelete");
 
-        // Kein PUT: ICowTreatmentService hat kein Update. Geaendert wird eine
-        // Kuhbehandlung heute, indem sie geloescht und neu angelegt wird.
         return api;
     }
 }

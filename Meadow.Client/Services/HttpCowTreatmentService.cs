@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Text.Json;
 using Meadow.Shared.Lookups;
 using Meadow.Shared.Models;
 using Meadow.Shared.Services;
@@ -199,6 +200,88 @@ public class HttpCowTreatmentService : HttpServiceBase, ICowTreatmentService, IM
         }
 
         return treatmentResult ?? new CowTreatment();
+    }
+
+    /// <summary>
+    /// Aendert eine bestehende Behandlung. Gespiegelt aus
+    /// <see cref="HttpClawTreatmentService.UpdateDataAsync"/> - derselbe
+    /// Offline-Weg, dieselben zwei Sonderfaelle.
+    /// </summary>
+    public async Task<bool> UpdateDataAsync(CowTreatment treatment)
+    {
+        // Eine negative Id ist eine vorlaeufige: die Zeile wartet noch als
+        // Insert und hat den Server nie gesehen. Dann wird nicht geaendert,
+        // sondern der wartende Insert nachgebessert - sonst ginge ein PUT auf
+        // api/cow-treatments/-3 hinaus, das nach dem Insert in eine 404 laeuft
+        // und als dauerhaft gescheitert gilt. Uebertragen waere der Stand VOR
+        // der Bearbeitung.
+        if (treatment.CowTreatmentId < 0
+            && await _outbox.UpdatePendingInsertAsync(
+                treatment.ClientId, MeadowStores.CowTreatment, treatment))
+        {
+            SetCached(treatment);
+            Logger.LogInformation(
+                "Wartende Kuhbehandlung {Id} geaendert - es geht nur EIN Anlegen hinaus.",
+                treatment.CowTreatmentId);
+            return true;
+        }
+
+        var route = $"api/cow-treatments/{treatment.CowTreatmentId}";
+
+        var outcome = await TryWriteAsync(
+            () => PutAsync(route, treatment),
+            $"Failed to update cow treatment {treatment.CowTreatmentId}.");
+
+        if (outcome.IsOffline)
+        {
+            // Die Nutzlast wird JETZT serialisiert, mit dem Stand, den der
+            // Nutzer gerade gespeichert hat. Sie spaeter aus dem Cache zu holen
+            // hiesse, eine Aenderung von 17:00 mit dem Stand von 17:20
+            // hinauszuschicken.
+            var queued = await _outbox.QueueWriteAsync(
+                MeadowEntityType.CowTreatment,
+                MeadowOperation.Update,
+                "PUT",
+                route,
+                treatment.CowTreatmentId,
+                [treatment.ClientId],
+                JsonSerializer.Serialize(treatment, Json),
+                rowToKeep: treatment);
+
+            if (queued)
+            {
+                SetCached(treatment);
+                Logger.LogInformation(
+                    "Kuhbehandlung {Id} geaendert, wartet auf die Uebertragung.", treatment.CowTreatmentId);
+            }
+
+            return queued;
+        }
+
+        var isSuccess = outcome.Ok;
+
+        if (isSuccess)
+        {
+            // Neu laden statt den Cache punktuell zu setzen: das Update
+            // schreibt die ganze Zeile, und im Cache liegt noch die Instanz von
+            // vor der Bearbeitung. Gespiegelt aus der EF-Fassung.
+            await GetAllDataAsync();
+            Logger.LogInformation("Updated cow treatment {Id}.", treatment.CowTreatmentId);
+        }
+
+        return isSuccess;
+    }
+
+    /// <summary>
+    /// Cache-Eintrag setzen und DistinctWhereHows nachziehen. Anders als bei
+    /// den Klauenbehandlungen haengt an diesem Cache eine zweite, abgeleitete
+    /// Liste - ein blosses SetItem liesse sie auf dem Stand von vorher stehen.
+    /// </summary>
+    private void SetCached(CowTreatment treatment)
+    {
+        _cachedTreatments = _cachedTreatments.SetItem(treatment.CowTreatmentId, treatment);
+        _cachedDistinctWhereHows = _cachedTreatments.Values
+            .Select(t => t.WhereHowId).Distinct().ToImmutableList();
     }
 
     /// <summary>

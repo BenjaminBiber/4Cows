@@ -23,6 +23,16 @@ public interface ICowTreatmentService
 
     Task<CowTreatment> GetByIdAsync(int id);
 
+    /// <summary>
+    /// Aendert eine bestehende Kuhbehandlung.
+    ///
+    /// Gab es bisher nicht - geaendert wurde, indem geloescht und neu angelegt
+    /// wurde. Das ist keine gleichwertige Ersatzhandlung: die neue Zeile traegt
+    /// eine neue ClientId und eine neue Id, und wer sie referenziert hat,
+    /// zeigt danach ins Leere.
+    /// </summary>
+    Task<bool> UpdateDataAsync(CowTreatment treatment);
+
     Task DeleteDataAsync(int id);
 
     int[] GetCowTreatmentChartData(int? year = null);
