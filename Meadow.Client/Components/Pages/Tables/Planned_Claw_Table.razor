@@ -63,7 +63,7 @@
              IsLoading="@(!_loaded)"
              RowKey="@(r => r.PlannedClawTreatmentId)"
              RowClass="@(r => MeadowSyncRow.Class(Sync.StateOf(r.ClientId)))"
-             DefaultSortTitle="Geplant für"
+             DefaultSortTitle="Geplant für" DefaultSortDescending="true"
              PagerLabel="Behandlungen pro Seite"
              MoreLabel="Weitere Behandlungen laden"
              EmptyText="Keine geplanten Behandlungen gefunden.">
