@@ -52,11 +52,18 @@
 </div>
 
 <MeadowPageMenu Open="@Layout.PageMenuOpen" Route="@_route" OnClose="@Layout.CloseAll" />
-<MeadowAddMenu Open="@Layout.AddMenuOpen" OnClose="@Layout.CloseAll" />
+<MeadowAddMenu Open="@Layout.AddMenuOpen" CowId="@_cowId" OnClose="@Layout.CloseAll" />
 
 @code {
     private string _route = "";
     private string _routeTitle = "Dashboard";
+
+    /// <summary>
+    /// Das Tier der aktuellen Kuh-Seite, sonst null. Damit belegt das
+    /// Add-Menue ueber dem FAB die Behandlungs-Dialoge mit genau dem Tier
+    /// vor, dessen Detailseite man gerade offen hat.
+    /// </summary>
+    private string? _cowId;
 
     /// <summary>Ziel des Titels im Kopf, oder null auf dem Dashboard selbst.</summary>
     private string? _home;
@@ -103,6 +110,7 @@
         _hasSiblings = MeadowRoutes.HasSiblings(_route);
         _fabTitle = MeadowDialogLauncher.FabTitleFor(_route);
         _wide = MeadowRoutes.IsWide(_route);
+        _cowId = MeadowRoutes.CowIdFrom(_route);
     }
 
     private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
