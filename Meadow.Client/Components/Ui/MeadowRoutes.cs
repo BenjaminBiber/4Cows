@@ -76,6 +76,32 @@ public static class MeadowRoutes
         => $"{CowDetail}/{Uri.EscapeDataString(cowId)}";
 
     /// <summary>
+    /// Die Cow_ID aus einer Kuh-Route, oder null, wenn die Route keine
+    /// Kuh-Seite ist. Gegenstueck zu <see cref="CowDetailFor"/>: die Tabbar
+    /// bekommt die Route escaped ("Kuh/DE%2008%201523%204567"), also wird das
+    /// erste Segment abgeschnitten und der Rest wieder entschluesselt.
+    ///
+    /// Gebraucht, damit der FAB auf der Kuh-Seite die Hinzufuegen-Dialoge mit
+    /// genau diesem Tier vorbelegt - ohne dass das Layout die Route selbst
+    /// zerlegen muss.
+    /// </summary>
+    public static string? CowIdFrom(string route)
+    {
+        if (!BaseOf(route).Equals(CowDetail, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var slash = route.IndexOf('/');
+        if (slash < 0 || slash + 1 >= route.Length)
+        {
+            return null;
+        }
+
+        return Uri.UnescapeDataString(route[(slash + 1)..]);
+    }
+
+    /// <summary>
     /// Erstes Segment der Kennzahl-Seite; danach folgt die KPI_ID. Wie bei
     /// <see cref="CowDetail"/> eine eigene Konstante, weil TitleFor, GroupFor und IsWide ueber
     /// BaseOf nur dieses Segment sehen - ohne Eintrag hier liefert TitleFor den 404-Titel und

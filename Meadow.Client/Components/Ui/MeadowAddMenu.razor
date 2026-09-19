@@ -1,7 +1,10 @@
 @*
     st.mAddMenu / st.amiItem / st.amiIcon — die Vier-Punkte-Auswahl ueber dem
     FAB. Erscheint nur dort, wo die Route keine eindeutige Hinzufuegen-Aktion
-    hat, also auf Dashboard und Einstellungen.
+    hat, also auf Dashboard, Einstellungen und der Kuh-Seite.
+
+    Auf der Kuh-Seite ist CowId gesetzt: dann oeffnen die vier Punkte die
+    Dialoge mit genau diesem Tier vorbelegt, statt leer.
 *@
 @inject MeadowDialogLauncher Launcher
 
@@ -12,22 +15,22 @@
 
     <div class="mw-menu mw-menu--add" role="menu" aria-label="Hinzufügen">
         <button type="button" role="menuitem" class="mw-menu__item"
-                @onclick="() => Run(Launcher.OpenCowTreatmentAsync)">
+                @onclick="RunCowTreatment">
             <span class="mw-menu__icon"><MeadowIcon Name="MeadowIconName.Cow" Size="17" /></span>
             Kuh Behandlung
         </button>
         <button type="button" role="menuitem" class="mw-menu__item"
-                @onclick="() => Run(Launcher.OpenPlannedCowTreatmentAsync)">
+                @onclick="RunPlannedCowTreatment">
             <span class="mw-menu__icon"><MeadowIcon Name="MeadowIconName.PlannedCow" Size="17" /></span>
             Geplante Kuh Behandlung
         </button>
         <button type="button" role="menuitem" class="mw-menu__item"
-                @onclick="() => Run(Launcher.OpenClawTreatmentAsync)">
+                @onclick="RunClawTreatment">
             <span class="mw-menu__icon"><MeadowIcon Name="MeadowIconName.Claw" Size="17" /></span>
             Klauen Behandlung
         </button>
         <button type="button" role="menuitem" class="mw-menu__item"
-                @onclick="() => Run(Launcher.OpenPlannedClawTreatmentAsync)">
+                @onclick="RunPlannedClawTreatment">
             <span class="mw-menu__icon"><MeadowIcon Name="MeadowIconName.PlannedClaw" Size="17" /></span>
             Geplante Klauen Behandlung
         </button>
@@ -37,6 +40,34 @@
 @code {
     [Parameter] public bool Open { get; set; }
     [Parameter] public EventCallback OnClose { get; set; }
+
+    /// <summary>
+    /// Das vorzubelegende Tier (Cow_ID) auf der Kuh-Seite, sonst null. Ist es
+    /// gesetzt, oeffnen die Punkte die Dialoge mit diesem Tier statt leer.
+    /// </summary>
+    [Parameter] public string? CowId { get; set; }
+
+    private bool HasCow => !string.IsNullOrWhiteSpace(CowId);
+
+    private Task RunCowTreatment()
+        => HasCow
+            ? Run(() => Launcher.OpenCowTreatmentAsync(CowId!))
+            : Run(Launcher.OpenCowTreatmentAsync);
+
+    private Task RunPlannedCowTreatment()
+        => HasCow
+            ? Run(() => Launcher.OpenPlannedCowTreatmentAsync(CowId!))
+            : Run(Launcher.OpenPlannedCowTreatmentAsync);
+
+    private Task RunClawTreatment()
+        => HasCow
+            ? Run(() => Launcher.OpenClawTreatmentAsync(CowId!))
+            : Run(Launcher.OpenClawTreatmentAsync);
+
+    private Task RunPlannedClawTreatment()
+        => HasCow
+            ? Run(() => Launcher.OpenPlannedClawTreatmentAsync(CowId!))
+            : Run(Launcher.OpenPlannedClawTreatmentAsync);
 
     private async Task Run(Func<Task> open)
     {
