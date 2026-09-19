@@ -354,10 +354,8 @@
         var search = _filter.Search.Trim();
         if (search.Length > 0)
         {
-            query = query.Where(r =>
-                Contains(Collar(r), search)
-                || Contains(EarTag(r), search)
-                || Contains(Medicine(r), search));
+            query = query.Where(r => TableSearch.Matches(
+                search, Collar(r), EarTag(r), Medicine(r)));
         }
 
         // Leere Auswahl = kein Filter. Sonst ODER ueber die gewaehlten
@@ -383,9 +381,6 @@
 
         _rows = query.ToList();
     }
-
-    private static bool Contains(string haystack, string needle)
-        => haystack.Contains(needle, StringComparison.OrdinalIgnoreCase);
 
     private void OnSearchChanged(string value)
     {

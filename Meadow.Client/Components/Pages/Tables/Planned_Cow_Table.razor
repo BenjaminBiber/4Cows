@@ -339,11 +339,8 @@
         var search = _filter.Search.Trim();
         if (search.Length > 0)
         {
-            query = query.Where(r =>
-                Collar(r).Contains(search, StringComparison.OrdinalIgnoreCase)
-                || EarTag(r).Contains(search, StringComparison.OrdinalIgnoreCase)
-                || Medicine(r).Contains(search, StringComparison.OrdinalIgnoreCase)
-                || WhereHow(r).Contains(search, StringComparison.OrdinalIgnoreCase));
+            query = query.Where(r => TableSearch.Matches(
+                search, Collar(r), EarTag(r), $"{Medicine(r)} {WhereHow(r)}"));
         }
 
         // Leere Auswahl = kein Filter, ODER innerhalb der Gruppe.
