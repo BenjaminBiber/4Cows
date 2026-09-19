@@ -167,7 +167,7 @@
             findingIds[position] = id;
         }
 
-        Claw_Treatment.TreatmentDate = NullDate.Value;
+        Claw_Treatment.TreatmentDate = TreatmentClock.StampFor(NullDate.Value);
         Claw_Treatment.EarTagNumber = cowId;
 
         foreach (var position in HoofPositions.All)

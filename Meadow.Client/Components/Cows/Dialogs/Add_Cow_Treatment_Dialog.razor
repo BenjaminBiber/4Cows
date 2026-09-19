@@ -283,7 +283,7 @@
                     MedicineId = medication.MedicineId,
                     MedicineDosage = medication.Dosage,
                     WhereHowId = medication.WhereHowId,
-                    AdministrationDate = NullDate.Value,
+                    AdministrationDate = TreatmentClock.StampFor(NullDate.Value),
                     UdderId = medication.UdderId,
                     TreatmentReasonId = reasonId
                 });

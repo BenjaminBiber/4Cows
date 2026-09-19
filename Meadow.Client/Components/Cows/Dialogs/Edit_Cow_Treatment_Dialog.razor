@@ -213,7 +213,7 @@
         }
 
         Treatment.EarTagNumber = _earTag;
-        Treatment.AdministrationDate = _date.Value;
+        Treatment.AdministrationDate = TreatmentClock.StampFor(_date.Value);
         Treatment.MedicineId = medication.MedicineId;
         Treatment.MedicineDosage = medication.Dosage;
         Treatment.WhereHowId = medication.WhereHowId;
