@@ -156,6 +156,61 @@ public static class ReasonFilter
     }
 }
 
+/// <summary>
+/// Die Freitextsuche der fuenf Tabellen - an einer Stelle, weil alle dieselbe
+/// Ziffernregel brauchen.
+///
+/// Rein numerische Suchen sind an den Nummern mehrdeutig: "52" ist eine
+/// Halsbandnummer, steckt als Teilstring aber in fast jeder Ohrmarke
+/// ("DE 0989778364") und schleppt so fremde Tiere in die Liste. Deshalb trifft
+/// eine reine Ziffernsuche mit weniger als drei Ziffern NUR die Halsbandnummer;
+/// erst ab drei Ziffern (z. B. "123") kommt die Ohrmarke dazu, weil eine so
+/// lange Ziffernfolge gezielt eine Ohrmarke meint. Eine kurze Ziffernsuche
+/// bleibt damit auch vom Freitext (Medikament, Befund, Notiz) fern - "2" soll
+/// Halsband 2 finden, nicht jede Zeile mit "2 Verbände".
+///
+/// Nicht-numerische Suchen sind davon unberuehrt und durchsuchen wie bisher
+/// alle Felder.
+/// </summary>
+public static class TableSearch
+{
+    // Ab dieser Ziffernzahl zaehlt auch die Ohrmarke mit.
+    public const int EarTagMinDigits = 3;
+
+    /// <summary>Rein numerisch (mind. eine Ziffer, nur Ziffern)?</summary>
+    public static bool IsNumeric(string search)
+        => search.Length > 0 && search.All(char.IsDigit);
+
+    /// <summary>
+    /// Passt die Zeile? <paramref name="collar"/> ist die Halsbandnummer,
+    /// <paramref name="earTag"/> die Ohrmarke, <paramref name="text"/> der
+    /// zusaetzliche Freitext der jeweiligen Tabelle (Medikament, Befund, Notiz).
+    ///
+    /// Bei einer kurzen reinen Ziffernsuche zaehlt nur die Halsbandnummer; sonst
+    /// treffen Halsband, Ohrmarke und Freitext wie gewohnt.
+    /// </summary>
+    public static bool Matches(string search, string collar, string earTag, string? text = null)
+    {
+        if (Contains(collar, search))
+        {
+            return true;
+        }
+
+        // Reine Ziffernsuche adressiert Nummern, nicht Freitext - und die
+        // Ohrmarke erst ab drei Ziffern.
+        if (IsNumeric(search))
+        {
+            return search.Length >= EarTagMinDigits && Contains(earTag, search);
+        }
+
+        return Contains(earTag, search)
+               || (text is { Length: > 0 } && Contains(text, search));
+    }
+
+    private static bool Contains(string haystack, string needle)
+        => haystack.Contains(needle, StringComparison.OrdinalIgnoreCase);
+}
+
 /// <summary>Suchtext und Filter der Kuh-Tabelle.</summary>
 public sealed class CowTableFilter
 {
