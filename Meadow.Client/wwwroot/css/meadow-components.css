@@ -1413,7 +1413,23 @@ a.mw-icon-btn { text-decoration: none; }
   display: flex;
   flex-direction: column;
   gap: 12px;
-  justify-content: center;
+  /* Oben buendig mit der ersten KPI-Reihe. Zentriert rutschte der Stapel um
+     die halbe Differenz zur Reihenhoehe nach unten, und die drei Spalten
+     begannen auf drei verschiedenen Hoehen. */
+  justify-content: flex-start;
+}
+
+/* Die vier Buttons fuellen die Spalte, damit auch die UNTERKANTE auf der
+   Flucht des KPI-Gitters liegt - die Spalte ist per stretch so hoch wie die
+   Reihe, der Stapel war es nicht.
+
+   Bewusst die Buttons wachsen zu lassen und nicht die Zwischenraeume
+   (justify-content: space-between): das haette die 12px-Abstaende auf ueber
+   20px gedehnt und damit den 10px-Absatz aus .mw-act--group verschluckt, der
+   das Kuh- vom Klauen-Paar trennt. So bleiben Abstand und Gruppierung wie
+   sie sind, die Buttons werden nur etwas hoeher. */
+.mw-dash-actions > .mw-act {
+  flex: 1;
 }
 
 .mw-act {
@@ -1575,6 +1591,12 @@ a.mw-icon-btn { text-decoration: none; }
 
   .mw-dash-actions { flex: 1 1 100%; min-width: 0; margin-top: 14px; }
   .mw-act { padding: 14px 16px; }
+
+  /* Die schmale Ansicht der Hinweis-Kachel steht NICHT hier, sondern direkt
+     hinter ihren Basisregeln weiter unten: .mw-notices wird erst dort
+     definiert, und bei gleicher Spezifitaet gewinnt die spaetere Regel -
+     eine Media Query erhoeht die Spezifitaet nicht. Hier stehende Overrides
+     blieben wirkungslos. */
 
   .mw-dash-charts { margin-top: 14px; }
   .mw-card--chart { flex: 1 1 100%; min-width: 0; }
@@ -2794,23 +2816,118 @@ a.mw-icon-btn { text-decoration: none; }
   color: var(--mw-text);
 }
 
-/* Hinweistafel auf dem Dashboard (MeadowNoticeBoard).
-   flex-basis: 100% zwingt den Container, in .mw-dash-top eine eigene
-   Zeile zu belegen - die Kacheln und Aktionen stehen darunter, nicht
-   daneben. gap aus .mw-dash-top sorgt fuer den Abstand ohne Extra-Margin. */
+/* Hinweistafel auf dem Dashboard (MeadowNoticeBoard) - eine eigene Kachel
+   ZWISCHEN KPI-Gitter und Aktionsspalte, nicht mehr eine eigene Zeile
+   darueber (das war frueher flex-basis: 100%).
+
+   Breitenspanne nach demselben Muster wie .mw-dash-actions und bewusst nicht
+   flex: 1: mit einer wachsenden Spalte bekaeme die Kachel bei 1280px mehr
+   Breite als das KPI-Gitter, weil ihre flex-basis in die Verteilung eingeht.
+   So bleibt die Reihe vorhersagbar - Aktionen und Hinweise nehmen ihren
+   festen Anteil, der Rest gehoert den Kennzahlen.
+
+   Hoehe: die der Reihe, also die des KPI-Gitters - das kommt aus
+   align-items: stretch auf .mw-dash-top und braucht hier keine eigene Zeile.
+   Damit liegen Ober- UND Unterkante der drei Spalten auf einer Flucht; die
+   Aktionsbuttons daneben fuellen ihre Spalte aus demselben Grund.
+
+   overflow: hidden haelt die Karte in dieser Hoehe - ohne die Zeile zoege ein
+   halbes Dutzend faelliger Verbaende sie darueber hinaus.
+
+   Als <a> gerendert: Textfarbe und Unterstreichung des Links zuruecknehmen,
+   der Inhalt soll aussehen wie in jeder anderen Karte. */
 .mw-notices {
-  flex-basis: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  flex: 0 0 clamp(260px, 20%, 340px);
+  min-width: 250px;
+  position: relative;
+  overflow: hidden;
+  color: inherit;
+  text-decoration: none;
+  transition: box-shadow .15s ease, border-color .15s ease;
 }
 
-/* Aktions-Link innerhalb eines Hinweises: schlicht, aber als Link erkennbar. */
-.mw-notices__action {
-  margin-left: 8px;
-  font-size: 12px;
-  color: var(--mw-primary);
-  text-decoration: underline;
+/* Der Inhalt haengt absolut und zaehlt damit nicht zur Hoehe der Kachel -
+   sonst bestimmte eine lange Hinweisliste die Hoehe der GANZEN oberen Reihe
+   und zerrte die KPI-Kacheln mit in die Laenge (bei 20 Hinweisen gemessen:
+   945 statt 388 Pixel). So gibt das KPI-Gitter die Reihenhoehe vor und die
+   Kachel fuellt sie.
+
+   inset wiederholt bewusst die Polsterung von .mw-card: die kann hier nicht
+   mehr wirken, weil der Inhalt aus dem Fluss genommen ist. */
+.mw-notices__inner {
+  position: absolute;
+  inset: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Anfassbar aussehen, solange die Kachel ein Ziel hat. Ohne href ist das
+   <a> kein Link - dann auch kein Hover-Versprechen. */
+.mw-notices[href]:hover,
+.mw-notices[href]:focus-visible {
+  border-color: var(--mw-primary);
+  box-shadow: var(--mw-shadow-card-hover, var(--mw-shadow-card));
+}
+
+/* Kleiner als der Kartentitel sonst: die Kachel ist schmal, und die
+   Hinweise darunter stehen in 12px. */
+.mw-notices__title {
+  font-size: 15px;
+}
+
+/* Der scrollende Teil. min-height: 0 ist nicht kosmetisch - ohne die Zeile
+   nimmt ein Flex-Element seine Inhaltshoehe als Minimum und scrollt nie,
+   sondern sprengt die Karte. */
+.mw-notices__list {
+  /* Fuellt die Karte unter der Ueberschrift aus. Ohne die Zeile war die Liste
+     nur so hoch wie ihr Inhalt, und unter dem letzten Hinweis blieb der Rest
+     der Kachel leer. */
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Die Hinweise teilen sich den Platz der Liste gleichmaessig, Text mittig in
+   seinem Feld. So ist die Kachel gefuellt statt oben beschrieben und unten
+   leer, und die farbige Kante links laeuft ueber die ganze Zeilenhoehe.
+
+   flex: 1 0 auto und nicht flex: 1 - die Basis bleibt die Inhaltshoehe und
+   Schrumpfen ist verboten. Sonst quetschte eine lange Liste ihre Eintraege
+   unter die Texthoehe zusammen, statt zu scrollen. */
+.mw-notices__list > .mw-hint {
+  flex: 1 0 auto;
+  display: flex;
+  align-items: center;
+}
+
+/* Schmale Ansicht - derselbe Breakpoint wie die Dashboard-Query weiter oben,
+   aber bewusst HIER: .mw-notices wird erst oberhalb dieser Zeilen definiert,
+   und eine Media Query erhoeht die Spezifitaet nicht. Stuende der Block oben
+   bei .mw-dash-actions, gewaenne die spaetere Basisregel und die Kachel
+   bliebe auf dem Telefon 260px schmal.
+
+   Untereinander gibt es keine Nachbarspalte mehr, an deren Hoehe sich die
+   Kachel halten muesste: voller Platz, kein innerer Scroll. */
+@media (max-width: 1023.98px) {
+  .mw-notices {
+    flex: 1 1 100%;
+    min-width: 0;
+    overflow: visible;
+  }
+
+  /* Zurueck in den Fluss: untereinander bezieht die Kachel ihre Hoehe aus dem
+     Inhalt, und ein absolut haengender Inhalt liesse sie auf null
+     zusammenfallen. Damit greift auch die Polsterung von .mw-card wieder. */
+  .mw-notices__inner {
+    position: static;
+    inset: auto;
+  }
+
+  .mw-notices__list { overflow-y: visible; }
 }
 
 /* Fehlermeldung direkt am Feld. Bisher sammelte der Dialog alles in einer

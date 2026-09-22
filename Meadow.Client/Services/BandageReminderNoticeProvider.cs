@@ -1,4 +1,5 @@
 using Meadow.Client.Components.Services;
+using Meadow.Shared.Lookups;
 using Meadow.Shared.Models;
 using Meadow.Shared.Services;
 
@@ -22,15 +23,22 @@ public sealed class BandageReminderNoticeProvider : INoticeProvider, IDisposable
 {
     private readonly IClawTreatmentService _treatments;
     private readonly ISettingsService _settings;
+    private readonly ICowService _cows;
     private readonly MeadowSyncState _sync;
 
     public BandageReminderNoticeProvider(
         IClawTreatmentService treatments,
         ISettingsService settings,
+        ICowService cows,
         MeadowSyncState sync)
     {
         _treatments = treatments;
         _settings = settings;
+        // Nur fuer die Halsbandnummer im Text. Der Kuh-Cache wird von
+        // MeadowDataLoader.EnsureLookupsAsync mitgeladen, also von derselben
+        // Vorbedingung wie die Behandlungen - fehlt er doch, bleibt der Text
+        // ohne den Halsband-Teil lesbar (BandageReminderText.CollarPart).
+        _cows = cows;
         _sync = sync;
 
         // An DATENAENDERUNGEN haengen, nicht an einer eigenen Uhr: kommen neue
@@ -65,23 +73,22 @@ public sealed class BandageReminderNoticeProvider : INoticeProvider, IDisposable
 
         return ClawTreatmentExtensions
             .OverdueBandages(_treatments.Treatments.Values, reminderDays, today)
-            .Select(t => ToNotice(t, today, Source))
+            .Select(t => ToNotice(t, _cows.Cows, today, Source))
             .ToList();
     }
 
-    private static MeadowNotice ToNotice(ClawTreatment t, DateTime today, string source)
+    private static MeadowNotice ToNotice(
+        ClawTreatment t, IReadOnlyDictionary<string, Cow> cows, DateTime today, string source)
     {
-        // Ueberfaellig SEIT: Tage ueber den Behandlungstag hinaus. Rein zur
-        // Anzeige - die Faelligkeit selbst entscheidet die Shared-Regel.
-        var overdueDays = (today.Date - t.TreatmentDate.Date).Days;
-        var seit = overdueDays == 1 ? "seit 1 Tag" : $"seit {overdueDays} Tagen";
-
         return new MeadowNotice
         {
             // Stabile Id je Behandlung: bei jeder Neuberechnung dieselbe, damit
             // der Kern dedupliziert und der Hinweis nicht flackert.
             Id = $"bandage-{t.ClawTreatmentId}",
-            Text = $"Verband an Ohrmarke {t.EarTagNumber} liegt {seit} - bitte abnehmen.",
+            // Der Wortlaut steht in Meadow.Shared und ist derselbe, den der
+            // Server per Push verschickt - nicht eine zweite Formulierung
+            // derselben Sache.
+            Text = BandageReminderText.For(t, cows, today),
             Severity = MeadowNoticeSeverity.Warning,
             // LINK auf den vorhandenen Abnahme-Weg (Verbaende-Tabelle), KEIN
             // Callback: das Modell liegt in Shared und muss serialisierbar

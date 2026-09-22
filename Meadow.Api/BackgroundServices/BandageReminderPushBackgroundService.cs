@@ -38,6 +38,7 @@ public sealed class BandageReminderPushBackgroundService : BackgroundService
 {
     private readonly IClawTreatmentService _clawTreatments;
     private readonly ISettingsService _settings;
+    private readonly ICowService _cows;
     private readonly IPushSender _pushSender;
     private readonly IDbContextFactory<DatabaseContext> _contextFactory;
     private readonly TimeSpan _interval;
@@ -45,11 +46,13 @@ public sealed class BandageReminderPushBackgroundService : BackgroundService
     public BandageReminderPushBackgroundService(
         IClawTreatmentService clawTreatments,
         ISettingsService settings,
+        ICowService cows,
         IPushSender pushSender,
         IDbContextFactory<DatabaseContext> contextFactory)
     {
         _clawTreatments = clawTreatments;
         _settings = settings;
+        _cows = cows;
         _pushSender = pushSender;
         _contextFactory = contextFactory;
         // Stuendlicher Check als Fallback: die Entdopplung sorgt dafuer, dass
@@ -100,6 +103,11 @@ public sealed class BandageReminderPushBackgroundService : BackgroundService
             // uebersaehe genau die eben faellig gewordenen Verbaende.
             await _clawTreatments.GetAllDataAsync();
             await _settings.GetAllDataAsync();
+            // Die Kuehe fuer die Halsbandnummer im Erinnerungstext. Aus
+            // demselben Grund frisch wie die beiden darueber: ein Halsband, das
+            // seit dem letzten Lauf umgehaengt wurde, stuende sonst falsch in
+            // der Benachrichtigung.
+            await _cows.GetAllDataAsync();
 
             var reminderDays = _settings.BandageRemovalReminderDays;
             var today = DateTime.Now;

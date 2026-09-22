@@ -59,16 +59,22 @@ public sealed class WebPushSender : IPushSender
     private readonly PushOptions _options;
     private readonly IDbContextFactory<DatabaseContext> _contextFactory;
     private readonly DatabaseStatusService _databaseStatus;
+    private readonly ICowService _cows;
     private readonly VapidDetails? _vapid;
 
     public WebPushSender(
         PushOptions options,
         IDbContextFactory<DatabaseContext> contextFactory,
-        DatabaseStatusService databaseStatus)
+        DatabaseStatusService databaseStatus,
+        ICowService cows)
     {
         _options = options;
         _contextFactory = contextFactory;
         _databaseStatus = databaseStatus;
+        // Nur fuer die Halsbandnummer im Erinnerungstext. Den Cache frisch zu
+        // halten ist Sache des Aufrufers - der Scheduler laedt ihn vor jedem
+        // Lauf mit, wie er es fuer Behandlungen und Einstellungen schon tut.
+        _cows = cows;
 
         // Nur wenn vollstaendig konfiguriert. VapidDetails validiert die
         // Schluessellaengen im Konstruktor und wuerde bei leeren Werten werfen -
@@ -129,17 +135,13 @@ public sealed class WebPushSender : IPushSender
 
     public Task<int> SendTreatmentReminderToAllAsync(ClawTreatment treatment, DateTime today, CancellationToken ct = default)
     {
-        // Text wortgleich zum In-App-Hinweis (BandageReminderNoticeProvider),
-        // damit Nutzer denselben Wortlaut auf beiden Kanaelen sehen. Die
-        // ueberfaellig-Tage sind reine Anzeige; die Faelligkeit selbst hat die
-        // Shared-Regel im Scheduler schon entschieden. "today" kommt vom
-        // Scheduler - einmaliger Zeitbezug, keine Mitternacht-Abweichung.
-        var overdueDays = (today.Date - treatment.TreatmentDate.Date).Days;
-        var seit = overdueDays == 1 ? "seit 1 Tag" : $"seit {overdueDays} Tagen";
-
+        // Der Wortlaut steht in Meadow.Shared und ist derselbe, den der Client
+        // als In-App-Hinweis zeigt - eine Textstelle, nicht zwei, die per
+        // Kommentar "wortgleich" sein sollen. "today" kommt vom Scheduler -
+        // einmaliger Zeitbezug, keine Mitternacht-Abweichung.
         return BroadcastAsync(
             title: "Verband-Erinnerung",
-            body: $"Verband an Ohrmarke {treatment.EarTagNumber} liegt {seit} - bitte abnehmen.",
+            body: BandageReminderText.For(treatment, _cows.Cows, today),
             url: "/Verband_Daten",
             ct);
     }
