@@ -1,6 +1,7 @@
 using Meadow.Data.Services;
 using Meadow.Data.Sql;
 using Meadow.Shared.Lookups;
+using Meadow.Shared.Models;
 using Meadow.Shared.Services;
 using Microsoft.EntityFrameworkCore;
 using WebPush;
@@ -27,11 +28,17 @@ public interface IPushSender
     Task<bool> SendAsync(DbPushSubscription subscription, string title, string body, string? url = null, CancellationToken ct = default);
 
     /// <summary>
-    /// Der Test-Sendeweg fuer die Abnahme: verschickt an ALLE gespeicherten
-    /// Anmeldungen eine Testnachricht und meldet, an wie viele sie ging. Tote
-    /// Anmeldungen fliegen dabei raus.
+    /// Der fachliche Sendeweg (Task 6): verschickt fuer eine ueberfaellige
+    /// Klauenbehandlung an ALLE gespeicherten Anmeldungen eine
+    /// Verband-Erinnerung und meldet, an wie viele sie ging. Tote Anmeldungen
+    /// fliegen dabei raus.
+    ///
+    /// Ausschliesslich serverintern aufrufbar - der BackgroundService ruft ihn
+    /// direkt. Es gibt bewusst KEINEN oeffentlichen Endpunkt mehr, der ein
+    /// Rundum-Senden an alle Anmeldungen von aussen ausloest (der fruehere
+    /// POST /api/push/test ist mit Task 6 entfallen).
     /// </summary>
-    Task<int> SendTestToAllAsync(string title, string body, CancellationToken ct = default);
+    Task<int> SendTreatmentReminderToAllAsync(ClawTreatment treatment, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -116,7 +123,29 @@ public sealed class WebPushSender : IPushSender
         }
     }
 
-    public async Task<int> SendTestToAllAsync(string title, string body, CancellationToken ct = default)
+    public Task<int> SendTreatmentReminderToAllAsync(ClawTreatment treatment, CancellationToken ct = default)
+    {
+        // Text wortgleich zum In-App-Hinweis (BandageReminderNoticeProvider),
+        // damit Nutzer denselben Wortlaut auf beiden Kanaelen sehen. Die
+        // ueberfaellig-Tage sind reine Anzeige; die Faelligkeit selbst hat die
+        // Shared-Regel im Scheduler schon entschieden.
+        var overdueDays = (DateTime.Now.Date - treatment.TreatmentDate.Date).Days;
+        var seit = overdueDays == 1 ? "seit 1 Tag" : $"seit {overdueDays} Tagen";
+
+        return BroadcastAsync(
+            title: "Verband-Erinnerung",
+            body: $"Verband an Ohrmarke {treatment.EarTagNumber} liegt {seit} - bitte abnehmen.",
+            url: "/Verband_Daten",
+            ct);
+    }
+
+    /// <summary>
+    /// Verschickt EINE Nachricht an ALLE gespeicherten Anmeldungen und meldet, an
+    /// wie viele sie ging; tote Anmeldungen fliegen ueber <see cref="SendAsync"/>
+    /// dabei raus. Serverinterner Rundum-Sendeweg - es gibt bewusst keinen
+    /// oeffentlichen Endpunkt mehr, der ihn von aussen ausloest.
+    /// </summary>
+    private async Task<int> BroadcastAsync(string title, string body, string? url, CancellationToken ct)
     {
         if (_vapid is null)
         {
@@ -134,14 +163,14 @@ public sealed class WebPushSender : IPushSender
         {
             _databaseStatus.ReportFailure();
             LoggerService.LogError(typeof(WebPushSender),
-                "Anmeldungen fuer Test-Push konnten nicht gelesen werden: {Message}", ex, ex.Message);
+                "Anmeldungen fuer Push konnten nicht gelesen werden: {Message}", ex, ex.Message);
             return 0;
         }
 
         var sent = 0;
         foreach (var subscription in all)
         {
-            if (await SendAsync(subscription, title, body, url: null, ct))
+            if (await SendAsync(subscription, title, body, url, ct))
             {
                 sent++;
             }

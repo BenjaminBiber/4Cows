@@ -130,6 +130,14 @@ else
 {
     builder.Services.AddHostedService<CowSyncBackgroundService>();
 }
+
+// ADDITIV zum Entweder-Oder oben: der Verband-Push-Scheduler (Task 6) laeuft
+// UNABHAENGIG vom Demo-/Sync-Modus. Das "genau ein HostedService" oben meint
+// nur Demo-XOR-CowSync (die einander ausschliessen); mehrere HostedServices
+// nebeneinander sind erlaubt und der Host startet alle. Ist Push nicht
+// konfiguriert (VAPID fehlt), tut der Dienst je Runde still nichts - der Start
+// reisst nicht ab, gleiche Haltung wie ueberall beim Push.
+builder.Services.AddHostedService<BandageReminderPushBackgroundService>();
 builder.WebHost.UseStaticWebAssets();
 var app = builder.Build();
 using (var scope = app.Services.CreateScope())
