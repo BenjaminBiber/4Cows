@@ -1,0 +1,69 @@
+@*
+    Hinweistafel: rendert alle aktiven MeadowNotices aus MeadowNoticeState.
+    Leere Liste → nichts sichtbar (wie MeadowSyncBand, das sich ebenfalls
+    selbst wegblendet, wenn es nichts zu sagen hat).
+
+    Abo-Muster identisch zu MeadowSyncBand: OnInitialized haengt sich an
+    NoticeState.Changed; InvokeAsync(StateHasChanged) stellt sicher, dass
+    der Aufruf sicher auf dem Blazor-Dispatcher-Thread landet; Dispose haengt
+    das Ereignis wieder aus, damit kein Leck entsteht.
+
+    Generisch: die Komponente kennt keine Quellen. Was MeadowNoticeState
+    liefert, wird angezeigt - ohne Unterscheidung nach Herkunft.
+*@
+@implements IDisposable
+
+@using Meadow.Client.Services
+@using Meadow.Shared.Models
+
+@inject MeadowNoticeState NoticeState
+
+@if (NoticeState.Notices.Count > 0)
+{
+    <div class="mw-notices" role="status" aria-live="polite" aria-label="Hinweise">
+        @foreach (var notice in NoticeState.Notices)
+        {
+            <div class="mw-hint @SeverityClass(notice.Severity)">
+                <span class="mw-notices__text">@notice.Text</span>
+
+                @* Aktions-Link nur, wenn beide Teile vorhanden sind.
+                   ActionHref allein ohne Label waere ein blinder Link;
+                   ActionLabel ohne Ziel waere ein nutzloser Button. *@
+                @if (notice.ActionHref is not null && notice.ActionLabel is not null)
+                {
+                    <a class="mw-notices__action" href="@notice.ActionHref">
+                        @notice.ActionLabel
+                    </a>
+                }
+            </div>
+        }
+    </div>
+}
+
+@code {
+    /// <summary>
+    /// Liefert die BEM-Modifier-Klasse passend zum Schweregrad.
+    /// Info traegt keine extra Klasse - der neutrale .mw-hint-Stil genuegt.
+    /// Warning und Critical erhalten eine farbige linke Kante.
+    /// </summary>
+    private static string SeverityClass(MeadowNoticeSeverity severity) => severity switch
+    {
+        MeadowNoticeSeverity.Warning  => "mw-hint--warn",
+        MeadowNoticeSeverity.Critical => "mw-hint--crit",
+        _                              => string.Empty
+    };
+
+    protected override void OnInitialized()
+    {
+        // Abonnieren: bei jeder Aenderung des Hinweis-Zustands neu zeichnen.
+        NoticeState.Changed += Neuzeichnen;
+    }
+
+    private void Neuzeichnen() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        // Aushaengen: sonst bleibt eine tote Komponentenreferenz im Singleton haengen.
+        NoticeState.Changed -= Neuzeichnen;
+    }
+}

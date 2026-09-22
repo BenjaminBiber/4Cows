@@ -2786,6 +2786,33 @@ a.mw-icon-btn { text-decoration: none; }
   color: var(--mw-text);
 }
 
+/* Kritischer Hinweis: rote Kante statt gelber. Kein eigenstaendiger Block -
+   dasselbe Modell wie --warn, nur mit der Gefahrfarbe. */
+.mw-hint--crit {
+  padding-left: 10px;
+  border-left: 2px solid var(--mw-rate-crit);
+  color: var(--mw-text);
+}
+
+/* Hinweistafel auf dem Dashboard (MeadowNoticeBoard).
+   flex-basis: 100% zwingt den Container, in .mw-dash-top eine eigene
+   Zeile zu belegen - die Kacheln und Aktionen stehen darunter, nicht
+   daneben. gap aus .mw-dash-top sorgt fuer den Abstand ohne Extra-Margin. */
+.mw-notices {
+  flex-basis: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Aktions-Link innerhalb eines Hinweises: schlicht, aber als Link erkennbar. */
+.mw-notices__action {
+  margin-left: 8px;
+  font-size: 12px;
+  color: var(--mw-primary);
+  text-decoration: underline;
+}
+
 /* Fehlermeldung direkt am Feld. Bisher sammelte der Dialog alles in einer
    Box am Ende des scrollenden Koerpers - also moeglicherweise ausserhalb
    des Sichtbereichs, wenn man gerade oben steht. */
