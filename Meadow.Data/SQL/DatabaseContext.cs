@@ -22,6 +22,10 @@ public sealed class DatabaseContext : DbContext
     public DbSet<ClawFinding> ClawFindings => Set<ClawFinding>();
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
 
+    // Web-Push-Anmeldungen. Kein Client-Cache der dreizehn Dienste, sondern der
+    // serverseitige Kanal fuer server-initiierte Benachrichtigungen (Task 3).
+    public DbSet<PushSubscription> PushSubscriptions => Set<PushSubscription>();
+
     // Der Unique-Index auf Cow.Ear_Tag_Number. Er stand als [Index]-Attribut am Modell,
     // aber Meadow.Shared soll paketfrei bleiben (der WebAssembly-Client laedt es mit),
     // und das Attribut kommt aus Microsoft.EntityFrameworkCore.
@@ -68,5 +72,18 @@ public sealed class DatabaseContext : DbContext
             .Property(t => t.ClientId).HasColumnType("char(36)").HasCharSet("ascii");
         modelBuilder.Entity<PlannedClawTreatment>()
             .HasIndex(t => t.ClientId).IsUnique().HasDatabaseName("IX_Planned_Claw_Treatment_Client_Id");
+
+        // Ein Browser = ein Endpoint = eine Zeile. Der Unique-Index ist die
+        // eigentliche Garantie der Idempotenz: er macht aus einem erneuten
+        // Subscriben einen Upsert, selbst wenn zwei POSTs sich ueberholen. Die
+        // Endpoint-Pruefung im Endpunkt ist nur der schnelle Weg dorthin.
+        //
+        // ascii statt utf8mb4: ein Push-Endpoint ist eine URL aus ASCII-Zeichen.
+        // Das haelt den 512er-Indexschluessel innerhalb der MySQL-Grenze fuer
+        // Indexlaengen, wo utf8mb4 (4 Byte/Zeichen) ihn sprengen wuerde.
+        modelBuilder.Entity<PushSubscription>()
+            .Property(s => s.Endpoint).HasCharSet("ascii");
+        modelBuilder.Entity<PushSubscription>()
+            .HasIndex(s => s.Endpoint).IsUnique().HasDatabaseName("IX_PushSubscription_Endpoint");
     }
 }
