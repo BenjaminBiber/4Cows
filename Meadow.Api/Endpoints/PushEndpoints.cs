@@ -51,10 +51,16 @@ public static class PushEndpoints
             {
                 await using var context = await factory.CreateDbContextAsync();
 
-                var existing = await context.PushSubscriptions
+                // Vorhandene Zeile laden und die Insert-vs-Update-Entscheidung
+                // der getesteten Funktion ueberlassen - kein zweiter inline-Check.
+                var candidate = await context.PushSubscriptions
                     .FirstOrDefaultAsync(s => s.Endpoint == endpoint);
 
-                if (existing is null)
+                var upsert = PushLogic.DecideUpsert(
+                    candidate is null ? [] : [candidate],
+                    endpoint);
+
+                if (upsert.Kind == PushUpsertKind.Insert)
                 {
                     context.PushSubscriptions.Add(new PushSubscription
                     {
@@ -71,9 +77,10 @@ public static class PushEndpoints
                     // selben Endpoint liefern (Schluesselrotation). Ueberschreiben
                     // statt eine zweite Zeile - der Unique-Index verhindert die
                     // ohnehin.
-                    existing.P256dh = body.P256dh!.Trim();
-                    existing.Auth = body.Auth!.Trim();
-                    existing.UserAgent = UserAgentOf(http);
+                    var row = upsert.Existing!;
+                    row.P256dh = body.P256dh!.Trim();
+                    row.Auth = body.Auth!.Trim();
+                    row.UserAgent = UserAgentOf(http);
                 }
 
                 await context.SaveChangesAsync();
