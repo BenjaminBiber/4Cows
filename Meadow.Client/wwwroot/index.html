@@ -131,6 +131,14 @@
     <script src="js/meadow-db.js"></script>
 
     <!--
+        Web-Push-Bruecke. Reines Interop fuer die Berechtigungsabfrage und das
+        An-/Abmelden beim Push-Dienst des Browsers; PushService.cs ruft es auf.
+        Die push-/notificationclick-Handler liegen NICHT hier, sondern im
+        Service Worker - nur der laeuft, wenn die App geschlossen ist.
+    -->
+    <script src="js/push.js"></script>
+
+    <!--
         Chart.js liegt lokal. Vorher stand hier cdn.jsdelivr.net/npm/chart.js
         ohne Version - also bei jedem Laden die jeweils neueste, aus dem
         Internet, auf einer Seite, die "laeuft im eigenen Betriebsnetz, ohne

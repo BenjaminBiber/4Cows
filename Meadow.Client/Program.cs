@@ -171,6 +171,12 @@ builder.Services.AddSingleton<IMeadowSyncTarget>(sp => (HttpPClawTreatmentServic
 // am Endpunkt /api/kpi/dashboard einmal live vorgefuehrt.
 builder.Services.AddSingleton<KpiRowProvider>();
 
+// Web-Push. Singleton wie die uebrigen Zustandsdienste - es gibt je Tab genau
+// eine Push-Anmeldung, und ein Singleton darf keine Scoped-Abhaengigkeit haben
+// (HttpClient und IJSRuntime sind beide prozessweit). Kapselt push.js und postet
+// die Anmeldung an /api/push/subscriptions.
+builder.Services.AddSingleton<PushService>();
+
 // Schalenzustand: einer pro Nutzer. Unter Blazor Server war das "pro Circuit"
 // und deshalb Scoped. Im Browser ist ein Tab ohnehin ein Nutzer; Scoped bleibt
 // trotzdem stehen, damit die Registrierung dieselbe Aussage macht wie vorher.

@@ -25,6 +25,58 @@ self.addEventListener('fetch', event => {
     event.respondWith(onFetch(event));
 });
 
+// Web-Push-Handler — der Kern von Task 3.
+//
+// Das ist die AUSGELIEFERTE SW-Datei (Blazor kopiert ihren Inhalt beim Publish
+// nach service-worker.js). Damit Push auch bei geschlossener App eine
+// Systembenachrichtigung zeigt, MUESSEN die Handler hier stehen - der Browser
+// weckt genau diesen Service Worker, wenn eine Push-Nachricht ankommt. Die
+// beiden Funktionen sind wortgleich zu denen im Dev-service-worker.js; sie
+// beruehren den Offline-Cache nicht.
+self.addEventListener('push', event => event.waitUntil(meadowShowNotification(event)));
+self.addEventListener('notificationclick', event => event.waitUntil(meadowOpenWindow(event)));
+
+// Zeigt die Systembenachrichtigung aus dem Payload. Der Server schickt
+// { title, body, url } als JSON; faellt das Auspacken aus, bleibt eine neutrale
+// Meldung, damit userVisibleOnly nie verletzt wird - ein still verschluckter
+// push kostet die Push-Berechtigung.
+async function meadowShowNotification(event) {
+    let data = {};
+    try {
+        data = event.data ? event.data.json() : {};
+    } catch (e) {
+        data = { body: event.data ? event.data.text() : '' };
+    }
+
+    const title = data.title || 'Meadow';
+    const options = {
+        body: data.body || '',
+        icon: 'icon-192.png',
+        badge: 'icon-192.png',
+        data: { url: data.url || '/' }
+    };
+
+    await self.registration.showNotification(title, options);
+}
+
+// Fokussiert ein offenes Fenster oder oeffnet eines auf data.url.
+async function meadowOpenWindow(event) {
+    event.notification.close();
+    const target = (event.notification.data && event.notification.data.url) || '/';
+
+    const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of clientList) {
+        if ('focus' in client) {
+            client.navigate(target);
+            return client.focus();
+        }
+    }
+
+    if (self.clients.openWindow) {
+        return self.clients.openWindow(target);
+    }
+}
+
 const cacheNamePrefix = 'offline-cache-';
 const cacheName = `${cacheNamePrefix}${self.assetsManifest.version}`;
 const offlineAssetsInclude = [
