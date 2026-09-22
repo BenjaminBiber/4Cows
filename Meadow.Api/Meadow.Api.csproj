@@ -14,9 +14,14 @@
     <ItemGroup>
       <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="8.0.27" />
       <PackageReference Include="EPPlus" Version="7.5.1" />
+      <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.6">
+        <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        <PrivateAssets>all</PrivateAssets>
+      </PackageReference>
       <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.19.6" />
       <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.6" />
       <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="8.0.2" />
+      <PackageReference Include="WebPush" Version="1.0.13" />
     </ItemGroup>
 
     <ItemGroup>
@@ -56,17 +61,7 @@
   -->
   <Target Name="TrimAceAssets" BeforeTargets="GenerateComputedPublishStaticWebAssets;GenerateComputedBuildStaticWebAssets">
     <ItemGroup>
-      <StaticWebAsset Remove="@(StaticWebAsset)" Condition="
-        $([System.String]::Copy('%(StaticWebAsset.RelativePath)').Contains('ace/'))
-        and (
-          $([System.String]::Copy('%(StaticWebAsset.RelativePath)').Contains('mode-'))
-          or $([System.String]::Copy('%(StaticWebAsset.RelativePath)').Contains('theme-'))
-          or $([System.String]::Copy('%(StaticWebAsset.RelativePath)').Contains('worker-'))
-          or $([System.String]::Copy('%(StaticWebAsset.RelativePath)').Contains('keybinding-'))
-        )
-        and !$([System.String]::Copy('%(StaticWebAsset.RelativePath)').EndsWith('mode-sqlserver.js'))
-        and !$([System.String]::Copy('%(StaticWebAsset.RelativePath)').EndsWith('theme-sqlserver.js'))
-        and !$([System.String]::Copy('%(StaticWebAsset.RelativePath)').EndsWith('theme-nord_dark.js'))" />
+      <StaticWebAsset Remove="@(StaticWebAsset)" Condition="&#xD;&#xA;        $([System.String]::Copy('%(StaticWebAsset.RelativePath)').Contains('ace/'))&#xD;&#xA;        and (&#xD;&#xA;          $([System.String]::Copy('%(StaticWebAsset.RelativePath)').Contains('mode-'))&#xD;&#xA;          or $([System.String]::Copy('%(StaticWebAsset.RelativePath)').Contains('theme-'))&#xD;&#xA;          or $([System.String]::Copy('%(StaticWebAsset.RelativePath)').Contains('worker-'))&#xD;&#xA;          or $([System.String]::Copy('%(StaticWebAsset.RelativePath)').Contains('keybinding-'))&#xD;&#xA;        )&#xD;&#xA;        and !$([System.String]::Copy('%(StaticWebAsset.RelativePath)').EndsWith('mode-sqlserver.js'))&#xD;&#xA;        and !$([System.String]::Copy('%(StaticWebAsset.RelativePath)').EndsWith('theme-sqlserver.js'))&#xD;&#xA;        and !$([System.String]::Copy('%(StaticWebAsset.RelativePath)').EndsWith('theme-nord_dark.js'))" />
     </ItemGroup>
   </Target>
 
