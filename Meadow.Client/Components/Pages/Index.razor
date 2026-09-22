@@ -20,6 +20,9 @@
 @inject DatabaseConnectionState DatabaseConnectionState
 
 <div class="mw-dash-top">
+    @* Hinweise stehen ganz oben - vor dem KPI-Gitter und den Aktionen.
+       Die Komponente blendet sich selbst weg, wenn keine Hinweise vorhanden sind. *@
+    <MeadowNoticeBoard />
     @* Drei Zustaende statt eines stillen Nichts: bisher startete _kpis als leere
        Liste, und waehrend des Ladens - sowie dauerhaft bei null Kennzahlen -
        war der Bereich schlicht leer. *@
