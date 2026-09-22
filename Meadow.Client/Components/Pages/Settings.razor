@@ -12,6 +12,7 @@
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject NavigationManager Nav
+@inject Meadow.Client.Services.PushService Push
 
 <div class="mw-tabs">
     @foreach (var tab in Tabs)
@@ -137,6 +138,47 @@ else
             </button>
         </div>
     </div>
+
+    @* Web-Push-Opt-in. Die einzige sichtbare Stelle, an der Task 3 die
+       Berechtigung anfragt - ein Klick loest requestPermission() aus (nur so
+       akzeptiert der Browser die Abfrage) und meldet den Browser serverseitig
+       an. Die Karte erscheint gar nicht erst, wenn der Browser Push nicht
+       beherrscht oder der Server keine VAPID-Schluessel hat. *@
+    @if (_pushSupported && _pushServerEnabled)
+    {
+        <div class="mw-card mw-settings-card">
+            <h2 class="mw-section-title">Benachrichtigungen</h2>
+            <p class="mw-hint">
+                Erlaubt dem Server, dieses Gerät auch bei geschlossener App zu
+                benachrichtigen (z. B. an das Entfernen eines Verbands zu
+                erinnern). Aktueller Stand: @PushStatusText
+            </p>
+
+            <div class="mw-table-foot">
+                @if (_pushPermission == "granted")
+                {
+                    <button type="button" class="mw-btn" @onclick="DisablePush" disabled="@_pushBusy">
+                        Benachrichtigungen abschalten
+                    </button>
+                }
+                else
+                {
+                    <button type="button" class="mw-btn mw-btn--primary" @onclick="EnablePush"
+                            disabled="@(_pushBusy || _pushPermission == "denied")">
+                        Benachrichtigungen aktivieren
+                    </button>
+                }
+            </div>
+
+            @if (_pushPermission == "denied")
+            {
+                <p class="mw-hint">
+                    Der Browser hat Benachrichtigungen für diese Seite blockiert.
+                    Bitte in den Browsereinstellungen wieder erlauben.
+                </p>
+            }
+        </div>
+    }
 }
 
 @code {
@@ -159,6 +201,21 @@ else
     private string _fallbackDraft = "";
     private string _bandageReminderDaysDraft = "";
     private string _kpiSearch = "";
+
+    // Push-Zustand fuer die Opt-in-Karte. Alles browserabhaengig, deshalb erst
+    // nach dem ersten Render (OnAfterRenderAsync) ermittelt - vorher steht kein
+    // JS-Interop bereit.
+    private bool _pushSupported;
+    private bool _pushServerEnabled;
+    private string _pushPermission = "default";
+    private bool _pushBusy;
+
+    private string PushStatusText => _pushPermission switch
+    {
+        "granted" => "aktiviert",
+        "denied" => "vom Browser blockiert",
+        _ => "nicht aktiviert"
+    };
 
     /// <summary>
     /// Getrennt vom "ist die Liste leer": bisher stand waehrend des Ladens der Leerzustand da, und
@@ -215,6 +272,60 @@ else
         _fallbackDraft = Defaults.ClawFindingFallback;
         _bandageReminderDaysDraft = Defaults.BandageRemovalReminderDays.ToString();
         await LoadKpis();
+    }
+
+    /// <summary>
+    /// Push-Zustand nachtragen, sobald JS-Interop bereit ist. Nur beim ersten
+    /// Render: der Zustand aendert sich danach nur ueber die Buttons, die ihn
+    /// selbst pflegen.
+    /// </summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        _pushSupported = await Push.IsSupportedAsync();
+        if (_pushSupported)
+        {
+            _pushPermission = await Push.PermissionAsync();
+            var key = await Push.GetPublicKeyAsync();
+            _pushServerEnabled = key?.Enabled ?? false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task EnablePush()
+    {
+        _pushBusy = true;
+        try
+        {
+            var ok = await Push.EnableAsync();
+            _pushPermission = await Push.PermissionAsync();
+            Snackbar.Add(
+                ok ? "Benachrichtigungen aktiviert." : "Benachrichtigungen konnten nicht aktiviert werden.",
+                ok ? Severity.Success : Severity.Warning);
+        }
+        finally
+        {
+            _pushBusy = false;
+        }
+    }
+
+    private async Task DisablePush()
+    {
+        _pushBusy = true;
+        try
+        {
+            await Push.DisableAsync();
+            _pushPermission = await Push.PermissionAsync();
+            Snackbar.Add("Benachrichtigungen abgeschaltet.", Severity.Success);
+        }
+        finally
+        {
+            _pushBusy = false;
+        }
     }
 
     protected override void OnParametersSet()
