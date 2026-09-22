@@ -116,6 +116,27 @@ else
             </button>
         </div>
     </div>
+
+    <div class="mw-card mw-settings-card">
+        <h2 class="mw-section-title">Verband-Erinnerung</h2>
+
+        <label class="mw-label" for="mw-bandage-reminder-days">
+            Tage bis zur Verband-Erinnerung
+        </label>
+        <input id="mw-bandage-reminder-days" class="mw-input" type="number" min="1"
+               value="@_bandageReminderDaysDraft"
+               @oninput="e => _bandageReminderDaysDraft = e.Value?.ToString() ?? string.Empty" />
+        <p class="mw-hint">
+            Anzahl Tage ab dem Behandlungsdatum, nach denen an das Entfernen eines
+            Verbands erinnert werden soll. Muss eine positive ganze Zahl sein.
+        </p>
+
+        <div class="mw-table-foot">
+            <button type="button" class="mw-btn mw-btn--primary" @onclick="SaveBandageReminderDays">
+                Speichern
+            </button>
+        </div>
+    </div>
 }
 
 @code {
@@ -136,6 +157,7 @@ else
 
     private List<KPI> _kpis = new();
     private string _fallbackDraft = "";
+    private string _bandageReminderDaysDraft = "";
     private string _kpiSearch = "";
 
     /// <summary>
@@ -191,6 +213,7 @@ else
         // Haengte bisher am Auth-Callback und lief erst nach der Anmeldung.
         await Data.EnsureDashboardAsync();
         _fallbackDraft = Defaults.ClawFindingFallback;
+        _bandageReminderDaysDraft = Defaults.BandageRemovalReminderDays.ToString();
         await LoadKpis();
     }
 
@@ -516,5 +539,24 @@ else
 
         _fallbackDraft = value;
         Snackbar.Add("Standardwert gespeichert.", Severity.Success);
+    }
+
+    private async Task SaveBandageReminderDays()
+    {
+        var raw = _bandageReminderDaysDraft.Trim();
+        if (!int.TryParse(raw, out var days) || days < 1)
+        {
+            Snackbar.Add("Bitte eine positive ganze Zahl eingeben.", Severity.Error);
+            return;
+        }
+
+        if (!await Defaults.SetAsync(AppSetting.BandageRemovalReminderDaysKey, days.ToString()))
+        {
+            Snackbar.Add("Speichern fehlgeschlagen.", Severity.Error);
+            return;
+        }
+
+        _bandageReminderDaysDraft = days.ToString();
+        Snackbar.Add("Verband-Erinnerung gespeichert.", Severity.Success);
     }
 }

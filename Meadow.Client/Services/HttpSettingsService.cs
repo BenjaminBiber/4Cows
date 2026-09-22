@@ -59,6 +59,13 @@ public class HttpSettingsService : HttpServiceBase, ISettingsService
         => SettingsLookups.DefaultDosageUnit(_cached);
 
     /// <summary>
+    /// Tage ab dem Behandlungsdatum, nach denen an das Entfernen eines Verbands
+    /// erinnert werden soll.
+    /// </summary>
+    public int BandageRemovalReminderDays
+        => SettingsLookups.BandageRemovalReminderDays(_cached);
+
+    /// <summary>
     /// Setzt einen Standardwert. Ein unbekannter Schluessel wird angelegt, denn
     /// die Tabelle hat keine feste Schluesselliste - deshalb gibt es nur diesen
     /// einen Weg und kein getrenntes Anlegen.
