@@ -174,9 +174,10 @@ public sealed class BandageReminderPushBackgroundService : BackgroundService
     /// als schneller Weg; die Behandlungs-ID ist der Schluessel, ein
     /// vorhandener Merker wird aktualisiert, ein fehlender angelegt.
     /// </summary>
-    // Kein CancellationToken-Parameter: diese Methode wird bewusst immer mit
-    // CancellationToken.None aufgerufen - der Merker muss auch bei Shutdown
-    // sicher landen (s. Aufruf oben).
+    // Aufruf-Konvention: cancellationToken ist stets CancellationToken.None -
+    // der Merker muss auch bei Shutdown sicher landen (s. Aufruf oben).
+    // Den Parameter dennoch als Token zu fassen haelt die Signatur erweiterbar,
+    // macht aber den Aufruf die einzige Stelle, an der der Wert festgelegt wird.
     private static async Task MarkSentAsync(
         DatabaseContext context, int clawTreatmentId, DateTime today, CancellationToken cancellationToken)
     {
