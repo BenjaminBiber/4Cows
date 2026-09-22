@@ -127,6 +127,12 @@ builder.Services.AddSingleton<DatabaseStatusService>();
 // ---------------------------------------------------------------------------
 builder.Services.AddSingleton<MeadowLocalStore>();
 builder.Services.AddSingleton<MeadowSyncState>();
+
+// Sammelpunkt der Hinweise - Singleton aus demselben Grund wie MeadowSyncState:
+// die Provider sind die Dienste (Singletons mit Cache), und ein Singleton darf
+// keine Scoped-Abhaengigkeit annehmen. Provider melden sich per AddProvider an
+// (Task 5), nicht ueber Konstruktor-Injektion.
+builder.Services.AddSingleton<MeadowNoticeState>();
 builder.Services.AddSingleton<MeadowOutbox>();
 builder.Services.AddSingleton<MeadowOfflineHandler>();
 builder.Services.AddSingleton<OutboxProcessor>();
