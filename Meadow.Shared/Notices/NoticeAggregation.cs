@@ -34,6 +34,11 @@ public static class NoticeAggregation
     /// </summary>
     public static IReadOnlyList<MeadowNotice> Aggregate(IEnumerable<IEnumerable<MeadowNotice>?> sources)
     {
+        // Schutz gegen null-Aufruf - null-Elemente innerhalb der Liste werden
+        // weiter unten uebersprungen, aber eine null-Enumerable selbst wuerde
+        // sonst mit NRE im foreach explodieren.
+        ArgumentNullException.ThrowIfNull(sources);
+
         // Reihenfolge merken: Dedup soll den ZUERST gesehenen Hinweis behalten,
         // nicht irgendeinen. Ein Dictionary allein gibt keine Einfuegereihenfolge
         // zu, aber die brauchen wir gar nicht als Endreihenfolge - sortiert wird

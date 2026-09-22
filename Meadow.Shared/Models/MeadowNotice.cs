@@ -57,7 +57,7 @@ public sealed record MeadowNotice
     /// <summary>Der Text, den der Nutzer liest.</summary>
     public required string Text { get; init; }
 
-    /// <summary>Der Rang - steuert Farbe und Sortierung.</summary>
+    /// <summary>Bestimmt Rang fuer die Sortierung (siehe <see cref="Notices.NoticeAggregation"/>) und die Farbe (Task 4).</summary>
     public MeadowNoticeSeverity Severity { get; init; } = MeadowNoticeSeverity.Info;
 
     /// <summary>
