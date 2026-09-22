@@ -25,6 +25,15 @@ public class NoticeAggregationTests
     }
 
     [Fact]
+    public void Null_sources_argument_throws_ArgumentNullException()
+    {
+        // Schutz des oeffentlichen Eintrittspunkts: ein null-Argument ist kein
+        // gueltiger Aufruf und muss klar abgelehnt werden, bevor die foreach
+        // eine NRE wirft.
+        Assert.Throws<ArgumentNullException>(() => NoticeAggregation.Aggregate(null!));
+    }
+
+    [Fact]
     public void No_sources_read_empty()
     {
         Assert.Empty(NoticeAggregation.Aggregate(Array.Empty<IEnumerable<MeadowNotice>?>()));

@@ -108,6 +108,9 @@ public class MeadowNoticeStateTests
         Assert.Empty(state.Notices);
 
         var raised = 0;
+        // Absichtlich NACH RemoveProvider abonnieren: so zaehlt das Event nur
+        // fuer Aenderungen nach dem Abmelden - ein Changed beim Remove selbst
+        // soll diesen Zaehler nicht beeinflussen.
         state.Changed += () => raised++;
 
         // Nach dem Abmelden darf ein Changed der Quelle nichts mehr ausloesen.
