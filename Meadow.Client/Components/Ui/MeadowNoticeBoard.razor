@@ -24,7 +24,7 @@
         @foreach (var notice in NoticeState.Notices)
         {
             <div class="mw-hint @SeverityClass(notice.Severity)">
-                <span class="mw-notices__text">@notice.Text</span>
+                <span>@notice.Text</span>
 
                 @* Aktions-Link nur, wenn beide Teile vorhanden sind.
                    ActionHref allein ohne Label waere ein blinder Link;
