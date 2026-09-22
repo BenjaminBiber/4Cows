@@ -14,33 +14,61 @@
 @implements IDisposable
 
 @using Meadow.Client.Services
+@using Meadow.Client.Components.Services
 @using Meadow.Shared.Models
 
 @inject MeadowNoticeState NoticeState
+@inject MeadowDataLoader Data
 
 @if (NoticeState.Notices.Count > 0)
 {
-    <div class="mw-notices" role="status" aria-live="polite" aria-label="Hinweise">
-        @foreach (var notice in NoticeState.Notices)
-        {
-            <div class="mw-hint @SeverityClass(notice.Severity)">
-                <span>@notice.Text</span>
+    @* Die GANZE Kachel ist der Weg zum Ziel - kein Link mehr je Zeile. Sechs
+       Hinweise ergaben sechs gleichlautende Links direkt untereinander; das
+       Ziel ist ohnehin fuer alle dasselbe.
 
-                @* Aktions-Link nur, wenn beide Teile vorhanden sind.
-                   ActionHref allein ohne Label waere ein blinder Link;
-                   ActionLabel ohne Ziel waere ein nutzloser Button. *@
-                @if (notice.ActionHref is not null && notice.ActionLabel is not null)
+       Fehlt ein Ziel, laesst Blazor das href-Attribut weg: ein <a> ohne href
+       ist kein Link, nicht fokussierbar und nicht anklickbar - die Kachel
+       bleibt dann einfach eine Kachel. *@
+    <a class="mw-card mw-notices" href="@CardHref">
+        @* Der Inhalt haengt absolut in der Kachel und traegt deshalb NICHTS zu
+           deren Hoehe bei. Genau darum geht es: die Kachel steht in einer Reihe
+           mit dem KPI-Gitter, und ohne diese Trennung zoege eine lange
+           Hinweisliste die ganze obere Reihe samt Kennzahlen in die Laenge
+           (bei 20 Hinweisen gemessen: Reihe 945 statt 388 Pixel). So gibt das
+           KPI-Gitter die Hoehe vor, die Kachel fuellt sie, und was nicht
+           hineinpasst, wird innen gescrollt. *@
+        <div class="mw-notices__inner">
+            <h2 class="mw-card-title mw-notices__title">Hinweise</h2>
+
+            @* Die Liste traegt das Live-Region-Verhalten, nicht die Kachel:
+               role und aria-live auf dem <a> wuerden dessen Link-Rolle
+               ueberschreiben. *@
+            <div class="mw-notices__list" role="status" aria-live="polite">
+                @foreach (var notice in NoticeState.Notices)
                 {
-                    <a class="mw-notices__action" href="@notice.ActionHref">
-                        @notice.ActionLabel
-                    </a>
+                    <div class="mw-hint @SeverityClass(notice.Severity)">@notice.Text</div>
                 }
             </div>
-        }
-    </div>
+        </div>
+    </a>
 }
 
 @code {
+    /// <summary>
+    /// Das Ziel der ganzen Kachel: das Aktionsziel des ersten Hinweises, der
+    /// eines nennt (heute die Verbaende-Seite aus dem BandageReminderNoticeProvider).
+    ///
+    /// Bewusst aus dem Hinweis und nicht fest verdrahtet - die Tafel kennt ihre
+    /// Quellen nicht und soll es auch nicht. Melden spaeter mehrere Quellen
+    /// mit verschiedenen Zielen, fuehrt die Kachel zum erstgenannten; dann
+    /// gehoert das Ziel an die Komponente als Parameter, nicht hierher.
+    ///
+    /// Null, wenn kein Hinweis ein Ziel nennt - dann rendert Blazor kein href
+    /// und die Kachel ist schlicht nicht anklickbar.
+    /// </summary>
+    private string? CardHref => NoticeState.Notices
+        .FirstOrDefault(n => !string.IsNullOrWhiteSpace(n.ActionHref))?.ActionHref;
+
     /// <summary>
     /// Liefert die BEM-Modifier-Klasse passend zum Schweregrad.
     /// Info traegt keine extra Klasse - der neutrale .mw-hint-Stil genuegt.
@@ -57,6 +85,26 @@
     {
         // Abonnieren: bei jeder Aenderung des Hinweis-Zustands neu zeichnen.
         NoticeState.Changed += Neuzeichnen;
+    }
+
+    /// <summary>
+    /// Auf die Daten warten und DANN neu aggregieren lassen.
+    ///
+    /// Der Kern aggregiert sonst genau einmal - beim AddProvider in Program.cs,
+    /// vor host.RunAsync(), wenn die Caches noch leer sind. Die Provider melden
+    /// danach nur eigene Schreibvorgaenge; das erste Laden durch den
+    /// MeadowDataLoader meldet niemand. Ohne diese Zeilen zeigte die Tafel nach
+    /// einem frischen Seitenaufruf nie etwas an, sondern erst, nachdem der
+    /// Nutzer selbst etwas geschrieben hatte.
+    ///
+    /// EnsureDashboardAsync statt eines engeren Ensure: die Tafel kennt ihre
+    /// Quellen bewusst nicht, und der Aufruf ist ueber Once() gegen Doppelladen
+    /// abgesichert - die Seite, in der die Tafel steht, ruft dasselbe.
+    /// </summary>
+    protected override async Task OnInitializedAsync()
+    {
+        await Data.EnsureDashboardAsync();
+        NoticeState.Refresh();
     }
 
     private void Neuzeichnen() => InvokeAsync(StateHasChanged);

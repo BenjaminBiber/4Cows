@@ -77,6 +77,21 @@ public sealed class MeadowNoticeState
     }
 
     /// <summary>
+    /// Aggregiert auf Anforderung neu - fuer den Fall, dass die Daten eines
+    /// Providers sich gefuellt haben, ohne dass er es melden konnte.
+    ///
+    /// Genau das passiert beim Start: <c>AddProvider</c> laeuft in Program.cs
+    /// vor <c>host.RunAsync()</c>, und die dortige Aggregation sieht noch leere
+    /// Caches. Danach meldet <c>BandageReminderNoticeProvider</c> nur eigene
+    /// Schreibvorgaenge (<c>DataArrived</c>), nicht aber das erste Laden durch
+    /// <c>MeadowDataLoader</c> - ohne diesen Anstoss bliebe die Hinweistafel
+    /// nach einem frischen Seitenaufruf dauerhaft leer.
+    ///
+    /// Ruft die Anzeige-Komponente, nachdem sie ihre Daten abgewartet hat.
+    /// </summary>
+    public void Refresh() => Reaggregate();
+
+    /// <summary>
     /// Liest alle Provider synchron neu ein, fuehrt sie ueber
     /// <see cref="NoticeAggregation"/> zusammen und meldet die Aenderung. Aus DEN
     /// PROVIDERN und nicht aus einem mitgefuehrten Zwischenstand - der Cache der

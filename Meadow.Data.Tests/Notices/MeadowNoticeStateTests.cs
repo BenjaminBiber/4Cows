@@ -36,6 +36,14 @@ public class MeadowNoticeStateTests
             _notices = notices.ToList();
             Changed?.Invoke();
         }
+
+        /// <summary>
+        /// Tauscht die Hinweise OHNE Changed - der Fall, um den es beim Start
+        /// geht: der Cache des Providers fuellt sich (Daten werden geladen),
+        /// aber niemand meldet das, weil der Provider nur auf eigene
+        /// Schreibvorgaenge horcht.
+        /// </summary>
+        public void FillSilently(params MeadowNotice[] notices) => _notices = notices.ToList();
     }
 
     private static MeadowNotice Notice(string id, MeadowNoticeSeverity severity = MeadowNoticeSeverity.Info, string source = "test")
@@ -118,5 +126,32 @@ public class MeadowNoticeStateTests
 
         Assert.Equal(0, raised);
         Assert.Empty(state.Notices);
+    }
+
+    [Fact]
+    public void Refresh_picks_up_notices_that_appeared_after_registration()
+    {
+        // Der Fehlerfall der Hinweis-Kachel: Program.cs meldet den Provider vor
+        // host.RunAsync an - da ist der Behandlungs-Cache noch leer, die einzige
+        // Aggregation aggregiert also nichts. Die Daten kommen erst danach, und
+        // der Provider feuert sein Changed nur bei eigenen Schreibvorgaengen.
+        // Ohne einen Anstoss von aussen bliebe die Tafel dauerhaft leer.
+        var state = new MeadowNoticeState();
+        var provider = new DummyProvider("verband");
+        state.AddProvider(provider);
+
+        Assert.Empty(state.Notices);
+
+        // Daten treffen ein, ohne dass es jemand meldet.
+        provider.FillSilently(Notice("bandage-72"));
+
+        var raised = 0;
+        state.Changed += () => raised++;
+
+        state.Refresh();
+
+        Assert.Equal(1, raised);
+        var only = Assert.Single(state.Notices);
+        Assert.Equal("bandage-72", only.Id);
     }
 }

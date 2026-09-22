@@ -20,9 +20,6 @@
 @inject DatabaseConnectionState DatabaseConnectionState
 
 <div class="mw-dash-top">
-    @* Hinweise stehen ganz oben - vor dem KPI-Gitter und den Aktionen.
-       Die Komponente blendet sich selbst weg, wenn keine Hinweise vorhanden sind. *@
-    <MeadowNoticeBoard />
     @* Drei Zustaende statt eines stillen Nichts: bisher startete _kpis als leere
        Liste, und waehrend des Ladens - sowie dauerhaft bei null Kennzahlen -
        war der Bereich schlicht leer. *@
@@ -88,6 +85,12 @@
        Gruppierung - Kuh teal, Klaue blau -, und damit steht jetzt Paar unter
        Paar statt abwechselnd. Dieselbe Reihenfolge wie im Hinzufuegen-Menue
        ueber dem FAB (MeadowAddMenu). *@
+    @* Hinweise als eigene Spalte ZWISCHEN KPI-Gitter und Aktionen - nicht mehr
+       als eigene Zeile darueber. align-items: stretch auf .mw-dash-top macht die
+       drei Spalten gleich hoch; die Komponente blendet sich selbst weg, wenn es
+       nichts zu melden gibt, und die Reihe faellt dann auf zwei Spalten zurueck. *@
+    <MeadowNoticeBoard />
+
     <div class="mw-dash-actions">
         <MeadowActionButton Label="Kuh Behandlung hinzufügen"
                             Icon="MeadowIconName.Cow"
