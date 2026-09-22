@@ -133,6 +133,14 @@ builder.Services.AddSingleton<MeadowSyncState>();
 // keine Scoped-Abhaengigkeit annehmen. Provider melden sich per AddProvider an
 // (Task 5), nicht ueber Konstruktor-Injektion.
 builder.Services.AddSingleton<MeadowNoticeState>();
+
+// Die erste Hinweisquelle (Task 5). Singleton wie der Kern und wie die Dienste,
+// aus deren Cache sie liest - ein Singleton darf keine Scoped-Abhaengigkeit
+// annehmen. Angemeldet wird sie NICHT hier ueber Konstruktor-Injektion in den
+// Kern, sondern nach dem Build ueber AddProvider (siehe unten): so bestimmt der
+// Kern die Reihenfolge und erzwingt nicht das Aufloesen aller Provider beim
+// ersten Zugriff.
+builder.Services.AddSingleton<BandageReminderNoticeProvider>();
 builder.Services.AddSingleton<MeadowOutbox>();
 builder.Services.AddSingleton<MeadowOfflineHandler>();
 builder.Services.AddSingleton<OutboxProcessor>();
@@ -203,6 +211,15 @@ var host = builder.Build();
 // abonniert online und visibilitychange und stoesst den ersten Durchlauf an.
 // ---------------------------------------------------------------------------
 host.Services.GetRequiredService<MeadowDataChanges>();
+
+// Die Verband-Erinnerung beim Kern anmelden - wie MeadowDataChanges hier einmal
+// angefasst, weil sie sonst erst beim ersten Injizieren entstuende und eine in
+// der Zwischenzeit faellig gewordene Erinnerung an niemanden meldete. AddProvider
+// abonniert ihr Changed und aggregiert sofort, damit schon vorhandene Hinweise
+// ohne erstes Changed sichtbar werden.
+host.Services.GetRequiredService<MeadowNoticeState>()
+    .AddProvider(host.Services.GetRequiredService<BandageReminderNoticeProvider>());
+
 await host.Services.GetRequiredService<OutboxProcessor>().InitializeAsync();
 
 await host.RunAsync();
