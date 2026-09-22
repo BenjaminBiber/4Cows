@@ -36,6 +36,8 @@ public static class SettingsLookups
     /// </summary>
     public static int BandageRemovalReminderDays(IReadOnlyDictionary<string, string> settings)
     {
+        // Get gibt "" zurueck wenn der Schluessel fehlt oder leer ist —
+        // TryParse schlaegt dann fehl, und der Fallback 14 greift.
         var raw = Get(settings, AppSetting.BandageRemovalReminderDaysKey);
         return int.TryParse(raw, out var days) && days > 0 ? days : 14;
     }
