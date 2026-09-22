@@ -135,7 +135,7 @@ public sealed class BandageReminderPushBackgroundService : BackgroundService
                     continue;
                 }
 
-                await _pushSender.SendTreatmentReminderToAllAsync(treatment, cancellationToken);
+                await _pushSender.SendTreatmentReminderToAllAsync(treatment, today, cancellationToken);
 
                 // Merker HOCHZIEHEN, auch wenn keine einzige Anmeldung existierte
                 // oder alle tot waren: die Entdopplung entscheidet ueber "heute
@@ -143,7 +143,11 @@ public sealed class BandageReminderPushBackgroundService : BackgroundService
                 // der Push-Dienst allein. Sonst versuchte jeder Lauf des Tages es
                 // fuer denselben Verband erneut, sobald mal kein Geraet angemeldet
                 // ist.
-                await MarkSentAsync(context, treatment.ClawTreatmentId, today, cancellationToken);
+                // CancellationToken.None: nach erfolgtem Senden MUSS der Merker
+                // persistiert werden, auch wenn der Host gerade herunterfaehrt.
+                // Wuerde der Tick-Token hier greifen, gaebe es nach Abbruch einen
+                // doppelten Push beim naechsten Lauf.
+                await MarkSentAsync(context, treatment.ClawTreatmentId, today, CancellationToken.None);
                 sentCount++;
             }
 
@@ -170,6 +174,9 @@ public sealed class BandageReminderPushBackgroundService : BackgroundService
     /// als schneller Weg; die Behandlungs-ID ist der Schluessel, ein
     /// vorhandener Merker wird aktualisiert, ein fehlender angelegt.
     /// </summary>
+    // Kein CancellationToken-Parameter: diese Methode wird bewusst immer mit
+    // CancellationToken.None aufgerufen - der Merker muss auch bei Shutdown
+    // sicher landen (s. Aufruf oben).
     private static async Task MarkSentAsync(
         DatabaseContext context, int clawTreatmentId, DateTime today, CancellationToken cancellationToken)
     {

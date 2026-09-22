@@ -33,12 +33,16 @@ public interface IPushSender
     /// Verband-Erinnerung und meldet, an wie viele sie ging. Tote Anmeldungen
     /// fliegen dabei raus.
     ///
+    /// <paramref name="today"/> wird vom Scheduler uebergeben, damit die
+    /// Anzeige der ueberfaelligen Tage denselben Zeitbezug hat wie die
+    /// Faelligkeits-Entscheidung (keine Mitternacht-Abweichung).
+    ///
     /// Ausschliesslich serverintern aufrufbar - der BackgroundService ruft ihn
     /// direkt. Es gibt bewusst KEINEN oeffentlichen Endpunkt mehr, der ein
     /// Rundum-Senden an alle Anmeldungen von aussen ausloest (der fruehere
     /// POST /api/push/test ist mit Task 6 entfallen).
     /// </summary>
-    Task<int> SendTreatmentReminderToAllAsync(ClawTreatment treatment, CancellationToken ct = default);
+    Task<int> SendTreatmentReminderToAllAsync(ClawTreatment treatment, DateTime today, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -123,13 +127,14 @@ public sealed class WebPushSender : IPushSender
         }
     }
 
-    public Task<int> SendTreatmentReminderToAllAsync(ClawTreatment treatment, CancellationToken ct = default)
+    public Task<int> SendTreatmentReminderToAllAsync(ClawTreatment treatment, DateTime today, CancellationToken ct = default)
     {
         // Text wortgleich zum In-App-Hinweis (BandageReminderNoticeProvider),
         // damit Nutzer denselben Wortlaut auf beiden Kanaelen sehen. Die
         // ueberfaellig-Tage sind reine Anzeige; die Faelligkeit selbst hat die
-        // Shared-Regel im Scheduler schon entschieden.
-        var overdueDays = (DateTime.Now.Date - treatment.TreatmentDate.Date).Days;
+        // Shared-Regel im Scheduler schon entschieden. "today" kommt vom
+        // Scheduler - einmaliger Zeitbezug, keine Mitternacht-Abweichung.
+        var overdueDays = (today.Date - treatment.TreatmentDate.Date).Days;
         var seit = overdueDays == 1 ? "seit 1 Tag" : $"seit {overdueDays} Tagen";
 
         return BroadcastAsync(
