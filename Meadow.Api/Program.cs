@@ -47,6 +47,21 @@ var demoSettings = new DemoOptions(
                 && resetHour is >= 0 and <= 23
         ? resetHour
         : 3);
+// VAPID aus der Konfiguration. Gleiche Haltung wie DB_PORT/Demo:Enabled: fehlt
+// einer der drei Werte (PublicKey/PrivateKey/Subject), faellt Push still auf
+// "aus" - der Start reisst NICHT ab. Die Entscheidung steckt in
+// PushOptions.FromConfiguration ueber die reine Regel PushLogic.IsConfigured.
+var pushOptions = PushOptions.FromConfiguration(builder.Configuration);
+if (pushOptions.Enabled)
+{
+    LoggerService.LogInformation(typeof(Program), "Web Push ist konfiguriert (VAPID-Schluessel vorhanden).");
+}
+else
+{
+    LoggerService.LogInformation(typeof(Program),
+        "Web Push ist deaktiviert - VAPID-Schluessel (Vapid:PublicKey/PrivateKey/Subject) fehlen oder sind unvollstaendig.");
+}
+
 var connectionString = ConnectionStringFactory.Create(databaseSettings);
 await DatabaseInitializer.EnsureDatabaseAsync(connectionString);
 LoggerService.InitializeDBLogger(connectionString);
@@ -84,6 +99,12 @@ builder.Services.AddSingleton<IXLinkService, XLinkService>();
 // POST auf /api/xlink/refresh seine 409 erkennt. Einer pro Anfrage wuesste
 // von keinem anderen Lauf.
 builder.Services.AddSingleton<XLinkRunner>();
+
+// Der geltende Push-Zustand (inkl. Rueckfall auf "aus") und der Sender. Beide
+// Singleton: PushOptions ist unveraenderlich, WebPushSender haelt keinen Cache,
+// liest je Sendung frisch aus der Datenbank und ist damit prozessweit teilbar.
+builder.Services.AddSingleton(pushOptions);
+builder.Services.AddSingleton<IPushSender, WebPushSender>();
 
 
 // Genau ein HostedService, je nach Modus ein anderer. Im Demo-Modus wuerde
@@ -166,6 +187,7 @@ api.MapSettingsEndpoints();
 api.MapKpiEndpoints();
 api.MapKpiEvaluationEndpoints();
 api.MapClawExportEndpoints();
+api.MapPushEndpoints();
 
 
 api.MapXLinkEndpoints();
