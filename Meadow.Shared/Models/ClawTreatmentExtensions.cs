@@ -115,6 +115,41 @@ public static class ClawTreatmentExtensions
         ClientId = t.ClientId
     };
 
+    /// <summary>
+    /// Ist der Verband dieser Behandlung ueberfaellig?
+    ///
+    /// Die eine ueberfaellig-Regel, zwei Verbraucher: der In-App-Hinweis
+    /// (BandageReminderNoticeProvider) und der spaetere Push-Scheduler (Task 6)
+    /// rechnen exakt dieselbe Bedingung - dasselbe Anti-Drift-Prinzip wie
+    /// <see cref="OpenBandages"/>, das nicht ein viertes Mal verstreut leben
+    /// darf. Steht deshalb hier neben der offenen-Verbaende-Regel und nicht in
+    /// den beiden Verbrauchern doppelt.
+    ///
+    /// <paramref name="today"/> ist Parameter statt DateTime.Now im Rumpf - aus
+    /// exakt der Begruendung wie <c>ClawTreatmentLookups.GetClawTreatmentChartData</c>:
+    /// haengt die Rechnung an der Uhr, ist sie weder pruefbar noch auf einem
+    /// Client mit anderer Zeitzone dieselbe. Verglichen wird auf Tagesebene
+    /// (<c>.Date</c>): eine Uhrzeit soll nicht darueber entscheiden, ob heute
+    /// schon "faellig" ist.
+    /// </summary>
+    public static bool IsBandageOverdue(this ClawTreatment t, int reminderDays, DateTime today)
+        => !t.IsBandageRemoved
+           && t.OpenBandages().Any()
+           && t.TreatmentDate.AddDays(reminderDays).Date <= today.Date;
+
+    /// <summary>
+    /// Die ueberfaelligen Behandlungen aus einer Menge - die Auswahl-Hilfe fuer
+    /// BEIDE Verbraucher (Client-Provider + Push-Scheduler), damit keiner die
+    /// Filterung selbst nachbaut. Aeltester Verband zuerst, wie die
+    /// Arbeitsliste in <c>GetClawTreatmentsWithBandage</c>: der am laengsten
+    /// getragene Verband gehoert nach oben.
+    /// </summary>
+    public static IEnumerable<ClawTreatment> OverdueBandages(
+        IEnumerable<ClawTreatment> treatments, int reminderDays, DateTime today)
+        => treatments
+            .Where(t => t.IsBandageOverdue(reminderDays, today))
+            .OrderBy(t => t.TreatmentDate);
+
     public static bool GetFlag(this PlannedClawTreatment t, HoofPosition p) => p switch
     {
         HoofPosition.LV => t.ClawFindingLV,
