@@ -74,4 +74,45 @@ public class SettingsLookupsTests
 
         Assert.Equal("Stueck", SettingsLookups.DefaultDosageUnit(settings));
     }
+
+    [Fact]
+    public void Bandage_reminder_days_fall_back_to_14_when_key_is_missing()
+    {
+        // Frische Installation: noch kein Wert hinterlegt.
+        Assert.Equal(14, SettingsLookups.BandageRemovalReminderDays(Settings()));
+    }
+
+    [Fact]
+    public void Bandage_reminder_days_fall_back_to_14_when_value_is_empty()
+    {
+        // Leer gespeicherter Wert darf die Erinnerung nicht abschalten.
+        Assert.Equal(14, SettingsLookups.BandageRemovalReminderDays(
+            Settings((AppSetting.BandageRemovalReminderDaysKey, "   "))));
+    }
+
+    [Fact]
+    public void Bandage_reminder_days_fall_back_to_14_when_value_is_not_a_number()
+    {
+        // Beschaedigter oder von Hand gesetzter Wert - kein Crash, sicherer Fallback.
+        Assert.Equal(14, SettingsLookups.BandageRemovalReminderDays(
+            Settings((AppSetting.BandageRemovalReminderDaysKey, "abc"))));
+    }
+
+    [Fact]
+    public void Bandage_reminder_days_fall_back_to_14_when_value_is_zero_or_negative()
+    {
+        // 0 oder negativ waere unsinnig - sicherer Fallback.
+        Assert.Equal(14, SettingsLookups.BandageRemovalReminderDays(
+            Settings((AppSetting.BandageRemovalReminderDaysKey, "0"))));
+        Assert.Equal(14, SettingsLookups.BandageRemovalReminderDays(
+            Settings((AppSetting.BandageRemovalReminderDaysKey, "-5"))));
+    }
+
+    [Fact]
+    public void The_stored_bandage_reminder_days_win()
+    {
+        var settings = Settings((AppSetting.BandageRemovalReminderDaysKey, "21"));
+
+        Assert.Equal(21, SettingsLookups.BandageRemovalReminderDays(settings));
+    }
 }

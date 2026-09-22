@@ -62,6 +62,13 @@ public class SettingsService : ISettingsService
     public string DefaultDosageUnit
         => SettingsLookups.DefaultDosageUnit(_cached);
 
+    /// <summary>
+    /// Tage ab dem Behandlungsdatum, nach denen an das Entfernen eines Verbands
+    /// erinnert werden soll.
+    /// </summary>
+    public int BandageRemovalReminderDays
+        => SettingsLookups.BandageRemovalReminderDays(_cached);
+
     public async Task<bool> SetAsync(string key, string value)
     {
         try

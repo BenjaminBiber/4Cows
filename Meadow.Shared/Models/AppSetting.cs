@@ -22,6 +22,12 @@ public class AppSetting
     /// </summary>
     public const string DefaultDosageUnitKey = "DefaultDosageUnit";
 
+    /// <summary>
+    /// Tage ab dem Behandlungsdatum, nach denen an das Entfernen eines Verbands
+    /// erinnert werden soll.
+    /// </summary>
+    public const string BandageRemovalReminderDaysKey = "BandageRemovalReminderDays";
+
     [Key]
     [Required]
     [StringLength(64)]

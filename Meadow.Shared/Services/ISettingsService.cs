@@ -22,5 +22,11 @@ public interface ISettingsService
     /// </summary>
     string DefaultDosageUnit { get; }
 
+    /// <summary>
+    /// Tage ab dem Behandlungsdatum, nach denen an das Entfernen eines Verbands
+    /// erinnert werden soll. Rückfallwert 14.
+    /// </summary>
+    int BandageRemovalReminderDays { get; }
+
     Task<bool> SetAsync(string key, string value);
 }

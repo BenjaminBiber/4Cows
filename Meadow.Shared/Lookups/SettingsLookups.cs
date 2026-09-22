@@ -28,4 +28,15 @@ public static class SettingsLookups
     /// </summary>
     public static string DefaultDosageUnit(IReadOnlyDictionary<string, string> settings)
         => Get(settings, AppSetting.DefaultDosageUnitKey, "ml");
+
+    /// <summary>
+    /// Tage ab dem Behandlungsdatum, nach denen an das Entfernen eines Verbands
+    /// erinnert werden soll. Rueckfall 14, auch bei fehlendem, leerem oder
+    /// unparsbarem Wert - der Dienst soll nie mit 0 oder negativ zurückkehren.
+    /// </summary>
+    public static int BandageRemovalReminderDays(IReadOnlyDictionary<string, string> settings)
+    {
+        var raw = Get(settings, AppSetting.BandageRemovalReminderDaysKey);
+        return int.TryParse(raw, out var days) && days > 0 ? days : 14;
+    }
 }
