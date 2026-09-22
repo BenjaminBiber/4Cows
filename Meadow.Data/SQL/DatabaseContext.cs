@@ -26,6 +26,11 @@ public sealed class DatabaseContext : DbContext
     // serverseitige Kanal fuer server-initiierte Benachrichtigungen (Task 3).
     public DbSet<PushSubscription> PushSubscriptions => Set<PushSubscription>();
 
+    // Der persistente Entdopplungs-Merker des Verband-Push-Schedulers (Task 6):
+    // je Behandlung der Tag der zuletzt versendeten Erinnerung. Rein
+    // serverseitig, kein Client laedt ihn - wie PushSubscription.
+    public DbSet<PushReminderLog> PushReminderLogs => Set<PushReminderLog>();
+
     // Der Unique-Index auf Cow.Ear_Tag_Number. Er stand als [Index]-Attribut am Modell,
     // aber Meadow.Shared soll paketfrei bleiben (der WebAssembly-Client laedt es mit),
     // und das Attribut kommt aus Microsoft.EntityFrameworkCore.
@@ -85,5 +90,14 @@ public sealed class DatabaseContext : DbContext
             .Property(s => s.Endpoint).HasCharSet("ascii");
         modelBuilder.Entity<PushSubscription>()
             .HasIndex(s => s.Endpoint).IsUnique().HasDatabaseName("IX_PushSubscription_Endpoint");
+
+        // Der Primaerschluessel des Entdopplungs-Merkers IST die Behandlungs-ID -
+        // je Behandlung genau eine Zeile. Er wird beim Versand explizit gesetzt,
+        // NICHT von der Datenbank vergeben. Ohne ValueGeneratedNever hielte EF
+        // die int-PK fuer eine Identity-Spalte und ignorierte den gesetzten Wert
+        // beim Insert - der Merker landete unter einer fremden ID und der zweite
+        // Lauf faende ihn nie wieder.
+        modelBuilder.Entity<PushReminderLog>()
+            .Property(l => l.ClawTreatmentId).ValueGeneratedNever();
     }
 }

@@ -116,22 +116,13 @@ public static class PushEndpoints
             }
         }).WithName("PushUnsubscribe");
 
-        // Der Test-Sendeweg fuer die Abnahme: verschickt an alle Anmeldungen
-        // eine Testnachricht. Die eigentliche fachliche Sendung baut Task 6;
-        // dieser Endpunkt macht die Naht heute schon von aussen ausloesbar,
-        // damit "testweise vom Server gesendet" pruefbar ist.
-        api.MapPost("/push/test", async (IPushSender sender) =>
-        {
-            if (!sender.IsEnabled)
-            {
-                return EndpointCommon.Invalid("push",
-                    "Push ist nicht konfiguriert (VAPID-Schluessel fehlen).");
-            }
-
-            var sent = await sender.SendTestToAllAsync(
-                "Meadow", "Test-Benachrichtigung vom Server.");
-            return Results.Ok(new { sent });
-        }).WithName("PushTest");
+        // KEIN oeffentlicher Test-/Broadcast-Endpunkt mehr. Task 3 hatte hier
+        // ein POST /push/test, das an ALLE Anmeldungen sendete - ein offener
+        // "an alle pushen"-Ausloeser, der so nicht ausgeliefert werden darf
+        // (Ruling aus dem Task-3-Review). Task 6 loest die fachliche Sendung
+        // stattdessen SERVERINTERN aus: der BandageReminderPushBackgroundService
+        // ruft IPushSender.SendTreatmentReminderToAllAsync direkt. Von aussen
+        // ist Push nur noch ueber die Anmelde-Endpunkte oben erreichbar.
 
         return api;
     }

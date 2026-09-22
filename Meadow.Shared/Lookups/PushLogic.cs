@@ -82,6 +82,30 @@ public static class PushLogic
     /// </summary>
     public static bool IsGone(int statusCode)
         => statusCode is 404 or 410;
+
+    /// <summary>
+    /// Die Entdopplungs-Entscheidung des Verband-Push-Schedulers: soll fuer eine
+    /// ueberfaellige Behandlung HEUTE (noch) eine Erinnerung raus?
+    ///
+    /// Reine Funktion ueber "zuletzt gesendet am" und "heute", damit der Kern der
+    /// Abnahme ohne Datenbank, Netz und Uhr pruefbar ist:
+    /// <list type="bullet">
+    /// <item>noch nie gesendet (<paramref name="lastSentOn"/> = null) -> senden;</item>
+    /// <item>heute schon gesendet -> NICHT erneut (der "zweiter Lauf am selben
+    /// Tag"-Fall der Abnahme, der auch ueber einen Neustart halten muss, weil
+    /// der Merker persistent ist);</item>
+    /// <item>zuletzt an einem frueheren Tag -> wieder senden.</item>
+    /// </list>
+    ///
+    /// Verglichen wird auf Tagesebene (<c>.Date</c>) - dieselbe Tagesebene wie
+    /// die ueberfaellig-Regel in
+    /// <see cref="Models.ClawTreatmentExtensions.IsBandageOverdue"/>. Eine
+    /// Uhrzeit darf weder ueber "faellig" noch ueber "heute schon geschickt"
+    /// entscheiden. <paramref name="today"/> ist Parameter statt DateTime.Now,
+    /// aus exakt derselben Begruendung wie dort.
+    /// </summary>
+    public static bool ShouldSendReminderToday(DateTime? lastSentOn, DateTime today)
+        => lastSentOn is null || lastSentOn.Value.Date < today.Date;
 }
 
 /// <summary>Ob ein Upsert einlegt oder aktualisiert.</summary>
