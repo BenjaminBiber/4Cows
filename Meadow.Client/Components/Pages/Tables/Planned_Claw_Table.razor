@@ -52,9 +52,26 @@
             </ChildContent>
         </MeadowFilterPopover>
 
-        <button type="button" class="mw-btn mw-btn--primary mw-only-desktop" @onclick="Plan">
-            <MeadowIcon Name="MeadowIconName.Plus" Size="20" />
-            <span>Planen</span>
+        <MeadowSplitButton Label="Planen" Icon="MeadowIconName.Plus"
+                           Class="mw-only-desktop"
+                           Open="_actionsOpen"
+                           OnClick="Plan"
+                           OnToggle="ToggleActions"
+                           OnClose="CloseActions">
+            <button type="button" role="menuitem" class="mw-split__item"
+                    @onclick="PlanBulkFromMenu">
+                <MeadowIcon Name="MeadowIconName.Calendar" Size="17" />
+                <span>Kühe ohne Klauenpflege planen…</span>
+            </button>
+        </MeadowSplitButton>
+
+        @* Mobil wie in Claw_Table: die Hauptaktion deckt der FAB ab, die
+           Sammelplanung bekommt einen eigenen Icon-Button statt eines
+           Menues mit einem einzigen Eintrag. *@
+        <button type="button" class="mw-btn mw-btn--ghost mw-btn--icon mw-only-mobile"
+                title="Kühe ohne Klauenpflege planen" aria-label="Kühe ohne Klauenpflege planen"
+                @onclick="PlanBulk">
+            <MeadowIcon Name="MeadowIconName.Calendar" Size="18" />
         </button>
     </Right>
 </MeadowToolbar>
@@ -110,6 +127,7 @@
 
     private readonly PlannedClawTableFilter _filter = new();
     private bool _filterOpen;
+    private bool _actionsOpen;
 
     /// <summary>Noch keine Daten - siehe MeadowTable.IsLoading.</summary>
 
@@ -118,7 +136,9 @@
 
     protected override async Task OnInitializedAsync()
     {
-        await Data.EnsurePlannedClawAsync();
+        // Die Klauenbehandlungen braucht die Sammelplanung: sie rechnet ab der
+        // letzten Behandlung je Kuh.
+        await Task.WhenAll(Data.EnsurePlannedClawAsync(), Data.EnsureClawTreatmentsAsync());
         _loaded = true;
         // Eine KPI-Kachel verlinkt mit ihren Filtern im Query-String hierher.
         KpiDrillDown.ApplyTo(_filter, Nav);
@@ -353,6 +373,18 @@
     // Derselbe Weg wie FAB, Add-Menue und Dashboard: der Launcher meldet das
     // Speichern, OnDataChanged laedt nach.
     private Task Plan() => Launcher.OpenPlannedClawTreatmentAsync();
+
+    private void ToggleActions() => _actionsOpen = !_actionsOpen;
+
+    private void CloseActions() => _actionsOpen = false;
+
+    private Task PlanBulkFromMenu()
+    {
+        CloseActions();
+        return PlanBulk();
+    }
+
+    private Task PlanBulk() => Launcher.OpenBulkPlannedClawTreatmentAsync();
 
     private async Task Complete(PlannedClawTreatment planned)
     {
