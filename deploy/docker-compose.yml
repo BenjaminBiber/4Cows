@@ -38,6 +38,12 @@ services:
       #                            und setzt die Daten naechtlich zurueck.
       # Kpi__AllowScriptValidation: "false"  # fuehrt SQL aus dem Anfragerumpf
       #                                        aus. Siehe Caddyfile.
+      # MCP-Server fuer Claude unter /api/mcp (Einrichtung: Einstellungen -> MCP).
+      # Ohne MCP_TOKEN in der .env darf jedes Geraet im LAN, das Caddy
+      # erreicht, darueber lesen und schreiben - wie bei der uebrigen API.
+      Mcp__Token: ${MCP_TOKEN:-}
+      # Mcp__Enabled: "true"      # false schaltet den MCP-Server ab.
+      # Mcp__PublicUrl: "https://meadow.example.de"
     # Auch hier KEIN ports-Abschnitt. Der einzige Weg zur Anwendung fuehrt
     # ueber Caddy; sonst waere sie auf 8080 ohne Zertifikat zu haben, und ein
     # Browser, der sie einmal so gesehen hat, merkt sich das.
