@@ -5,6 +5,7 @@
 @using Meadow.Client.Components.Ui
 @using Meadow.Client.Components.Services
 @using Meadow.Shared.Kpi
+@using Meadow.Shared.Mcp
 
 @inject IKPIService KPIService
 @inject ISettingsService Defaults
@@ -13,6 +14,7 @@
 @inject ISnackbar Snackbar
 @inject NavigationManager Nav
 @inject Meadow.Client.Services.PushService Push
+@inject Meadow.Client.Services.McpSetupService Mcp
 
 <div class="mw-tabs">
     @foreach (var tab in Tabs)
@@ -92,6 +94,121 @@ else if (_tab == TabBaseData)
         default:
             <BaseDataMedicine />
             break;
+    }
+}
+else if (_tab == TabMcp)
+{
+    @* Einrichtung des MCP-Servers fuer Claude. Alle Texte kommen aus
+       McpSetupGuide - derselben Quelle wie /api/mcp/setup, das Claude selbst
+       liest. Der Token steht nirgends, nur sein Platzhalter. *@
+    @if (!_mcpLoaded)
+    {
+        <div class="mw-card mw-settings-card"><p class="mw-hint">Lade MCP-Informationen…</p></div>
+    }
+    else if (_mcpInfo is null)
+    {
+        <div class="mw-card mw-settings-card">
+            <h2 class="mw-section-title">Claude / MCP</h2>
+            <p class="mw-hint">Der Server ist nicht erreichbar. Die Einrichtung lässt sich nur mit Verbindung anzeigen.</p>
+        </div>
+    }
+    else
+    {
+        var info = _mcpInfo;
+        var setupUrl = info.Url + "/setup";
+
+        <div class="mw-card mw-settings-card mw-settings-card--wide">
+            <h2 class="mw-section-title">Claude / MCP</h2>
+            <p class="mw-hint">
+                Über den MCP-Server (Model Context Protocol) kann Claude die Daten von 4Cows lesen und
+                Behandlungen, Planungen und Basisdaten anlegen oder ändern. Löschen ist nur hier in der
+                Oberfläche möglich.
+            </p>
+            <div class="mw-mcp-status">
+                <span class="mw-pill @(info.Enabled ? "" : "mw-pill--overdue")">@(info.Enabled ? "Aktiv" : "Abgeschaltet")</span>
+                <span class="mw-pill">@(info.TokenRequired ? "Token erforderlich" : "Ohne Token")</span>
+                <span class="mw-pill">@info.Tools.Count Werkzeuge</span>
+            </div>
+            <label class="mw-label">Adresse des MCP-Servers</label>
+            <pre class="mw-code">@info.Url</pre>
+            @if (!info.Enabled)
+            {
+                <p class="mw-hint">Abgeschaltet über die Umgebungsvariable <code>Mcp__Enabled=false</code>.</p>
+            }
+            else if (info.TokenRequired)
+            {
+                <p class="mw-hint">
+                    Der Server verlangt einen Token. Er steht in der Umgebungsvariable <code>Mcp__Token</code>
+                    des Containers und wird hier absichtlich nicht angezeigt – in den Befehlen unten
+                    <code>@McpSetupGuide.TokenPlaceholder</code> durch ihn ersetzen.
+                </p>
+            }
+            else
+            {
+                <p class="mw-hint">
+                    Kein Token gesetzt: jeder im Netz, der die Adresse kennt, kann über MCP lesen und schreiben.
+                    Wer 4Cows über das Hof-Netz hinaus erreichbar macht, sollte <code>Mcp__Token</code> setzen.
+                </p>
+            }
+        </div>
+
+        <div class="mw-card mw-settings-card mw-settings-card--wide">
+            <h2 class="mw-section-title">Für Claude: Einrichtung automatisch lesen</h2>
+            <p class="mw-hint">
+                Diese Adresse liefert die komplette Anleitung als Text. Einfach Claude geben, z. B.:
+                „Lies @setupUrl und richte den 4Cows-MCP-Server ein.“
+            </p>
+            <pre class="mw-code">@setupUrl</pre>
+            <div class="mw-code-row">
+                <a class="mw-btn" href="@setupUrl" target="_blank" rel="noopener">Öffnen</a>
+                <button type="button" class="mw-btn" @onclick="() => CopyAsync(setupUrl)">Kopieren</button>
+            </div>
+        </div>
+
+        <div class="mw-card mw-settings-card mw-settings-card--wide">
+            <h2 class="mw-section-title">Claude Code</h2>
+            <p class="mw-hint">Im Terminal ausführen:</p>
+            <pre class="mw-code">@McpSetupGuide.ClaudeCodeCommand(info.Url, info.TokenRequired)</pre>
+            <div class="mw-code-row">
+                <button type="button" class="mw-btn" @onclick="() => CopyAsync(McpSetupGuide.ClaudeCodeCommand(info.Url, info.TokenRequired))">Kopieren</button>
+            </div>
+            <p class="mw-hint">Oder als <code>.mcp.json</code> im Projektordner:</p>
+            <pre class="mw-code">@McpSetupGuide.McpJson(info.Url, info.TokenRequired)</pre>
+            <div class="mw-code-row">
+                <button type="button" class="mw-btn" @onclick="() => CopyAsync(McpSetupGuide.McpJson(info.Url, info.TokenRequired))">Kopieren</button>
+            </div>
+        </div>
+
+        <div class="mw-card mw-settings-card mw-settings-card--wide">
+            <h2 class="mw-section-title">Claude Desktop</h2>
+            <p class="mw-hint">
+                In Claude Desktop unter Einstellungen → Entwickler → „Konfiguration bearbeiten“ in
+                <code>claude_desktop_config.json</code> eintragen und Claude Desktop neu starten.
+                Voraussetzung ist Node.js (für <code>npx</code>).
+            </p>
+            <pre class="mw-code">@McpSetupGuide.ClaudeDesktopJson(info.Url, info.TokenRequired)</pre>
+            <div class="mw-code-row">
+                <button type="button" class="mw-btn" @onclick="() => CopyAsync(McpSetupGuide.ClaudeDesktopJson(info.Url, info.TokenRequired))">Kopieren</button>
+            </div>
+        </div>
+
+        <div class="mw-card mw-settings-card mw-settings-card--wide">
+            <h2 class="mw-section-title">Verfügbare Werkzeuge</h2>
+            <h3 class="mw-label">Lesen</h3>
+            <ul class="mw-mcp-tools">
+                @foreach (var tool in info.Tools.Where(t => t.ReadOnly))
+                {
+                    <li><code>@tool.Name</code> – @tool.Description</li>
+                }
+            </ul>
+            <h3 class="mw-label">Anlegen und Ändern</h3>
+            <ul class="mw-mcp-tools">
+                @foreach (var tool in info.Tools.Where(t => !t.ReadOnly))
+                {
+                    <li><code>@tool.Name</code> – @tool.Description</li>
+                }
+            </ul>
+        </div>
     }
 }
 else
@@ -185,8 +302,9 @@ else
     private const string TabKpi = "KPIs";
     private const string TabBaseData = "Basisdaten";
     private const string TabDefaults = "Standardwerte";
+    private const string TabMcp = "MCP";
 
-    private static readonly string[] Tabs = { TabKpi, TabBaseData, TabDefaults };
+    private static readonly string[] Tabs = { TabKpi, TabBaseData, TabDefaults, TabMcp };
 
     private static readonly string[] BaseDataTabs =
     {
@@ -209,6 +327,12 @@ else
     private bool _pushServerEnabled;
     private string _pushPermission = "default";
     private bool _pushBusy;
+
+    // MCP-Reiter: erst beim ersten Oeffnen geladen, nicht bei jedem Besuch
+    // der Einstellungen.
+    private McpInfo? _mcpInfo;
+    private bool _mcpLoaded;
+    private bool _mcpLoading;
 
     private string PushStatusText => _pushPermission switch
     {
@@ -281,6 +405,15 @@ else
     /// </summary>
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (_tab == TabMcp && !_mcpLoaded && !_mcpLoading)
+        {
+            _mcpLoading = true;
+            _mcpInfo = await Mcp.GetInfoAsync();
+            _mcpLoaded = true;
+            _mcpLoading = false;
+            StateHasChanged();
+        }
+
         if (!firstRender)
         {
             return;
@@ -294,6 +427,13 @@ else
             _pushServerEnabled = key?.Enabled ?? false;
             StateHasChanged();
         }
+    }
+
+    private async Task CopyAsync(string text)
+    {
+        var ok = await Mcp.CopyAsync(text);
+        Snackbar.Add(ok ? "In die Zwischenablage kopiert." : "Kopieren fehlgeschlagen – bitte von Hand markieren.",
+            ok ? Severity.Success : Severity.Warning);
     }
 
     private async Task EnablePush()

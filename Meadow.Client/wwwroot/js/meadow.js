@@ -79,3 +79,38 @@ window.meadowMenu = {
         element.scrollIntoView({ block: "nearest", behavior: "smooth" });
     }
 };
+
+/* Text in die Zwischenablage (Einstellungen -> MCP).
+
+   navigator.clipboard gibt es nur in einem sicheren Kontext (HTTPS oder
+   localhost). Auf dem Hof laeuft 4Cows oft als http://192.168.x.y - dort
+   faellt das auf das alte execCommand ueber ein unsichtbares Textfeld
+   zurueck. */
+window.meadowClipboard = {
+    copy: async function (text) {
+        try {
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(text);
+                return true;
+            }
+        } catch (e) {
+            // weiter mit dem Rueckfall
+        }
+
+        var area = document.createElement("textarea");
+        area.value = text;
+        area.setAttribute("readonly", "");
+        area.style.position = "fixed";
+        area.style.opacity = "0";
+        document.body.appendChild(area);
+        area.select();
+        var ok = false;
+        try {
+            ok = document.execCommand("copy");
+        } catch (e) {
+            ok = false;
+        }
+        document.body.removeChild(area);
+        return ok;
+    }
+};

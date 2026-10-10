@@ -92,6 +92,26 @@ Der XLink-Sync ist im Demo-Modus abgeschaltet, weil er jede Kuh als
 abgegangen markieren würde, die der Scraper nicht liefert – die
 Beispieltiere wären danach in keiner Auswahl mehr sichtbar.
 
+## Claude anbinden (MCP)
+
+4Cows bringt einen MCP-Server (Model Context Protocol) mit, über den Claude
+die Daten lesen sowie Behandlungen, Planungen, Kuh-Stammdaten, Basisdaten und
+Standardwerte anlegen oder ändern kann. Löschen ist über MCP absichtlich
+nicht möglich.
+
+- Adresse: `http(s)://<host>/api/mcp` (Streamable HTTP)
+- Einrichtung in der App: **Einstellungen → MCP** – mit fertigem Befehl für
+  Claude Code, JSON für Claude Desktop und der Werkzeugliste.
+- Für Claude selbst: `GET /api/mcp/setup` liefert dieselbe Anleitung als
+  Markdown. Claude kann diese Adresse lesen und den Server danach selbst
+  einrichten.
+
+| Umgebungsvariable | Bedeutung |
+|---|---|
+| `Mcp__Enabled` | `false` schaltet den MCP-Server ab (Standard: `true`). |
+| `Mcp__Token` | Optional. Ist er gesetzt, muss jede Anfrage `Authorization: Bearer <token>` tragen. Wird nirgends angezeigt. **Unbedingt setzen, wenn 4Cows außerhalb des Hof-Netzes erreichbar ist.** |
+| `Mcp__PublicUrl` | Optional. Äußere Basisadresse (z. B. `https://meadow.example.de`), falls die automatisch erkannte Adresse hinter einem Proxy nicht stimmt. |
+
 ## Technologie
 
 **Frontend:** Blazor WebAssembly App (Meadow.Client) mit MudBlazor, ausgeliefert von Meadow.Api
