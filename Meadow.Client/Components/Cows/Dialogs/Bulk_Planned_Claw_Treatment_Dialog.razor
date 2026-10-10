@@ -1,0 +1,169 @@
+@using Meadow.Client.Components.Ui
+
+@inject ISnackbar Snackbar
+@inject IPClawTreatmentService pClawTreatmentService
+@inject IClawTreatmentService clawTreatmentService
+@inject ICowService cowService
+
+@*
+    Sammelplanung: legt fuer alle Kuehe, deren letzte Klauenbehandlung mehr als
+    N Tage zurueckliegt (oder die nie eine hatten), eine geplante Klauen-
+    behandlung an. Die Auswahl selbst steht in ClawTreatmentPlanning; hier nur
+    Eingabe, Vorschau und das Anlegen.
+
+    Keine Klauen angehakt: der Anlass ist die Routinekontrolle, nicht ein
+    Befund an einer bestimmten Position.
+*@
+<MeadowDialog Title="Kühe ohne Klauenpflege planen" Size="MeadowDialogSize.Claw">
+    <ChildContent>
+        <div class="mw-field-row">
+            <div class="mw-col">
+                <label class="mw-label" for="mw-bdays">Länger als … Tage nicht behandelt</label>
+                <div class="mw-field">
+                    <MudNumericField T="int" InputId="mw-bdays" Variant="Variant.Text"
+                                     HideSpinButtons="true" Min="1"
+                                     Value="_days" ValueChanged="OnDaysChanged" />
+                </div>
+            </div>
+            <div class="mw-col">
+                <span class="mw-label">Geplant für</span>
+                <div class="mw-field">
+                    <MudDatePicker Label="Geplant für" Variant="Variant.Text" Editable="true"
+                                   DateFormat="dd.MM.yyyy" @bind-Date="_date" />
+                </div>
+            </div>
+        </div>
+
+        <MeadowSwitch Label="Nur aktive Kühe" Value="_onlyActive" ValueChanged="OnOnlyActiveChanged"
+                      Help="Abgegangene Tiere werden nicht eingeplant. Kälber werden nie eingeplant." />
+
+        <div>
+            <label class="mw-label mw-label--spaced" for="mw-bdesc">Beschreibung</label>
+            <div class="mw-field">
+                <MudTextField T="string" InputId="mw-bdesc" Variant="Variant.Text"
+                              @bind-Value="_description" />
+            </div>
+        </div>
+
+        <p class="mw-label mw-label--spaced" aria-live="polite">
+            @PreviewText
+        </p>
+    </ChildContent>
+    <Footer>
+        <button type="button" class="mw-btn mw-btn--plain mw-btn--wide" @onclick="Cancel"
+                disabled="@_saving">
+            Abbrechen
+        </button>
+        <button type="button" class="mw-btn mw-btn--primary mw-btn--wide" @onclick="Save"
+                disabled="@(_saving || _selection.Count == 0)">
+            @(_saving ? "Wird angelegt…" : $"{_selection.Count} planen")
+        </button>
+    </Footer>
+</MeadowDialog>
+
+@code {
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = default!;
+
+    private const string DefaultDescription = "Routinekontrolle Klauen";
+
+    private int _days = 30;
+    private bool _onlyActive = true;
+    private DateTime? _date = DateTime.Today;
+    private string _description = DefaultDescription;
+    private bool _saving;
+
+    private IReadOnlyList<Cow> _selection = [];
+
+    protected override void OnInitialized() => Recalculate();
+
+    private void OnDaysChanged(int value)
+    {
+        _days = Math.Max(1, value);
+        Recalculate();
+    }
+
+    private void OnOnlyActiveChanged(bool value)
+    {
+        _onlyActive = value;
+        Recalculate();
+    }
+
+    private void Recalculate()
+        => _selection = ClawTreatmentPlanning.SelectCowsForPlanning(
+            cowService.Cows.Values,
+            clawTreatmentService.Treatments.Values,
+            pClawTreatmentService.Treatments.Values,
+            _days,
+            _onlyActive,
+            DateTime.Today);
+
+    private string PreviewText => _selection.Count switch
+    {
+        0 => "Keine Kuh erfüllt die Bedingungen (oder alle sind schon geplant).",
+        1 => "1 Kuh wird geplant.",
+        var n => $"{n} Kühe werden geplant."
+    };
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Save()
+    {
+        if (_date is null)
+        {
+            Snackbar.Add("Bitte ein Datum wählen.", Severity.Error);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_description))
+        {
+            Snackbar.Add("Bitte eine Beschreibung angeben.", Severity.Error);
+            return;
+        }
+
+        _saving = true;
+        var created = 0;
+        var failed = 0;
+
+        // Nacheinander statt parallel: InsertDataAsync schreibt die erzeugte Id
+        // in den gemeinsamen Cache, und offline gehen die Zeilen einzeln in die
+        // Outbox.
+        foreach (var cow in _selection)
+        {
+            var planned = new PlannedClawTreatment
+            {
+                EarTagNumber = cow.CowId,
+                TreatmentDate = _date.Value,
+                Desciption = _description.Trim()
+            };
+
+            if (await pClawTreatmentService.InsertDataAsync(planned))
+            {
+                created++;
+            }
+            else
+            {
+                failed++;
+            }
+        }
+
+        _saving = false;
+
+        if (failed > 0)
+        {
+            Snackbar.Add($"{created} geplant, {failed} fehlgeschlagen.", Severity.Warning);
+        }
+        else
+        {
+            Snackbar.Add($"{created} Behandlungen geplant.", Severity.Success);
+        }
+
+        if (created > 0)
+        {
+            MudDialog.Close(DialogResult.Ok(created));
+        }
+        else
+        {
+            Recalculate();
+        }
+    }
+}

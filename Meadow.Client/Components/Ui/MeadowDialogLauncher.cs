@@ -72,6 +72,13 @@ public sealed class MeadowDialogLauncher
     public Task OpenPlannedClawTreatmentAsync()
         => ShowAndNotifyAsync<Add_Planned_Claw_Treatment_Dialog>(MeadowDataKind.PlannedClawTreatment);
 
+    /// <summary>
+    /// Sammelplanung: alle Kuehe, die seit N Tagen keine Klauenbehandlung
+    /// hatten. Gemeldet wird wie beim Einzeldialog, damit die Tabelle nachlaedt.
+    /// </summary>
+    public Task OpenBulkPlannedClawTreatmentAsync()
+        => ShowAndNotifyAsync<Bulk_Planned_Claw_Treatment_Dialog>(MeadowDataKind.PlannedClawTreatment);
+
     // ---- Mit vorbelegtem Tier (Kuh-Seite) -------------------------------
     //
     // Bewusst Ueberladungen und keine optionalen Parameter an den vier
