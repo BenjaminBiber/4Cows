@@ -195,6 +195,7 @@ api.MapSettingsEndpoints();
 api.MapKpiEndpoints();
 api.MapKpiEvaluationEndpoints();
 api.MapClawExportEndpoints();
+api.MapCowExportEndpoints();
 api.MapPushEndpoints();
 
 
