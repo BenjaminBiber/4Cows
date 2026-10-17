@@ -6,7 +6,7 @@
 - Speichern und Verwalten von Klauen- und Tierbehandlungen
 - Planen von Klauen- und Tierbehandlungen
 - Dark- & Lightmode
-- Exportieren der Klauenbehandlungen als Excel-Dokument
+- Exportieren der Klauen- und Kuhbehandlungen als Excel-Dokument
 - Auswerten von Lely Horizon Daten über einen Xlink-Scraper
 - Medikamente mit Dosiereinheit und Standard-Verabreichungsart pflegen; beides
   belegt die Behandlungs-Dialoge vor

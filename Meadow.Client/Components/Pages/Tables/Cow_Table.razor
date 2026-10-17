@@ -6,6 +6,9 @@
 @using Meadow.Client.Components.Services
 @using Meadow.Client.Services
 
+@inject IJSRuntime JS
+@inject HttpClient Http
+@inject ISnackbar Snackbar
 @inject NavigationManager Nav
 @inject MeadowDataLoader Data
 @inject MeadowDialogLauncher Launcher
@@ -52,9 +55,24 @@
             </ChildContent>
         </MeadowFilterPopover>
 
-        <button type="button" class="mw-btn mw-btn--primary mw-only-desktop" @onclick="AddTreatment">
-            <MeadowIcon Name="MeadowIconName.Plus" Size="20" />
-            <span>Neue Behandlung</span>
+        <MeadowSplitButton Label="Neue Behandlung" Icon="MeadowIconName.Plus"
+                           Class="mw-only-desktop"
+                           Open="_actionsOpen"
+                           OnClick="AddTreatment"
+                           OnToggle="ToggleActions"
+                           OnClose="CloseActions">
+            <button type="button" role="menuitem" class="mw-split__item"
+                    @onclick="ExportFile">
+                <MeadowIcon Name="MeadowIconName.Download" Size="17" />
+                <span>Als Excel exportieren</span>
+            </button>
+        </MeadowSplitButton>
+
+        @* Mobil wie in Claw_Table: eigener Icon-Button fuer den Export. *@
+        <button type="button" class="mw-btn mw-btn--ghost mw-btn--icon mw-only-mobile"
+                title="Als Excel exportieren" aria-label="Als Excel exportieren"
+                @onclick="DownloadFile">
+            <MeadowIcon Name="MeadowIconName.Download" Size="18" />
         </button>
     </Right>
 </MeadowToolbar>
@@ -130,6 +148,7 @@
 @code {
     private readonly CowTableFilter _filter = new();
     private bool _filterOpen;
+    private bool _actionsOpen;
 
     private List<CowTreatment> _all = new();
     private List<CowTreatment> _rows = new();
@@ -394,7 +413,25 @@
         Apply();
     }
 
-    private void ToggleFilter() => _filterOpen = !_filterOpen;
+    private void ToggleFilter()
+    {
+        _filterOpen = !_filterOpen;
+        _actionsOpen = false;
+    }
+
+    private void ToggleActions()
+    {
+        _actionsOpen = !_actionsOpen;
+        _filterOpen = false;
+    }
+
+    private void CloseActions() => _actionsOpen = false;
+
+    private async Task ExportFile()
+    {
+        _actionsOpen = false;
+        await DownloadFile();
+    }
 
     private void CloseFilter() => _filterOpen = false;
 
@@ -440,5 +477,29 @@
         await cowTreatmentService.GetAllDataAsync();
         _all = cowTreatmentService.Treatments.Values.ToList();
         Apply();
+    }
+
+    // ---- Excel-Export -------------------------------------------------
+
+    private async Task DownloadFile()
+    {
+        try
+        {
+            // Wie in Claw_Table: die Datei entsteht in der API (EPPlus laeuft
+            // nicht in WebAssembly), gesendet werden die Ids der SICHTBAREN Zeilen.
+            var response = await Http.PostAsJsonAsync(
+                "api/cow-treatments/export",
+                new { ids = _rows.Select(r => r.CowTreatmentId).ToList() });
+            response.EnsureSuccessStatusCode();
+            var bytes = await response.Content.ReadAsByteArrayAsync();
+            await JS.InvokeVoidAsync(
+                "downloadFile",
+                $"Kuhbehandlungen Export {DateTime.Now:dd-MM-yyyy}.xlsx",
+                Convert.ToBase64String(bytes));
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Export fehlgeschlagen: {ex.Message}", Severity.Error);
+        }
     }
 }
