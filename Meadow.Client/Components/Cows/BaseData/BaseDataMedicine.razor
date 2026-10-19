@@ -116,6 +116,13 @@
         },
         new()
         {
+            Title = "Behandlungsplan",
+            Text = r => TreatmentPlanDefinition.Describe(r.Entry) ?? "—",
+            SortBy = r => TreatmentPlanDefinition.Describe(r.Entry) ?? "",
+            Width = "150px"
+        },
+        new()
+        {
             Title = "Wie / Wo",
             Text = RouteName,
             SortBy = RouteName,

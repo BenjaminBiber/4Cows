@@ -48,6 +48,45 @@
             </div>
         </MudForm>
 
+        <div class="mw-field-row">
+            <div class="mw-col">
+                <MeadowSwitch Value="@_hasPlan" ValueChanged="@(v => _hasPlan = v)" Label="Behandlungsplan" />
+            </div>
+        </div>
+
+        @if (_hasPlan)
+        {
+            <div class="mw-field-row">
+                <div class="mw-col">
+                    <span class="mw-label">Gaben</span>
+                    <div class="mw-field">
+                        <MudNumericField T="int?" Variant="Variant.Text" HideSpinButtons="true" Immediate="true"
+                                         Min="TreatmentPlanDefinition.MinDoses" Max="TreatmentPlanDefinition.MaxDoses"
+                                         @bind-Value="_planDoses" Placeholder="z.B. 3" />
+                    </div>
+                </div>
+                <div class="mw-col">
+                    <span class="mw-label">Art</span>
+                    <div class="mw-field">
+                        <MudRadioGroup T="TreatmentPlanMode?" @bind-Value="_planMode">
+                            <MudRadio T="TreatmentPlanMode?" Value="TreatmentPlanMode.Window" Dense="true">innerhalb von</MudRadio>
+                            <MudRadio T="TreatmentPlanMode?" Value="TreatmentPlanMode.Interval" Dense="true">alle</MudRadio>
+                        </MudRadioGroup>
+                    </div>
+                </div>
+                <div class="mw-col">
+                    <span class="mw-label">Tage</span>
+                    <div class="mw-field">
+                        <MudNumericField T="int?" Variant="Variant.Text" HideSpinButtons="true" Immediate="true"
+                                         Min="TreatmentPlanDefinition.MinDays" Max="TreatmentPlanDefinition.MaxDays"
+                                         @bind-Value="_planDays" Placeholder="z.B. 5" />
+                    </div>
+                </div>
+            </div>
+
+            <p class="@(PlanError is null ? "mw-hint" : "mw-hint mw-hint--crit")">@(PlanError ?? PlanPreview)</p>
+        }
+
         <p class="mw-hint">
             Einheit und Verabreichungsart werden in den Behandlungs-Dialogen
             vorbelegt, sobald dieses Medikament gewählt wird. Umbenennen auf
@@ -87,6 +126,11 @@
     private string _unit = "";
     private string _whereHowName = "";
 
+    private bool _hasPlan;
+    private int? _planDoses;
+    private TreatmentPlanMode? _planMode;
+    private int? _planDays;
+
     protected override void OnInitialized()
     {
         // Auf Kopien arbeiten, nicht auf Entry: das ist die Instanz aus dem
@@ -98,7 +142,20 @@
         _whereHowName = Entry.DefaultWhereHowId is { } id
             ? WhereHowService.GetWhereHowNameById(id)
             : "";
+
+        _hasPlan = TreatmentPlanDefinition.IsDefined(Entry);
+        _planDoses = Entry.PlanDoseCount ?? 3;
+        _planMode = Entry.PlanMode ?? TreatmentPlanMode.Window;
+        _planDays = Entry.PlanDays ?? 5;
     }
+
+    private string? PlanError => _hasPlan
+        ? TreatmentPlanDefinition.Validate(_planDoses, _planMode, _planDays)
+        : null;
+
+    private string? PlanPreview => PlanError is null && _hasPlan
+        ? TreatmentPlanDefinition.Describe(new Medicine { PlanDoseCount = _planDoses, PlanMode = _planMode, PlanDays = _planDays })
+        : null;
 
     private Task<IEnumerable<string>> SearchUnits(string value, CancellationToken token)
     {
@@ -148,6 +205,12 @@
         if (name.Length > Medicine.NameMaxLength)
         {
             Snackbar.Add($"Der Name ist länger als {Medicine.NameMaxLength} Zeichen.", Severity.Error);
+            return;
+        }
+
+        if (PlanError is not null)
+        {
+            Snackbar.Add(PlanError, Severity.Error);
             return;
         }
 
@@ -240,7 +303,10 @@
             var draft = new Medicine(0, name)
             {
                 DosageUnit = unit.Length == 0 ? null : unit,
-                DefaultWhereHowId = whereHowId
+                DefaultWhereHowId = whereHowId,
+                PlanDoseCount = _hasPlan ? _planDoses : null,
+                PlanMode = _hasPlan ? _planMode : null,
+                PlanDays = _hasPlan ? _planDays : null
             };
 
             if (!await MedicineService.InsertDataAsync(draft))
@@ -256,9 +322,16 @@
 
         // Nichts geaendert: keine Rueckfrage, kein Schreibvorgang, kein Reload
         // auf der Seite dahinter.
+        var planDoses = _hasPlan ? _planDoses : null;
+        var planMode = _hasPlan ? _planMode : null;
+        var planDays = _hasPlan ? _planDays : null;
+
         var unchanged = name == Entry.MedicineName
                         && unit == (Entry.DosageUnit ?? "")
-                        && whereHowId == Entry.DefaultWhereHowId;
+                        && whereHowId == Entry.DefaultWhereHowId
+                        && planDoses == Entry.PlanDoseCount
+                        && planMode == Entry.PlanMode
+                        && planDays == Entry.PlanDays;
 
         if (unchanged)
         {
@@ -269,7 +342,10 @@
         var update = new Medicine(Entry.MedicineId, name)
         {
             DosageUnit = unit.Length == 0 ? null : unit,
-            DefaultWhereHowId = whereHowId
+            DefaultWhereHowId = whereHowId,
+            PlanDoseCount = planDoses,
+            PlanMode = planMode,
+            PlanDays = planDays
         };
 
         if (!await MedicineService.UpdateDataAsync(update))
