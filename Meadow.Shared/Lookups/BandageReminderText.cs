@@ -38,35 +38,11 @@ public static class BandageReminderText
         // weggefallen - die Kachel fuehrt ohnehin auf die Verbaende-Seite, und
         // die Push-Nachricht traegt "Verband-Erinnerung" als Titel.
         return $"Verband {seit}: {treatment.EarTagNumber}"
-               + CollarPart(cows, treatment.EarTagNumber);
-    }
-
-    /// <summary>
-    /// Die Halsbandnummer in Klammern - das Merkmal, an dem das Tier im Stall
-    /// tatsaechlich gefunden wird.
-    ///
-    /// Nachgeschlagen wird ueber die Cow_ID, nicht ueber die Ohrmarke:
-    /// <c>ClawTreatment.EarTagNumber</c> traegt trotz seines Namens die Cow_ID
-    /// (bei erwachsenen Kuehen ist beides derselbe Wert, bei einem Kalb eine
-    /// GUID). <see cref="CowLookups.GetByEarTagNumber"/> griffe deshalb bei
-    /// Kaelbern daneben.
-    ///
-    /// Faellt der Nachschlag aus - Kuh nicht im Cache, oder gar keine
-    /// Halsbandnummer vergeben (CollarNumber ist ein int, "keine" kommt als 0
-    /// an) -, bleibt der Teil weg. Ein leerer Klammerausdruck oder
-    /// "(Halsband 0)" waere eine Falschaussage im Stall; der Hinweis nennt dann
-    /// eben nur die Ohrmarke.
-    /// </summary>
-    private static string CollarPart(IReadOnlyDictionary<string, Cow> cows, string cowId)
-    {
-        if (cows is null || string.IsNullOrWhiteSpace(cowId))
-        {
-            return string.Empty;
-        }
-
-        var cow = CowLookups.GetById(cows, cowId);
-        return cow is null || cow.CollarNumber <= 0
-            ? string.Empty
-            : $" (Halsband {cow.CollarNumber})";
+               // Die Halsbandnummer in Klammern - das Merkmal, an dem das Tier
+               // im Stall tatsaechlich gefunden wird. Nachgeschlagen wird ueber
+               // die Cow_ID: ClawTreatment.EarTagNumber traegt trotz seines
+               // Namens die Cow_ID. Derselbe Zusatz wie bei der
+               // Behandlungsplan-Erinnerung, deshalb in CowLookups.
+               + CowLookups.CollarSuffix(cows, treatment.EarTagNumber);
     }
 }

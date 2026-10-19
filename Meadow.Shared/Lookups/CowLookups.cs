@@ -21,6 +21,28 @@ public static class CowLookups
         return cows.ContainsKey(cowId) ? cows[cowId] : null;
     }
 
+    /// <summary>
+    /// " (Halsband 12)" oder leer - gemeinsamer Kuh-Zusatz der
+    /// Erinnerungstexte (Verband, Behandlungsplan).
+    ///
+    /// Nachgeschlagen wird ueber die Cow_ID, nicht ueber die Ohrmarke: bei
+    /// einem Kalb ist die Cow_ID eine GUID, <see cref="GetByEarTagNumber"/>
+    /// griffe dort daneben. Faellt der Nachschlag aus - Kuh nicht im Cache
+    /// oder gar keine Halsbandnummer vergeben (CollarNumber ist ein int,
+    /// "keine" kommt als 0 an) -, bleibt der Teil weg: "(Halsband 0)" waere
+    /// eine Falschaussage im Stall.
+    /// </summary>
+    public static string CollarSuffix(IReadOnlyDictionary<string, Cow> cows, string cowId)
+    {
+        if (cows is null || string.IsNullOrWhiteSpace(cowId))
+        {
+            return string.Empty;
+        }
+
+        var cow = GetById(cows, cowId);
+        return cow is null || cow.CollarNumber <= 0 ? string.Empty : $" (Halsband {cow.CollarNumber})";
+    }
+
     // Finds a cow by its ear tag FIELD (not the Cow_ID key). Needed because a promoted calf
     // keeps its GUID Cow_ID while gaining an ear tag, so ear-tag lookups can't go through the key.
     public static Cow GetByEarTagNumber(IReadOnlyDictionary<string, Cow> cows, string earTagNumber)

@@ -141,6 +141,11 @@ builder.Services.AddSingleton<MeadowNoticeState>();
 // Kern die Reihenfolge und erzwingt nicht das Aufloesen aller Provider beim
 // ersten Zugriff.
 builder.Services.AddSingleton<BandageReminderNoticeProvider>();
+
+// Die zweite Hinweisquelle: faellige Gaben laufender Behandlungsplaene. Aus
+// demselben Grund Singleton und ebenfalls erst nach dem Build per AddProvider
+// angemeldet.
+builder.Services.AddSingleton<TreatmentPlanNoticeProvider>();
 builder.Services.AddSingleton<MeadowOutbox>();
 builder.Services.AddSingleton<MeadowOfflineHandler>();
 builder.Services.AddSingleton<OutboxProcessor>();
@@ -229,6 +234,12 @@ host.Services.GetRequiredService<MeadowDataChanges>();
 // ohne erstes Changed sichtbar werden.
 host.Services.GetRequiredService<MeadowNoticeState>()
     .AddProvider(host.Services.GetRequiredService<BandageReminderNoticeProvider>());
+
+// Dieselbe Ueberlegung fuer die Behandlungsplan-Hinweise: eine heute faellige
+// Gabe soll gemeldet werden, ohne dass der Provider erst durch ein Injizieren
+// entsteht.
+host.Services.GetRequiredService<MeadowNoticeState>()
+    .AddProvider(host.Services.GetRequiredService<TreatmentPlanNoticeProvider>());
 
 await host.Services.GetRequiredService<OutboxProcessor>().InitializeAsync();
 
