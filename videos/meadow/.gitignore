@@ -1,0 +1,3 @@
+# HyperFrames-Caches: werden bei jeder Vorschau neu erzeugt
+.thumbnails/
+.hyperframes/preview/
