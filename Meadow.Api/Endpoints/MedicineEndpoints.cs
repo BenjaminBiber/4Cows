@@ -44,6 +44,12 @@ public static class MedicineEndpoints
         // Insert aufs Neue stimmen muesste.
         api.MapPost("/medicines", async (Medicine medicine, IMedicineService svc) =>
         {
+            var planError = TreatmentPlanDefinition.Validate(medicine.PlanDoseCount, medicine.PlanMode, medicine.PlanDays);
+            if (planError is not null)
+            {
+                return EndpointCommon.Invalid("plan", planError);
+            }
+
             var ok = await svc.InsertDataAsync(medicine);
             return ok
                 ? Results.Created($"/api/medicines/{medicine.MedicineId}", medicine)
@@ -80,6 +86,12 @@ public static class MedicineEndpoints
             if (!await EndpointCommon.ExistsAsync(() => svc.Medicines, medicineId, svc.GetAllDataAsync))
             {
                 return EndpointCommon.NotFound("Medikament", medicineId);
+            }
+
+            var planError = TreatmentPlanDefinition.Validate(medicine.PlanDoseCount, medicine.PlanMode, medicine.PlanDays);
+            if (planError is not null)
+            {
+                return EndpointCommon.Invalid("plan", planError);
             }
 
             // Die Route bestimmt, welche Zeile geschrieben wird. Ein Rumpf mit

@@ -290,6 +290,22 @@ namespace Meadow.Data.Migrations
                         .HasColumnType("varchar(190)")
                         .HasColumnName("Medicine_Name");
 
+                    b.Property<int?>("PlanDays")
+                        .HasColumnType("int")
+                        .HasColumnName("Plan_Days");
+
+                    b.Property<int?>("PlanDoseCount")
+                        .HasColumnType("int")
+                        .HasColumnName("Plan_Dose_Count");
+
+                    b.Property<int?>("PlanMode")
+                        .HasColumnType("int")
+                        .HasColumnName("Plan_Mode");
+
+                    b.Property<DateTime?>("PlanValidFrom")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("Plan_Valid_From");
+
                     b.HasKey("MedicineId");
 
                     b.ToTable("Medicine");
