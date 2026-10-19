@@ -95,12 +95,30 @@ public sealed class MeadowDialogLauncher
     // AdministrationDate bleibt default, woraus der Dialog DateTime.Now macht.
     // Dasselbe Muster nutzt Planned_Cow_Table.Complete bereits.
 
-    public Task OpenCowTreatmentAsync(string cowId)
+    /// <summary>
+    /// Mit <paramref name="medicineId"/> auch das Medikament vorbelegt - so
+    /// oeffnet die Lasche "Plaene" die naechste Gabe eines Durchlaufs. Der
+    /// Dialog setzt daraus die erste Medikamentzeile; eine unbekannte ID
+    /// laesst er leer (siehe Add_Cow_Treatment_Dialog.OnInitialized).
+    /// Der optionale Parameter stoert hier niemanden: anders als die vier
+    /// parameterlosen Methoden oben haengt diese Ueberladung an keiner
+    /// Methodengruppe.
+    /// </summary>
+    public Task OpenCowTreatmentAsync(string cowId, int? medicineId = null)
         => ShowAndNotifyAsync<Add_Cow_Treatment_Dialog>(
             MeadowDataKind.CowTreatment,
             new DialogParameters<Add_Cow_Treatment_Dialog>
             {
-                { x => x.Cow_Treatment, new CowTreatment { EarTagNumber = cowId } }
+                {
+                    x => x.Cow_Treatment,
+                    new CowTreatment
+                    {
+                        EarTagNumber = cowId,
+                        // 0 ist derselbe Wert, den der parameterlose
+                        // Konstruktor setzt - ohne Angabe bleibt der Dialog leer.
+                        MedicineId = medicineId ?? 0
+                    }
+                }
             });
 
     public Task OpenPlannedCowTreatmentAsync(string cowId)

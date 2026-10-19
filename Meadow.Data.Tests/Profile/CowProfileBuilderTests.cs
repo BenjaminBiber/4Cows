@@ -391,4 +391,60 @@ public class CowProfileBuilderTests
         Assert.Empty(profile.PlannedCowTreatments);
         Assert.Empty(profile.PlannedClawTreatments);
     }
+
+    // ---- Treatment plans ------------------------------------------------
+
+    [Fact]
+    public void TreatmentPlans_contains_only_runs_of_this_cow()
+    {
+        var profile = Build(
+            cow: new[] { Treatment(date: Today.AddDays(-2)), Treatment(date: Today.AddDays(-2), cowId: Other) },
+            medicines: Meds(Med()),
+            cancellations: Array.Empty<TreatmentPlanCancellation>());
+
+        var run = Assert.Single(profile.TreatmentPlans);
+        Assert.Equal(Mine, run.CowId);
+        Assert.Equal(1, profile.ActivePlans);
+    }
+
+    [Fact]
+    public void TreatmentPlans_is_empty_without_medicines()
+    {
+        var profile = Build(cow: new[] { Treatment() });
+
+        Assert.Empty(profile.TreatmentPlans);
+        Assert.Equal(0, profile.ActivePlans);
+    }
+
+    [Fact]
+    public void TreatmentPlans_lists_active_runs_first()
+    {
+        // Ein abgeschlossener Durchlauf von frueher und ein laufender von heute: ForCow sorts
+        // active runs to the top no matter which one started later.
+        var done = new[] { Treatment(date: Today.AddDays(-40), id: 1), Treatment(date: Today.AddDays(-35), id: 2), Treatment(date: Today.AddDays(-30), id: 3) };
+        var running = new[] { Treatment(date: Today.AddDays(-2), id: 4) };
+
+        var profile = Build(cow: done.Concat(running), medicines: Meds(Med()));
+
+        Assert.Equal(2, profile.TreatmentPlans.Count);
+        Assert.True(profile.TreatmentPlans[0].IsActive);
+        Assert.Equal(TreatmentPlanRunStatus.Completed, profile.TreatmentPlans[1].Status);
+        Assert.Equal(1, profile.ActivePlans);
+    }
+
+    [Fact]
+    public void A_cancelled_run_is_not_counted_as_active()
+    {
+        var dose = Treatment(date: Today.AddDays(-2));
+
+        var profile = Build(
+            cow: new[] { dose },
+            medicines: Meds(Med()),
+            cancellations: new[] { Cancellation(dose, reason: "Kuh reagiert nicht") });
+
+        var run = Assert.Single(profile.TreatmentPlans);
+        Assert.Equal(TreatmentPlanRunStatus.Cancelled, run.Status);
+        Assert.Equal("Kuh reagiert nicht", run.Cancellation?.Reason);
+        Assert.Equal(0, profile.ActivePlans);
+    }
 }

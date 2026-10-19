@@ -2,13 +2,14 @@ using Meadow.Shared.Models;
 
 namespace Meadow.Client.Components.Ui;
 
-/// <summary>Die fuenf Laschen der Kuh-Seite, in Anzeigereihenfolge.</summary>
+/// <summary>Die sechs Laschen der Kuh-Seite, in Anzeigereihenfolge.</summary>
 public enum CowDetailTab
 {
     CowTreatments,
     ClawTreatments,
     PlannedCow,
     PlannedClaw,
+    TreatmentPlans,
     Bandages
 }
 
@@ -29,6 +30,7 @@ public static class CowDetailTabs
         CowDetailTab.ClawTreatments,
         CowDetailTab.PlannedCow,
         CowDetailTab.PlannedClaw,
+        CowDetailTab.TreatmentPlans,
         CowDetailTab.Bandages
     };
 
@@ -38,6 +40,7 @@ public static class CowDetailTabs
         CowDetailTab.ClawTreatments => "Klauen",
         CowDetailTab.PlannedCow => "Gepl. Kuh",
         CowDetailTab.PlannedClaw => "Gepl. Klauen",
+        CowDetailTab.TreatmentPlans => "Pläne",
         _ => "Verbände"
     };
 
@@ -47,6 +50,7 @@ public static class CowDetailTabs
         CowDetailTab.ClawTreatments => "klauen",
         CowDetailTab.PlannedCow => "geplant-kuh",
         CowDetailTab.PlannedClaw => "geplant-klauen",
+        CowDetailTab.TreatmentPlans => "plaene",
         CowDetailTab.Bandages => "verbaende",
         _ => "kuh"
     };
@@ -57,6 +61,7 @@ public static class CowDetailTabs
         "klauen" => CowDetailTab.ClawTreatments,
         "geplant-kuh" => CowDetailTab.PlannedCow,
         "geplant-klauen" => CowDetailTab.PlannedClaw,
+        "plaene" => CowDetailTab.TreatmentPlans,
         "verbaende" => CowDetailTab.Bandages,
         _ => CowDetailTab.CowTreatments
     };

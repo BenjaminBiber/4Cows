@@ -1,7 +1,8 @@
 @using Meadow.Client.Components.Ui
 @using Meadow.Shared.Profile
+@using Meadow.Shared.Kpi
 @*
-    Die sechs Kacheln der Kuh-Seite.
+    Die sieben Kacheln der Kuh-Seite.
 
     Verlinkt ist nur, was sich hinter einem Link auch wirklich wiederfindet.
     Die ersten beiden addieren Kuh- UND Klauenbehandlungen; keine Tabelle
@@ -44,6 +45,16 @@
                    Value="@Profile.OpenPlanned.ToString("N0")"
                    Href="@TabHref(CowDetailTab.PlannedCow)"
                    Hint="@($"{Profile.PlannedCowTreatments.Count} Kuh · {Profile.PlannedClawTreatments.Count} Klaue")" />
+
+    @* Die dritte handlungsrelevante Zahl. Die Ampel steht auf Warnung,
+       sobald eine Gabe faellig oder ueberfaellig ist - nicht schon, wenn
+       ueberhaupt ein Plan laeuft: ein Plan, bei dem gerade nichts zu tun
+       ist, ist keine offene Aufgabe. *@
+    <MeadowKpiTile Title="Laufende Pläne"
+                   Value="@Profile.ActivePlans.ToString("N0")"
+                   Status="@PlanStatus"
+                   Href="@TabHref(CowDetailTab.TreatmentPlans)"
+                   Hint="@PlanHint" />
 </div>
 
 @code {
@@ -88,6 +99,15 @@
             ? ""
             : $"{MeadowRoutes.ClawTreatments}?cow={Uri.EscapeDataString(Collar)}"
               + $"&clawFinding={Uri.EscapeDataString(TopFinding)}";
+
+    /// <summary>Nur was heute oder frueher faellig war, faerbt die Kachel.</summary>
+    private int DuePlans => Profile.TreatmentPlans.Count(p => p.IsDue);
+
+    private KpiStatus PlanStatus => DuePlans > 0 ? KpiStatus.Warning : KpiStatus.None;
+
+    private string PlanHint => DuePlans > 0
+        ? $"{DuePlans} Gabe(n) fällig"
+        : Profile.ActivePlans > 0 ? "Keine Gabe fällig" : "Kein Behandlungsplan läuft";
 
     private string TabHref(CowDetailTab tab)
         => $"{MeadowRoutes.CowDetailFor(Profile.CowId)}?tab={CowDetailTabs.ToSlug(tab)}";

@@ -34,7 +34,9 @@ public static class CowProfileBuilder
         IEnumerable<PlannedCowTreatment> allPlannedCow,
         IEnumerable<PlannedClawTreatment> allPlannedClaw,
         IReadOnlyDictionary<int, Udder> udders,
-        DateTime today)
+        DateTime today,
+        IReadOnlyDictionary<int, Medicine>? medicines = null,
+        IEnumerable<TreatmentPlanCancellation>? cancellations = null)
     {
         // Ordinal und nicht OrdinalIgnoreCase: die Cow_ID ist ein
         // Primaerschluessel, kein Anzeigetext. Und Gleichheit, nicht StartsWith
@@ -60,6 +62,18 @@ public static class CowProfileBuilder
             .Where(t => Mine(t.EarTagNumber))
             .OrderBy(t => t.TreatmentDate)
             .ToList();
+
+        // Nur die eigenen Behandlungen reichen: Durchlaeufe sind je Kuh
+        // unabhaengig. Ohne Medikamente gibt es keine Plan-Definition und damit
+        // nichts zu rechnen - ein Aufrufer, der die Lasche gar nicht zeigt,
+        // muss den Medikament-Cache also nicht durchreichen.
+        var plans = medicines is null
+            ? Array.Empty<TreatmentPlanRun>()
+            : TreatmentPlanRuns.ForCow(
+                TreatmentPlanRuns.Build(
+                    cowTreatments, medicines,
+                    cancellations ?? Array.Empty<TreatmentPlanCancellation>(), today),
+                cowId);
 
         var (last12, previous12, delta, trend) = Windows(cowTreatments, clawTreatments, today);
         var quarters = UdderQuarters(cowTreatments, udders, out var udderTreatments);
@@ -89,7 +103,9 @@ public static class CowProfileBuilder
             // IsTreatet ist inzwischen ebenfalls vestigial (auch
             // Planned_Cow_Table.Complete loescht), bleibt aber als Schutz
             // gegen Altbestand stehen.
-            OpenPlanned = plannedCow.Count(p => !p.IsTreatet) + plannedClaw.Count
+            OpenPlanned = plannedCow.Count(p => !p.IsTreatet) + plannedClaw.Count,
+            TreatmentPlans = plans,
+            ActivePlans = plans.Count(p => p.IsActive)
         };
     }
 
