@@ -47,6 +47,20 @@ public static class DemoDataSeeder
     };
 
     /// <summary>
+    /// Praeparate mit Behandlungsplan fuer die Demo (MDW-0009). Getrennt von
+    /// <see cref="MedicineSeeds"/>, damit dessen Eintraege ohne Plan nicht drei
+    /// zusaetzliche, fuer sie bedeutungslose Spalten brauchen.
+    /// </summary>
+    private static readonly (string Name, string Unit, string Route, TreatmentPlanMode Mode, int Doses, int Days)[]
+        PlanMedicineSeeds =
+        {
+            ("Synulox RTU", "ml", "i.m.", TreatmentPlanMode.Interval, 3, 2),
+            ("Metacam 20 mg/ml", "ml", "s.c.", TreatmentPlanMode.Window, 3, 3)
+        };
+
+    private static readonly string[] PlanMedicineNames = PlanMedicineSeeds.Select(m => m.Name).ToArray();
+
+    /// <summary>
     /// Wie/Wo. "IZ" (intrazitzenal) ist der einzige Wert, den das Projekt
     /// historisch kennt - das V2-V3-Transferskript legt ihn mit
     /// ShowDialog = TRUE an, weil dabei ein Euterviertel gewaehlt wird.
@@ -89,6 +103,8 @@ public static class DemoDataSeeder
 
     public static async Task SeedAsync(DatabaseContext context)
     {
+        var today = DateTime.Today;
+
         // Reihenfolge zaehlt: die Behandlungen brauchen die IDs der drei
         // Nachschlagetabellen.
         var udders = await EnsureUddersAsync(context);
@@ -96,12 +112,12 @@ public static class DemoDataSeeder
         // Default_WhereHow_ID auf eine "Wie / Wo"-Zeile, die es dafuer schon
         // geben muss.
         var whereHows = await EnsureWhereHowsAsync(context);
-        var medicineIds = await EnsureMedicinesAsync(context, whereHows);
+        var medicinesByName = await EnsureMedicinesAsync(context, whereHows, today);
         var reasonIds = await EnsureTreatmentReasonsAsync(context);
         var findingIds = await EnsureClawFindingsAsync(context);
 
         await SeedHerdAndTreatmentsAsync(
-            context, udders, medicineIds, whereHows, reasonIds, findingIds);
+            context, udders, medicinesByName, whereHows, reasonIds, findingIds, today);
     }
 
     // ---- Nachschlagetabellen -------------------------------------------
@@ -164,25 +180,40 @@ public static class DemoDataSeeder
     /// Medicine.Default_WhereHow_ID auf eine davon zeigt - deshalb wird
     /// <see cref="EnsureWhereHowsAsync"/> vorher aufgerufen.
     /// </summary>
-    private static async Task<List<int>> EnsureMedicinesAsync(
-        DatabaseContext context, List<WhereHow> whereHows)
+    private static async Task<Dictionary<string, int>> EnsureMedicinesAsync(
+        DatabaseContext context, List<WhereHow> whereHows, DateTime today)
     {
         if (!await context.Medicines.AnyAsync())
         {
             var routeIds = whereHows.ToDictionary(
                 w => w.WhereHowName.Trim(), w => w.WhereHowId, StringComparer.OrdinalIgnoreCase);
 
-            await context.Medicines.AddRangeAsync(MedicineSeeds.Select(m => new Medicine(0, m.Name)
+            var plain = MedicineSeeds.Select(m => new Medicine(0, m.Name)
             {
                 DosageUnit = m.Unit,
                 DefaultWhereHowId = routeIds.TryGetValue(m.Route, out var id) ? id : null
-            }));
+            });
+
+            // Plan_Valid_From = heute - 30: die Plan-Doku (ResolveValidFrom)
+            // setzt diesen Stichtag sonst nur ueber den Server beim
+            // Anlegen/Bearbeiten - der Seeder legt ihn direkt an, damit die
+            // Demo-Durchlaeufe ab Tag 1 entstehen.
+            var withPlan = PlanMedicineSeeds.Select(m => new Medicine(0, m.Name)
+            {
+                DosageUnit = m.Unit,
+                DefaultWhereHowId = routeIds.TryGetValue(m.Route, out var id) ? id : null,
+                PlanDoseCount = m.Doses,
+                PlanMode = m.Mode,
+                PlanDays = m.Days,
+                PlanValidFrom = today.AddDays(-30)
+            });
+
+            await context.Medicines.AddRangeAsync(plain.Concat(withPlan));
             await context.SaveChangesAsync();
         }
 
         return await context.Medicines.AsNoTracking()
-            .Select(m => m.MedicineId)
-            .ToListAsync();
+            .ToDictionaryAsync(m => m.MedicineName, m => m.MedicineId);
     }
 
     private static async Task<List<WhereHow>> EnsureWhereHowsAsync(DatabaseContext context)
@@ -230,10 +261,11 @@ public static class DemoDataSeeder
     private static async Task SeedHerdAndTreatmentsAsync(
         DatabaseContext context,
         IReadOnlyDictionary<(bool, bool, bool, bool), int> udders,
-        IReadOnlyList<int> medicineIds,
+        IReadOnlyDictionary<string, int> medicinesByName,
         IReadOnlyList<WhereHow> whereHows,
         IReadOnlyList<int> reasonIds,
-        IReadOnlyList<int> findingIds)
+        IReadOnlyList<int> findingIds,
+        DateTime today)
     {
         if (await context.Cows.AnyAsync())
         {
@@ -241,7 +273,6 @@ public static class DemoDataSeeder
         }
 
         var random = new Random(Seed);
-        var today = DateTime.Today;
 
         var cows = BuildHerd(random);
         await context.Cows.AddRangeAsync(cows);
@@ -255,17 +286,31 @@ public static class DemoDataSeeder
             .Select(c => c.CowId)
             .ToList();
 
-        await context.CowTreatments.AddRangeAsync(
-            BuildCowTreatments(random, today, active, medicineIds, whereHows, udders, reasonIds));
+        // Die beiden Plan-Praeparate bleiben aus dem allgemeinen Zufallstopf
+        // draussen: sonst koennten die 14 Monate Zufallsbehandlungen
+        // zusaetzliche, unkontrollierte Durchlaeufe im 30-Tage-Fenster von
+        // Plan_Valid_From erzeugen und die feste Demo-Szenerie verwaessern.
+        var generalMedicineIds = medicinesByName
+            .Where(kv => !PlanMedicineNames.Contains(kv.Key))
+            .Select(kv => kv.Value)
+            .ToList();
+
+        var cowTreatments = BuildCowTreatments(random, today, active, generalMedicineIds, whereHows, udders, reasonIds);
+        var (planTreatments, planCancellations) = BuildTreatmentPlanDemoCases(today, medicinesByName, whereHows, udders);
+        cowTreatments.AddRange(planTreatments);
+
+        await context.CowTreatments.AddRangeAsync(cowTreatments);
 
         await context.ClawTreatments.AddRangeAsync(
             BuildClawTreatments(random, today, active, findingIds));
 
         await context.PlannedCowTreatments.AddRangeAsync(
-            BuildPlannedCowTreatments(random, today, active, medicineIds, whereHows, udders, reasonIds));
+            BuildPlannedCowTreatments(random, today, active, generalMedicineIds, whereHows, udders, reasonIds));
 
         await context.PlannedClawTreatments.AddRangeAsync(
             BuildPlannedClawTreatments(random, today, active));
+
+        await context.TreatmentPlanCancellations.AddRangeAsync(planCancellations);
 
         await context.SaveChangesAsync();
     }
@@ -285,8 +330,7 @@ public static class DemoDataSeeder
 
         for (var i = 1; i <= 37; i++)
         {
-            var earTag = $"{EarTagPrefix}{1000 + i * 7:0000}";
-            cows.Add(new Cow(earTag, collar, isGone: i > 34));
+            cows.Add(new Cow(EarTag(i), collar, isGone: i > 34));
             collar += 1 + random.Next(2);
         }
 
@@ -512,6 +556,61 @@ public static class DemoDataSeeder
 
         return planned;
     }
+
+    /// <summary>
+    /// Behandlungsplan-Demofaelle (MDW-0009): sechs feste Kuehe, deren
+    /// Durchlaeufe nach dem Seed je einen der fuenf Status zeigen -
+    /// ueberfaellig, heute faellig (einmal Interval, einmal Window),
+    /// anstehend, abgeschlossen, abgebrochen. Feste Kuehe und Daten statt
+    /// Zufall: die Abnahme-Checkliste in MDW-0009 verlaesst sich auf genau
+    /// diese Werte.
+    /// </summary>
+    private static (List<CowTreatment> Treatments, List<TreatmentPlanCancellation> Cancellations)
+        BuildTreatmentPlanDemoCases(
+            DateTime today,
+            IReadOnlyDictionary<string, int> medicineIdsByName,
+            IReadOnlyList<WhereHow> whereHows,
+            IReadOnlyDictionary<(bool, bool, bool, bool), int> udders)
+    {
+        var synuloxId = medicineIdsByName["Synulox RTU"];
+        var metacamId = medicineIdsByName["Metacam 20 mg/ml"];
+        var whereHowId = whereHows.First(w => w.WhereHowName == "s.c.").WhereHowId;
+        var noQuarter = udders[(false, false, false, false)];
+
+        CowTreatment Dose(int cow, int medicineId, DateTime date)
+            => new(0, EarTag(cow), medicineId, date, 10f, whereHowId, noQuarter);
+
+        var treatments = new List<CowTreatment>
+        {
+            Dose(1, synuloxId, today.AddDays(-4)),  // Kuh A: ueberfaellig
+            Dose(2, synuloxId, today.AddDays(-2)),  // Kuh B: heute faellig
+            Dose(3, metacamId, today.AddDays(-1)),  // Kuh C: heute faellig (Window)
+            Dose(4, synuloxId, today.AddDays(-1)),  // Kuh D: anstehend
+            Dose(5, synuloxId, today.AddDays(-10)), // Kuh E: abgeschlossen (3/3)
+            Dose(5, synuloxId, today.AddDays(-8)),
+            Dose(5, synuloxId, today.AddDays(-6))
+        };
+
+        var cancelledFirstDose = Dose(6, synuloxId, today.AddDays(-3)); // Kuh F: abgebrochen
+        treatments.Add(cancelledFirstDose);
+
+        var cancellations = new List<TreatmentPlanCancellation>
+        {
+            new()
+            {
+                CowId = EarTag(6),
+                MedicineId = synuloxId,
+                StartTreatmentClientId = cancelledFirstDose.ClientId,
+                CancelledOn = today.AddDays(-2),
+                Reason = "Demo-Abbruch"
+            }
+        };
+
+        return (treatments, cancellations);
+    }
+
+    /// <summary>Ohrmarke der i-ten Demo-Kuh, wie in <see cref="BuildHerd"/> vergeben.</summary>
+    private static string EarTag(int i) => $"{EarTagPrefix}{1000 + i * 7:0000}";
 
     // ---- Hilfsfunktionen ------------------------------------------------
 
