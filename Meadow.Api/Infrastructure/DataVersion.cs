@@ -5,7 +5,13 @@ public enum DataScope
 {
     Cows, Medicines, WhereHows, TreatmentReasons, ClawFindings, Udders,
     CowTreatments, ClawTreatments, PlannedCowTreatments, PlannedClawTreatments,
-    Settings, Kpis
+    Settings, Kpis,
+
+    // Die abgebrochenen Behandlungsplan-Durchlaeufe. Ans ENDE und nicht
+    // irgendwo dazwischen: die Scopes wandern als Namen in die Antwort, der
+    // Zaehler steht aber auf dem Enum-Wert - eine Einfuegung in der Mitte
+    // verschoebe die Zaehler aller nachfolgenden Tabellen.
+    TreatmentPlans
 }
 
 public interface IDataVersion

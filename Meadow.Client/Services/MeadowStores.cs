@@ -44,6 +44,13 @@ public static class MeadowStores
     public const string PlannedCowTreatment = "plannedCowTreatment";
     public const string PlannedClawTreatment = "plannedClawTreatment";
 
+    /// <summary>
+    /// Die abgebrochenen Behandlungsplan-Durchlaeufe. Nur LESEN: geschrieben
+    /// wird ausschliesslich online, deshalb steht die Tabelle auch nicht in
+    /// <see cref="MeadowEntityType"/> und hat keine Outbox.
+    /// </summary>
+    public const string TreatmentPlanCancellation = "treatmentPlanCancellation";
+
     /// <summary>Zuletzt gesehener X-Data-Version-Kopf.</summary>
     public const string MetaDataVersion = "dataVersion";
 
@@ -54,7 +61,7 @@ public static class MeadowStores
     public const string MetaLastSyncUtc = "lastSyncUtc";
 
     /// <summary>
-    /// Die zwoelf Tabellen-GETs, deren Antwort gespiegelt wird. Schluessel ist
+    /// Die dreizehn Tabellen-GETs, deren Antwort gespiegelt wird. Schluessel ist
     /// der Pfad hinter /api/, damit ein Unterverzeichnis im Hosting nichts
     /// verschiebt.
     ///
@@ -75,7 +82,8 @@ public static class MeadowStores
         ["cow-treatments"] = CowTreatment,
         ["claw-treatments"] = ClawTreatment,
         ["planned-cow-treatments"] = PlannedCowTreatment,
-        ["planned-claw-treatments"] = PlannedClawTreatment
+        ["planned-claw-treatments"] = PlannedClawTreatment,
+        ["treatment-plan-cancellations"] = TreatmentPlanCancellation
     };
 
     /// <summary>

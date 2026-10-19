@@ -22,6 +22,11 @@ public sealed class DatabaseContext : DbContext
     public DbSet<ClawFinding> ClawFindings => Set<ClawFinding>();
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
 
+    // Die manuell abgebrochenen Behandlungsplan-Durchlaeufe. Durchlaeufe selbst
+    // werden nicht gespeichert, sie entstehen beim Rechnen aus den Behandlungen;
+    // der Abbruch ist das Einzige, was sich daraus nicht ableiten laesst.
+    public DbSet<TreatmentPlanCancellation> TreatmentPlanCancellations => Set<TreatmentPlanCancellation>();
+
     // Web-Push-Anmeldungen. Kein Client-Cache der dreizehn Dienste, sondern der
     // serverseitige Kanal fuer server-initiierte Benachrichtigungen (Task 3).
     public DbSet<PushSubscription> PushSubscriptions => Set<PushSubscription>();
@@ -99,5 +104,21 @@ public sealed class DatabaseContext : DbContext
         // Lauf faende ihn nie wieder.
         modelBuilder.Entity<PushReminderLog>()
             .Property(l => l.ClawTreatmentId).ValueGeneratedNever();
+
+        // Ein Durchlauf = hoechstens ein Abbruch. Der Durchlauf haengt an der
+        // ClientId seiner ERSTEN Gabe, und die Eindeutigkeit ist auch hier die
+        // eigentliche Garantie der Idempotenz: ein wiederholtes POST wird zum
+        // No-op, egal wie oft der Nutzer tippt oder die Leitung abreisst. Die
+        // Pruefung im Dienst ist nur der schnelle Weg dorthin.
+        //
+        // ascii statt utf8mb4 aus demselben Grund wie bei den vier
+        // Behandlungstabellen: eine GUID besteht aus Hexziffern und
+        // Bindestrichen.
+        modelBuilder.Entity<TreatmentPlanCancellation>()
+            .Property(c => c.StartTreatmentClientId).HasColumnType("char(36)").HasCharSet("ascii");
+        modelBuilder.Entity<TreatmentPlanCancellation>()
+            .HasIndex(c => c.StartTreatmentClientId)
+            .IsUnique()
+            .HasDatabaseName("IX_Treatment_Plan_Cancellation_Start_Treatment_Client_Id");
     }
 }
