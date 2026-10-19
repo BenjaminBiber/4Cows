@@ -2930,6 +2930,111 @@ a.mw-icon-btn { text-decoration: none; }
   .mw-notices__list { overflow-y: visible; }
 }
 
+/* ============================================================
+   DASHBOARD — Karte "Laufende Behandlungspläne"
+   (MeadowTreatmentPlanCard)
+   ============================================================ */
+
+/* Eigene Zeile zwischen der oberen Reihe und den Diagrammen. Der Abstand
+   sitzt oben, weil .mw-dash-charts seinen eigenen margin-top schon
+   mitbringt - sonst stuenden hier zwei Abstaende uebereinander. */
+.mw-plans {
+  margin-top: 20px;
+}
+
+.mw-plans__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+/* Die Anzahl als ruhiger Zaehler neben dem Titel - keine Signalfarbe:
+   dass etwas ueberfaellig ist, sagt die Zeile selbst. */
+.mw-plans__count {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--mw-soft);
+  color: var(--mw-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.mw-plans__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Vier Spalten: Kuh, Medikament, Gaben, Faelligkeit. Die erste Spalte darf
+   wachsen, bleibt aber lesbar breit; Gaben und Text nehmen nur, was sie
+   brauchen. */
+.mw-plans__row {
+  display: grid;
+  grid-template-columns: minmax(8rem, 1fr) 1fr auto auto;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 8px 10px;
+  border-left: 2px solid transparent;
+  border-radius: var(--mw-r-md, 8px);
+  background: var(--mw-soft);
+  font-size: 13px;
+  color: var(--mw-text);
+}
+
+/* Status als farbige Kante links - dasselbe Modell wie .mw-hint--warn/--crit
+   in der Hinweistafel daneben, damit beide Karten dieselbe Sprache sprechen.
+   Ueberfaellig traegt die Gefahrfarbe, heute faellig die Warnfarbe;
+   anstehend bleibt neutral. */
+.mw-plans__row--overdue { border-left-color: var(--mw-rate-crit); }
+.mw-plans__row--due { border-left-color: var(--mw-rate-warn); }
+
+.mw-plans__cow {
+  color: var(--mw-primary);
+  font-weight: 600;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.mw-plans__cow:hover,
+.mw-plans__cow:focus-visible {
+  text-decoration: underline;
+}
+
+.mw-plans__med {
+  color: var(--mw-muted);
+  overflow-wrap: anywhere;
+}
+
+.mw-plans__doses {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.mw-plans__due {
+  white-space: nowrap;
+  text-align: right;
+}
+
+.mw-plans__row--overdue .mw-plans__due { color: var(--mw-rate-crit); font-weight: 600; }
+.mw-plans__row--due .mw-plans__due { color: var(--mw-rate-warn); font-weight: 600; }
+
+/* Schmal: zweizeilig statt vier Spalten nebeneinander. Vier Spalten
+   passen auf 375px nicht nebeneinander, ohne dass die Seite seitlich
+   scrollt - oben Kuh und Gaben, darunter Medikament und Faelligkeit. */
+@media (max-width: 599.98px) {
+  .mw-plans__row {
+    grid-template-columns: 1fr auto;
+  }
+
+  .mw-plans__med { grid-row: 2; }
+  .mw-plans__doses { grid-row: 1; }
+  .mw-plans__due { grid-row: 2; }
+}
+
 /* Fehlermeldung direkt am Feld. Bisher sammelte der Dialog alles in einer
    Box am Ende des scrollenden Koerpers - also moeglicherweise ausserhalb
    des Sichtbereichs, wenn man gerade oben steht. */
