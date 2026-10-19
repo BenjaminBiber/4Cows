@@ -67,4 +67,17 @@ public class PushReminderDedupTests
 
         Assert.True(PushLogic.ShouldSendReminderToday(sentLongAgo, Today));
     }
+
+    [Fact]
+    public void Daily_summary_is_sent_once_per_day_keyed_by_date()
+    {
+        // Die Sammel-Push der Behandlungsplaene nutzt dieselbe Regel, nur mit
+        // dem Tagesdatum als Schluessel statt der Behandlungs-ID: ein Merker je
+        // Tag, kein zweiter Versand am selben Tag, am naechsten Tag wieder.
+        var today = new DateTime(2026, 6, 15, 7, 0, 0);
+
+        Assert.True(PushLogic.ShouldSendReminderToday(null, today));
+        Assert.False(PushLogic.ShouldSendReminderToday(today.Date, today.AddHours(10)));
+        Assert.True(PushLogic.ShouldSendReminderToday(today.Date.AddDays(-1), today));
+    }
 }

@@ -36,6 +36,10 @@ public sealed class DatabaseContext : DbContext
     // serverseitig, kein Client laedt ihn - wie PushSubscription.
     public DbSet<PushReminderLog> PushReminderLogs => Set<PushReminderLog>();
 
+    // Der Entdopplungs-Merker der taeglichen Behandlungsplan-Sammel-Push: je
+    // Tag hoechstens eine Zeile. Rein serverseitig wie PushReminderLog.
+    public DbSet<TreatmentPlanPushLog> TreatmentPlanPushLogs => Set<TreatmentPlanPushLog>();
+
     // Der Unique-Index auf Cow.Ear_Tag_Number. Er stand als [Index]-Attribut am Modell,
     // aber Meadow.Shared soll paketfrei bleiben (der WebAssembly-Client laedt es mit),
     // und das Attribut kommt aus Microsoft.EntityFrameworkCore.
@@ -120,5 +124,13 @@ public sealed class DatabaseContext : DbContext
             .HasIndex(c => c.StartTreatmentClientId)
             .IsUnique()
             .HasDatabaseName("IX_Treatment_Plan_Cancellation_Start_Treatment_Client_Id");
+
+        // Ein Tag, hoechstens eine Sammel-Push. Der Index ist der harte Riegel
+        // hinter der Regel in PushLogic.ShouldSendReminderToday: wollten zwei
+        // Instanzen gleichzeitig senden, scheitert die zweite beim Insert.
+        modelBuilder.Entity<TreatmentPlanPushLog>()
+            .HasIndex(l => l.SentOn)
+            .IsUnique()
+            .HasDatabaseName("IX_Treatment_Plan_Push_Log_Sent_On");
     }
 }
