@@ -14,7 +14,10 @@
     'use strict';
 
     var DB_NAME = 'meadow';
-    var DB_VERSION = 1;
+    // 2: Store 'treatmentPlanCancellation' dazugekommen. Die Version MUSS mit
+    // jedem neuen Store steigen - onupgradeneeded laeuft sonst nie wieder, und
+    // ein Browser mit bestehender Datenbank faende den Store nicht.
+    var DB_VERSION = 2;
 
     // Ein Store je Tabelle, plus outbox und meta.
     //
@@ -42,6 +45,11 @@
         { name: 'udder', keyPath: 'udderId' },
         { name: 'appSetting', keyPath: 'key' },
         { name: 'kpi', keyPath: 'kpiId' },
+
+        // Nur-Lese-Spiegel: Abbrueche werden ausschliesslich online
+        // geschrieben, hier wartet also nie eine Zeile. Schluessel wie bei den
+        // Basisdaten die Server-Id.
+        { name: 'treatmentPlanCancellation', keyPath: 'treatmentPlanCancellationId' },
 
         { name: 'cowTreatment', keyPath: 'clientId', index: ['byServerId', 'cowTreatmentId'] },
         { name: 'clawTreatment', keyPath: 'clientId', index: ['byServerId', 'clawTreatmentId'] },

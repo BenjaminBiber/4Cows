@@ -487,6 +487,48 @@ namespace Meadow.Data.Migrations
                     b.ToTable("PushSubscription");
                 });
 
+            modelBuilder.Entity("Meadow.Shared.Models.TreatmentPlanCancellation", b =>
+                {
+                    b.Property<int>("TreatmentPlanCancellationId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Treatment_Plan_Cancellation_ID");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("TreatmentPlanCancellationId"));
+
+                    b.Property<DateTime>("CancelledOn")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("Cancelled_On");
+
+                    b.Property<string>("CowId")
+                        .IsRequired()
+                        .HasColumnType("longtext")
+                        .HasColumnName("Cow_ID");
+
+                    b.Property<int>("MedicineId")
+                        .HasColumnType("int")
+                        .HasColumnName("Medicine_ID");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(190)
+                        .HasColumnType("varchar(190)")
+                        .HasColumnName("Reason");
+
+                    b.Property<Guid>("StartTreatmentClientId")
+                        .HasColumnType("char(36)")
+                        .HasColumnName("Start_Treatment_Client_Id");
+
+                    MySqlPropertyBuilderExtensions.HasCharSet(b.Property<Guid>("StartTreatmentClientId"), "ascii");
+
+                    b.HasKey("TreatmentPlanCancellationId");
+
+                    b.HasIndex("StartTreatmentClientId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Treatment_Plan_Cancellation_Start_Treatment_Client_Id");
+
+                    b.ToTable("Treatment_Plan_Cancellation");
+                });
+
             modelBuilder.Entity("Meadow.Shared.Models.TreatmentReason", b =>
                 {
                     b.Property<int>("TreatmentReasonId")

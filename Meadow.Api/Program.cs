@@ -89,6 +89,9 @@ builder.Services.AddSingleton<IWhereHowService, WhereHowService>();
 builder.Services.AddSingleton<ITreatmentReasonService, TreatmentReasonService>();
 builder.Services.AddSingleton<IClawFindingService, ClawFindingService>();
 builder.Services.AddSingleton<IUdderService, UdderService>();
+// Die abgebrochenen Behandlungsplan-Durchlaeufe. Singleton wie die uebrigen
+// Dienste, aus demselben Grund: der Cache ist prozessweit.
+builder.Services.AddSingleton<ITreatmentPlanCancellationService, TreatmentPlanCancellationService>();
 // Projects KPI rows out of the caches of the eight services above; KPIService depends on it.
 // Deliberately holds no cache of its own - see the comment on the class.
 builder.Services.AddSingleton<KpiRowProvider>();
@@ -185,6 +188,7 @@ api.MapCowEndpoints();
 api.MapMedicineEndpoints();
 api.MapWhereHowEndpoints();
 api.MapTreatmentReasonEndpoints();
+api.MapTreatmentPlanCancellationEndpoints();
 api.MapClawFindingEndpoints();
 api.MapUdderEndpoints();
 api.MapCowTreatmentEndpoints();

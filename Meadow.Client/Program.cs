@@ -162,6 +162,16 @@ builder.Services.AddSingleton<ISettingsService, HttpSettingsService>();
 builder.Services.AddSingleton<IKPIService, HttpKPIService>();
 builder.Services.AddSingleton<IXLinkService, HttpXLinkService>();
 
+// Die Abbrueche. Zweimal registriert, aber nur EINE Instanz: die Seiten
+// nehmen die Schnittstelle, die Hinweis-Provider brauchen die Klasse, weil
+// das Changed-Ereignis dort haengt. Ueber GetRequiredService und nicht als
+// zweite Registrierung - sonst legte der Container ein zweites Exemplar mit
+// eigenem Cache an, und das Ereignis feuerte in einem Dienst, den keine Seite
+// je zu sehen bekommt (dieselbe Falle wie bei den vier IMeadowSyncTarget).
+builder.Services.AddSingleton<HttpTreatmentPlanCancellationService>();
+builder.Services.AddSingleton<ITreatmentPlanCancellationService>(
+    sp => sp.GetRequiredService<HttpTreatmentPlanCancellationService>());
+
 // Dieselben vier Instanzen noch einmal, unter der Naht, an der der
 // OutboxProcessor sie erreicht. Ueber GetRequiredService und nicht als zweite
 // Registrierung: sonst legte der Container ein ZWEITES Exemplar an, und das
