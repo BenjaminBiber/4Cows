@@ -3654,23 +3654,28 @@ button.mw-nav-item {
 
 
 /* ── KPI-Reihe ────────────────────────────────────────────────── */
-/* Sechs Kacheln, und sie sollen so flach sein wie moeglich: der Platz, den
+/* Sieben Kacheln, und sie sollen so flach sein wie moeglich: der Platz, den
    sie hier hergeben, geht unten an die Tabelle.
 
-   Feste Spaltenzahl statt auto-fit: sechs geht in sechs, drei UND zwei
-   glatt auf, ein Waisenkind in der letzten Reihe kann gar nicht entstehen.
-   Bei auto-fit mit minmax(210px) faellt ein 1280px-Laptop auf 5+1. */
+   Feste Spaltenzahl statt auto-fit: bei auto-fit mit minmax(210px) faellt
+   ein 1280px-Laptop auf 5+2. Sieben ist eine Primzahl - eine Aufteilung
+   ganz ohne Luecke gibt es nur in EINER Reihe, und die passt erst ab
+   1600px. Darunter bleibt die Luecke am Ende der letzten Reihe. */
 .mw-kpi-grid--cow {
   grid-template-columns: repeat(3, 1fr);
   gap: 10px;
 }
-/* Ab hier eine einzige Reihe: sechs Kacheln nebeneinander sind halb so hoch
-   wie zwei Reihen mit drei, und der gewonnene Platz geht an die Tabelle.
-   Darunter wird es zu eng - "Häufigster Klauenbefund" braucht in einer
-   160px-Kachel schon zwei Zeilen fuer die Ueberschrift allein, und damit
-   ist der Gewinn wieder weg. */
+/* 4+3 statt 3+3+1: zwei Reihen sind flacher als drei, und die einzelne
+   Kachel am Ende sah aus wie vergessen. */
 @media (min-width: 1280px) {
-  .mw-kpi-grid--cow { grid-template-columns: repeat(6, 1fr); }
+  .mw-kpi-grid--cow { grid-template-columns: repeat(4, 1fr); }
+}
+/* Eine einzige Reihe. Erst hier und nicht schon bei 1280px: sieben Kacheln
+   auf 1280px sind je 170px breit, und "Häufigster Klauenbefund" braucht
+   dort schon zwei Zeilen fuer die Ueberschrift allein - damit waere der
+   gewonnene Platz wieder weg. */
+@media (min-width: 1600px) {
+  .mw-kpi-grid--cow { grid-template-columns: repeat(7, 1fr); }
 }
 
 /* Ein Rasterelement hat min-width:auto und reicht damit die Breite seines
@@ -3681,7 +3686,7 @@ button.mw-nav-item {
 
 /* Raster statt Spalte: der Vergleich zum Vorzeitraum steht RECHTS neben der
    Zahl und nicht darunter. Als dritte Zeile machte er die eine Kachel, die
-   ihn hat, 15px hoeher als die anderen fuenf - und weil Rasterzeilen gleich
+   ihn hat, 15px hoeher als die anderen - und weil Rasterzeilen gleich
    hoch sind, die ganze Reihe. */
 .mw-kpi-grid--cow .mw-kpi {
   display: grid;
@@ -4237,3 +4242,39 @@ a.mw-row-card { text-decoration: none; }
   gap: 8px;
   margin-top: 12px;
 }
+
+/* ============================================================
+   BEHANDLUNGSPLAENE   (Lasche "Plaene" der Kuh-Seite)
+
+   Die Karten sind .mw-row-card - dieselbe Karte wie in der
+   Mobilansicht der uebrigen Laschen. Hier stehen nur die drei
+   Teile, die es dort nicht gibt: Trennzeile, Fortschrittsbalken
+   und die zwei Status-Toenungen, die .mw-tag noch nicht kennt.
+   ============================================================ */
+.mw-plan-sep {
+  margin: 18px 0 10px;
+  font-family: var(--mw-font-display);
+  font-weight: 700;
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--mw-muted);
+}
+
+.mw-plan-bar {
+  height: 7px;
+  margin-top: 11px;
+  background: var(--mw-tint);
+  border-radius: var(--mw-r-pill);
+  overflow: hidden;
+}
+.mw-plan-bar__fill {
+  height: 100%;
+  background: var(--mw-primary);
+  border-radius: inherit;
+}
+/* Faellig heisst: der Balken selbst mahnt, nicht nur das Schildchen. */
+.mw-plan-bar__fill.is-due { background: var(--mw-warning); }
+
+.mw-tag--plan-due { background: rgba(var(--mw-warning-rgb), .14); color: var(--mw-warning); }
+.mw-tag--plan-off { background: var(--mw-tint);                   color: var(--mw-muted); }

@@ -136,6 +136,28 @@ internal static class CowProfileTestData
         [9] = new Udder(9, false, false, false, false)   // "kein bestimmtes Viertel"
     };
 
+    /// <summary>Medikament mit Behandlungsplan - ohne Plan entstehen keine Durchlaeufe.</summary>
+    public static Medicine Med(
+        int id = 1,
+        int doses = 3,
+        TreatmentPlanMode mode = TreatmentPlanMode.Interval,
+        int days = 5,
+        DateTime? validFrom = null)
+        => new(id, $"Med{id}") { PlanDoseCount = doses, PlanMode = mode, PlanDays = days, PlanValidFrom = validFrom };
+
+    public static Dictionary<int, Medicine> Meds(params Medicine[] medicines)
+        => medicines.ToDictionary(m => m.MedicineId);
+
+    public static TreatmentPlanCancellation Cancellation(CowTreatment start, DateTime? on = null, string? reason = null)
+        => new()
+        {
+            CowId = start.EarTagNumber,
+            MedicineId = start.MedicineId,
+            StartTreatmentClientId = start.ClientId,
+            CancelledOn = on ?? Today,
+            Reason = reason
+        };
+
     public static CowProfile Build(
         IEnumerable<CowTreatment>? cow = null,
         IEnumerable<ClawTreatment>? claw = null,
@@ -143,7 +165,9 @@ internal static class CowProfileTestData
         IEnumerable<PlannedClawTreatment>? plannedClaw = null,
         IReadOnlyDictionary<int, Udder>? udders = null,
         string cowId = Mine,
-        DateTime? today = null)
+        DateTime? today = null,
+        IReadOnlyDictionary<int, Medicine>? medicines = null,
+        IEnumerable<TreatmentPlanCancellation>? cancellations = null)
         => CowProfileBuilder.Build(
             cowId,
             cow ?? Array.Empty<CowTreatment>(),
@@ -151,5 +175,7 @@ internal static class CowProfileTestData
             plannedCow ?? Array.Empty<PlannedCowTreatment>(),
             plannedClaw ?? Array.Empty<PlannedClawTreatment>(),
             udders ?? Udders(),
-            today ?? Today);
+            today ?? Today,
+            medicines,
+            cancellations);
 }

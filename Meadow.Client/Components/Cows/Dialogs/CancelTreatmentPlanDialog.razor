@@ -1,0 +1,62 @@
+@using Meadow.Client.Components.Ui
+@using Meadow.Shared.Models
+
+@*
+    Abbruch eines Behandlungsplan-Durchlaufs.
+
+    Wie GenericDialog eine reine Rueckfrage, nur mit einem Feld mehr: der
+    Grund steht spaeter in der Karte und erklaert dem naechsten, warum die
+    restlichen Gaben fehlen. Er ist freiwillig - ein Pflichtfeld wuerde beim
+    Abbrechen im Melkstand nur Phantasie erzeugen.
+
+    Ergebnis: Ok(string?) mit dem Grund (null, wenn das Feld leer blieb);
+    Cancel, wenn der Durchlauf weiterlaufen soll.
+*@
+<MeadowDialog Title="Behandlungsplan abbrechen" Size="MeadowDialogSize.Info" OnClose="Cancel">
+    <ChildContent>
+        <div class="mw-hint">
+            Behandlungsplan @MedicineName für @CowLabel abbrechen?
+            Es gibt danach keine Erinnerungen mehr.
+        </div>
+
+        <label class="mw-label" for="mw-plan-cancel-reason">Grund (optional)</label>
+        <div class="mw-field">
+            <MudTextField T="string" InputId="mw-plan-cancel-reason" Variant="Variant.Text"
+                          @bind-Value="_reason"
+                          MaxLength="TreatmentPlanCancellation.ReasonMaxLength"
+                          Placeholder="z. B. Tier reagiert nicht" />
+        </div>
+    </ChildContent>
+    <Footer>
+        <button type="button" class="mw-btn mw-btn--plain mw-btn--wide" @onclick="Cancel">
+            Zurück
+        </button>
+        <button type="button" class="mw-btn mw-btn--danger mw-btn--wide" @onclick="Submit">
+            Plan abbrechen
+        </button>
+    </Footer>
+</MeadowDialog>
+
+@code {
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = default!;
+
+    /// <summary>Angezeigter Medikamentname - der Dialog loest selbst nichts auf.</summary>
+    [Parameter] public string MedicineName { get; set; } = "";
+
+    /// <summary>Wie das Tier im Text heisst (Halsbandnummer oder Cow_ID).</summary>
+    [Parameter] public string CowLabel { get; set; } = "";
+
+    private string? _reason;
+
+    private void Cancel() => MudDialog.Cancel();
+
+    /// <summary>
+    /// Leer heisst null und nicht "": die Spalte Reason ist optional, und ein
+    /// leerer String waere in der Karte ein Grund, der keiner ist.
+    /// </summary>
+    private void Submit()
+    {
+        var reason = _reason?.Trim();
+        MudDialog.Close(DialogResult.Ok(string.IsNullOrEmpty(reason) ? null : reason));
+    }
+}
