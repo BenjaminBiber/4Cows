@@ -37,7 +37,7 @@ public sealed class BandageReminderNoticeProvider : INoticeProvider, IDisposable
         // Nur fuer die Halsbandnummer im Text. Der Kuh-Cache wird von
         // MeadowDataLoader.EnsureLookupsAsync mitgeladen, also von derselben
         // Vorbedingung wie die Behandlungen - fehlt er doch, bleibt der Text
-        // ohne den Halsband-Teil lesbar (BandageReminderText.CollarPart).
+        // ohne den Halsband-Teil lesbar (CowLookups.CollarSuffix).
         _cows = cows;
         _sync = sync;
 
