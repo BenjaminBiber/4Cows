@@ -141,6 +141,8 @@ else
 // konfiguriert (VAPID fehlt), tut der Dienst je Runde still nichts - der Start
 // reisst nicht ab, gleiche Haltung wie ueberall beim Push.
 builder.Services.AddHostedService<BandageReminderPushBackgroundService>();
+// Dasselbe fuer die taegliche Sammel-Erinnerung der Behandlungsplaene.
+builder.Services.AddHostedService<TreatmentPlanPushBackgroundService>();
 builder.WebHost.UseStaticWebAssets();
 var app = builder.Build();
 using (var scope = app.Services.CreateScope())

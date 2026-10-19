@@ -529,6 +529,28 @@ namespace Meadow.Data.Migrations
                     b.ToTable("Treatment_Plan_Cancellation");
                 });
 
+            modelBuilder.Entity("Meadow.Shared.Models.TreatmentPlanPushLog", b =>
+                {
+                    b.Property<int>("TreatmentPlanPushLogId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Treatment_Plan_Push_Log_ID");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("TreatmentPlanPushLogId"));
+
+                    b.Property<DateTime>("SentOn")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("Sent_On");
+
+                    b.HasKey("TreatmentPlanPushLogId");
+
+                    b.HasIndex("SentOn")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Treatment_Plan_Push_Log_Sent_On");
+
+                    b.ToTable("Treatment_Plan_Push_Log");
+                });
+
             modelBuilder.Entity("Meadow.Shared.Models.TreatmentReason", b =>
                 {
                     b.Property<int>("TreatmentReasonId")
