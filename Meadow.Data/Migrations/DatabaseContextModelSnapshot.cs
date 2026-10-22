@@ -156,10 +156,20 @@ namespace Meadow.Data.Migrations
                         .HasColumnType("int")
                         .HasColumnName("Collar_Number");
 
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("Description");
+
                     b.Property<string>("EarTagNumber")
                         .HasMaxLength(64)
                         .HasColumnType("varchar(64)")
                         .HasColumnName("Ear_Tag_Number");
+
+                    b.Property<string>("Group")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("Group_Name");
 
                     b.Property<bool>("IsCalv")
                         .HasColumnType("tinyint(1)")
@@ -168,11 +178,25 @@ namespace Meadow.Data.Migrations
                     b.Property<bool>("IsGone")
                         .HasColumnType("tinyint(1)");
 
+                    b.Property<string>("LelyAnimalId")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("Lely_Animal_Id");
+
+                    b.Property<string>("Location")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("Location");
+
                     b.HasKey("CowId");
 
                     b.HasIndex("EarTagNumber")
                         .IsUnique()
                         .HasDatabaseName("IX_Cow_Ear_Tag_Number");
+
+                    b.HasIndex("LelyAnimalId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Cow_Lely_Animal_Id");
 
                     b.ToTable("Cow");
                 });

@@ -58,6 +58,13 @@ public sealed class DatabaseContext : DbContext
             .IsUnique()
             .HasDatabaseName("IX_Cow_Ear_Tag_Number");
 
+        // Wie die Ohrmarke: eindeutig, aber mehrfach NULL erlaubt (MariaDB-UNIQUE),
+        // damit alle noch nicht zugeordneten Kuehe nebeneinander stehen koennen.
+        modelBuilder.Entity<Cow>()
+            .HasIndex(c => c.LelyAnimalId)
+            .IsUnique()
+            .HasDatabaseName("IX_Cow_Lely_Animal_Id");
+
         // Der zweite Schluessel der vier offline schreibbaren Tabellen. Die
         // Eindeutigkeit ist die eigentliche Garantie: sie macht aus einem
         // wiederholten Insert einen No-op, ganz gleich wie oft die Uebertragung
