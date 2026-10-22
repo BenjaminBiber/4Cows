@@ -24,8 +24,10 @@ Horizon-PC bereits eingerichtet sein.
 
 ## Erstinstallation
 
-1. Publish-Ordner (`bin\publish\win-x64\` nach `dotnet publish`, siehe unten) auf den
-   Horizon-PC kopieren.
+1. Neuestes GitHub-Release öffnen und `Meadow.HorizonAgent-<version>-win-x64.zip`
+   herunterladen, auf dem Horizon-PC in den Installationsordner entpacken. (Alternativ
+   lokal bauen, siehe „Veröffentlichen“ unten – dann trägt der Agent aber keine
+   Versionsnummer.)
 2. `appsettings.json` im Zielordner ausfüllen:
    - `Meadow:BaseUrl` – Adresse von Meadow, z.B. `https://meadow.example.de/`.
    - `Meadow:ApiKey` – derselbe Wert wie `HORIZON_AGENT_KEY` in der `.env` neben
@@ -51,8 +53,8 @@ keinen Dienst. Gedacht für den Probelauf nach der Installation und nach jeder �
 ## Update
 
 1. Dienst stoppen: `Stop-Service MeadowHorizonAgent`.
-2. Alle Dateien im Installationsordner **außer** `appsettings.json` durch die neue
-   Publish-Ausgabe ersetzen.
+2. ZIP der neuen Version aus dem GitHub-Release entpacken und alle Dateien im
+   Installationsordner **außer** `appsettings.json` damit ersetzen.
 3. `Meadow.HorizonAgent.exe --dry-run` zur Kontrolle.
 4. Dienst starten: `Start-Service MeadowHorizonAgent`.
 
@@ -69,7 +71,9 @@ Installationsordner nicht ändern – jeder Schritt darin ist aber idempotent un
 - **Ereignisanzeige** → Windows-Protokolle → Anwendung → Quelle „Meadow Horizon-Agent“.
   Der Dienst schreibt dorthin, u.a. Verbindungsfehler zu Horizon oder zu Meadow.
 - **Meadow-Seite:** der Datenbank-Dialog in Meadow zeigt den letzten Herzschlag und die
-  letzte erfolgreiche Übernahme des Agenten.
+  letzte erfolgreiche Übernahme des Agenten. Die dort gezeigte Version ist die
+  Release-Version der installierten `Meadow.HorizonAgent.exe` – steht dort `1.0.0`, läuft
+  ein lokal gebauter Stand und kein Release.
 - Schlägt `--dry-run` mit einer Meldung zur Nur-Lese-Absicherung fehl, ist entweder das
   Konto `BenchmarkReadOnly` auf dem SQL-Server nicht eingerichtet oder die Verbindung läuft
   nicht unter dem erwarteten Windows-Konto.
@@ -83,6 +87,11 @@ dotnet publish Meadow.HorizonAgent -p:PublishProfile=win-x64
 Erzeugt eine einzelne `Meadow.HorizonAgent.exe` (self-contained, win-x64) unter
 `bin\publish\win-x64\`, zusammen mit `appsettings.json`, `install.ps1`, `uninstall.ps1` und
 dieser README.
+
+Dieser Weg ist für Entwicklung und Notfälle gedacht. Er setzt **keine** Versionsnummer –
+der Agent meldet dann `1.0.0`. Die veröffentlichten Stände entstehen über die Action
+„Build & Push Image to Docker Hub“, die `-p:Version=<version>` setzt und das Ergebnis an
+das Release `v<version>` hängt.
 
 ## Deinstallation
 

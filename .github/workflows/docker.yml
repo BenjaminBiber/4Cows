@@ -4,17 +4,71 @@ name: Build & Push Image to Docker Hub
 # eine Auswahl "Use workflow from" ein, und actions/checkout holt genau diesen
 # Branch - ein eigener branch-Input waere eine zweite Quelle, die der ersten
 # widersprechen kann.
+# Die Versionsnummer wird nicht eingetippt, sondern aus dem letzten v*-Tag
+# errechnet: so kann kein Lauf eine Version doppelt oder rueckwaerts vergeben.
 on:
   workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Art der Aenderung'
+        type: choice
+        required: true
+        default: patch
+        options:
+          - patch
+          - minor
+          - major
+      dry_run:
+        description: 'Probelauf - baut alles, pusht aber weder Image, Tag noch Release'
+        type: boolean
+        required: false
+        default: false
 
 jobs:
   build-and-push:
-    name: benjaminbiber/4cows:latest
+    name: Release
     runs-on: ubuntu-latest
+    # Tag schieben und Release anlegen braucht Schreibrecht aufs Repo.
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        # Ohne die ganze Historie samt Tags findet git describe nichts und
+        # jeder Lauf wuerde wieder bei v0.0.0 anfangen.
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Version ermitteln
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          # --match 'v[0-9]*' laesst die Alttags ohne v-Praefix (0.2.5, 1.0.0)
+          # bewusst liegen; massgeblich ist allein die v-Reihe.
+          latest=$(git describe --tags --match 'v[0-9]*' --abbrev=0 2>/dev/null || echo v0.0.0)
+          echo "Letzter Tag: $latest"
+          core=${latest#v}
+          major=${core%%.*}
+          rest=${core#*.}
+          minor=${rest%%.*}
+          patch=${rest#*.}
+          case "${{ inputs.bump }}" in
+            major) major=$((major + 1)); minor=0; patch=0 ;;
+            minor) minor=$((minor + 1)); patch=0 ;;
+            patch) patch=$((patch + 1)) ;;
+            *) echo "Unbekannte Art der Aenderung: ${{ inputs.bump }}" >&2; exit 1 ;;
+          esac
+          new="$major.$minor.$patch"
+          if git rev-parse -q --verify "refs/tags/v$new" >/dev/null; then
+            echo "Tag v$new existiert bereits - Abbruch." >&2
+            exit 1
+          fi
+          echo "Neue Version: $new"
+          echo "version=$new" >> "$GITHUB_OUTPUT"
+          echo "tag=v$new" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -34,11 +88,76 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
-          push: true
-          tags: benjaminbiber/4cows:latest
+          push: ${{ !inputs.dry_run }}
+          # :latest bleibt der zuletzt veroeffentlichte Stand - deploy/docker-compose.yml
+          # zieht genau diesen Tag. Der Versionstag kommt zusaetzlich dazu.
+          tags: |
+            benjaminbiber/4cows:latest
+            benjaminbiber/4cows:${{ steps.version.outputs.version }}
           # Haelt den Tag auf Docker Hub ein einfaches Image statt eines
           # OCI-Index. Aeltere Docker-Daemons stolpern ueber das
           # Attestation-Manifest, und hier wertet es ohnehin niemand aus.
           provenance: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Horizon-Agent veroeffentlichen
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Nicht ueber PublishProfile=win-x64: dessen PublishDir steht mit
+          # Backslashes in der pubxml und ergaebe auf Linux einen Ordner namens
+          # "bin\publish\win-x64\". Die Eigenschaften deshalb direkt setzen.
+          # -p:Version ist der Grund, warum der Agent spaeter ueberhaupt seine
+          # Release-Version meldet - ohne sie bleibt es beim Standard 1.0.0.
+          # IncludeSourceRevisionInInformationalVersion=false, weil .NET sonst
+          # "+<commit-sha>" anhaengt - MeadowClient liest genau diese
+          # InformationalVersion und meldet sie als AgentVersion an Meadow.
+          dotnet publish Meadow.HorizonAgent/Meadow.HorizonAgent.csproj \
+            -c Release -r win-x64 --self-contained true \
+            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
+            -p:Version=${{ steps.version.outputs.version }} \
+            -p:IncludeSourceRevisionInInformationalVersion=false \
+            -o publish/win-x64
+          ls -la publish/win-x64
+          # Ein stillschweigend leeres Release waere schlimmer als ein roter Lauf.
+          for f in Meadow.HorizonAgent.exe install.ps1 uninstall.ps1; do
+            test -f "publish/win-x64/$f" || { echo "Fehlt im Publish-Ordner: $f" >&2; exit 1; }
+          done
+          cd publish/win-x64
+          zip -r "../../Meadow.HorizonAgent-${{ steps.version.outputs.version }}-win-x64.zip" .
+
+      # Erst nach dem Image-Push: ein Release, zu dem es kein Image gibt,
+      # fuehrt in die Irre.
+      - name: Tag und Release
+        if: ${{ !inputs.dry_run }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "$TAG"
+          # --notes zuerst, --generate-notes haengt die Commits seit dem
+          # Vorgaenger-Tag darunter.
+          notes=$(printf '%s\n\n%s\n' \
+            "Docker-Image: \`benjaminbiber/4cows:$VERSION\` (auch als \`:latest\`)." \
+            "Horizon-Agent aktualisieren: ZIP entpacken und nach \`Meadow.HorizonAgent/README.md\`, Abschnitt \"Update\", vorgehen - \`appsettings.json\` dabei behalten.")
+          gh release create "$TAG" --title "$TAG" --generate-notes --notes "$notes" \
+            "Meadow.HorizonAgent-$VERSION-win-x64.zip" \
+            publish/win-x64/Meadow.HorizonAgent.exe \
+            publish/win-x64/install.ps1 \
+            publish/win-x64/uninstall.ps1
+
+      - name: Probelauf-Hinweis
+        if: ${{ inputs.dry_run }}
+        run: echo "Probelauf - Version ${{ steps.version.outputs.version }} waere vergeben worden. Nichts gepusht."

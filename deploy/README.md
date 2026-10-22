@@ -7,6 +7,17 @@ veroeffentlichte Ports, und die haengen an genau einer LAN-Adresse.
 docker compose up -d
 ```
 
+## Veroeffentlichen
+
+Die Action „Build & Push Image to Docker Hub“ wird von Hand gestartet und fragt
+dabei die Art der Aenderung ab (`major` / `minor` / `patch`). Sie errechnet daraus
+die naechste Version aus dem letzten `v*`-Tag, schiebt das Image unter
+`benjaminbiber/4cows:<version>` **und** weiterhin unter `:latest` – dieser Tag
+steht in `docker-compose.yml` und bleibt der zuletzt veroeffentlichte Stand –,
+legt den Tag `v<version>` an und haengt den Horizon-Agenten (ZIP, `.exe`,
+`install.ps1`, `uninstall.ps1`) an das zugehoerige GitHub-Release. Mit
+`dry_run: true` laeuft alles ohne Push, Tag und Release durch.
+
 ## Warum ueberhaupt ein Zertifikat
 
 Nicht wegen Vertraulichkeit im eigenen Netz, sondern weil **Chrome ohne
