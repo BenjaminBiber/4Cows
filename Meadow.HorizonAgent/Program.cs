@@ -1,10 +1,13 @@
 using Meadow.HorizonAgent.Options;
 using Meadow.HorizonAgent.Reading;
+using Meadow.HorizonAgent.Sending;
+using Meadow.HorizonAgent.Worker;
 using Meadow.Shared.Models.Horizon;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Hosting.WindowsServices;
+using Microsoft.Extensions.Options;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -21,6 +24,25 @@ else
 {
     builder.Services.AddSingleton<IHorizonReader, HorizonReader>();
 }
+
+builder.Services.AddSingleton(TimeProvider.System);
+
+builder.Services.AddHttpClient<IMeadowClient, MeadowClient>((sp, http) =>
+{
+    var meadow = sp.GetRequiredService<IOptions<MeadowOptions>>().Value;
+    // Ohne Schraegstrich am Ende schluckt Uri das letzte Pfadstueck der Basisadresse.
+    var baseUrl = string.IsNullOrWhiteSpace(meadow.BaseUrl) ? "http://localhost/" : meadow.BaseUrl;
+    http.BaseAddress = new Uri(baseUrl.EndsWith('/') ? baseUrl : baseUrl + "/");
+    if (!string.IsNullOrWhiteSpace(meadow.ApiKey))
+    {
+        http.DefaultRequestHeaders.Add("X-Agent-Key", meadow.ApiKey);
+    }
+
+    http.Timeout = TimeSpan.FromSeconds(60);
+});
+
+builder.Services.AddSingleton<AgentLoop>();
+builder.Services.AddHostedService<AgentWorker>();
 
 var host = builder.Build();
 
