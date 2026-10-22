@@ -222,3 +222,83 @@ angepasstes SQL umgehen.
 - Ob Lelys Lizenz- oder Supportbedingungen den direkten Lesezugriff erlauben und ob es eine
   offizielle Export-Schnittstelle gibt, ist ungeklärt und vor dem Produktivbetrieb zu
   prüfen.
+
+## Nachtrag 2026-10-22: Schema, Zugriff, Ort/Gruppe/Beschreibung
+
+Die Schema-Erkundung (Umsetzungsschritt 1) ist erledigt, dokumentiert im Artefakt
+„Lely Horizon DB-Referenz“ (https://claude.ai/artifact/FTKEikjQF8AbSevLVucy6p, Stand 21.10.2026).
+Dieser Nachtrag geht den Abschnitten oben vor, wo sie sich widersprechen.
+
+### Quelle
+
+- Instanz `.\T4C3` auf `CELSIUS_M740` (SQL Server 2019 Express), Datenbank `Lely`.
+- Tiere: `dbo.HemAnimal`. `AniId` = Lely-Animal-ID, `AniUserNumber` = Halsband/Tiernummer
+  (entspricht XLink-Spalte 1; bei der Abnahme gegenprüfen), `AniLifeNumber` = Ohrmarke,
+  `AniActive = 0` = abgegangen. Zeilen mit `AniDeleted = 1` werden nicht gelesen.
+- Neu übernommen: `AniDescription` (Beschreibung), `SytLocation.LocName` über `AniLocId`
+  (Ort/Stallbereich), `HemGroup.GroName` über `AniGroId` (Gruppe).
+
+Standard-`AnimalQuery`:
+
+```sql
+SELECT CAST(a.AniId AS nvarchar(64))                        AS AnimalId,
+       CAST(ISNULL(a.AniUserNumber, 0) AS int)               AS CollarNumber,
+       a.AniLifeNumber                                       AS EarTag,
+       CAST(CASE WHEN a.AniActive = 1 THEN 0 ELSE 1 END AS bit) AS IsGone,
+       l.LocName                                             AS Location,
+       g.GroName                                             AS [Group],
+       a.AniDescription                                      AS Description
+FROM dbo.HemAnimal a
+LEFT JOIN dbo.SytLocation l ON l.LocId = a.AniLocId
+LEFT JOIN dbo.HemGroup    g ON g.GroId = a.AniGroId
+WHERE a.AniDeleted = 0
+```
+
+Pflichtspalten bleiben `AnimalId`, `CollarNumber`, `EarTag`, `IsGone`. `Location`, `Group`,
+`Description` sind optional: fehlt die Spalte im Ergebnis, ist der Wert `null`.
+
+### Zugriff (ersetzt Dienstkonto/SQL-Login und READ UNCOMMITTED oben)
+
+- Windows-Authentifizierung; jeder lokale Benutzer kommt über `VORDEFINIERT\Benutzer` auf den
+  Server und landet als `guest` mit `db_owner`. Deshalb beginnt **jede** Verbindung mit
+  `EXECUTE AS USER = 'BenchmarkReadOnly' WITH NO REVERT;` und prüft danach
+  `SELECT USER_NAME()` = `BenchmarkReadOnly`, sonst Abbruch mit Fehler.
+- Connection-String:
+  `Server=.\T4C3;Database=Lely;Integrated Security=true;Encrypt=false;TrustServerCertificate=true;Pooling=false;Application Name=MeadowHorizonAgent;Connect Timeout=15`
+  (`Pooling=false` ist Pflicht: eine Verbindung mit `NO REVERT` lässt sich nicht zurücksetzen).
+- Isolation Read Committed (Standard). **Kein** `NOLOCK`, **kein** `READ UNCOMMITTED`, kein
+  `ApplicationIntent`.
+- Dienstkonto: lokales Konto `MeadowAgent` in der Gruppe `Benutzer`. `install.ps1` legt
+  **keinen** SQL-Login an. Ob `LocalSystem`/virtuelle Dienstkonten Zugriff hätten, ist nicht
+  getestet und wird nicht genutzt.
+
+### Neue Kuh-Felder
+
+`Cow` bekommt neben `Lely_Animal_Id` drei Felder, alle nullable, nur vom Horizon-Abgleich
+geschrieben (XLink fasst sie nicht an):
+
+| Property | Spalte | Typ |
+|---|---|---|
+| `Location` | `Location` | varchar(100) |
+| `Group` | `Group_Name` | varchar(100) |
+| `Description` | `Description` | varchar(500) |
+
+Horizon ist führend: Regeln 1–4 des Abgleichs übernehmen alle drei Werte, auch `null`.
+`HorizonAnimal` bekommt `string? Location`, `string? Group`, `string? Description`.
+Die Basisdaten-Tabelle der Kühe zeigt Ort, Gruppe und Beschreibung; die Suche findet auch
+Ort und Gruppe.
+
+### Aufbau der Abgleichslogik
+
+Die Regeln 1–5 und die Schutzregel stehen als reine Funktion `HorizonSyncPlanner.Plan` in
+`Meadow.Shared` (liefert eine Aktionsliste oder eine Ablehnung) und werden dort getestet.
+`HorizonSyncService` führt die Aktionen nur aus. Er schreibt über die schmale Naht
+`IHorizonCowStore` (in `Meadow.Data`, implementiert von `CowService`), damit `ICowService`
+und der Browser-Dienst `HttpCowService` unverändert bleiben.
+
+### Abgleich aus der Oberfläche bei `HorizonAgent`
+
+`/api/cowsync/status` meldet `running = true`, solange ein angeforderter Abgleich noch nicht
+durch einen Snapshot beantwortet ist, höchstens drei Minuten lang. Danach `running = false`
+und `lastSyncError = "Der Horizon-Agent hat nicht geantwortet."`. Der Browser wartet damit
+wie bei XLink auf das Ergebnis.
