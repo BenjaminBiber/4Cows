@@ -34,7 +34,7 @@ public sealed class XLinkRunner
     /// </summary>
     private static readonly TimeSpan MaxRunTime = TimeSpan.FromMinutes(10);
 
-    private readonly IXLinkService _xLink;
+    private readonly XLinkService _xLink;
     private readonly IDataVersion _version;
 
     /// <summary>
@@ -45,7 +45,7 @@ public sealed class XLinkRunner
     /// </summary>
     private int _running;
 
-    public XLinkRunner(IXLinkService xLink, IDataVersion version)
+    public XLinkRunner(XLinkService xLink, IDataVersion version)
     {
         _xLink = xLink;
         _version = version;
@@ -56,7 +56,7 @@ public sealed class XLinkRunner
     /// <summary>
     /// Startet einen Lauf, wenn keiner laeuft. Kehrt SOFORT zurueck; der
     /// Rueckgabewert sagt nur, ob gestartet wurde, nichts ueber das Ergebnis.
-    /// Das steht danach in <see cref="IXLinkService.LastSyncSucceeded"/>.
+    /// Das steht danach in <see cref="XLinkService.LastSyncSucceeded"/>.
     /// </summary>
     public bool TryStart()
     {
@@ -83,7 +83,7 @@ public sealed class XLinkRunner
 
             // Erst NACH dem erfolgreichen Lauf, und nicht schon beim 202: zu
             // diesem Zeitpunkt hat sich wirklich etwas an der Kuh-Tabelle
-            // geaendert. Deshalb traegt /xlink/refresh auch kein BumpsOnWrite -
+            // geaendert. Deshalb traegt /cowsync/refresh auch kein BumpsOnWrite -
             // der Filter sieht nur den Statuscode der Annahme.
             _version.Bump(DataScope.Cows);
         }
@@ -91,7 +91,7 @@ public sealed class XLinkRunner
         {
             // Der eigene Zeitgeber, nicht das Herunterfahren: ein Lauf hat
             // MaxRunTime ueberschritten. RefreshCowsAsync hat den Fehlschlag
-            // bereits in LastSyncError vermerkt, /xlink/status zeigt ihn an.
+            // bereits in LastSyncError vermerkt, /cowsync/status zeigt ihn an.
             LoggerService.LogWarning(typeof(XLinkRunner),
                 "XLink-Abgleich nach {@Minutes} Minuten abgebrochen.", MaxRunTime.TotalMinutes);
         }

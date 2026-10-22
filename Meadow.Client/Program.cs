@@ -165,7 +165,7 @@ builder.Services.AddSingleton<IClawFindingService, HttpClawFindingService>();
 builder.Services.AddSingleton<IUdderService, HttpUdderService>();
 builder.Services.AddSingleton<ISettingsService, HttpSettingsService>();
 builder.Services.AddSingleton<IKPIService, HttpKPIService>();
-builder.Services.AddSingleton<IXLinkService, HttpXLinkService>();
+builder.Services.AddSingleton<ICowSyncService, HttpCowSyncService>();
 
 // Die Abbrueche. Zweimal registriert, aber nur EINE Instanz: die Seiten
 // nehmen die Schnittstelle, die Hinweis-Provider brauchen die Klasse, weil

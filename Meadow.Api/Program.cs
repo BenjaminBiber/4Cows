@@ -47,6 +47,20 @@ var demoSettings = new DemoOptions(
                 && resetHour is >= 0 and <= 23
         ? resetHour
         : 3);
+// Woher die Kuehe kommen. Standard ist der Horizon-Agent; XLink ist der alte
+// Weg und bleibt nur noch ueber diesen Schalter erreichbar. Anders als bei
+// Demo:Enabled ist ein unleserlicher Wert hier eine WARNUNG wert: wer
+// CowSyncSource setzt, meint etwas damit, und still auf den Standard zu
+// fallen hiesse, den XLink-Abgleich ohne Hinweis abzuschalten.
+var cowSyncSource = CowSyncSource.HorizonAgent;
+var cowSyncRaw = builder.Configuration["CowSyncSource"];
+if (!string.IsNullOrWhiteSpace(cowSyncRaw) && !Enum.TryParse(cowSyncRaw, ignoreCase: true, out cowSyncSource))
+{
+    cowSyncSource = CowSyncSource.HorizonAgent;
+    LoggerService.LogWarning(typeof(Program),
+        "CowSyncSource = {@Value} ist unbekannt. Es gilt {@Fallback}.", cowSyncRaw, cowSyncSource.ToString());
+}
+
 // VAPID aus der Konfiguration. Gleiche Haltung wie DB_PORT/Demo:Enabled: fehlt
 // einer der drei Werte (PublicKey/PrivateKey/Subject), faellt Push still auf
 // "aus" - der Start reisst NICHT ab. Die Entscheidung steckt in
@@ -101,9 +115,13 @@ builder.Services.AddSingleton<ITreatmentPlanCancellationService, TreatmentPlanCa
 builder.Services.AddSingleton<KpiRowProvider>();
 builder.Services.AddSingleton<IKPIService, KPIService>();
 builder.Services.AddSingleton<ISettingsService, SettingsService>();
-builder.Services.AddSingleton<IXLinkService, XLinkService>();
+// Beide Quellen immer als konkrete Singletons - die Endpunkte nehmen sie
+// konkret entgegen, weil sie je Quelle etwas anderes koennen (TryStart beim
+// Runner, IsSyncPending beim Agenten). Nur ICowSyncService haengt am Schalter.
+builder.Services.AddSingleton(new CowSyncOptions(cowSyncSource));
+builder.Services.AddSingleton<XLinkService>();
 // Muss Singleton sein: er haelt das "laeuft gerade"-Flag, an dem ein zweiter
-// POST auf /api/xlink/refresh seine 409 erkennt. Einer pro Anfrage wuesste
+// POST auf /api/cowsync/refresh seine 409 erkennt. Einer pro Anfrage wuesste
 // von keinem anderen Lauf.
 builder.Services.AddSingleton<XLinkRunner>();
 
@@ -113,6 +131,13 @@ builder.Services.AddSingleton<XLinkRunner>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<HorizonSyncService>();
 
+// Die Naht zeigt auf eine der beiden Instanzen von oben, nicht auf eine
+// dritte: zwei AddSingleton auf denselben Typ ergaeben zwei Zustaende, und der
+// Status-Endpunkt laese dann den eines Dienstes, den sonst niemand benutzt.
+builder.Services.AddSingleton<ICowSyncService>(sp => cowSyncSource == CowSyncSource.XLink
+    ? sp.GetRequiredService<XLinkService>()
+    : sp.GetRequiredService<HorizonSyncService>());
+
 // Der geltende Push-Zustand (inkl. Rueckfall auf "aus") und der Sender. Beide
 // Singleton: PushOptions ist unveraenderlich, WebPushSender haelt keinen Cache,
 // liest je Sendung frisch aus der Datenbank und ist damit prozessweit teilbar.
@@ -120,13 +145,19 @@ builder.Services.AddSingleton(pushOptions);
 builder.Services.AddSingleton<IPushSender, WebPushSender>();
 
 
-// Genau ein HostedService, je nach Modus ein anderer. Im Demo-Modus wuerde
-// XLinkService.SaveCowData jede Demo-Kuh als IsGone markieren, weil der
-// Scraper sie nicht liefert - danach waere jede Kuh-Auswahl in jedem Dialog
-// leer. Und ein nicht erreichbarer XLink-Host (der Default ist eine
-// Hof-LAN-Adresse) faerbt die Zeile im Datenbank-Dialog rot.
+// Hoechstens ein HostedService fuer den Abgleich, je nach Modus ein anderer.
+// Im Demo-Modus wuerde XLinkService.SaveCowData jede Demo-Kuh als IsGone
+// markieren, weil der Scraper sie nicht liefert - danach waere jede
+// Kuh-Auswahl in jedem Dialog leer. Und ein nicht erreichbarer XLink-Host
+// (der Default ist eine Hof-LAN-Adresse) faerbt die Zeile im
+// Datenbank-Dialog rot.
+//
+// Bei CowSyncSource = HorizonAgent laeuft GAR KEINER: der Agent schickt den
+// Snapshot von sich aus an /api/horizon, es gibt auf dem Server nichts
+// abzuholen. Ein Takt hier liefe ins Leere - und zoege ueber XLinkService den
+// Scraper an, also genau die Quelle, die abgeschaltet sein soll.
 // Unbedingt registrieren, nicht nur im Demo-Betrieb. /api/config und
-// /api/xlink/refresh nehmen DemoOptions als Parameter; fehlt die
+// /api/cowsync/refresh nehmen DemoOptions als Parameter; fehlt die
 // Registrierung, haelt Minimal API den Parameter fuer einen Anfragerumpf und
 // wirft "Body was inferred but the method does not allow inferred body
 // parameters" - und zwar bei JEDER Anfrage, auch bei / und /api/health, weil
@@ -139,7 +170,7 @@ if (demoSettings.Enabled)
 {
     builder.Services.AddHostedService<DemoResetBackgroundService>();
 }
-else
+else if (cowSyncSource == CowSyncSource.XLink)
 {
     builder.Services.AddHostedService<CowSyncBackgroundService>();
 }
@@ -215,7 +246,7 @@ api.MapCowExportEndpoints();
 api.MapPushEndpoints();
 
 
-api.MapXLinkEndpoints();
+api.MapCowSyncEndpoints();
 
 
 // Ein Tippfehler in einer API-Adresse muss als 404 zurueckkommen und NICHT als

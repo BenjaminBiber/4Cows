@@ -11,6 +11,8 @@
 // NICHT: Meadow.Api referenziert die EF-Schicht, und die Naht laeuft ausdruecklich
 // nur ueber Meadow.Shared.
 
+using Meadow.Shared.Services;
+
 namespace Meadow.Client.Services;
 
 // ---- Anfragen -------------------------------------------------------------
@@ -75,12 +77,24 @@ internal sealed record RemovedResponse(int Removed);
 internal sealed record KpiValueResponse(int KpiId, string? Value);
 
 /// <summary>
-/// Antwort von GET /api/xlink/status. Die Felder intervalHours und url bleiben
-/// hier weg - sie gehoeren zum Infrastruktur-Dialog und nicht zur Naht.
+/// Antwort von GET /api/cowsync/status. Die Felder intervalHours und url
+/// bleiben hier weg - sie gehoeren zum Infrastruktur-Dialog und nicht zur
+/// Naht.
+///
+/// Source kommt als Zeichenkette an; den Weg zurueck in den Enum macht der
+/// JsonStringEnumConverter am Typ CowSyncSource selbst, damit beide Seiten
+/// denselben Vertrag haben, ohne dass hier Optionen gesetzt werden muessen.
+/// Die Agent-Felder sind nur bei CowSyncSource.HorizonAgent belegt.
 /// </summary>
-internal sealed record XLinkStatusResponse(
+internal sealed record CowSyncStatusResponse(
+    CowSyncSource Source,
     DateTimeOffset? LastSyncUtc,
     bool LastSyncSucceeded,
     string? LastSyncError,
     bool Running,
-    bool Enabled);
+    bool Enabled,
+    string? AgentVersion,
+    string? AgentMachineName,
+    DateTimeOffset? LastHeartbeatUtc,
+    int? LastSnapshotAnimalCount,
+    string? AgentLastError);

@@ -2,7 +2,7 @@
 @using Meadow.Client.Components.Ui
 
 @inject ICowService CowService
-@inject IXLinkService XLinkService
+@inject ICowSyncService CowSync
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 
@@ -128,7 +128,7 @@
         _isRefreshing = true;
         try
         {
-            await XLinkService.RefreshCowsAsync();
+            await CowSync.RefreshCowsAsync();
             await CowService.GetAllDataAsync();
             Reload();
             Snackbar.Add("Kühe wurden erfolgreich von XLink aktualisiert.", Severity.Success);

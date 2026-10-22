@@ -4,7 +4,7 @@ using Meadow.Shared.Services;
 
 namespace Meadow.Data.Services;
 
-public class XLinkService : IXLinkService
+public class XLinkService : ICowSyncService
 {
     // Matches a single data row of the XLink ReportTable: two adjacent
     // <td ...><nobr>VALUE</nobr></td> cells (col 1 = collar number, col 2 = life number).
@@ -31,6 +31,25 @@ public class XLinkService : IXLinkService
     {
         _cowService = cowService;
     }
+
+    public CowSyncSource Source => CowSyncSource.XLink;
+
+    // Die Agent-Felder gehoeren zum Horizon-Weg. Hier bleiben sie leer, statt
+    // sie aus der Naht zu nehmen: der Status-Endpunkt beantwortet beide
+    // Quellen mit demselben Rumpf.
+
+    public string? AgentVersion => null;
+
+    public string? AgentMachineName => null;
+
+    public DateTimeOffset? LastHeartbeatUtc => null;
+
+    public int? LastSnapshotAnimalCount => null;
+
+    public string? AgentLastError => null;
+
+    /// <summary>Auf dem Server nichts zu tun - die Felder stehen hier schon.</summary>
+    public Task LoadStatusAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
     /// <summary>
     /// Zeitpunkt des letzten Abgleichs, null vor dem ersten Lauf.
