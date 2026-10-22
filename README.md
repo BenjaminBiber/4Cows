@@ -62,6 +62,14 @@ services:
 
 ```
 
+## Kuh-Abgleich
+
+Der Bestand (Tiere, Ort, Gruppe, Beschreibung, Abgang) wird aus Lely Horizon übernommen –
+wahlweise über den **Horizon-Agenten** (empfohlen, läuft als Windows-Dienst auf dem
+Horizon-PC, siehe `Meadow.HorizonAgent/README.md`) oder über den älteren XLink-Scraper.
+Welche Quelle aktiv ist, legt `CowSyncSource` in `deploy/docker-compose.yml` fest; Details
+und das gemeinsame Geheimnis (`HorizonAgent__ApiKey`) stehen in `deploy/README.md`.
+
 ## Demo-Modus
 
 Für eine öffentlich erreichbare Demo-Instanz gibt es einen Schalter in
