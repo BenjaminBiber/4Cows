@@ -19,14 +19,34 @@
         <div class="mw-kv"><span>Server</span><span class="mw-kv__mono">@Server</span></div>
         <div class="mw-kv"><span>Datenbank</span><span class="mw-kv__mono">@Database</span></div>
 
-        <div class="mw-kv">
-            <span>XLink Scraper</span>
-            <span class="@XLinkClass">@XLinkStatus</span>
-        </div>
-        @* Ohne laufenden Sync sagt die Adresse nichts aus. *@
-        @if (!Demo.Enabled)
+        @if (CowSync.Source == CowSyncSource.XLink)
         {
-            <div class="mw-kv__sub">@XLinkUrl</div>
+            <div class="mw-kv">
+                <span>XLink Scraper</span>
+                <span class="@XLinkClass">@XLinkStatus</span>
+            </div>
+            @* Ohne laufenden Sync sagt die Adresse nichts aus. *@
+            @if (!Demo.Enabled)
+            {
+                <div class="mw-kv__sub">@XLinkUrl</div>
+            }
+        }
+        else
+        {
+            <div class="mw-kv">
+                <span>Horizon-Agent</span>
+                <span class="@AgentClass">@AgentStatus</span>
+            </div>
+            @if (!Demo.Enabled)
+            {
+                <div class="mw-kv__sub">
+                    Version @(CowSync.AgentVersion ?? "—") · @(CowSync.AgentMachineName ?? "unbekannter Rechner")
+                </div>
+                @if (!string.IsNullOrWhiteSpace(AgentError))
+                {
+                    <div class="mw-kv__sub">Letzter Fehler: @AgentError</div>
+                }
+            }
         }
     </ChildContent>
 </MeadowDialog>
@@ -92,9 +112,71 @@
         }
     }
 
+    /// <summary>
+    /// Ohne Lebenszeichen innerhalb dieser Spanne gilt der Agent als offline.
+    /// Sein Takt liegt deutlich darunter.
+    /// </summary>
+    private static readonly TimeSpan HeartbeatTimeout = TimeSpan.FromMinutes(5);
+
+    private string? AgentError =>
+        string.IsNullOrWhiteSpace(CowSync.AgentLastError) ? CowSync.LastSyncError : CowSync.AgentLastError;
+
+    private bool AgentOnline =>
+        CowSync.LastHeartbeatUtc is { } beat
+        && DateTimeOffset.UtcNow - beat <= HeartbeatTimeout;
+
+    private string AgentClass =>
+        Demo.Enabled || (AgentOnline && (CowSync.LastSyncUtc is null || CowSync.LastSyncSucceeded))
+            ? "mw-kv__ok"
+            : "mw-kv__bad";
+
+    private string AgentStatus
+    {
+        get
+        {
+            // Wie bei XLink: im Demo-Modus laeuft gar kein Abgleich.
+            if (Demo.Enabled)
+            {
+                return "im Demo-Modus deaktiviert";
+            }
+
+            if (!AgentOnline)
+            {
+                return "Agent offline";
+            }
+
+            if (CowSync.LastSyncUtc is null)
+            {
+                return "verbunden · noch kein Snapshot";
+            }
+
+            var when = CowSync.LastSyncUtc.Value.ToLocalTime().ToString("dd.MM. HH:mm");
+            if (!CowSync.LastSyncSucceeded)
+            {
+                return $"Fehler · zuletzt {when}";
+            }
+
+            var count = CowSync.LastSnapshotAnimalCount;
+            return count is null
+                ? $"aktiv · zuletzt {when}"
+                : $"aktiv · zuletzt {when} · {count} Tiere";
+        }
+    }
+
     protected override async Task OnInitializedAsync()
     {
         ConnectionState.ConnectionStateChanged += OnConnectionChanged;
+
+        try
+        {
+            await CowSync.LoadStatusAsync();
+        }
+        catch (Exception e)
+        {
+            // Der Dialog zeigt dann den zuletzt bekannten Stand.
+            Console.Error.WriteLine($"Status des Kuh-Abgleichs nicht lesbar: {e.Message}");
+        }
+
         await ConnectionState.EnsureLatestStatusAsync();
     }
 
