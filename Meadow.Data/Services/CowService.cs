@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Meadow.Data.Services;
 
-public class CowService : ICowService
+public class CowService : ICowService, IHorizonCowStore
 {
     // Keyed by the stable Cow_ID (never the ear tag): a calf has no ear tag but always has a Cow_ID.
     private ImmutableDictionary<string, Cow> _cachedCows = ImmutableDictionary<string, Cow>.Empty;
@@ -15,6 +15,10 @@ public class CowService : ICowService
     private readonly DatabaseStatusService _databaseStatusService;
 
         public ImmutableDictionary<string, Cow> Cows => _cachedCows;
+
+        // Explizit, weil ICowService die konkrete ImmutableDictionary nennt und die Naht
+        // nur das schmale Leseinterface braucht - derselbe Cache, zwei Sichten.
+        IReadOnlyDictionary<string, Cow> IHorizonCowStore.Cows => _cachedCows;
 
         public CowService(IDbContextFactory<DatabaseContext> contextFactory, DatabaseStatusService databaseStatusService)
         {
@@ -209,6 +213,60 @@ public class CowService : ICowService
             {
                 _databaseStatusService.ReportFailure();
                 LoggerService.LogError(typeof(CowService), "Failed to promote calf, with {@Message}", ex, ex.Message);
+                return false;
+            }
+        }
+
+        // Uebernimmt die Horizon-Werte in EINEM Update, damit zwischen zwei Teilschreibungen
+        // niemand eine halb abgeglichene Kuh sieht. Horizon ist fuer diese Felder fuehrend;
+        // eine Ohrmarke wird nur gesetzt, nie geloescht - deshalb bleibt sie bei leerem earTag
+        // stehen. Bekommt ein Kalb dabei eine Ohrmarke, ist es keines mehr.
+        public async Task<bool> ApplyHorizonAsync(string cowId, string lelyAnimalId, int collarNumber, string? earTag,
+            bool isGone, string? location, string? group, string? description)
+        {
+            try
+            {
+                await using var context = await _contextFactory.CreateDbContextAsync();
+                var hasEarTag = !string.IsNullOrWhiteSpace(earTag);
+                var affectedRows = await context.Cows
+                    .Where(c => c.CowId == cowId)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(c => c.LelyAnimalId, lelyAnimalId)
+                        .SetProperty(c => c.CollarNumber, collarNumber)
+                        .SetProperty(c => c.EarTagNumber, c => hasEarTag ? earTag : c.EarTagNumber)
+                        .SetProperty(c => c.IsCalv, c => hasEarTag ? false : c.IsCalv)
+                        .SetProperty(c => c.IsGone, isGone)
+                        .SetProperty(c => c.Location, location)
+                        .SetProperty(c => c.Group, group)
+                        .SetProperty(c => c.Description, description));
+
+                var isSuccess = affectedRows > 0;
+                _databaseStatusService.ReportSuccess();
+
+                if (isSuccess && _cachedCows.ContainsKey(cowId))
+                {
+                    var updatedCow = _cachedCows[cowId];
+                    updatedCow.LelyAnimalId = lelyAnimalId;
+                    updatedCow.CollarNumber = collarNumber;
+                    if (hasEarTag)
+                    {
+                        updatedCow.EarTagNumber = earTag;
+                        updatedCow.IsCalv = false;
+                    }
+                    updatedCow.IsGone = isGone;
+                    updatedCow.Location = location;
+                    updatedCow.Group = group;
+                    updatedCow.Description = description;
+                    _cachedCows = _cachedCows.SetItem(cowId, updatedCow);
+                    LoggerService.LogInformation(typeof(CowService), "Applied horizon values for cow {cowId} with lely animal id {lelyAnimalId}.", cowId, lelyAnimalId);
+                }
+
+                return isSuccess;
+            }
+            catch (Exception ex)
+            {
+                _databaseStatusService.ReportFailure();
+                LoggerService.LogError(typeof(CowService), "Failed to apply horizon values, with {@Message}", ex, ex.Message);
                 return false;
             }
         }

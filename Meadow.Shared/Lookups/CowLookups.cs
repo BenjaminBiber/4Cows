@@ -54,6 +54,17 @@ public static class CowLookups
         return cows.Values.FirstOrDefault(c => c.EarTagNumber == earTagNumber);
     }
 
+    // Sucht ueber das FELD Lely_Animal_Id (nicht ueber den Cow_ID-Schluessel). Ordinal, weil die
+    // ID aus Horizon eine Zahl als Text ist und keine Schreibvarianten kennt.
+    public static Cow GetByLelyAnimalId(IReadOnlyDictionary<string, Cow> cows, string lelyAnimalId)
+    {
+        if (string.IsNullOrWhiteSpace(lelyAnimalId))
+        {
+            return null;
+        }
+        return cows.Values.FirstOrDefault(c => string.Equals(c.LelyAnimalId, lelyAnimalId, StringComparison.Ordinal));
+    }
+
     public static string GetEarTagNumberByCollarNumber(IReadOnlyDictionary<string, Cow> cows, int collarNumber, bool searchContainsLeavage = true)
     {
         if(searchContainsLeavage)
