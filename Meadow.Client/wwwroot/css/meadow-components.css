@@ -4188,6 +4188,53 @@ button.mw-nav-item {
   .mw-cow-filter__clear:hover { text-decoration: underline; }
 }
 
+/* Lely-Daten der Kuh (CowLelyInfo): eine Zeile, die bei Platzmangel
+   umbricht. Optisch verwandt mit .mw-cow-filter, aber ohne Farbkante - das
+   ist eine Auskunft, kein aktiver Zustand. */
+.mw-cow-lely {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 7px 12px;
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-lg);
+  background: var(--mw-tint);
+  font-size: 13px;
+  min-width: 0;
+}
+.mw-cow-lely__source {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--mw-muted);
+}
+.mw-cow-lely__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+  margin: 0;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.mw-cow-lely__item {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+}
+.mw-cow-lely__item dt { color: var(--mw-muted); }
+.mw-cow-lely__item dd {
+  margin: 0;
+  font-weight: 600;
+  color: var(--mw-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mw-cow-lely__item--wide { flex: 1 1 200px; }
+.mw-cow-lely__mono { font-variant-numeric: tabular-nums; }
+
 /* Die Anzahl hinter dem Tabnamen. Kein .mw-badge: das ist ein gefuellter
    Zaehler fuer den Filterknopf, hier soll die Zahl der Beschriftung
    nachgeordnet bleiben. */

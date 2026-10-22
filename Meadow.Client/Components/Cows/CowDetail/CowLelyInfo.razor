@@ -1,0 +1,55 @@
+@using Meadow.Shared.Models
+@*
+    Was der Horizon-Agent aus Lely ueber dieses Tier weiss: Gruppe, Standort,
+    Animal-ID und Beschreibung. Eine flache Zeile statt einer Karte - die Seite
+    ist am Desktop auf die Fensterhoehe festgenagelt, jede Zeile hier fehlt
+    unten den Listen.
+
+    Ohne einen einzigen Wert bleibt die Zeile ganz weg: ein Tier, das Horizon
+    nicht kennt, braucht keine Reihe aus Strichen.
+*@
+@if (HasAny)
+{
+    <section class="mw-cow-lely" aria-label="Daten aus Lely Horizon">
+        <span class="mw-cow-lely__source">Lely</span>
+        <dl class="mw-cow-lely__list">
+            @if (Has(Cow.Group))
+            {
+                <div class="mw-cow-lely__item">
+                    <dt>Gruppe</dt>
+                    <dd>@Cow.Group</dd>
+                </div>
+            }
+            @if (Has(Cow.Location))
+            {
+                <div class="mw-cow-lely__item">
+                    <dt>Standort</dt>
+                    <dd>@Cow.Location</dd>
+                </div>
+            }
+            @if (Has(Cow.LelyAnimalId))
+            {
+                <div class="mw-cow-lely__item">
+                    <dt>Animal-ID</dt>
+                    <dd class="mw-cow-lely__mono">@Cow.LelyAnimalId</dd>
+                </div>
+            }
+            @if (Has(Cow.Description))
+            {
+                <div class="mw-cow-lely__item mw-cow-lely__item--wide">
+                    <dt>Beschreibung</dt>
+                    <dd title="@Cow.Description">@Cow.Description</dd>
+                </div>
+            }
+        </dl>
+    </section>
+}
+
+@code {
+    [Parameter, EditorRequired] public Cow Cow { get; set; } = default!;
+
+    private bool HasAny => Has(Cow.Group) || Has(Cow.Location)
+                           || Has(Cow.LelyAnimalId) || Has(Cow.Description);
+
+    private static bool Has(string? value) => !string.IsNullOrWhiteSpace(value);
+}
