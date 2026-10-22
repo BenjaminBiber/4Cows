@@ -21,4 +21,10 @@
     <ProjectReference Include="..\Meadow.Shared\Meadow.Shared.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="install.ps1" CopyToPublishDirectory="PreserveNewest" />
+    <None Update="uninstall.ps1" CopyToPublishDirectory="PreserveNewest" />
+    <None Update="README.md" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

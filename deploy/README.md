@@ -57,6 +57,24 @@ einziger Port nach aussen offen sein.**
 7. Falls das Hofnetz einen anderen Bereich benutzt: beide Vorkommen von
    `192.168.50.` anpassen (compose-Ports, `XLinkUrl`).
 
+## Kuh-Abgleich: Horizon-Agent oder XLink
+
+Vorgabe ist der Horizon-Agent (`Meadow.HorizonAgent/README.md`): er läuft auf dem
+Horizon-PC und meldet sich über `/api/horizon/snapshot` und `/heartbeat`. Dafür ein
+gemeinsames Geheimnis anlegen und in die `.env` neben `docker-compose.yml` eintragen:
+
+```
+openssl rand -hex 32
+```
+
+Das Ergebnis als `HORIZON_AGENT_KEY` in die `.env`, denselben Wert als `Meadow:ApiKey` in
+die `appsettings.json` des Agenten auf dem Horizon-PC.
+
+**Wichtig:** Solange der Agent noch nicht installiert ist (Ticket 11), `COW_SYNC_SOURCE=XLink`
+in der `.env` setzen – sonst läuft weder der XLink-Takt noch nimmt `/api/horizon/snapshot`
+etwas an, und es findet gar kein Abgleich statt. Nach der Installation des Agenten
+`COW_SYNC_SOURCE` wieder entfernen oder auf `HorizonAgent` setzen.
+
 ## Gegenprobe nach dem Start
 
 ```

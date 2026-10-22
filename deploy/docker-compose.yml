@@ -34,6 +34,12 @@ services:
       DB_DB: 4cows_v2
       XLinkUrl: ${XLINK_URL:-http://192.168.50.9/Xlink/}
       XLinkID: ${XLINK_ID:-10672}
+      # HorizonAgent (Vorgabe) oder XLink. Nie schreiben beide: bei HorizonAgent laeuft
+      # kein XLink-Takt, bei XLink nimmt /api/horizon/snapshot nichts an.
+      CowSyncSource: ${COW_SYNC_SOURCE:-HorizonAgent}
+      # Gemeinsames Geheimnis mit dem Agenten (appsettings.json -> Meadow:ApiKey).
+      # Leer = /api/horizon/* antwortet 404.
+      HorizonAgent__ApiKey: ${HORIZON_AGENT_KEY:-}
       # Demo__Enabled: "false"   # Vorgabe. true macht "/" zur Marketing-Seite
       #                            und setzt die Daten naechtlich zurueck.
       # Kpi__AllowScriptValidation: "false"  # fuehrt SQL aus dem Anfragerumpf
