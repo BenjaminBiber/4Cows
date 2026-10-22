@@ -1,5 +1,6 @@
 using Meadow.Shared.Lookups;
 using Meadow.Shared.Models.Horizon;
+using Meadow.Shared.Services;
 
 namespace Meadow.Data.Services;
 
@@ -9,7 +10,7 @@ namespace Meadow.Data.Services;
 /// Zustand des Agenten (Lebenszeichen, Version, letzter Fehler) und das Flag
 /// "Abgleich angefordert", das der Agent beim naechsten Lebenszeichen abholt.
 /// </summary>
-public sealed class HorizonSyncService
+public sealed class HorizonSyncService : ICowSyncService
 {
     /// <summary>So lange darf eine Anforderung auf einen Snapshot warten.</summary>
     public static readonly TimeSpan SyncRequestTimeout = TimeSpan.FromMinutes(3);
@@ -30,6 +31,8 @@ public sealed class HorizonSyncService
         _store = store;
         _time = time;
     }
+
+    public CowSyncSource Source => CowSyncSource.HorizonAgent;
 
     /// <summary>Zeitpunkt des letzten Abgleichs, null vor dem ersten Lauf.</summary>
     public DateTimeOffset? LastSyncUtc { get; private set; }
@@ -175,6 +178,20 @@ public sealed class HorizonSyncService
 
         return new AgentHeartbeatResponse { SyncRequested = requested };
     }
+
+    /// <summary>
+    /// Ueber die Naht angefordert: der Abgleich laeuft nicht hier, sondern
+    /// beim Agenten. Hier wird nur das Flag gesetzt, das er beim naechsten
+    /// Lebenszeichen abholt - deshalb ohne await.
+    /// </summary>
+    public Task RefreshCowsAsync(CancellationToken cancellationToken = default)
+    {
+        RequestSync();
+        return Task.CompletedTask;
+    }
+
+    /// <summary>Auf dem Server nichts zu tun - die Felder stehen hier schon.</summary>
+    public Task LoadStatusAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
     public void RequestSync()
     {

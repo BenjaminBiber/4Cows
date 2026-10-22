@@ -4,7 +4,7 @@
 
 @inject IConfiguration Configuration
 @inject DatabaseConnectionState ConnectionState
-@inject IXLinkService XLinkService
+@inject ICowSyncService CowSync
 @inject DemoSettings Demo
 
 <MeadowDialog Title="Datenbank Informationen" Size="MeadowDialogSize.Info">
@@ -61,7 +61,7 @@
         ConnectionState.IsConnected ? "mw-status mw-status--ok" : "mw-status mw-status--bad";
 
     private string XLinkClass =>
-        !Demo.Enabled && XLinkService.LastSyncUtc is not null && !XLinkService.LastSyncSucceeded
+        !Demo.Enabled && CowSync.LastSyncUtc is not null && !CowSync.LastSyncSucceeded
             ? "mw-kv__bad"
             : "mw-kv__ok";
 
@@ -80,13 +80,13 @@
 
             var interval = $"alle {IntervalHours:0.##} h";
 
-            if (XLinkService.LastSyncUtc is null)
+            if (CowSync.LastSyncUtc is null)
             {
                 return $"aktiv · {interval} · noch kein Abgleich";
             }
 
-            var when = XLinkService.LastSyncUtc.Value.ToLocalTime().ToString("dd.MM. HH:mm");
-            return XLinkService.LastSyncSucceeded
+            var when = CowSync.LastSyncUtc.Value.ToLocalTime().ToString("dd.MM. HH:mm");
+            return CowSync.LastSyncSucceeded
                 ? $"aktiv · zuletzt {when}"
                 : $"Fehler · zuletzt {when}";
         }
