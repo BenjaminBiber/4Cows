@@ -84,7 +84,11 @@ builder.Services.AddSingleton<ICowTreatmentService, CowTreatmentService>();
 builder.Services.AddSingleton<IPClawTreatmentService, PClawTreatmentService>();
 builder.Services.AddSingleton<IPCowTreatmentService, PCowTreatmentService>();
 builder.Services.AddSingleton<IMedicineService, MedicineService>();
-builder.Services.AddSingleton<ICowService, CowService>();
+// Eine Instanz, zwei Nahten: ICowService fuer alle Endpunkte, IHorizonCowStore fuer den
+// Horizon-Abgleich. Zwei AddSingleton<..., CowService> ergaeben zwei Caches.
+builder.Services.AddSingleton<CowService>();
+builder.Services.AddSingleton<ICowService>(sp => sp.GetRequiredService<CowService>());
+builder.Services.AddSingleton<IHorizonCowStore>(sp => sp.GetRequiredService<CowService>());
 builder.Services.AddSingleton<IWhereHowService, WhereHowService>();
 builder.Services.AddSingleton<ITreatmentReasonService, TreatmentReasonService>();
 builder.Services.AddSingleton<IClawFindingService, ClawFindingService>();
