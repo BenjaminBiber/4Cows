@@ -107,6 +107,12 @@ builder.Services.AddSingleton<IXLinkService, XLinkService>();
 // von keinem anderen Lauf.
 builder.Services.AddSingleton<XLinkRunner>();
 
+// Der Horizon-Abgleich. Singleton, weil er den Agent-Status und die offene
+// Abgleichs-Anforderung zwischen den Anfragen haelt. Zeit als Dienst, damit
+// die Ablaufregel testbar bleibt.
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<HorizonSyncService>();
+
 // Der geltende Push-Zustand (inkl. Rueckfall auf "aus") und der Sender. Beide
 // Singleton: PushOptions ist unveraenderlich, WebPushSender haelt keinen Cache,
 // liest je Sendung frisch aus der Datenbank und ist damit prozessweit teilbar.
