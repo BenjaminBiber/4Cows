@@ -131,6 +131,11 @@ builder.Services.AddSingleton<XLinkRunner>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<HorizonSyncService>();
 
+// Der Schluessel des Agenten. Einmal beim Start gelesen: ist er nicht gesetzt,
+// antworten /api/horizon/snapshot und /heartbeat mit 404, es gibt sie auf
+// dieser Instanz dann also gar nicht.
+builder.Services.AddSingleton(new HorizonAgentOptions(builder.Configuration["HorizonAgent:ApiKey"]));
+
 // Die Naht zeigt auf eine der beiden Instanzen von oben, nicht auf eine
 // dritte: zwei AddSingleton auf denselben Typ ergaeben zwei Zustaende, und der
 // Status-Endpunkt laese dann den eines Dienstes, den sonst niemand benutzt.
@@ -247,6 +252,7 @@ api.MapPushEndpoints();
 
 
 api.MapCowSyncEndpoints();
+api.MapHorizonEndpoints();
 
 
 // Ein Tippfehler in einer API-Adresse muss als 404 zurueckkommen und NICHT als
