@@ -277,14 +277,9 @@
         var search = _search.Trim();
         if (search.Length > 0)
         {
-            query = query.Where(r =>
-                Collar(r).Contains(search, StringComparison.OrdinalIgnoreCase)
-                || cowService.GetEarTagDisplay(r.CowId)
-                    .Contains(search, StringComparison.OrdinalIgnoreCase)
-                || r.Position.ToString().Contains(search, StringComparison.OrdinalIgnoreCase)
-                || HoofPositions.SideLabel(r.Position)
-                    .Contains(search, StringComparison.OrdinalIgnoreCase)
-                || r.Finding.Contains(search, StringComparison.OrdinalIgnoreCase));
+            query = query.Where(r => TableSearch.Matches(
+                search, Collar(r), EarTag(r),
+                $"{r.Position} {HoofPositions.SideLabel(r.Position)} {r.Finding}"));
         }
 
         if (_onlyOverdue)
