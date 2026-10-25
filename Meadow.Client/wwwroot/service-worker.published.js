@@ -130,6 +130,14 @@ async function onInstall(event) {
         .filter(asset => !offlineAssetsExclude.some(pattern => pattern.test(asset.url)))
         .map(asset => new Request(asset.url, { integrity: asset.hash, cache: 'no-cache' }));
     await caches.open(cacheName).then(cache => cache.addAll(assetsRequests));
+
+    // Nicht warten, bis jedes Fenster der App geschlossen ist. Die Vorlage
+    // tut das - und eine aufs Telefon installierte App wird praktisch nie
+    // ganz geschlossen. Die neue Version lag dann fertig im Cache, kam aber
+    // nie an die Reihe: das Telefon zeigte Wochen alte Seiten (z.B. ohne die
+    // Lely-Zeile der Kuh-Seite), waehrend der Desktop laengst aktuell war.
+    // Das Neuladen der Seite danach uebernimmt index.html.
+    self.skipWaiting();
 }
 
 async function onActivate(event) {
@@ -140,6 +148,10 @@ async function onActivate(event) {
     await Promise.all(cacheKeys
         .filter(key => key.startsWith(cacheNamePrefix) && key !== cacheName)
         .map(key => caches.delete(key)));
+
+    // Offene Fenster sofort uebernehmen, sonst feuert dort kein
+    // controllerchange und index.html laedt nicht neu.
+    await self.clients.claim();
 }
 
 async function onFetch(event) {

@@ -157,8 +157,49 @@
 
         Im Entwicklungsbuild zeigt service-worker.js bewusst auf eine leere
         Datei - sonst laege bei jedem F5 eine alte App-Huelle im Cache.
+
+        Dazu die Aktualisierung: die installierte App auf dem Telefon wird
+        kaum je ganz geschlossen, also wird beim Zurueckholen in den
+        Vordergrund nach einer neuen Version gefragt. Uebernimmt ein neuer
+        Service Worker (skipWaiting in service-worker.published.js), laedt die
+        Seite neu - sofort, wenn sie gerade nicht sichtbar ist oder eben erst
+        gestartet wurde, sonst beim
+        naechsten Zurueckholen, damit niemandem eine halbe Eingabe
+        weggeladen wird. Beim allerersten Besuch gibt es keinen alten Worker,
+        dann wird nicht neu geladen.
+
+        updateViaCache 'none': sonst darf der Browser service-worker-assets.js
+        (darin steht die Version) aus dem HTTP-Cache nehmen und sieht die neue
+        Version gar nicht.
     -->
-    <script>navigator.serviceWorker.register('service-worker.js');</script>
+    <script>
+        (function () {
+            if (!('serviceWorker' in navigator)) { return; }
+
+            var hadController = !!navigator.serviceWorker.controller;
+            var reloadPending = false;
+            var startedAt = Date.now();
+
+            navigator.serviceWorker.register('service-worker.js', { updateViaCache: 'none' })
+                .then(function (registration) {
+                    document.addEventListener('visibilitychange', function () {
+                        if (document.visibilityState !== 'visible') { return; }
+                        if (reloadPending) { location.reload(); return; }
+                        registration.update().catch(function () { /* offline */ });
+                    });
+                });
+
+            navigator.serviceWorker.addEventListener('controllerchange', function () {
+                if (!hadController || reloadPending) { return; }
+                reloadPending = true;
+                // Kurz nach dem Start (der Browser prueft beim Oeffnen selbst
+                // auf Updates) hat noch niemand etwas eingegeben.
+                if (document.visibilityState === 'hidden' || Date.now() - startedAt < 20000) {
+                    location.reload();
+                }
+            });
+        })();
+    </script>
 </body>
 
 </html>
