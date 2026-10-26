@@ -189,10 +189,13 @@ else
     /// Der gewoehnliche Kuhbehandlungs-Dialog, nur mit Tier und Medikament
     /// vorbelegt: eine zweite Gabe IST eine Behandlung, und Menge, Wie/Wo und
     /// Grund gehoeren genauso erfasst wie bei der ersten.
+    ///
+    /// Die Menge kommt als Vorschlag aus der zuletzt gegebenen Gabe des
+    /// Durchlaufs (Doses ist aufsteigend sortiert und nie leer).
     /// </summary>
     private async Task AddDose(TreatmentPlanRun run)
     {
-        await Launcher.OpenCowTreatmentAsync(CowId, run.MedicineId);
+        await Launcher.OpenCowTreatmentAsync(CowId, run.MedicineId, run.Doses[^1].MedicineDosage);
         await Changed.InvokeAsync();
     }
 

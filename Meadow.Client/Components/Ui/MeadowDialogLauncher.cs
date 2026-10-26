@@ -103,8 +103,11 @@ public sealed class MeadowDialogLauncher
     /// Der optionale Parameter stoert hier niemanden: anders als die vier
     /// parameterlosen Methoden oben haengt diese Ueberladung an keiner
     /// Methodengruppe.
+    ///
+    /// <paramref name="dosage"/> belegt die Menge vor - bei einer Plangabe die
+    /// der vorigen Gabe. Nur ein Vorschlag, das Feld bleibt editierbar.
     /// </summary>
-    public Task OpenCowTreatmentAsync(string cowId, int? medicineId = null)
+    public Task OpenCowTreatmentAsync(string cowId, int? medicineId = null, float? dosage = null)
         => ShowAndNotifyAsync<Add_Cow_Treatment_Dialog>(
             MeadowDataKind.CowTreatment,
             new DialogParameters<Add_Cow_Treatment_Dialog>
@@ -116,7 +119,8 @@ public sealed class MeadowDialogLauncher
                         EarTagNumber = cowId,
                         // 0 ist derselbe Wert, den der parameterlose
                         // Konstruktor setzt - ohne Angabe bleibt der Dialog leer.
-                        MedicineId = medicineId ?? 0
+                        MedicineId = medicineId ?? 0,
+                        MedicineDosage = dosage ?? 0
                     }
                 }
             });
