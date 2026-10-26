@@ -5,6 +5,7 @@
 @using Meadow.Client.Components.Ui
 @using Meadow.Client.Components.Services
 @using Meadow.Client.Services
+@using Meadow.Shared.Lookups
 
 @inject IDialogService DialogService
 @inject IJSRuntime JS
@@ -144,6 +145,7 @@
 
     public void Dispose()
     {
+        Launcher.SetSearchPrefill(MeadowRoutes.ClawTreatments, null);
         Changes.Changed -= OnDataChanged;
         Sync.Changed -= OnSyncChanged;
     }
@@ -330,6 +332,11 @@
         query = query.Where(r => DateRanges.Matches(_filter.Range, r.TreatmentDate));
 
         _rows = query.ToList();
+
+        // Gesucht wurde nach einem Tier: Plus-Knopf und FAB nehmen es mit in
+        // den Dialog - auch wenn es (noch) keine Zeile hier hat.
+        _prefill = AddPrefill.FromSearch(search, _rows.Select(r => r.EarTagNumber), cowService.Cows);
+        Launcher.SetSearchPrefill(MeadowRoutes.ClawTreatments, _prefill);
     }
 
     // ODER ueber die gewaehlten Werte: eine Zeile passt, sobald sie EINEN
@@ -473,7 +480,9 @@
 
     // Derselbe Weg wie FAB, Add-Menue und Dashboard: der Launcher meldet das
     // Speichern, OnDataChanged laedt nach.
-    private Task AddTreatment() => Launcher.OpenClawTreatmentAsync();
+    private AddPrefill? _prefill;
+
+    private Task AddTreatment() => Launcher.OpenClawTreatmentFromSearchAsync(_prefill);
 
     // ---- Excel-Export -------------------------------------------------
 

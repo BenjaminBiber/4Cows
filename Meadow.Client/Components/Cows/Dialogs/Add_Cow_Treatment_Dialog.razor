@@ -110,6 +110,12 @@
     /// </summary>
     [Parameter] public CowTreatment Cow_Treatment { get; set; } = new();
 
+    /// <summary>
+    /// Halsbandnummer aus der Tabellensuche, zu der es (noch) kein Tier gibt.
+    /// Nur gelesen, wenn Cow_Treatment kein Tier traegt.
+    /// </summary>
+    [Parameter] public int? PresetCollarNumber { get; set; }
+
     private readonly List<NumberEntry> _numbers = new();
     private readonly List<MedicationEntry> _medications = new();
     private DateTime? NullDate;
@@ -140,6 +146,15 @@
             }
 
             seed.Dosage = Cow_Treatment.MedicineDosage;
+        }
+        else if (PresetCollarNumber is > 0)
+        {
+            var cowId = cowService.GetCowIdByCollarNumber(PresetCollarNumber.Value);
+            _numbers.Add(new NumberEntry
+            {
+                Value = PresetCollarNumber.Value,
+                EarValue = string.IsNullOrEmpty(cowId) ? null : cowId
+            });
         }
         else
         {

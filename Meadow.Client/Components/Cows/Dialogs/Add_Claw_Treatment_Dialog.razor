@@ -70,6 +70,12 @@
 
     [Parameter] public ClawTreatment Claw_Treatment { get; set; } = new();
 
+    /// <summary>
+    /// Halsbandnummer aus der Tabellensuche, zu der es (noch) kein Tier gibt.
+    /// Nur gelesen, wenn Claw_Treatment kein Tier traegt.
+    /// </summary>
+    [Parameter] public int? PresetCollarNumber { get; set; }
+
     private DateTime? NullDate;
     private int CollarNumber;
     private HoofPosition? _selected;
@@ -96,6 +102,10 @@
         {
             var collar = cowService.GetCollarNumberByCowId(Claw_Treatment.EarTagNumber);
             CollarNumber = collar == int.MinValue ? 0 : collar;
+        }
+        else if (PresetCollarNumber is > 0)
+        {
+            OnCollarChanged(PresetCollarNumber.Value);
         }
 
         NullDate = Claw_Treatment.TreatmentDate == default
