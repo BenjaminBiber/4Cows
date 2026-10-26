@@ -5,6 +5,7 @@
 @using Meadow.Client.Components.Ui
 @using Meadow.Client.Components.Services
 @using Meadow.Client.Services
+@using Meadow.Shared.Lookups
 
 @inject IJSRuntime JS
 @inject HttpClient Http
@@ -181,6 +182,7 @@
 
     public void Dispose()
     {
+        Launcher.SetSearchPrefill(MeadowRoutes.CowTreatments, null);
         Changes.Changed -= OnDataChanged;
         Sync.Changed -= OnSyncChanged;
     }
@@ -399,6 +401,11 @@
         query = query.Where(r => DateRanges.Matches(_filter.Range, r.AdministrationDate));
 
         _rows = query.ToList();
+
+        // Gesucht wurde nach einem Tier: Plus-Knopf und FAB nehmen es mit in
+        // den Dialog - auch wenn es (noch) keine Zeile hier hat.
+        _prefill = AddPrefill.FromSearch(search, _rows.Select(r => r.EarTagNumber), cowService.Cows);
+        Launcher.SetSearchPrefill(MeadowRoutes.CowTreatments, _prefill);
     }
 
     private void OnSearchChanged(string value)
@@ -454,7 +461,9 @@
     // Speichern, OnDataChanged laedt nach. Vorher lud dieser Knopf selbst neu
     // - und war damit der einzige Weg, auf dem die Zeile sofort erschien,
     // obwohl er wegen .mw-only-desktop mobil gar nicht sichtbar ist.
-    private Task AddTreatment() => Launcher.OpenCowTreatmentAsync();
+    private AddPrefill? _prefill;
+
+    private Task AddTreatment() => Launcher.OpenCowTreatmentFromSearchAsync(_prefill);
 
     private void OnDataChanged(MeadowDataKind kind)
     {

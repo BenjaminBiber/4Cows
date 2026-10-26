@@ -5,6 +5,7 @@
 @using Meadow.Client.Components.Ui
 @using Meadow.Client.Components.Services
 @using Meadow.Client.Services
+@using Meadow.Shared.Lookups
 
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
@@ -129,6 +130,7 @@
 
     public void Dispose()
     {
+        Launcher.SetSearchPrefill(MeadowRoutes.Bandages, null);
         Changes.Changed -= OnDataChanged;
         Sync.Changed -= OnSyncChanged;
     }
@@ -288,6 +290,11 @@
         }
 
         _rows = query.ToList();
+
+        // Gesucht wurde nach einem Tier: Plus-Knopf und FAB nehmen es mit in
+        // den Dialog - auch wenn es (noch) keine Zeile hier hat.
+        _prefill = AddPrefill.FromSearch(search, _rows.Select(r => r.CowId), cowService.Cows);
+        Launcher.SetSearchPrefill(MeadowRoutes.Bandages, _prefill);
     }
 
     private void OnSearchChanged(string value)
@@ -556,5 +563,7 @@
 
     // Derselbe Weg wie FAB, Add-Menue und Dashboard: der Launcher meldet das
     // Speichern, OnDataChanged laedt nach.
-    private Task AddTreatment() => Launcher.OpenClawTreatmentAsync();
+    private AddPrefill? _prefill;
+
+    private Task AddTreatment() => Launcher.OpenClawTreatmentFromSearchAsync(_prefill);
 }
