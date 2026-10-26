@@ -603,9 +603,44 @@ public sealed class CowOverviewFilter
     /// und ein Badge, das das verschweigt, laesst die Liste kaputt aussehen
     /// ("wo ist Nummer 118?").
     /// </summary>
-    public int ActiveCount => 1;
+    public int ActiveCount
+        => 1
+           + (Groups.Count > 0 ? 1 : 0)
+           + (Locations.Count > 0 ? 1 : 0);
 
-    public bool HasAny => Status != CowStatus.InHerd || !string.IsNullOrWhiteSpace(Search);
+    /// <summary>Lely-Gruppen aus Horizon. Leer heisst "Alle", ODER innerhalb der Gruppe.</summary>
+    public HashSet<string> Groups { get; } = new(StringComparer.OrdinalIgnoreCase);
 
-    public void Reset() => Status = CowStatus.InHerd;
+    /// <summary>Lely-Standorte aus Horizon. Leer heisst "Alle", ODER innerhalb der Gruppe.</summary>
+    public HashSet<string> Locations { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Ob vom Zuruecksetzen etwas betroffen waere.</summary>
+    public bool IsModified => Status != CowStatus.InHerd || Groups.Count > 0 || Locations.Count > 0;
+
+    public bool HasAny => IsModified || !string.IsNullOrWhiteSpace(Search);
+
+    public void Reset()
+    {
+        Status = CowStatus.InHerd;
+        Groups.Clear();
+        Locations.Clear();
+    }
+
+    /// <summary>
+    /// Platzhalter fuer Tiere ohne Wert aus Horizon - sonst liessen sich die
+    /// nicht zugeordneten Tiere gar nicht herausfiltern.
+    /// </summary>
+    public const string NoValueOption = "Ohne Angabe";
+
+    public static bool MatchesAny(HashSet<string> selected, string? value)
+    {
+        if (selected.Count == 0)
+        {
+            return true;
+        }
+
+        return string.IsNullOrWhiteSpace(value)
+            ? selected.Contains(NoValueOption)
+            : selected.Contains(value.Trim());
+    }
 }
