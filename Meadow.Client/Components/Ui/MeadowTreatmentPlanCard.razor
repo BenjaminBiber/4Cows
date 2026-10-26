@@ -40,7 +40,7 @@
                     @* Die Lasche "plaene" der Kuh-Seite; ein unbekanntes
                        Kuerzel faellt dort auf die erste Lasche zurueck. *@
                     <a class="mw-plans__cow" href="@($"{MeadowRoutes.CowDetailFor(run.CowId)}?tab=plaene")">
-                        @CowLookups.GetDisplayLabel(Cows.Cows, run.CowId)
+                        @CowLabel(run.CowId)
                     </a>
                     <span class="mw-plans__med">@MedicineName(run.MedicineId)</span>
                     <span class="mw-plans__doses">@run.DosesDone/@run.DoseCount</span>
@@ -102,6 +102,18 @@
             CowTreatments.Treatments.Values, Medicines.Medicines,
             Cancellations.Cancellations.Values, _today);
         _runs = TreatmentPlanRuns.ActiveForDashboard(all, Cows.Cows);
+    }
+
+    /// <summary>
+    /// Im Stall wird die Kuh am Halsband erkannt, nicht an der Ohrmarke.
+    /// Ohne Halsbandnummer (0 = keine) bleibt die gewohnte Anzeige.
+    /// </summary>
+    private string CowLabel(string cowId)
+    {
+        var collar = CowLookups.GetCollarNumberByCowId(Cows.Cows, cowId);
+        return collar > 0
+            ? $"Halsband {collar}"
+            : CowLookups.GetDisplayLabel(Cows.Cows, cowId);
     }
 
     private string MedicineName(int medicineId)
