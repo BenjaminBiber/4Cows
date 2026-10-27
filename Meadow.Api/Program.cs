@@ -1,5 +1,8 @@
 using Meadow.Api.Endpoints;
 using Meadow.Api.Infrastructure;
+using Meadow.Api.Mcp;
+using Meadow.Shared.Mcp;
+using ModelContextProtocol.Protocol;
 using Meadow.Shared;
 using OfficeOpenXml;
 using Meadow.Api.BackgroundServices;
@@ -75,6 +78,13 @@ else
     LoggerService.LogInformation(typeof(Program),
         "Web Push ist deaktiviert - VAPID-Schluessel (Vapid:PublicKey/PrivateKey/Subject) fehlen oder sind unvollstaendig.");
 }
+
+// MCP-Server fuer Claude. Standard: an, ohne Token (wie die uebrige API).
+// Mcp__Token setzt einen Bearer-Token voraus, Mcp__Enabled=false schaltet ab.
+var mcpOptions = McpOptions.FromConfiguration(builder.Configuration);
+LoggerService.LogInformation(typeof(Program), mcpOptions.Enabled
+    ? $"MCP-Server aktiv unter /api/mcp ({(mcpOptions.TokenRequired ? "mit" : "ohne")} Token)."
+    : "MCP-Server ist abgeschaltet (Mcp:Enabled=false).");
 
 var connectionString = ConnectionStringFactory.Create(databaseSettings);
 await DatabaseInitializer.EnsureDatabaseAsync(connectionString);
@@ -189,6 +199,22 @@ else if (cowSyncSource == CowSyncSource.XLink)
 builder.Services.AddHostedService<BandageReminderPushBackgroundService>();
 // Dasselbe fuer die taegliche Sammel-Erinnerung der Behandlungsplaene.
 builder.Services.AddHostedService<TreatmentPlanPushBackgroundService>();
+
+builder.Services.AddSingleton(mcpOptions);
+builder.Services.AddSingleton<McpData>();
+if (mcpOptions.Enabled)
+{
+    // Zustandslos: jede Anfrage steht fuer sich, es gibt keine Sitzung, die
+    // ein Neustart des Containers verlieren koennte.
+    builder.Services.AddMcpServer(o =>
+        {
+            o.ServerInfo = new Implementation { Name = McpSetupGuide.ServerName, Version = "1.0.0" };
+            o.ServerInstructions = McpEndpoints.ServerInstructions;
+        })
+        .WithHttpTransport(o => o.Stateless = true)
+        .WithTools<MeadowReadTools>()
+        .WithTools<MeadowWriteTools>();
+}
 builder.WebHost.UseStaticWebAssets();
 var app = builder.Build();
 using (var scope = app.Services.CreateScope())
@@ -221,6 +247,7 @@ app.UseStaticFiles();
 
 // Ganz vorn, damit auch Fehlerantworten den Header tragen.
 app.UseMiddleware<DataVersionHeaderMiddleware>();
+app.UseMcpAccess(mcpOptions);
 
 // UseStatusCodePagesWithReExecute ist ersatzlos weg. Es war die Kruecke dafuer,
 // dass der <NotFound>-Zweig in Routes.razor nur bei App-interner Navigation
@@ -249,6 +276,7 @@ api.MapKpiEvaluationEndpoints();
 api.MapClawExportEndpoints();
 api.MapCowExportEndpoints();
 api.MapPushEndpoints();
+api.MapMcpEndpoints(app, mcpOptions);
 
 
 api.MapCowSyncEndpoints();

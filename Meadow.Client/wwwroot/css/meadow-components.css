@@ -3571,6 +3571,26 @@ a.mw-icon-btn { text-decoration: none; }
 }
 .mw-settings-card .mw-section-title { margin-bottom: 4px; }
 
+/* MCP-Reiter: Befehle zum Kopieren und die Werkzeugliste. */
+.mw-settings-card--wide { max-width: 760px; }
+.mw-code {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--mw-border);
+  border-radius: 8px;
+  background: var(--mw-tint);
+  color: var(--mw-text);
+  font-family: var(--mw-font-mono);
+  font-size: 12.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.mw-code-row { display: flex; justify-content: flex-end; }
+.mw-mcp-status { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.mw-mcp-tools { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+.mw-mcp-tools code { font-family: var(--mw-font-mono); font-size: 12.5px; font-weight: 600; }
+
 /* Basisdaten sind eine Desktop-Admin-Flaeche: dichter, ohne Mobile-Karten. */
 .mw-table-wrap--dense .mw-table th,
 .mw-table-wrap--dense .mw-table td {

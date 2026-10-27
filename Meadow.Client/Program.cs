@@ -200,6 +200,9 @@ builder.Services.AddSingleton<KpiRowProvider>();
 // die Anmeldung an /api/push/subscriptions.
 builder.Services.AddSingleton<PushService>();
 
+// Reiter "MCP" der Einstellungen: liest /api/mcp/info und kopiert Befehle.
+builder.Services.AddSingleton<McpSetupService>();
+
 // Schalenzustand: einer pro Nutzer. Unter Blazor Server war das "pro Circuit"
 // und deshalb Scoped. Im Browser ist ein Tab ohnehin ein Nutzer; Scoped bleibt
 // trotzdem stehen, damit die Registrierung dieselbe Aussage macht wie vorher.
