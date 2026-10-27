@@ -269,6 +269,32 @@ public class CowLookupsTests
         Assert.True(CowLookups.IsCollarInUse(Herd(Tagged("DE0004", 4)), 4));
     }
 
+    // ---- Nachschlag ueber die Lely-ID -------------------------------------
+
+    [Fact]
+    public void Lely_id_lookup_finds_the_cow_by_field_not_by_key()
+    {
+        // Die Lely-ID steht in einem eigenen Feld; der Schluessel ist hier die
+        // Ohrmarke. Ein Nachschlag ueber den Schluessel ginge daneben.
+        var cow = Tagged("DE0815", 12);
+        cow.LelyAnimalId = "4711";
+        var herd = Herd(cow);
+
+        Assert.Same(cow, CowLookups.GetByLelyAnimalId(herd, "4711"));
+    }
+
+    [Fact]
+    public void Lely_id_lookup_returns_null_for_blank_or_unknown()
+    {
+        var cow = Tagged("DE0815", 12);
+        cow.LelyAnimalId = "4711";
+        var herd = Herd(cow);
+
+        Assert.Null(CowLookups.GetByLelyAnimalId(herd, "0815"));
+        Assert.Null(CowLookups.GetByLelyAnimalId(herd, "   "));
+        Assert.Null(CowLookups.GetByLelyAnimalId(herd, string.Empty));
+    }
+
     // ---- Autocomplete der Behandlungsdialoge ------------------------------
 
     [Fact]

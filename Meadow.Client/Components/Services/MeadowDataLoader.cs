@@ -27,6 +27,7 @@ public sealed class MeadowDataLoader : IDisposable
     private readonly IPCowTreatmentService _plannedCow;
     private readonly IPClawTreatmentService _plannedClaw;
     private readonly ISettingsService _settings;
+    private readonly ITreatmentPlanCancellationService _cancellations;
 
     /// <summary>
     /// Der Melder fuer einen fremden Datenstand.
@@ -50,6 +51,7 @@ public sealed class MeadowDataLoader : IDisposable
         IPCowTreatmentService plannedCow,
         IPClawTreatmentService plannedClaw,
         ISettingsService settings,
+        ITreatmentPlanCancellationService cancellations,
         MeadowSyncState sync)
     {
         _cows = cows;
@@ -63,13 +65,14 @@ public sealed class MeadowDataLoader : IDisposable
         _plannedCow = plannedCow;
         _plannedClaw = plannedClaw;
         _settings = settings;
+        _cancellations = cancellations;
         _sync = sync;
         _sync.DataVersionChanged += Invalidate;
     }
 
     public void Dispose() => _sync.DataVersionChanged -= Invalidate;
 
-    private enum Cache { Lookups, CowTreatments, ClawTreatments, PlannedCow, PlannedClaw }
+    private enum Cache { Lookups, CowTreatments, ClawTreatments, PlannedCow, PlannedClaw, TreatmentPlanCancellations }
 
     private readonly HashSet<Cache> _done = new();
     private readonly Dictionary<Cache, Task> _inFlight = new();
@@ -173,11 +176,20 @@ public sealed class MeadowDataLoader : IDisposable
     /// </summary>
     public Task EnsureCowProfileAsync() => EnsureDashboardAsync();
 
-    /// <summary>Alles - das Dashboard rechnet ueber saemtliche Behandlungsarten.</summary>
+    /// <summary>
+    /// Alles - das Dashboard rechnet ueber saemtliche Behandlungsarten.
+    ///
+    /// Die Abbrueche gehoeren dazu, obwohl sie keine Behandlungsart sind: ein
+    /// Durchlauf wird aus den Behandlungen gerechnet, und ohne diese Tabelle
+    /// saehe ein abgebrochener Plan aus wie ein laufender. Ein fehlender
+    /// Abbruch faellt dabei nicht auf, er zeigt nur zu viel - deshalb hier und
+    /// nicht erst in der Seite.
+    /// </summary>
     public Task EnsureDashboardAsync() => Task.WhenAll(
         EnsureLookupsAsync(),
         Once(Cache.CowTreatments, _cowTreatments.GetAllDataAsync),
         Once(Cache.ClawTreatments, _clawTreatments.GetAllDataAsync),
         Once(Cache.PlannedCow, _plannedCow.GetAllDataAsync),
-        Once(Cache.PlannedClaw, _plannedClaw.GetAllDataAsync));
+        Once(Cache.PlannedClaw, _plannedClaw.GetAllDataAsync),
+        Once(Cache.TreatmentPlanCancellations, _cancellations.GetAllDataAsync));
 }

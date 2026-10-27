@@ -1,0 +1,147 @@
+@*
+    Karte "Laufende Behandlungspläne" auf dem Dashboard.
+
+    Zeigt jeden aktiven Durchlauf nicht abgegangener Kuehe, am dringendsten
+    zuerst. Die Reihenfolge und die Auswahl kommen fertig aus
+    TreatmentPlanRuns.ActiveForDashboard - hier wird nichts nachsortiert.
+
+    Lebenszyklus wie MeadowNoticeBoard: leere Liste heisst gar keine Karte,
+    OnInitializedAsync wartet auf EnsureDashboardAsync (sonst rechnet die
+    Karte auf leeren Caches und bleibt dauerhaft unsichtbar), und
+    MeadowDataChanges meldet jede neue Behandlung - auch die, die erst die
+    Outbox nachtraegt.
+*@
+@implements IDisposable
+
+@using Meadow.Client.Components.Services
+@using Meadow.Shared.Lookups
+@using Meadow.Shared.Models
+@using Meadow.Shared.Services
+
+@inject ICowTreatmentService CowTreatments
+@inject IMedicineService Medicines
+@inject ICowService Cows
+@inject ITreatmentPlanCancellationService Cancellations
+@inject MeadowDataChanges Changes
+@inject MeadowDataLoader Data
+
+@if (_runs.Count > 0)
+{
+    <section class="mw-card mw-plans">
+        <header class="mw-plans__head">
+            <h2 class="mw-card-title">Laufende Behandlungspläne</h2>
+            <span class="mw-plans__count">@_runs.Count</span>
+        </header>
+
+        <ul class="mw-plans__list">
+            @foreach (var run in _runs)
+            {
+                <li class="mw-plans__row @StatusClass(run.Status)">
+                    @* Die Lasche "plaene" der Kuh-Seite; ein unbekanntes
+                       Kuerzel faellt dort auf die erste Lasche zurueck. *@
+                    <a class="mw-plans__cow" href="@($"{MeadowRoutes.CowDetailFor(run.CowId)}?tab=plaene")">
+                        @CowLabel(run.CowId)
+                    </a>
+                    <span class="mw-plans__med">@MedicineName(run.MedicineId)</span>
+                    <span class="mw-plans__doses">@run.DosesDone/@run.DoseCount</span>
+                    <span class="mw-plans__due">@DueText(run, _today)</span>
+                </li>
+            }
+        </ul>
+    </section>
+}
+
+@code {
+    private IReadOnlyList<TreatmentPlanRun> _runs = Array.Empty<TreatmentPlanRun>();
+
+    /// <summary>
+    /// Das "heute" dieser Momentaufnahme. Einmal je Neuberechnung gelesen,
+    /// damit Status und Faelligkeitstext derselben Zeile nicht auf zwei
+    /// verschiedene Tage zeigen koennen (Mitternacht dazwischen).
+    /// </summary>
+    private DateTime _today = DateTime.Today;
+
+    protected override void OnInitialized()
+    {
+        Recompute();
+        Changes.Changed += OnDataChanged;
+    }
+
+    /// <summary>
+    /// Erst die Daten, dann rechnen. Ohne das sieht die Karte beim ersten
+    /// Rendern leere Caches - in WebAssembly gibt es kein Prerendering, und
+    /// die Karte bliebe ohne eigenen Anstoss unsichtbar. EnsureDashboardAsync
+    /// ist ueber Once() gegen Doppelladen abgesichert; das Dashboard ruft
+    /// dasselbe.
+    /// </summary>
+    protected override async Task OnInitializedAsync()
+    {
+        await Data.EnsureDashboardAsync();
+        Recompute();
+    }
+
+    /// <summary>
+    /// Nur Kuhbehandlungen: aus ihnen entstehen die Durchlaeufe. Klauen- und
+    /// geplante Behandlungen aendern an dieser Karte nichts.
+    /// </summary>
+    private void OnDataChanged(MeadowDataKind kind)
+    {
+        if (kind != MeadowDataKind.CowTreatment)
+        {
+            return;
+        }
+
+        Recompute();
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void Recompute()
+    {
+        _today = DateTime.Today;
+        var all = TreatmentPlanRuns.Build(
+            CowTreatments.Treatments.Values, Medicines.Medicines,
+            Cancellations.Cancellations.Values, _today);
+        _runs = TreatmentPlanRuns.ActiveForDashboard(all, Cows.Cows);
+    }
+
+    /// <summary>
+    /// Im Stall wird die Kuh am Halsband erkannt, nicht an der Ohrmarke.
+    /// Ohne Halsbandnummer (0 = keine) bleibt die gewohnte Anzeige.
+    /// </summary>
+    private string CowLabel(string cowId)
+    {
+        var collar = CowLookups.GetCollarNumberByCowId(Cows.Cows, cowId);
+        return collar > 0
+            ? $"Halsband {collar}"
+            : CowLookups.GetDisplayLabel(Cows.Cows, cowId);
+    }
+
+    private string MedicineName(int medicineId)
+        => Medicines.Medicines.TryGetValue(medicineId, out var medicine)
+            ? medicine.MedicineName ?? string.Empty
+            : string.Empty;
+
+    private static string StatusClass(TreatmentPlanRunStatus status) => status switch
+    {
+        TreatmentPlanRunStatus.Overdue => "mw-plans__row--overdue",
+        TreatmentPlanRunStatus.DueToday => "mw-plans__row--due",
+        _ => string.Empty
+    };
+
+    /// <summary>
+    /// Der Faelligkeitstext. Interval nennt die naechste Gabe, Window das
+    /// Ende des Fensters - beides steht nur in genau einem der beiden Felder.
+    /// </summary>
+    private static string DueText(TreatmentPlanRun run, DateTime today) => run.Status switch
+    {
+        TreatmentPlanRunStatus.Overdue => run.OverdueDays(today) == 1
+            ? "seit 1 Tag überfällig"
+            : $"seit {run.OverdueDays(today)} Tagen überfällig",
+        TreatmentPlanRunStatus.DueToday => "heute fällig",
+        _ when run.NextDueDate is { } next => $"nächste Gabe {next:dd.MM.}",
+        _ when run.WindowEnd is { } end => $"bis {end:dd.MM.}",
+        _ => string.Empty
+    };
+
+    public void Dispose() => Changes.Changed -= OnDataChanged;
+}

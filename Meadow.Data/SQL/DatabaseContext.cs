@@ -22,6 +22,11 @@ public sealed class DatabaseContext : DbContext
     public DbSet<ClawFinding> ClawFindings => Set<ClawFinding>();
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
 
+    // Die manuell abgebrochenen Behandlungsplan-Durchlaeufe. Durchlaeufe selbst
+    // werden nicht gespeichert, sie entstehen beim Rechnen aus den Behandlungen;
+    // der Abbruch ist das Einzige, was sich daraus nicht ableiten laesst.
+    public DbSet<TreatmentPlanCancellation> TreatmentPlanCancellations => Set<TreatmentPlanCancellation>();
+
     // Web-Push-Anmeldungen. Kein Client-Cache der dreizehn Dienste, sondern der
     // serverseitige Kanal fuer server-initiierte Benachrichtigungen (Task 3).
     public DbSet<PushSubscription> PushSubscriptions => Set<PushSubscription>();
@@ -30,6 +35,10 @@ public sealed class DatabaseContext : DbContext
     // je Behandlung der Tag der zuletzt versendeten Erinnerung. Rein
     // serverseitig, kein Client laedt ihn - wie PushSubscription.
     public DbSet<PushReminderLog> PushReminderLogs => Set<PushReminderLog>();
+
+    // Der Entdopplungs-Merker der taeglichen Behandlungsplan-Sammel-Push: je
+    // Tag hoechstens eine Zeile. Rein serverseitig wie PushReminderLog.
+    public DbSet<TreatmentPlanPushLog> TreatmentPlanPushLogs => Set<TreatmentPlanPushLog>();
 
     // Der Unique-Index auf Cow.Ear_Tag_Number. Er stand als [Index]-Attribut am Modell,
     // aber Meadow.Shared soll paketfrei bleiben (der WebAssembly-Client laedt es mit),
@@ -48,6 +57,13 @@ public sealed class DatabaseContext : DbContext
             .HasIndex(c => c.EarTagNumber)
             .IsUnique()
             .HasDatabaseName("IX_Cow_Ear_Tag_Number");
+
+        // Wie die Ohrmarke: eindeutig, aber mehrfach NULL erlaubt (MariaDB-UNIQUE),
+        // damit alle noch nicht zugeordneten Kuehe nebeneinander stehen koennen.
+        modelBuilder.Entity<Cow>()
+            .HasIndex(c => c.LelyAnimalId)
+            .IsUnique()
+            .HasDatabaseName("IX_Cow_Lely_Animal_Id");
 
         // Der zweite Schluessel der vier offline schreibbaren Tabellen. Die
         // Eindeutigkeit ist die eigentliche Garantie: sie macht aus einem
@@ -99,5 +115,29 @@ public sealed class DatabaseContext : DbContext
         // Lauf faende ihn nie wieder.
         modelBuilder.Entity<PushReminderLog>()
             .Property(l => l.ClawTreatmentId).ValueGeneratedNever();
+
+        // Ein Durchlauf = hoechstens ein Abbruch. Der Durchlauf haengt an der
+        // ClientId seiner ERSTEN Gabe, und die Eindeutigkeit ist auch hier die
+        // eigentliche Garantie der Idempotenz: ein wiederholtes POST wird zum
+        // No-op, egal wie oft der Nutzer tippt oder die Leitung abreisst. Die
+        // Pruefung im Dienst ist nur der schnelle Weg dorthin.
+        //
+        // ascii statt utf8mb4 aus demselben Grund wie bei den vier
+        // Behandlungstabellen: eine GUID besteht aus Hexziffern und
+        // Bindestrichen.
+        modelBuilder.Entity<TreatmentPlanCancellation>()
+            .Property(c => c.StartTreatmentClientId).HasColumnType("char(36)").HasCharSet("ascii");
+        modelBuilder.Entity<TreatmentPlanCancellation>()
+            .HasIndex(c => c.StartTreatmentClientId)
+            .IsUnique()
+            .HasDatabaseName("IX_Treatment_Plan_Cancellation_Start_Treatment_Client_Id");
+
+        // Ein Tag, hoechstens eine Sammel-Push. Der Index ist der harte Riegel
+        // hinter der Regel in PushLogic.ShouldSendReminderToday: wollten zwei
+        // Instanzen gleichzeitig senden, scheitert die zweite beim Insert.
+        modelBuilder.Entity<TreatmentPlanPushLog>()
+            .HasIndex(l => l.SentOn)
+            .IsUnique()
+            .HasDatabaseName("IX_Treatment_Plan_Push_Log_Sent_On");
     }
 }

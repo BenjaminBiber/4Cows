@@ -12,20 +12,20 @@ namespace Meadow.Api.BackgroundServices;
 /// </summary>
 public class CowSyncBackgroundService : BackgroundService
 {
-    private readonly IXLinkService _xLinkService;
+    private readonly XLinkService _xLinkService;
     private readonly IDbContextFactory<DatabaseContext> _contextFactory;
 
     /// <summary>
     /// RefreshCowsAsync SCHREIBT Kuhzeilen - Abgang, Halsbandwechsel,
     /// Kalb-Befoerderung, Neuanlage. Der manuelle Weg ueber POST
-    /// /api/xlink/refresh bumpt dafuer (XLinkRunner); nach einem
+    /// /api/cowsync/refresh bumpt dafuer (XLinkRunner); nach einem
     /// Hintergrundlauf gilt dieselbe Aussage, und ohne den Bump merkt ein
     /// offener Tab von abgegangenen und neu angelegten Kuehen nichts.
     /// </summary>
     private readonly IDataVersion _dataVersion;
     private readonly TimeSpan _interval;
 
-    public CowSyncBackgroundService(IXLinkService xLinkService, IDbContextFactory<DatabaseContext> contextFactory,
+    public CowSyncBackgroundService(XLinkService xLinkService, IDbContextFactory<DatabaseContext> contextFactory,
         IDataVersion dataVersion)
     {
         _xLinkService = xLinkService;

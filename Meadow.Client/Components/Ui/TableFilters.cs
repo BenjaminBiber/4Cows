@@ -174,8 +174,9 @@ public static class ReasonFilter
 /// </summary>
 public static class TableSearch
 {
-    // Ab dieser Ziffernzahl zaehlt auch die Ohrmarke mit.
-    public const int EarTagMinDigits = 3;
+    // Ab dieser Ziffernzahl meint eine reine Ziffernsuche eine Ohrmarke.
+    // Halsbandnummern sind hoechstens dreistellig.
+    public const int EarTagMinDigits = 4;
 
     /// <summary>Rein numerisch (mind. eine Ziffer, nur Ziffern)?</summary>
     public static bool IsNumeric(string search)
@@ -186,26 +187,28 @@ public static class TableSearch
     /// <paramref name="earTag"/> die Ohrmarke, <paramref name="text"/> der
     /// zusaetzliche Freitext der jeweiligen Tabelle (Medikament, Befund, Notiz).
     ///
-    /// Bei einer kurzen reinen Ziffernsuche zaehlt nur die Halsbandnummer; sonst
-    /// treffen Halsband, Ohrmarke und Freitext wie gewohnt.
+    /// Reine Ziffernsuche: bis drei Ziffern trifft nur die exakt gleiche
+    /// Halsbandnummer ("86" findet Halsband 86, nicht 186 oder 860), ab vier
+    /// Ziffern wird die Ohrmarke durchsucht. Sonst treffen Halsband, Ohrmarke
+    /// und Freitext als Teilstring.
     /// </summary>
     public static bool Matches(string search, string collar, string earTag, string? text = null)
     {
-        if (Contains(collar, search))
-        {
-            return true;
-        }
-
-        // Reine Ziffernsuche adressiert Nummern, nicht Freitext - und die
-        // Ohrmarke erst ab drei Ziffern.
         if (IsNumeric(search))
         {
-            return search.Length >= EarTagMinDigits && Contains(earTag, search);
+            return search.Length >= EarTagMinDigits
+                ? Contains(earTag, search)
+                : IsSameCollar(collar, search);
         }
 
-        return Contains(earTag, search)
+        return Contains(collar, search)
+               || Contains(earTag, search)
                || (text is { Length: > 0 } && Contains(text, search));
     }
+
+    // Zahlenvergleich, damit "086" auch Halsband 86 findet.
+    private static bool IsSameCollar(string collar, string search)
+        => int.TryParse(collar, out var c) && int.TryParse(search, out var s) && c == s;
 
     private static bool Contains(string haystack, string needle)
         => haystack.Contains(needle, StringComparison.OrdinalIgnoreCase);
@@ -600,9 +603,44 @@ public sealed class CowOverviewFilter
     /// und ein Badge, das das verschweigt, laesst die Liste kaputt aussehen
     /// ("wo ist Nummer 118?").
     /// </summary>
-    public int ActiveCount => 1;
+    public int ActiveCount
+        => 1
+           + (Groups.Count > 0 ? 1 : 0)
+           + (Locations.Count > 0 ? 1 : 0);
 
-    public bool HasAny => Status != CowStatus.InHerd || !string.IsNullOrWhiteSpace(Search);
+    /// <summary>Lely-Gruppen aus Horizon. Leer heisst "Alle", ODER innerhalb der Gruppe.</summary>
+    public HashSet<string> Groups { get; } = new(StringComparer.OrdinalIgnoreCase);
 
-    public void Reset() => Status = CowStatus.InHerd;
+    /// <summary>Lely-Standorte aus Horizon. Leer heisst "Alle", ODER innerhalb der Gruppe.</summary>
+    public HashSet<string> Locations { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Ob vom Zuruecksetzen etwas betroffen waere.</summary>
+    public bool IsModified => Status != CowStatus.InHerd || Groups.Count > 0 || Locations.Count > 0;
+
+    public bool HasAny => IsModified || !string.IsNullOrWhiteSpace(Search);
+
+    public void Reset()
+    {
+        Status = CowStatus.InHerd;
+        Groups.Clear();
+        Locations.Clear();
+    }
+
+    /// <summary>
+    /// Platzhalter fuer Tiere ohne Wert aus Horizon - sonst liessen sich die
+    /// nicht zugeordneten Tiere gar nicht herausfiltern.
+    /// </summary>
+    public const string NoValueOption = "Ohne Angabe";
+
+    public static bool MatchesAny(HashSet<string> selected, string? value)
+    {
+        if (selected.Count == 0)
+        {
+            return true;
+        }
+
+        return string.IsNullOrWhiteSpace(value)
+            ? selected.Contains(NoValueOption)
+            : selected.Contains(value.Trim());
+    }
 }

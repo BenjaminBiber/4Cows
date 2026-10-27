@@ -43,6 +43,15 @@ public interface IPushSender
     /// POST /api/push/test ist mit Task 6 entfallen).
     /// </summary>
     Task<int> SendTreatmentReminderToAllAsync(ClawTreatment treatment, DateTime today, CancellationToken ct = default);
+
+    /// <summary>
+    /// Die taegliche Sammel-Erinnerung der Behandlungsplaene (Task 8): EINE
+    /// Nachricht mit der fertigen Zusammenfassung an ALLE Anmeldungen, Klick
+    /// oeffnet die Startseite /app. Den Wortlaut baut der Scheduler ueber
+    /// <see cref="TreatmentPlanReminderText.PushSummary"/> - hier wird nur
+    /// verschickt. Gemeldet wird, an wie viele Anmeldungen sie ging.
+    /// </summary>
+    Task<int> SendTreatmentPlanReminderToAllAsync(string body, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -145,6 +154,16 @@ public sealed class WebPushSender : IPushSender
             url: "/Verband_Daten",
             ct);
     }
+
+    public Task<int> SendTreatmentPlanReminderToAllAsync(string body, CancellationToken ct = default)
+        // Titel aus Meadow.Shared, damit Push und In-App-Hinweis dieselbe
+        // Textquelle haben. Der Rumpf kommt fertig vom Scheduler: nur er weiss,
+        // was heute faellig ist, und nur er kennt den Zeitbezug.
+        => BroadcastAsync(
+            title: TreatmentPlanReminderText.PushTitle,
+            body: body,
+            url: "/app",
+            ct);
 
     /// <summary>
     /// Verschickt EINE Nachricht an ALLE gespeicherten Anmeldungen und meldet, an

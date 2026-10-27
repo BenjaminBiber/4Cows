@@ -39,6 +39,27 @@ public class Cow
     [Required]
     public bool IsGone { get; set; } = false;
 
+    // Die Lely-interne Animal-ID (HemAnimal.AniId) - der stabile Schluessel des Horizon-Abgleichs.
+    // Null bei Kuehen, die Horizon (noch) nicht zugeordnet sind.
+    [StringLength(64)]
+    [Column("Lely_Animal_Id")]
+    public string? LelyAnimalId { get; set; }
+
+    // Stallbereich aus Horizon (SytLocation.LocName). Nur der Horizon-Abgleich schreibt.
+    [StringLength(100)]
+    [Column("Location")]
+    public string? Location { get; set; }
+
+    // Gruppe aus Horizon (HemGroup.GroName). Spalte Group_Name, weil GROUP ein SQL-Schluesselwort ist.
+    [StringLength(100)]
+    [Column("Group_Name")]
+    public string? Group { get; set; }
+
+    // Beschreibung aus Horizon (HemAnimal.AniDescription).
+    [StringLength(500)]
+    [Column("Description")]
+    public string? Description { get; set; }
+
     public Cow(string cowId, string? earTagNumber, int collarNumber, bool isCalv, bool isGone)
     {
         CowId = cowId;

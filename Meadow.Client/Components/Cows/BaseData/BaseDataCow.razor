@@ -2,7 +2,7 @@
 @using Meadow.Client.Components.Ui
 
 @inject ICowService CowService
-@inject IXLinkService XLinkService
+@inject ICowSyncService CowSync
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 
@@ -16,10 +16,10 @@
             <MeadowIcon Name="MeadowIconName.Plus" Size="20" />
             <span>Kalb anlegen</span>
         </button>
-        <button type="button" class="mw-btn mw-btn--primary" @onclick="RefreshFromXLink"
+        <button type="button" class="mw-btn mw-btn--primary" @onclick="RefreshCows"
                 disabled="@_isRefreshing">
             <MeadowIcon Name="MeadowIconName.Download" Size="20" />
-            <span>@(_isRefreshing ? "Aktualisiere…" : "Von XLink aktualisieren")</span>
+            <span>@RefreshLabel</span>
         </button>
     </Right>
 </MeadowToolbar>
@@ -39,12 +39,41 @@
 
     private IReadOnlyList<MeadowColumn<Cow>> _columns = Array.Empty<MeadowColumn<Cow>>();
 
+    /// <summary>
+    /// Welche Quelle gerade gilt. Offline bleibt der Standard HorizonAgent
+    /// stehen - der Knopf funktioniert dann trotzdem.
+    /// </summary>
+    private string SourceLabel => CowSync.Source == CowSyncSource.XLink ? "XLink" : "Horizon";
+
+    /// <summary>
+    /// Waehrend des Laufs: Bei Horizon kann der Abgleich bis zu einer Minute
+    /// dauern, weil der Agent erst beim naechsten Lebenszeichen davon erfaehrt.
+    /// </summary>
+    private string RefreshLabel => _isRefreshing
+        ? (CowSync.Source == CowSyncSource.XLink ? "Aktualisiere…" : "Warte auf Horizon-Agent…")
+        : $"Von {SourceLabel} aktualisieren";
+
     protected override async Task OnInitializedAsync()
     {
         BuildColumns();
+
+        try
+        {
+            await CowSync.LoadStatusAsync();
+        }
+        catch (Exception e)
+        {
+            // Die Quelle ist nur Beschriftung - ohne sie bleibt der Standard.
+            Console.Error.WriteLine($"Status des Kuh-Abgleichs nicht lesbar: {e.Message}");
+        }
+
         await CowService.GetAllDataAsync();
         Reload();
     }
+
+    /// <summary>Lange Beschreibungen kuerzen, voller Text steht im title.</summary>
+    private static string Shorten(string text, int max) =>
+        text.Length <= max ? text : text[..max] + "…";
 
     private void BuildColumns() => _columns = new List<MeadowColumn<Cow>>
     {
@@ -60,6 +89,30 @@
             Title = "Ohrmarkennummer",
             Text = c => string.IsNullOrWhiteSpace(c.EarTagNumber) ? "—" : c.EarTagNumber,
             SortBy = c => c.EarTagNumber ?? string.Empty
+        },
+        new()
+        {
+            Title = "Ort",
+            Text = c => string.IsNullOrWhiteSpace(c.Location) ? "—" : c.Location,
+            SortBy = c => c.Location ?? string.Empty
+        },
+        new()
+        {
+            Title = "Gruppe",
+            Text = c => string.IsNullOrWhiteSpace(c.Group) ? "—" : c.Group,
+            SortBy = c => c.Group ?? string.Empty
+        },
+        new()
+        {
+            // MeadowColumn kennt kein Ausblenden auf schmalen Schirmen; statt
+            // dessen begrenzt MaxWidth die Spalte, der volle Text steht im title.
+            Title = "Beschreibung",
+            Template = cow => string.IsNullOrWhiteSpace(cow.Description)
+                ? @<span class="mw-dim">—</span>
+                : @<span title="@cow.Description">@Shorten(cow.Description, 60)</span>,
+            SortBy = c => c.Description ?? string.Empty,
+            MaxWidth = "22rem",
+            NoWrap = true
         },
         new()
         {
@@ -115,10 +168,19 @@
         var term = _search.Trim();
         _rows = term.Length == 0
             ? _all.ToList()
-            : _all.Where(c => CowService.FilterFuncCow(c.CowId, term)).ToList();
+            : _all.Where(c => CowService.FilterFuncCow(c.CowId, term) || MatchesPlace(c, term)).ToList();
     }
 
-    private async Task RefreshFromXLink()
+    /// <summary>
+    /// Ort und Gruppe sind nur hier durchsuchbar. CowLookups.FilterFuncCow
+    /// bleibt unberuehrt - die Kuh-Auswahl in den Behandlungsdialogen nutzt sie
+    /// und soll nicht nach Ort suchen.
+    /// </summary>
+    private static bool MatchesPlace(Cow cow, string term) =>
+        (cow.Location?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false)
+        || (cow.Group?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false);
+
+    private async Task RefreshCows()
     {
         if (_isRefreshing)
         {
@@ -128,10 +190,10 @@
         _isRefreshing = true;
         try
         {
-            await XLinkService.RefreshCowsAsync();
+            await CowSync.RefreshCowsAsync();
             await CowService.GetAllDataAsync();
             Reload();
-            Snackbar.Add("Kühe wurden erfolgreich von XLink aktualisiert.", Severity.Success);
+            Snackbar.Add($"Kühe wurden von {SourceLabel} aktualisiert.", Severity.Success);
         }
         catch (Exception e)
         {

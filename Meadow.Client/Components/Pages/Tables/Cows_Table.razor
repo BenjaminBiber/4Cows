@@ -22,7 +22,7 @@
         }
     </Left>
     <Right>
-        <MeadowFilterPopover Open="_filterOpen" ShowReset="@(_filter.Status != CowStatus.InHerd)"
+        <MeadowFilterPopover Open="_filterOpen" ShowReset="@_filter.IsModified"
                              CountText="@($"{CountText} Tieren")"
                              OnClose="CloseFilter" OnReset="ResetFilter">
             <Trigger>
@@ -33,6 +33,12 @@
                 <MeadowSingleSelect Label="Status" Options="CowStatusFilter.Labels"
                                     Value="@CowStatusFilter.ToLabel(_filter.Status)"
                                     ValueChanged="OnStatusChanged" />
+                <MeadowMultiSelect Label="Lely Gruppe" Options="GroupOptions"
+                                   Selected="_filter.Groups"
+                                   SelectionChanged="Apply" />
+                <MeadowMultiSelect Label="Lely Standort" Options="LocationOptions"
+                                   Selected="_filter.Locations"
+                                   SelectionChanged="Apply" />
             </ChildContent>
         </MeadowFilterPopover>
     </Right>
@@ -243,7 +249,37 @@
         // filtert bereits, im Gegensatz zu den Behandlungstabellen.
         query = query.Where(r => CowStatusFilter.Matches(_filter.Status, r));
 
+        query = query.Where(r => CowOverviewFilter.MatchesAny(_filter.Groups, r.Group)
+                              && CowOverviewFilter.MatchesAny(_filter.Locations, r.Location));
+
         _rows = query.ToList();
+    }
+
+    /// <summary>
+    /// Die in den geladenen Tieren vorkommenden Lely-Gruppen - wie bei den
+    /// anderen Tabellen nur Werte, die auch etwas finden. "Ohne Angabe" kommt
+    /// dazu, sobald ein Tier keine Gruppe aus Horizon hat.
+    /// </summary>
+    private IReadOnlyList<string> GroupOptions => Options(r => r.Group);
+
+    private IReadOnlyList<string> LocationOptions => Options(r => r.Location);
+
+    private IReadOnlyList<string> Options(Func<CowOverviewRow, string?> value)
+    {
+        var options = _all
+            .Select(value)
+            .Where(v => !string.IsNullOrWhiteSpace(v))
+            .Select(v => v!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(v => v, StringComparer.CurrentCulture)
+            .ToList();
+
+        if (_all.Any(r => string.IsNullOrWhiteSpace(value(r))))
+        {
+            options.Add(CowOverviewFilter.NoValueOption);
+        }
+
+        return options;
     }
 
     private void OnSearchChanged(string value)

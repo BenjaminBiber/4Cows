@@ -156,10 +156,20 @@ namespace Meadow.Data.Migrations
                         .HasColumnType("int")
                         .HasColumnName("Collar_Number");
 
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("Description");
+
                     b.Property<string>("EarTagNumber")
                         .HasMaxLength(64)
                         .HasColumnType("varchar(64)")
                         .HasColumnName("Ear_Tag_Number");
+
+                    b.Property<string>("Group")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("Group_Name");
 
                     b.Property<bool>("IsCalv")
                         .HasColumnType("tinyint(1)")
@@ -168,11 +178,25 @@ namespace Meadow.Data.Migrations
                     b.Property<bool>("IsGone")
                         .HasColumnType("tinyint(1)");
 
+                    b.Property<string>("LelyAnimalId")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("Lely_Animal_Id");
+
+                    b.Property<string>("Location")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("Location");
+
                     b.HasKey("CowId");
 
                     b.HasIndex("EarTagNumber")
                         .IsUnique()
                         .HasDatabaseName("IX_Cow_Ear_Tag_Number");
+
+                    b.HasIndex("LelyAnimalId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Cow_Lely_Animal_Id");
 
                     b.ToTable("Cow");
                 });
@@ -289,6 +313,22 @@ namespace Meadow.Data.Migrations
                         .HasMaxLength(190)
                         .HasColumnType("varchar(190)")
                         .HasColumnName("Medicine_Name");
+
+                    b.Property<int?>("PlanDays")
+                        .HasColumnType("int")
+                        .HasColumnName("Plan_Days");
+
+                    b.Property<int?>("PlanDoseCount")
+                        .HasColumnType("int")
+                        .HasColumnName("Plan_Dose_Count");
+
+                    b.Property<int?>("PlanMode")
+                        .HasColumnType("int")
+                        .HasColumnName("Plan_Mode");
+
+                    b.Property<DateTime?>("PlanValidFrom")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("Plan_Valid_From");
 
                     b.HasKey("MedicineId");
 
@@ -469,6 +509,70 @@ namespace Meadow.Data.Migrations
                         .HasDatabaseName("IX_PushSubscription_Endpoint");
 
                     b.ToTable("PushSubscription");
+                });
+
+            modelBuilder.Entity("Meadow.Shared.Models.TreatmentPlanCancellation", b =>
+                {
+                    b.Property<int>("TreatmentPlanCancellationId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Treatment_Plan_Cancellation_ID");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("TreatmentPlanCancellationId"));
+
+                    b.Property<DateTime>("CancelledOn")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("Cancelled_On");
+
+                    b.Property<string>("CowId")
+                        .IsRequired()
+                        .HasColumnType("longtext")
+                        .HasColumnName("Cow_ID");
+
+                    b.Property<int>("MedicineId")
+                        .HasColumnType("int")
+                        .HasColumnName("Medicine_ID");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(190)
+                        .HasColumnType("varchar(190)")
+                        .HasColumnName("Reason");
+
+                    b.Property<Guid>("StartTreatmentClientId")
+                        .HasColumnType("char(36)")
+                        .HasColumnName("Start_Treatment_Client_Id");
+
+                    MySqlPropertyBuilderExtensions.HasCharSet(b.Property<Guid>("StartTreatmentClientId"), "ascii");
+
+                    b.HasKey("TreatmentPlanCancellationId");
+
+                    b.HasIndex("StartTreatmentClientId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Treatment_Plan_Cancellation_Start_Treatment_Client_Id");
+
+                    b.ToTable("Treatment_Plan_Cancellation");
+                });
+
+            modelBuilder.Entity("Meadow.Shared.Models.TreatmentPlanPushLog", b =>
+                {
+                    b.Property<int>("TreatmentPlanPushLogId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Treatment_Plan_Push_Log_ID");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("TreatmentPlanPushLogId"));
+
+                    b.Property<DateTime>("SentOn")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("Sent_On");
+
+                    b.HasKey("TreatmentPlanPushLogId");
+
+                    b.HasIndex("SentOn")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Treatment_Plan_Push_Log_Sent_On");
+
+                    b.ToTable("Treatment_Plan_Push_Log");
                 });
 
             modelBuilder.Entity("Meadow.Shared.Models.TreatmentReason", b =>

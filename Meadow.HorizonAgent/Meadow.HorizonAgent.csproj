@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>dotnet-Meadow.HorizonAgent-9ca43ade-2560-4f54-900e-d46802a204b0</UserSecretsId>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Meadow.HorizonAgent</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Logging.EventLog" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="5.2.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Meadow.Shared\Meadow.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="install.ps1" CopyToPublishDirectory="PreserveNewest" />
+    <None Update="uninstall.ps1" CopyToPublishDirectory="PreserveNewest" />
+    <None Update="README.md" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

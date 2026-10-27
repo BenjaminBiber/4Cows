@@ -118,6 +118,11 @@ public class MedicineService : IMedicineService
         try
         {
             await using var context = await _contextFactory.CreateDbContextAsync();
+
+            // Stichtag setzt nur der Server - ein vom Client mitgeschickter
+            // Wert wird verworfen.
+            medicine.PlanValidFrom = TreatmentPlanDefinition.ResolveValidFrom(null, medicine, DateTime.Today);
+
             await context.Medicines.AddAsync(medicine);
             var isSuccess = await context.SaveChangesAsync() > 0;
             _databaseStatusService.ReportSuccess();
@@ -199,12 +204,22 @@ public class MedicineService : IMedicineService
         try
         {
             await using var context = await _contextFactory.CreateDbContextAsync();
+
+            // Der bisherige Stand entscheidet, ob der Stichtag stehen bleibt
+            // (Plan bestand schon) oder auf heute gesetzt wird (Plan ist neu).
+            _cachedMedicines.TryGetValue(medicine.MedicineId, out var before);
+            medicine.PlanValidFrom = TreatmentPlanDefinition.ResolveValidFrom(before, medicine, DateTime.Today);
+
             var affectedRows = await context.Medicines
                 .Where(m => m.MedicineId == medicine.MedicineId)
                 .ExecuteUpdateAsync(setters => setters
                     .SetProperty(m => m.MedicineName, medicine.MedicineName)
                     .SetProperty(m => m.DosageUnit, medicine.DosageUnit)
-                    .SetProperty(m => m.DefaultWhereHowId, medicine.DefaultWhereHowId));
+                    .SetProperty(m => m.DefaultWhereHowId, medicine.DefaultWhereHowId)
+                    .SetProperty(m => m.PlanDoseCount, medicine.PlanDoseCount)
+                    .SetProperty(m => m.PlanMode, medicine.PlanMode)
+                    .SetProperty(m => m.PlanDays, medicine.PlanDays)
+                    .SetProperty(m => m.PlanValidFrom, medicine.PlanValidFrom));
 
             var isSuccess = affectedRows > 0;
             _databaseStatusService.ReportSuccess();

@@ -1,0 +1,253 @@
+@using Meadow.Client.Components.Cows.Dialogs
+@using Meadow.Client.Components.Ui
+@using Meadow.Shared.Models
+@using Meadow.Shared.Services
+
+@*
+    Lasche "Pläne": die Behandlungsplan-Durchlaeufe dieses Tieres.
+
+    Keine MeadowTable, sondern Karten wie die Mobilansicht der anderen
+    Laschen. Ein Durchlauf ist keine Zeile mit gleichwertigen Spalten: er hat
+    einen Fortschritt, eine Faelligkeit und zwei Aktionen, und davon passt
+    nichts in eine sortierbare Spalte.
+
+    Die Durchlaeufe kommen fertig berechnet und sortiert herein
+    (CowProfile.TreatmentPlans, aktive zuerst) - hier wird nichts mehr
+    gerechnet ausser der Trennung an der Stelle, wo die aktiven aufhoeren.
+*@
+@inject IMedicineService medicineService
+@inject ICowService cowService
+@inject ITreatmentPlanCancellationService Cancellations
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject MeadowDialogLauncher Launcher
+
+@if (Runs.Count == 0)
+{
+    <div class="mw-empty">Keine Behandlungspläne.</div>
+}
+else
+{
+    @for (var i = 0; i < Runs.Count; i++)
+    {
+        var run = Runs[i];
+
+        @* Die Trennzeile steht vor dem ersten beendeten Durchlauf - und nur,
+           wenn davor ueberhaupt ein aktiver stand. Sonst waere "Beendet" die
+           Ueberschrift der ganzen Liste. *@
+        @if (!run.IsActive && i > 0 && Runs[i - 1].IsActive)
+        {
+            <div class="mw-plan-sep">Beendet</div>
+        }
+
+        <div class="mw-row-card" @key="run.StartTreatmentClientId">
+            <div class="mw-row-card__top">
+                <span class="mw-row-card__title">@MedicineName(run)</span>
+                <span class="@StatusClass(run.Status)">@StatusLabel(run.Status)</span>
+            </div>
+
+            @if (PlanText(run) is { Length: > 0 } plan)
+            {
+                <div class="mw-row-card__sub">@plan</div>
+            }
+
+            <div class="mw-plan-bar" role="img"
+                 aria-label="@($"{run.DosesDone} von {run.DoseCount} Gaben")">
+                <div class="mw-plan-bar__fill @(run.IsDue ? "is-due" : null)"
+                     style="width: @Percent(run)%"></div>
+            </div>
+
+            <div class="mw-row-card__meta">
+                <span><strong>@run.DosesDone/@run.DoseCount</strong> Gaben</span>
+                <span>@DoseDates(run)</span>
+            </div>
+
+            <div class="mw-row-card__sub">@DueText(run)</div>
+
+            @if (run.Cancellation?.Reason is { Length: > 0 } reason)
+            {
+                <div class="mw-row-card__sub">Grund: @reason</div>
+            }
+
+            @if (run.IsActive)
+            {
+                <div class="mw-row-card__actions">
+                    <button type="button" class="mw-btn mw-btn--primary mw-btn--sm"
+                            @onclick="() => AddDose(run)">Gabe erfassen</button>
+                    <button type="button" class="mw-btn mw-btn--plain mw-btn--sm"
+                            @onclick="() => Cancel(run)">Abbrechen</button>
+                </div>
+            }
+            else if (run.Status == TreatmentPlanRunStatus.Cancelled)
+            {
+                <div class="mw-row-card__actions">
+                    <button type="button" class="mw-btn mw-btn--plain mw-btn--sm"
+                            @onclick="() => Revoke(run)">Abbruch zurücknehmen</button>
+                </div>
+            }
+        </div>
+    }
+}
+
+@code {
+    [Parameter] public IReadOnlyList<TreatmentPlanRun> Runs { get; set; }
+        = Array.Empty<TreatmentPlanRun>();
+
+    /// <summary>Die Cow_ID - dieselbe, mit der die Seite gebaut wurde.</summary>
+    [Parameter] public string CowId { get; set; } = "";
+
+    [Parameter] public EventCallback Changed { get; set; }
+
+    // ---- Anzeige --------------------------------------------------------
+
+    private string MedicineName(TreatmentPlanRun run)
+        => medicineService.GetMedicineNameById(run.MedicineId);
+
+    /// <summary>
+    /// Die Plan-Beschreibung kommt aus dem Medikament und nicht aus dem
+    /// Durchlauf: aendert jemand den Plan, soll hier der heutige stehen. Bei
+    /// unbekanntem Medikament leer - und nicht die Striche aus
+    /// GetMedicineNameById.
+    /// </summary>
+    private string PlanText(TreatmentPlanRun run)
+        => medicineService.Medicines.TryGetValue(run.MedicineId, out var medicine)
+            ? TreatmentPlanDefinition.Describe(medicine) ?? ""
+            : "";
+
+    private static int Percent(TreatmentPlanRun run)
+        => run.DoseCount == 0 ? 0 : Math.Min(100, 100 * run.DosesDone / run.DoseCount);
+
+    private static string DoseDates(TreatmentPlanRun run)
+        => string.Join(" · ", run.Doses.Select(d => d.AdministrationDate.ToString("dd.MM.yyyy")));
+
+    private static string StatusLabel(TreatmentPlanRunStatus status) => status switch
+    {
+        TreatmentPlanRunStatus.Overdue => "Überfällig",
+        TreatmentPlanRunStatus.DueToday => "Heute fällig",
+        TreatmentPlanRunStatus.Upcoming => "Anstehend",
+        TreatmentPlanRunStatus.Completed => "Abgeschlossen",
+        TreatmentPlanRunStatus.Incomplete => "Unvollständig",
+        _ => "Abgebrochen"
+    };
+
+    private static string StatusClass(TreatmentPlanRunStatus status) => status switch
+    {
+        TreatmentPlanRunStatus.Overdue => "mw-tag mw-tag--removed",
+        TreatmentPlanRunStatus.DueToday => "mw-tag mw-tag--plan-due",
+        TreatmentPlanRunStatus.Upcoming => "mw-tag mw-tag--bandage",
+        TreatmentPlanRunStatus.Completed => "mw-tag mw-tag--block",
+        _ => "mw-tag mw-tag--plan-off"
+    };
+
+    /// <summary>
+    /// Was als Naechstes zu tun ist - eine Zeile, kein Satzbaukasten.
+    /// DateTime.Today steht hier und nicht im Durchlauf: Anzeige darf die Uhr
+    /// lesen, die Logik in Meadow.Shared nicht.
+    /// </summary>
+    private static string DueText(TreatmentPlanRun run)
+    {
+        if (run.Status == TreatmentPlanRunStatus.Cancelled)
+        {
+            return run.Cancellation is { } cancellation
+                ? $"abgebrochen am {cancellation.CancelledOn:dd.MM.yyyy}"
+                : "abgebrochen";
+        }
+
+        if (run.Status == TreatmentPlanRunStatus.Completed)
+        {
+            return "alle Gaben erhalten";
+        }
+
+        if (run.Status == TreatmentPlanRunStatus.Incomplete)
+        {
+            return run.WindowEnd is { } ended
+                ? $"Fenster endete am {ended:dd.MM.yyyy}, nicht alle Gaben erhalten"
+                : "nicht alle Gaben erhalten";
+        }
+
+        if (run.Mode == TreatmentPlanMode.Window)
+        {
+            var remaining = run.DoseCount - run.DosesDone;
+            var doses = remaining == 1 ? "1 Gabe" : $"{remaining} Gaben";
+            return $"noch {doses} bis {run.WindowEnd:dd.MM.}";
+        }
+
+        var overdue = run.OverdueDays(DateTime.Today);
+        if (overdue > 0)
+        {
+            return overdue == 1 ? "seit 1 Tag überfällig" : $"seit {overdue} Tagen überfällig";
+        }
+
+        return run.Status == TreatmentPlanRunStatus.DueToday
+            ? "heute fällig"
+            : $"nächste Gabe {run.NextDueDate:dd.MM.}";
+    }
+
+    // ---- Aktionen -------------------------------------------------------
+
+    /// <summary>
+    /// Der gewoehnliche Kuhbehandlungs-Dialog, nur mit Tier und Medikament
+    /// vorbelegt: eine zweite Gabe IST eine Behandlung, und Menge, Wie/Wo und
+    /// Grund gehoeren genauso erfasst wie bei der ersten.
+    ///
+    /// Die Menge kommt als Vorschlag aus der zuletzt gegebenen Gabe des
+    /// Durchlaufs (Doses ist aufsteigend sortiert und nie leer).
+    /// </summary>
+    private async Task AddDose(TreatmentPlanRun run)
+    {
+        await Launcher.OpenCowTreatmentAsync(CowId, run.MedicineId, run.Doses[^1].MedicineDosage);
+        await Changed.InvokeAsync();
+    }
+
+    private async Task Cancel(TreatmentPlanRun run)
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, NoHeader = true };
+        var parameters = new DialogParameters<CancelTreatmentPlanDialog>
+        {
+            { x => x.MedicineName, MedicineName(run) },
+            { x => x.CowLabel, cowService.GetDisplayLabel(CowId) }
+        };
+
+        var dialog = await DialogService.ShowAsync<CancelTreatmentPlanDialog>(
+            string.Empty, parameters, options);
+        var result = await dialog.Result;
+
+        if (result is null || result.Canceled)
+        {
+            return;
+        }
+
+        var cancellation = new TreatmentPlanCancellation
+        {
+            CowId = run.CowId,
+            MedicineId = run.MedicineId,
+            StartTreatmentClientId = run.StartTreatmentClientId,
+            CancelledOn = DateTime.Today,
+            Reason = result.Data as string
+        };
+
+        // Der Abbruch wandert NICHT in die Outbox (siehe
+        // ITreatmentPlanCancellationService) - offline ist er schlicht nicht
+        // moeglich, und das muss hier stehen statt still zu scheitern.
+        if (!await Cancellations.CancelAsync(cancellation))
+        {
+            Snackbar.Add("Abbrechen ist nur online möglich.", Severity.Warning);
+            return;
+        }
+
+        Snackbar.Add("Behandlungsplan abgebrochen.", Severity.Success);
+        await Changed.InvokeAsync();
+    }
+
+    private async Task Revoke(TreatmentPlanRun run)
+    {
+        if (!await Cancellations.RevokeAsync(run.StartTreatmentClientId))
+        {
+            Snackbar.Add("Zurücknehmen ist nur online möglich.", Severity.Warning);
+            return;
+        }
+
+        Snackbar.Add("Abbruch zurückgenommen.", Severity.Success);
+        await Changed.InvokeAsync();
+    }
+}

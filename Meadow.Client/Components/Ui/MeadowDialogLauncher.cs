@@ -1,5 +1,6 @@
 using Meadow.Client.Components.Cows.Dialogs;
 using Meadow.Client.Components.Services;
+using Meadow.Shared.Lookups;
 using Meadow.Shared.Models;
 using Microsoft.AspNetCore.Components;
 using MudBlazor;
@@ -95,12 +96,34 @@ public sealed class MeadowDialogLauncher
     // AdministrationDate bleibt default, woraus der Dialog DateTime.Now macht.
     // Dasselbe Muster nutzt Planned_Cow_Table.Complete bereits.
 
-    public Task OpenCowTreatmentAsync(string cowId)
+    /// <summary>
+    /// Mit <paramref name="medicineId"/> auch das Medikament vorbelegt - so
+    /// oeffnet die Lasche "Plaene" die naechste Gabe eines Durchlaufs. Der
+    /// Dialog setzt daraus die erste Medikamentzeile; eine unbekannte ID
+    /// laesst er leer (siehe Add_Cow_Treatment_Dialog.OnInitialized).
+    /// Der optionale Parameter stoert hier niemanden: anders als die vier
+    /// parameterlosen Methoden oben haengt diese Ueberladung an keiner
+    /// Methodengruppe.
+    ///
+    /// <paramref name="dosage"/> belegt die Menge vor - bei einer Plangabe die
+    /// der vorigen Gabe. Nur ein Vorschlag, das Feld bleibt editierbar.
+    /// </summary>
+    public Task OpenCowTreatmentAsync(string cowId, int? medicineId = null, float? dosage = null)
         => ShowAndNotifyAsync<Add_Cow_Treatment_Dialog>(
             MeadowDataKind.CowTreatment,
             new DialogParameters<Add_Cow_Treatment_Dialog>
             {
-                { x => x.Cow_Treatment, new CowTreatment { EarTagNumber = cowId } }
+                {
+                    x => x.Cow_Treatment,
+                    new CowTreatment
+                    {
+                        EarTagNumber = cowId,
+                        // 0 ist derselbe Wert, den der parameterlose
+                        // Konstruktor setzt - ohne Angabe bleibt der Dialog leer.
+                        MedicineId = medicineId ?? 0,
+                        MedicineDosage = dosage ?? 0
+                    }
+                }
             });
 
     public Task OpenPlannedCowTreatmentAsync(string cowId)
@@ -127,6 +150,54 @@ public sealed class MeadowDialogLauncher
                 { x => x.Planned_Claw_Treatment, new PlannedClawTreatment { EarTagNumber = cowId } }
             });
 
+    // ---- Vorbelegung aus der Tabellensuche ------------------------------
+    //
+    // Sucht man in Kuh-/Klauenbehandlungen oder Verbaenden nach einem Tier,
+    // nehmen Plus-Knopf und FAB die gesuchte Nummer mit in den Dialog (Regel:
+    // AddPrefill.FromSearch). Die Tabelle meldet ihre Vorbelegung bei jeder
+    // Suche hierher, weil der FAB im Layout sitzt und die Seite nicht kennt.
+    // Gespeichert je Route, damit eine Suche auf einer Seite nie in den
+    // Dialog einer anderen rutscht.
+
+    private readonly Dictionary<string, AddPrefill> _searchPrefills = new(StringComparer.Ordinal);
+
+    public void SetSearchPrefill(string route, AddPrefill? prefill)
+    {
+        if (prefill is null)
+        {
+            _searchPrefills.Remove(route);
+        }
+        else
+        {
+            _searchPrefills[route] = prefill;
+        }
+    }
+
+    private AddPrefill? PrefillFor(string route)
+        => _searchPrefills.TryGetValue(route, out var prefill) ? prefill : null;
+
+    // Eigene Namen statt weiterer Ueberladungen: Index.razor und das
+    // Add-Menue reichen OpenCowTreatmentAsync als Methodengruppe weiter, und
+    // jede zusaetzliche Ueberladung mit einem Parameter macht diese
+    // Konvertierung fragiler.
+    public Task OpenCowTreatmentFromSearchAsync(AddPrefill? prefill) => prefill switch
+    {
+        { CowId: { Length: > 0 } cowId } => OpenCowTreatmentAsync(cowId),
+        { CollarNumber: { } collar } => ShowAndNotifyAsync<Add_Cow_Treatment_Dialog>(
+            MeadowDataKind.CowTreatment,
+            new DialogParameters<Add_Cow_Treatment_Dialog> { { x => x.PresetCollarNumber, (int?)collar } }),
+        _ => OpenCowTreatmentAsync()
+    };
+
+    public Task OpenClawTreatmentFromSearchAsync(AddPrefill? prefill) => prefill switch
+    {
+        { CowId: { Length: > 0 } cowId } => OpenClawTreatmentAsync(cowId),
+        { CollarNumber: { } collar } => ShowAndNotifyAsync<Add_Claw_Treatment_Dialog>(
+            MeadowDataKind.ClawTreatment,
+            new DialogParameters<Add_Claw_Treatment_Dialog> { { x => x.PresetCollarNumber, (int?)collar } }),
+        _ => OpenClawTreatmentAsync()
+    };
+
     public Task OpenDatabaseInfoAsync()
         => _dialogs.ShowAsync<DatabaseInfoDialog>(string.Empty, new DialogOptions
         {
@@ -149,10 +220,12 @@ public sealed class MeadowDialogLauncher
     /// </summary>
     public Func<Task>? FabActionFor(string route) => route switch
     {
-        MeadowRoutes.CowTreatments => OpenCowTreatmentAsync,
+        // Die Vorbelegung erst beim Tippen lesen, nicht hier: sonst haengt
+        // der FAB an der Suche von vor dem letzten Tastendruck.
+        MeadowRoutes.CowTreatments => () => OpenCowTreatmentFromSearchAsync(PrefillFor(route)),
         MeadowRoutes.PlannedCowTreatments => OpenPlannedCowTreatmentAsync,
-        MeadowRoutes.ClawTreatments => OpenClawTreatmentAsync,
-        MeadowRoutes.Bandages => OpenClawTreatmentAsync,
+        MeadowRoutes.ClawTreatments => () => OpenClawTreatmentFromSearchAsync(PrefillFor(route)),
+        MeadowRoutes.Bandages => () => OpenClawTreatmentFromSearchAsync(PrefillFor(route)),
         MeadowRoutes.PlannedClawTreatments => OpenPlannedClawTreatmentAsync,
         _ => null
     };

@@ -115,6 +115,16 @@ public sealed record CowProfile
     /// </summary>
     public required int OpenPlanned { get; init; }
 
+    /// <summary>
+    /// Behandlungsplan-Durchlaeufe dieser Kuh, aktive zuerst (siehe
+    /// TreatmentPlanRuns.ForCow). Leer, solange der Aufrufer keine Medikamente
+    /// mitgibt - ohne Plan-Definition gibt es nichts zu rechnen.
+    /// </summary>
+    public required IReadOnlyList<TreatmentPlanRun> TreatmentPlans { get; init; }
+
+    /// <summary>Anzahl laufender Durchlaeufe - fuer die Kachel auf der Kuh-Seite.</summary>
+    public required int ActivePlans { get; init; }
+
     public bool HasAnyTreatment => TotalTreatments > 0;
 
     /// <summary>Die haeufigste Position, oder null wenn es keine Klauenbehandlung gibt.</summary>

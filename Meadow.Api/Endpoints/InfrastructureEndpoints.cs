@@ -77,7 +77,7 @@ public static class InfrastructureEndpoints
         // Dialog, fuer den die Antwort gedacht ist, zeigt ohnehin nur Server
         // und Datenbank an; ein Client, der die Datenbank direkt anspricht,
         // ist kein Fall, den es hier gibt.
-        api.MapGet("/system/info", (IConfiguration configuration, DemoOptions demo) =>
+        api.MapGet("/system/info", (IConfiguration configuration, DemoOptions demo, CowSyncOptions cowSync) =>
             Results.Ok(new Dictionary<string, string>
             {
                 // Dieselben Rueckfallwerte wie in Program.cs.
@@ -91,6 +91,12 @@ public static class InfrastructureEndpoints
                 // das, was der Abgleich tatsaechlich benutzt.
                 ["XLinkUrl"] = XLinkUrl(),
                 ["XLinkSyncIntervalHours"] = XLinkIntervalRaw(),
+
+                // Aus CowSyncOptions und nicht aus der Rohkonfiguration, aus
+                // demselben Grund wie bei Demo:Enabled: ein unbekannter Wert
+                // faellt beim Start auf HorizonAgent zurueck, und der Client
+                // soll erfahren, was GILT.
+                ["CowSyncSource"] = cowSync.Source.ToString(),
 
                 // Aus DemoOptions und nicht aus der Rohkonfiguration:
                 // Program.cs faellt bei einem unlesbaren Wert still auf false

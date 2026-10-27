@@ -20,25 +20,48 @@ public class TableSearchTests
         Assert.True(TableSearch.Matches("52", Collar, EarTag));
     }
 
-    [Fact]
-    public void Two_digit_number_does_not_reach_into_the_ear_tag()
+    [Theory]
+    [InlineData("86", "186")]
+    [InlineData("86", "860")]
+    [InlineData("15", "157")]
+    [InlineData("157", "1570")]
+    public void Short_number_matches_only_the_exact_collar(string search, string collar)
     {
-        // "77" steckt in der Ohrmarke, ist aber nicht die Halsbandnummer - eine
-        // zweistellige Suche soll es trotzdem nicht finden.
-        Assert.False(TableSearch.Matches("77", Collar, EarTag));
+        // "86" soll nur Halsband 86 finden, nicht 186 oder 860.
+        Assert.False(TableSearch.Matches(search, collar, EarTag));
     }
 
     [Fact]
-    public void Three_digit_number_also_searches_the_ear_tag()
+    public void Three_digit_number_matches_the_exact_collar()
     {
-        // Erst ab drei Ziffern meint die Zahl gezielt eine Ohrmarke.
-        Assert.True(TableSearch.Matches("778", Collar, EarTag));
+        Assert.True(TableSearch.Matches("157", "157", EarTag));
     }
 
     [Fact]
-    public void Three_digit_number_still_matches_the_collar()
+    public void Leading_zero_still_matches_the_collar()
     {
-        Assert.True(TableSearch.Matches("989", "989", EarTag));
+        Assert.True(TableSearch.Matches("086", "86", EarTag));
+    }
+
+    [Theory]
+    [InlineData("77")]
+    [InlineData("778")]
+    public void Up_to_three_digits_does_not_reach_into_the_ear_tag(string search)
+    {
+        Assert.False(TableSearch.Matches(search, Collar, EarTag));
+    }
+
+    [Fact]
+    public void Four_or_more_digits_search_the_ear_tag()
+    {
+        Assert.True(TableSearch.Matches("7836", Collar, EarTag));
+        Assert.True(TableSearch.Matches("77836", Collar, EarTag));
+    }
+
+    [Fact]
+    public void Long_number_does_not_match_a_collar()
+    {
+        Assert.False(TableSearch.Matches("78452", "78", EarTag));
     }
 
     [Fact]
@@ -51,9 +74,7 @@ public class TableSearchTests
     [Fact]
     public void A_long_number_ignores_the_free_text_too()
     {
-        // Auch dreistellig bleibt die reine Ziffernsuche an den Nummern - der
-        // Freitext zaehlt nur bei nicht-numerischer Suche.
-        Assert.False(TableSearch.Matches("123", Collar, EarTag, "Klotz 123"));
+        Assert.False(TableSearch.Matches("1234", Collar, EarTag, "Klotz 1234"));
     }
 
     [Fact]

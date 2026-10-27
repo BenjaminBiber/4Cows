@@ -39,7 +39,9 @@ public static class CowOverviewBuilder
                     cow.IsGone,
                     mine.Count,
                     claw.Count,
-                    Newer(mine.Last, claw.Last));
+                    Newer(mine.Last, claw.Last),
+                    cow.Group,
+                    cow.Location);
             })
             .ToList();
     }

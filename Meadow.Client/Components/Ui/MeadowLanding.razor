@@ -382,13 +382,13 @@
             "Frei konfigurierbare Kennzahlen auf dem Dashboard, "
             + "Jahresdiagramme auf Wunsch nach Medikament aufgeschlüsselt. "
             + "Klauenbehandlungen gehen als Excel-Datei heraus, Bestandsdaten "
-            + "kommen über XLink aus Lely Horizon.",
+            + "kommen aus Lely Horizon (über den Horizon-Agenten oder XLink).",
             new[]
             {
                 "Eigene KPIs zusammenstellen",
                 "Jahresdiagramm je Medikament",
                 "Excel-Export der Klauenbehandlungen",
-                "Bestand automatisch aus Lely Horizon"
+                "Bestand automatisch aus Lely Horizon (Horizon-Agent oder XLink)"
             },
             Mockups + "Desktop/dialog-09-diagramm-medikamente-macbook.png",
             "Jahresdiagramm, nach Medikament aufgeschlüsselt",
@@ -423,11 +423,13 @@
 
         new("Wie wird Meadow installiert?",
             "Über Docker Compose: ein Container für die Anwendung, einer für "
-            + "MariaDB. Einzutragen ist die Adresse des XLink-Servers, falls "
-            + "Bestandsdaten aus Lely Horizon übernommen werden sollen.",
+            + "MariaDB. Für Bestandsdaten aus Lely Horizon läuft entweder der "
+            + "Horizon-Agent auf dem Horizon-PC, oder es wird die Adresse des "
+            + "XLink-Servers eingetragen.",
             "Ueber Docker Compose: ein Container fuer die Anwendung, einer fuer "
-            + "MariaDB. Einzutragen ist die Adresse des XLink-Servers, falls "
-            + "Bestandsdaten aus Lely Horizon uebernommen werden sollen."),
+            + "MariaDB. Fuer Bestandsdaten aus Lely Horizon laeuft entweder der "
+            + "Horizon-Agent auf dem Horizon-PC, oder es wird die Adresse des "
+            + "XLink-Servers eingetragen."),
 
         new("Funktioniert Meadow auf dem Handy?",
             "Ja. Die Oberfläche ist für Handy und Tablet ausgelegt: Tabellen "
@@ -449,10 +451,10 @@
 
         new("Lassen sich Behandlungen exportieren?",
             "Klauenbehandlungen gehen als Excel-Datei heraus. Bestandsdaten "
-            + "lassen sich über die XLink-Schnittstelle automatisch aus Lely "
-            + "Horizon übernehmen.",
+            + "lassen sich automatisch aus Lely Horizon übernehmen – über den "
+            + "Horizon-Agenten oder die XLink-Schnittstelle.",
             "Klauenbehandlungen gehen als Excel-Datei heraus. Bestandsdaten "
-            + "lassen sich ueber die XLink-Schnittstelle automatisch aus Lely "
-            + "Horizon uebernehmen.")
+            + "lassen sich automatisch aus Lely Horizon uebernehmen - ueber den "
+            + "Horizon-Agenten oder die XLink-Schnittstelle.")
     };
 }

@@ -103,10 +103,18 @@
 
     /// <summary>
     /// Vorbelegung, nicht Ablage: gelesen wird sie nur in OnInitialized, und
-    /// zurueckgeschrieben wird nie. Gesetzt wird sie ausschliesslich von
-    /// Planned_Cow_Table.Complete, um eine geplante Behandlung abzuschliessen.
+    /// zurueckgeschrieben wird nie. Gesetzt wird sie von
+    /// Planned_Cow_Table.Complete (geplante Behandlung abschliessen) und von
+    /// MeadowDialogLauncher (Kuh-Seite; bei einer Plangabe mit Medikament und
+    /// der Menge der vorigen Gabe).
     /// </summary>
     [Parameter] public CowTreatment Cow_Treatment { get; set; } = new();
+
+    /// <summary>
+    /// Halsbandnummer aus der Tabellensuche, zu der es (noch) kein Tier gibt.
+    /// Nur gelesen, wenn Cow_Treatment kein Tier traegt.
+    /// </summary>
+    [Parameter] public int? PresetCollarNumber { get; set; }
 
     private readonly List<NumberEntry> _numbers = new();
     private readonly List<MedicationEntry> _medications = new();
@@ -138,6 +146,15 @@
             }
 
             seed.Dosage = Cow_Treatment.MedicineDosage;
+        }
+        else if (PresetCollarNumber is > 0)
+        {
+            var cowId = cowService.GetCowIdByCollarNumber(PresetCollarNumber.Value);
+            _numbers.Add(new NumberEntry
+            {
+                Value = PresetCollarNumber.Value,
+                EarValue = string.IsNullOrEmpty(cowId) ? null : cowId
+            });
         }
         else
         {

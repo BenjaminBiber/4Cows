@@ -141,6 +141,11 @@ builder.Services.AddSingleton<MeadowNoticeState>();
 // Kern die Reihenfolge und erzwingt nicht das Aufloesen aller Provider beim
 // ersten Zugriff.
 builder.Services.AddSingleton<BandageReminderNoticeProvider>();
+
+// Die zweite Hinweisquelle: faellige Gaben laufender Behandlungsplaene. Aus
+// demselben Grund Singleton und ebenfalls erst nach dem Build per AddProvider
+// angemeldet.
+builder.Services.AddSingleton<TreatmentPlanNoticeProvider>();
 builder.Services.AddSingleton<MeadowOutbox>();
 builder.Services.AddSingleton<MeadowOfflineHandler>();
 builder.Services.AddSingleton<OutboxProcessor>();
@@ -160,7 +165,17 @@ builder.Services.AddSingleton<IClawFindingService, HttpClawFindingService>();
 builder.Services.AddSingleton<IUdderService, HttpUdderService>();
 builder.Services.AddSingleton<ISettingsService, HttpSettingsService>();
 builder.Services.AddSingleton<IKPIService, HttpKPIService>();
-builder.Services.AddSingleton<IXLinkService, HttpXLinkService>();
+builder.Services.AddSingleton<ICowSyncService, HttpCowSyncService>();
+
+// Die Abbrueche. Zweimal registriert, aber nur EINE Instanz: die Seiten
+// nehmen die Schnittstelle, die Hinweis-Provider brauchen die Klasse, weil
+// das Changed-Ereignis dort haengt. Ueber GetRequiredService und nicht als
+// zweite Registrierung - sonst legte der Container ein zweites Exemplar mit
+// eigenem Cache an, und das Ereignis feuerte in einem Dienst, den keine Seite
+// je zu sehen bekommt (dieselbe Falle wie bei den vier IMeadowSyncTarget).
+builder.Services.AddSingleton<HttpTreatmentPlanCancellationService>();
+builder.Services.AddSingleton<ITreatmentPlanCancellationService>(
+    sp => sp.GetRequiredService<HttpTreatmentPlanCancellationService>());
 
 // Dieselben vier Instanzen noch einmal, unter der Naht, an der der
 // OutboxProcessor sie erreicht. Ueber GetRequiredService und nicht als zweite
@@ -222,6 +237,12 @@ host.Services.GetRequiredService<MeadowDataChanges>();
 // ohne erstes Changed sichtbar werden.
 host.Services.GetRequiredService<MeadowNoticeState>()
     .AddProvider(host.Services.GetRequiredService<BandageReminderNoticeProvider>());
+
+// Dieselbe Ueberlegung fuer die Behandlungsplan-Hinweise: eine heute faellige
+// Gabe soll gemeldet werden, ohne dass der Provider erst durch ein Injizieren
+// entsteht.
+host.Services.GetRequiredService<MeadowNoticeState>()
+    .AddProvider(host.Services.GetRequiredService<TreatmentPlanNoticeProvider>());
 
 await host.Services.GetRequiredService<OutboxProcessor>().InitializeAsync();
 

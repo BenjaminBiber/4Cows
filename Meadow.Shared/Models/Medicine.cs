@@ -48,6 +48,29 @@ public class Medicine
     [Column("Default_WhereHow_ID")]
     public int? DefaultWhereHowId { get; set; }
 
+    /// <summary>
+    /// Behandlungsplan: Anzahl Gaben je Durchlauf. Alle drei Plan-Felder sind
+    /// entweder gemeinsam gesetzt oder gemeinsam null - die Regel steht in
+    /// <see cref="TreatmentPlanDefinition.Validate"/>.
+    /// </summary>
+    [Column("Plan_Dose_Count")]
+    public int? PlanDoseCount { get; set; }
+
+    [Column("Plan_Mode")]
+    public TreatmentPlanMode? PlanMode { get; set; }
+
+    [Column("Plan_Days")]
+    public int? PlanDays { get; set; }
+
+    /// <summary>
+    /// Stichtag: Behandlungen davor zaehlen nicht zu Durchlaeufen. Setzt
+    /// ausschliesslich der Server (<see cref="TreatmentPlanDefinition.ResolveValidFrom"/>),
+    /// sonst erzeugte das Nachtragen eines Plans aus jeder alten Gabe einen
+    /// "ueberfaelligen" Durchlauf.
+    /// </summary>
+    [Column("Plan_Valid_From")]
+    public DateTime? PlanValidFrom { get; set; }
+
     public Medicine() : this(0, string.Empty) { }
 
     public Medicine(int medicineId, string medicineName)

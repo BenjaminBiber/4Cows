@@ -188,6 +188,68 @@ Content-Type: application/json
 
 { "ids": [1, 2, 3, 4, 5] }
 
+### Dasselbe fuer die Kuhbehandlungen.
+POST {{api}}/cow-treatments/export
+Content-Type: application/json
+
+{ "ids": [1, 2, 3, 4, 5] }
+
+###############################################################################
+# Horizon-Agent
+#
+# Nur erreichbar, wenn HorizonAgent__ApiKey gesetzt ist - sonst 404. Im
+# Demo-Modus 403, ohne oder mit falschem X-Agent-Key 401.
+###############################################################################
+
+### Lebenszeichen. syncRequested ist genau einmal true, naemlich nach
+### POST /api/cowsync/refresh.
+POST {{api}}/horizon/heartbeat
+X-Agent-Key: test-key
+Content-Type: application/json
+
+{ "agentVersion": "dev", "machineName": "HORIZON-PC", "lastError": null }
+
+### Abgleich anfordern - danach beantwortet der naechste Heartbeat mit true
+POST {{api}}/cowsync/refresh
+
+### Der Bestand aus Horizon. 200 mit HorizonSyncResult; 409, wenn
+### CowSyncSource auf XLink steht.
+POST {{api}}/horizon/snapshot
+X-Agent-Key: test-key
+Content-Type: application/json
+
+{
+  "agentVersion": "dev",
+  "machineName": "HORIZON-PC",
+  "readAtUtc": "2026-10-22T08:00:00Z",
+  "animals": [
+    {
+      "animalId": "9001",
+      "collarNumber": 901,
+      "earTag": "DE0999000901",
+      "isGone": false,
+      "location": "Box 3",
+      "group": "Melkgruppe",
+      "description": "Test"
+    }
+  ]
+}
+
+### Leerer Bestand: 422 mit Begruendung, geschrieben wird nichts. Ohne diese
+### Regel wuerde ein Lesefehler auf dem Horizon-PC jede Kuh abgehen lassen.
+POST {{api}}/horizon/snapshot
+X-Agent-Key: test-key
+Content-Type: application/json
+
+{ "agentVersion": "dev", "machineName": "HORIZON-PC", "readAtUtc": "2026-10-22T08:00:00Z", "animals": [] }
+
+### 401: falscher Schluessel
+POST {{api}}/horizon/heartbeat
+X-Agent-Key: falsch
+Content-Type: application/json
+
+{ "agentVersion": "dev", "machineName": "HORIZON-PC" }
+
 ###############################################################################
 # Randfaelle
 ###############################################################################

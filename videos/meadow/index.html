@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face { font-family: "Barlow"; font-weight: 400; src: url("assets/fonts/barlow-400.woff2") format("woff2"); }
+      @font-face { font-family: "Barlow"; font-weight: 600; src: url("assets/fonts/barlow-600.woff2") format("woff2"); }
+      @font-face { font-family: "Barlow"; font-weight: 700; src: url("assets/fonts/barlow-700.woff2") format("woff2"); }
+
+      :root {
+        --bg: #f3f7f8;
+        --accent: #2c7da0;      /* Meadow --mw-primary */
+        --accent-ink: #1f5f7d;  /* Meadow --mw-primary-dark, for small accent text (contrast) */
+        --text: #111827;
+        --text-2: #4b5563;
+        --line: #d5e3e9;
+        --card-shadow: 0 50px 90px -30px rgba(31, 95, 125, 0.34), 0 18px 36px -14px rgba(31, 95, 125, 0.18);
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--bg); }
+
+      #root { position: relative; width: 100%; height: 100%; font-family: "Barlow", sans-serif; color: var(--text); }
+      #stage { position: absolute; inset: 0; overflow: hidden; }
+
+      /* Background: light base, soft brand glow, very faint diagonal texture */
+      .bg { position: absolute; inset: 0; background: var(--bg); }
+      .bg-glow {
+        position: absolute; inset: 0;
+        background:
+          radial-gradient(900px 700px at 72% 52%, rgba(44, 125, 160, 0.16), rgba(44, 125, 160, 0) 70%),
+          radial-gradient(700px 500px at 8% 100%, rgba(97, 155, 152, 0.10), rgba(97, 155, 152, 0) 70%);
+      }
+      .bg-lines {
+        position: absolute; inset: 0; opacity: 0.5;
+        background-image: repeating-linear-gradient(135deg, rgba(31, 95, 125, 0.035) 0 1px, transparent 1px 28px);
+      }
+
+      /* Header */
+      .brand { position: absolute; left: 120px; top: 80px; display: flex; align-items: center; gap: 16px; }
+      .brand-logo { width: 64px; height: 64px; background: url("assets/logo.png") center / contain no-repeat; }
+      /* Hidden at t=0; the timeline reveals them later */
+      #t2, #t3, #c2, #c3, #cta { opacity: 0; }
+      #l1 { color: var(--accent-ink); }
+      .brand span { font-weight: 700; font-size: 34px; letter-spacing: 0.01em; color: var(--text); }
+
+      /* Text column: all three blocks share one grid cell */
+      .copy { position: absolute; left: 120px; top: 230px; width: 640px; height: 600px; display: grid; align-items: center; }
+      .txt { grid-area: 1 / 1; display: flex; flex-direction: column; gap: 22px; }
+      .eyebrow { font-weight: 600; font-size: 22px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent-ink); }
+      .headline { font-weight: 700; font-size: 80px; line-height: 1.02; letter-spacing: -0.01em; color: var(--text); }
+      .headline span { display: block; }
+      .sub { font-weight: 400; font-size: 28px; line-height: 1.35; color: var(--text-2); max-width: 600px; }
+      .chips { display: flex; gap: 12px; margin-top: 8px; }
+      .chip {
+        font-weight: 600; font-size: 20px; color: var(--accent-ink);
+        padding: 9px 20px; border-radius: 999px; background: #ffffff; border: 1.5px solid var(--line);
+      }
+
+      /* Card area */
+      .card {
+        position: absolute; border-radius: 16px; overflow: hidden; background: #ffffff;
+        box-shadow: var(--card-shadow);
+      }
+      .card img { display: block; width: 100%; height: 100%; }
+
+      /* Step indicator */
+      .steps { position: absolute; left: 120px; bottom: 96px; display: flex; gap: 28px; }
+      .step { display: flex; flex-direction: column; gap: 12px; width: 190px; }
+      .step-label { font-weight: 600; font-size: 20px; color: var(--text-2); }
+      .step-label b { font-weight: 700; margin-right: 8px; }
+      .step-track { height: 4px; border-radius: 4px; background: var(--line); overflow: hidden; }
+      .step-fill { height: 100%; width: 100%; background: var(--accent); transform-origin: 0 50%; }
+
+      /* CTA */
+      .cta { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; }
+      .cta-logo { width: 168px; height: 168px; display: block; }
+      .cta-name { font-weight: 700; font-size: 128px; line-height: 1; letter-spacing: -0.01em; color: var(--text); }
+      .cta-claim { font-weight: 400; font-size: 32px; color: var(--text-2); }
+      .cta-btn {
+        margin-top: 30px; font-weight: 600; font-size: 32px; color: #ffffff; background: var(--accent);
+        padding: 22px 54px; border-radius: 999px; box-shadow: 0 20px 40px -14px rgba(31, 95, 125, 0.55);
+      }
+
+      /* Cursor */
+      .cursor { position: absolute; left: 0; top: 0; width: 44px; height: 54px; }
+      .cursor svg { display: block; width: 44px; height: 54px; transform-origin: 6px 4px; filter: drop-shadow(0 6px 10px rgba(17, 24, 39, 0.28)); }
+      .ripple {
+        position: absolute; left: 0; top: 0; width: 80px; height: 80px; margin: -40px 0 0 -40px;
+        border-radius: 50%; border: 4px solid var(--accent); opacity: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div data-hf-id="hf-199x" id="root" data-composition-id="main" data-start="0" data-duration="10" data-width="1920" data-height="1080">
+      <div data-hf-id="hf-cyer" id="stage" class="clip" data-start="0" data-duration="10" data-track-index="0">
+        <div data-hf-id="hf-m7dd" class="bg"></div>
+        <div data-hf-id="hf-rc9h" class="bg-glow"></div>
+        <div data-hf-id="hf-9hmz" class="bg-lines"></div>
+
+        <div data-hf-id="hf-x6ic" class="brand" id="brand">
+          <div data-hf-id="hf-y9s5" class="brand-logo"></div>
+          <span data-hf-id="hf-aymc">Meadow</span>
+        </div>
+
+        <div data-hf-id="hf-bdx3" class="copy">
+          <div data-hf-id="hf-o0jn" class="txt" id="t1">
+            <div data-hf-id="hf-swv3" class="eyebrow">Dashboard</div>
+            <div data-hf-id="hf-sodk" class="headline"><span data-hf-id="hf-kayc">Alles Wichtige</span><span data-hf-id="hf-j9lj">auf einen Blick</span></div>
+            <div data-hf-id="hf-0jno" class="sub">Kennzahlen, Hinweise und Behandlungen pro Monat.</div>
+            <div data-hf-id="hf-exrd" class="chips"><span data-hf-id="hf-p66p" class="chip">Kennzahlen</span><span data-hf-id="hf-fhh6" class="chip">Diagramme</span><span data-hf-id="hf-kvwp" class="chip">Hinweise</span></div>
+          </div>
+          <div data-hf-id="hf-fcns" class="txt" id="t2">
+            <div data-hf-id="hf-admq" class="eyebrow">Erfassen</div>
+            <div data-hf-id="hf-ywrk" class="headline"><span data-hf-id="hf-f9zl">Behandlung</span><span data-hf-id="hf-uh7w">schnell erfasst</span></div>
+            <div data-hf-id="hf-irqy" class="sub">Halsbandnummer eingeben, die Kuh wird automatisch gefunden.</div>
+            <div data-hf-id="hf-4dp9" class="chips"><span data-hf-id="hf-ue7o" class="chip">Mehrere Tiere</span><span data-hf-id="hf-ptgz" class="chip">Mehrere Medikamente</span></div>
+          </div>
+          <div data-hf-id="hf-g4bl" class="txt" id="t3">
+            <div data-hf-id="hf-li5i" class="eyebrow">Klauenpflege</div>
+            <div data-hf-id="hf-xpuh" class="headline"><span data-hf-id="hf-ke37">Jede Klaue</span><span data-hf-id="hf-37t8">im Detail</span></div>
+            <div data-hf-id="hf-jo3u" class="sub">Befund, Verband und Klotz pro Klaue festhalten.</div>
+            <div data-hf-id="hf-5kmc" class="chips"><span data-hf-id="hf-ainc" class="chip">Befunde</span><span data-hf-id="hf-l0g7" class="chip">Verband &amp; Klotz</span><span data-hf-id="hf-rzy3" class="chip">Excel-Export</span></div>
+          </div>
+        </div>
+
+        <div data-hf-id="hf-jus0" class="card" id="c1"><img data-hf-id="hf-sraa" src="assets/ui-dashboard.png" alt="" /></div>
+        <div data-hf-id="hf-uq9n" class="card" id="c2"><img data-hf-id="hf-71xt" src="assets/ui-erfassen.png" alt="" /></div>
+        <div data-hf-id="hf-okju" class="card" id="c3"><img data-hf-id="hf-wu5m" src="assets/ui-klaue.png" alt="" /></div>
+
+        <div data-hf-id="hf-vk00" class="steps" id="steps">
+          <div data-hf-id="hf-uqbq" class="step"><div data-hf-id="hf-r8h4" class="step-label" id="l1"><b data-hf-id="hf-27a2">01</b>Dashboard</div><div data-hf-id="hf-7d5g" class="step-track"><div data-hf-id="hf-5rv1" class="step-fill" id="f1"></div></div></div>
+          <div data-hf-id="hf-jlje" class="step"><div data-hf-id="hf-8cf8" class="step-label" id="l2"><b data-hf-id="hf-2ll3">02</b>Erfassen</div><div data-hf-id="hf-65ik" class="step-track"><div data-hf-id="hf-9pz2" class="step-fill" id="f2"></div></div></div>
+          <div data-hf-id="hf-jzuf" class="step"><div data-hf-id="hf-58ra" class="step-label" id="l3"><b data-hf-id="hf-2zw4">03</b>Klaue</div><div data-hf-id="hf-4ylh" class="step-track"><div data-hf-id="hf-fvov" class="step-fill" id="f3"></div></div></div>
+        </div>
+
+        <div data-hf-id="hf-bj3m" class="cta" id="cta">
+          <img data-hf-id="hf-fn32" class="cta-logo" id="ctaLogo" src="assets/logo.png" alt="" />
+          <div data-hf-id="hf-tiba" class="cta-name" id="ctaName">Meadow</div>
+          <div data-hf-id="hf-73yj" class="cta-claim" id="ctaClaim">Kuh- und Klauenbehandlungen einfach dokumentiert.</div>
+          <div data-hf-id="hf-hbud" class="cta-btn" id="ctaBtn">Jetzt ausprobieren</div>
+        </div>
+
+        <div data-hf-id="hf-h5aq" class="ripple" id="ripple"></div>
+        <div data-hf-id="hf-c0g2" class="cursor" id="cursor">
+          <svg data-hf-id="hf-1jjw" id="cursorSvg" viewBox="0 0 44 54" xmlns="http://www.w3.org/2000/svg">
+            <path data-hf-id="hf-najy" d="M6 4 L6 42 L15.5 33 L22 48 L29 45 L22.5 30.5 L36 30.5 Z" fill="#111827" stroke="#ffffff" stroke-width="3" stroke-linejoin="round" />
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Element boxes measured in the running app (CSS px, relative to the captured element),
+      // see assets/ui-targets.json. Cursor targets are derived from these, not estimated.
+      const UI = {"dashboard":{"size":{"w":1428,"h":766.375},"targets":{"kuhButton":{"x":1102.640625,"y":20,"w":305.359375,"h":68.09375}}},"erfassen":{"size":{"w":480,"h":733.734375},"targets":{"medikament":{"x":33,"y":359.046875,"w":414,"h":57},"speichern":{"x":349.296875,"y":680.9375,"w":108.703125,"h":38.796875}}},"klaue":{"size":{"w":520,"h":402.390625},"targets":{"cards":[{"label":"Links Vorne","x":20,"y":140.59375,"w":233,"h":82},{"label":"Rechts Vorne","x":267,"y":140.59375,"w":233,"h":82},{"label":"Links Hinten","x":20,"y":236.59375,"w":233,"h":82},{"label":"Rechts Hinten","x":267,"y":236.59375,"w":233,"h":82}],"bearbeiten":{"x":360.015625,"y":349.59375,"w":137.984375,"h":38.796875}}}};
+
+      // Card area on the right; each capture keeps its own aspect ratio.
+      const AREA = { cx: 1330, cy: 560 };
+      function place(id, size, fit) {
+        const s = fit.w ? fit.w / size.w : fit.h / size.h;
+        const w = size.w * s, h = size.h * s;
+        const left = AREA.cx - w / 2, top = AREA.cy - h / 2;
+        const el = document.getElementById(id);
+        Object.assign(el.style, { left: left + "px", top: top + "px", width: w + "px", height: h + "px" });
+        // fy: where inside the box to aim (0.5 = centre)
+        return (box, fy = 0.5) => ({ x: left + (box.x + box.w / 2) * s, y: top + (box.y + box.h * fy) * s });
+      }
+      const at1 = place("c1", UI.dashboard.size, { w: 1060 });
+      const at2 = place("c2", UI.erfassen.size, { h: 800 });
+      const at3 = place("c3", UI.klaue.size, { w: 780 });
+
+      const P0 = { x: 1500, y: 930 }; // cursor rest position, identical at t=0 and at the end
+      const pKuh = at1(UI.dashboard.targets.kuhButton);
+      const pMed = at2(UI.erfassen.targets.medikament, 0.66); // the input part, below the label
+      const pSave = at2(UI.erfassen.targets.speichern);
+      const pClaw = at3(UI.klaue.targets.cards[1]); // "Rechts Vorne" carries the finding
+      const pEdit = at3(UI.klaue.targets.bearbeiten);
+
+      function offsetIn(el, root) {
+        let x = 0, y = 0;
+        for (let n = el; n && n !== root; n = n.offsetParent) { x += n.offsetLeft; y += n.offsetTop; }
+        return { x, y };
+      }
+
+      function build() {
+        const stage = document.getElementById("stage");
+        const btn = document.getElementById("ctaBtn");
+        const bo = offsetIn(btn, stage);
+        const pBtn = { x: bo.x + btn.offsetWidth * 0.6, y: bo.y + btn.offsetHeight * 0.55 };
+
+        const tl = gsap.timeline({ paused: true });
+        const move = (p, t, d) => tl.to("#cursor", { x: p.x, y: p.y, duration: d, ease: "power3.inOut" }, t);
+        const click = (p, t) => {
+          tl.to("#cursorSvg", { scale: 0.82, duration: 0.08, ease: "power2.out" }, t)
+            .to("#cursorSvg", { scale: 1, duration: 0.18, ease: "power2.out" }, t + 0.08)
+            .set("#ripple", { x: p.x, y: p.y }, t)
+            .fromTo("#ripple", { scale: 0.2, opacity: 0.9 }, { scale: 1.5, opacity: 0, duration: 0.55, ease: "power2.out", immediateRender: false }, t);
+        };
+        const cardOut = (id, t) => tl.to(id, { x: -70, scale: 0.97, opacity: 0, duration: 0.45, ease: "power2.in" }, t);
+        const cardIn = (id, t) => tl.fromTo(id, { x: 90, scale: 1, opacity: 0 }, { x: 0, opacity: 1, duration: 0.6, ease: "power3.out", immediateRender: false }, t);
+        const textOut = (id, t) => tl.to(id, { y: -24, opacity: 0, duration: 0.35, ease: "power2.in" }, t);
+        const textIn = (id, t) => tl.fromTo(id, { y: 28, opacity: 0 }, { y: 0, opacity: 1, duration: 0.55, ease: "power3.out", immediateRender: false }, t);
+        const active = (on, t) => ["#l1", "#l2", "#l3"].forEach((l, i) =>
+          tl.to(l, { color: i === on ? "#1f5f7d" : "#4b5563", duration: 0.3 }, t));
+
+        // Initial state (t=0): scene 1 fully visible; hidden elements are hidden in CSS.
+        gsap.set("#cursor", { x: P0.x, y: P0.y });
+        gsap.set(["#f1", "#f2", "#f3"], { scaleX: 0 });
+        // Same inline transform/opacity state as the loop end leaves behind, so frame 0 == last frame.
+        gsap.set(["#t1", "#c1"], { x: 0, y: 0, scale: 1, opacity: 1 });
+        gsap.set("#steps", { opacity: 1 });
+
+        // Scene 1 — Dashboard: click "Kuh Behandlung hinzufügen"
+        tl.to("#f1", { scaleX: 1, duration: 2.25, ease: "none" }, 0);
+        move(pKuh, 0.3, 0.95);
+        click(pKuh, 1.35);
+
+        // -> Scene 2 — Erfassen: Medikament field, then Speichern
+        cardOut("#c1", 2.25); textOut("#t1", 2.25);
+        cardIn("#c2", 2.45); textIn("#t2", 2.55);
+        active(1, 2.25);
+        tl.to("#f2", { scaleX: 1, duration: 2.6, ease: "none" }, 2.25);
+        move(pMed, 2.5, 0.9);
+        click(pMed, 3.5);
+        move(pSave, 3.75, 0.7);
+        click(pSave, 4.55);
+
+        // -> Scene 3 — Klaue: point at the finding, then "Bearbeiten"
+        cardOut("#c2", 4.85); textOut("#t2", 4.85);
+        cardIn("#c3", 5.05); textIn("#t3", 5.15);
+        active(2, 4.85);
+        tl.to("#f3", { scaleX: 1, duration: 2.25, ease: "none" }, 4.85);
+        move(pClaw, 5.1, 0.75);
+        move(pEdit, 6.1, 0.6);
+        click(pEdit, 6.8);
+
+        // -> CTA
+        cardOut("#c3", 7.1); textOut("#t3", 7.1);
+        tl.to("#steps", { opacity: 0, duration: 0.3, ease: "power2.in" }, 7.1);
+        tl.set("#cta", { opacity: 1 }, 7.4)
+          .fromTo("#ctaLogo", { scale: 0.4, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.6, ease: "back.out(2)", immediateRender: false }, 7.45)
+          .fromTo("#ctaName", { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "power3.out", immediateRender: false }, 7.65)
+          .fromTo("#ctaClaim", { y: 24, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "power3.out", immediateRender: false }, 7.8)
+          .fromTo("#ctaBtn", { scale: 0.85, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.5, ease: "back.out(1.6)", immediateRender: false }, 7.95);
+        move(pBtn, 7.4, 1.0);
+        click(pBtn, 8.5);
+        tl.to("#ctaBtn", { scale: 0.93, duration: 0.09, ease: "power2.out" }, 8.5)
+          .to("#ctaBtn", { scale: 1, duration: 0.4, ease: "back.out(3)" }, 8.59);
+
+        // Reset the step indicator while it is hidden
+        tl.set(["#f1", "#f2", "#f3"], { scaleX: 0 }, 8.0)
+          .set("#l1", { color: "#1f5f7d" }, 8.0)
+          .set(["#l2", "#l3"], { color: "#4b5563" }, 8.0);
+
+        // Loop back to the exact t=0 frame
+        tl.to("#cta", { opacity: 0, scale: 0.98, duration: 0.3, ease: "power2.in" }, 9.0);
+        tl.set(["#c1"], { scale: 1 }, 9.0);
+        cardIn("#c1", 9.3);
+        textIn("#t1", 9.35);
+        tl.to("#steps", { opacity: 1, duration: 0.45, ease: "power2.out" }, 9.35);
+        tl.set("#cta", { scale: 1 }, 9.95);
+        move(P0, 8.95, 0.95);
+
+        window.__timelines["main"] = tl;
+        tl.seek(0);
+      }
+
+      document.fonts.ready.then(build);
+    </script>
+  </body>
+</html>

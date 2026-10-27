@@ -22,6 +22,7 @@
 @inject IMedicineService medicineService
 @inject ITreatmentReasonService TreatmentReasonService
 @inject IUdderService UdderService
+@inject ITreatmentPlanCancellationService Cancellations
 
 <PageTitle>@HeaderTitle · Meadow</PageTitle>
 
@@ -64,6 +65,8 @@ else
     <div class="mw-cow-page">
         <CowKpiTiles Profile="_profile" Collar="@Collar" TopMedicineName="@TopMedicineName"
                      TopFindingName="@TopFindingName" />
+
+        <CowLelyInfo Cow="_cow" />
 
         <div class="mw-cow-split">
             <div class="mw-cow-col mw-cow-col--charts mw-scroll">
@@ -238,6 +241,11 @@ else
 
                     case CowDetailTab.PlannedClaw:
                         <PlannedClawPanel Rows="_profile.PlannedClawTreatments" OnChanged="ReloadAsync" />
+                        break;
+
+                    case CowDetailTab.TreatmentPlans:
+                        <TreatmentPlansPanel Runs="_profile.TreatmentPlans" CowId="@CowId"
+                                             Changed="ReloadAsync" />
                         break;
 
                     default:
@@ -425,7 +433,9 @@ else
                 pCowTreatmentService.Treatments.Values,
                 pClawTreatmentService.Treatments.Values,
                 UdderService.Udder,
-                DateTime.Today);
+                DateTime.Today,
+                medicineService.Medicines,
+                Cancellations.Cancellations.Values);
 
         // Wer das Tier ist, steht im Kopf der Anwendung und nicht auf der
         // Seite. LayoutState meldet nur, wenn sich wirklich etwas geaendert
@@ -588,6 +598,7 @@ else
         CowDetailTab.ClawTreatments => ClawRows.Count,
         CowDetailTab.PlannedCow => _profile.PlannedCowTreatments.Count,
         CowDetailTab.PlannedClaw => _profile.PlannedClawTreatments.Count,
+        CowDetailTab.TreatmentPlans => _profile.TreatmentPlans.Count,
         _ => _profile.OpenBandages
     };
 

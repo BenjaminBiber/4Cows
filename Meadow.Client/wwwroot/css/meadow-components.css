@@ -2930,6 +2930,111 @@ a.mw-icon-btn { text-decoration: none; }
   .mw-notices__list { overflow-y: visible; }
 }
 
+/* ============================================================
+   DASHBOARD — Karte "Laufende Behandlungspläne"
+   (MeadowTreatmentPlanCard)
+   ============================================================ */
+
+/* Eigene Zeile zwischen der oberen Reihe und den Diagrammen. Der Abstand
+   sitzt oben, weil .mw-dash-charts seinen eigenen margin-top schon
+   mitbringt - sonst stuenden hier zwei Abstaende uebereinander. */
+.mw-plans {
+  margin-top: 20px;
+}
+
+.mw-plans__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+/* Die Anzahl als ruhiger Zaehler neben dem Titel - keine Signalfarbe:
+   dass etwas ueberfaellig ist, sagt die Zeile selbst. */
+.mw-plans__count {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--mw-soft);
+  color: var(--mw-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.mw-plans__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Vier Spalten: Kuh, Medikament, Gaben, Faelligkeit. Die erste Spalte darf
+   wachsen, bleibt aber lesbar breit; Gaben und Text nehmen nur, was sie
+   brauchen. */
+.mw-plans__row {
+  display: grid;
+  grid-template-columns: minmax(8rem, 1fr) 1fr auto auto;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 8px 10px;
+  border-left: 2px solid transparent;
+  border-radius: var(--mw-r-md, 8px);
+  background: var(--mw-soft);
+  font-size: 13px;
+  color: var(--mw-text);
+}
+
+/* Status als farbige Kante links - dasselbe Modell wie .mw-hint--warn/--crit
+   in der Hinweistafel daneben, damit beide Karten dieselbe Sprache sprechen.
+   Ueberfaellig traegt die Gefahrfarbe, heute faellig die Warnfarbe;
+   anstehend bleibt neutral. */
+.mw-plans__row--overdue { border-left-color: var(--mw-rate-crit); }
+.mw-plans__row--due { border-left-color: var(--mw-rate-warn); }
+
+.mw-plans__cow {
+  color: var(--mw-primary);
+  font-weight: 600;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.mw-plans__cow:hover,
+.mw-plans__cow:focus-visible {
+  text-decoration: underline;
+}
+
+.mw-plans__med {
+  color: var(--mw-muted);
+  overflow-wrap: anywhere;
+}
+
+.mw-plans__doses {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.mw-plans__due {
+  white-space: nowrap;
+  text-align: right;
+}
+
+.mw-plans__row--overdue .mw-plans__due { color: var(--mw-rate-crit); font-weight: 600; }
+.mw-plans__row--due .mw-plans__due { color: var(--mw-rate-warn); font-weight: 600; }
+
+/* Schmal: zweizeilig statt vier Spalten nebeneinander. Vier Spalten
+   passen auf 375px nicht nebeneinander, ohne dass die Seite seitlich
+   scrollt - oben Kuh und Gaben, darunter Medikament und Faelligkeit. */
+@media (max-width: 599.98px) {
+  .mw-plans__row {
+    grid-template-columns: 1fr auto;
+  }
+
+  .mw-plans__med { grid-row: 2; }
+  .mw-plans__doses { grid-row: 1; }
+  .mw-plans__due { grid-row: 2; }
+}
+
 /* Fehlermeldung direkt am Feld. Bisher sammelte der Dialog alles in einer
    Box am Ende des scrollenden Koerpers - also moeglicherweise ausserhalb
    des Sichtbereichs, wenn man gerade oben steht. */
@@ -3674,23 +3779,28 @@ button.mw-nav-item {
 
 
 /* ── KPI-Reihe ────────────────────────────────────────────────── */
-/* Sechs Kacheln, und sie sollen so flach sein wie moeglich: der Platz, den
+/* Sieben Kacheln, und sie sollen so flach sein wie moeglich: der Platz, den
    sie hier hergeben, geht unten an die Tabelle.
 
-   Feste Spaltenzahl statt auto-fit: sechs geht in sechs, drei UND zwei
-   glatt auf, ein Waisenkind in der letzten Reihe kann gar nicht entstehen.
-   Bei auto-fit mit minmax(210px) faellt ein 1280px-Laptop auf 5+1. */
+   Feste Spaltenzahl statt auto-fit: bei auto-fit mit minmax(210px) faellt
+   ein 1280px-Laptop auf 5+2. Sieben ist eine Primzahl - eine Aufteilung
+   ganz ohne Luecke gibt es nur in EINER Reihe, und die passt erst ab
+   1600px. Darunter bleibt die Luecke am Ende der letzten Reihe. */
 .mw-kpi-grid--cow {
   grid-template-columns: repeat(3, 1fr);
   gap: 10px;
 }
-/* Ab hier eine einzige Reihe: sechs Kacheln nebeneinander sind halb so hoch
-   wie zwei Reihen mit drei, und der gewonnene Platz geht an die Tabelle.
-   Darunter wird es zu eng - "Häufigster Klauenbefund" braucht in einer
-   160px-Kachel schon zwei Zeilen fuer die Ueberschrift allein, und damit
-   ist der Gewinn wieder weg. */
+/* 4+3 statt 3+3+1: zwei Reihen sind flacher als drei, und die einzelne
+   Kachel am Ende sah aus wie vergessen. */
 @media (min-width: 1280px) {
-  .mw-kpi-grid--cow { grid-template-columns: repeat(6, 1fr); }
+  .mw-kpi-grid--cow { grid-template-columns: repeat(4, 1fr); }
+}
+/* Eine einzige Reihe. Erst hier und nicht schon bei 1280px: sieben Kacheln
+   auf 1280px sind je 170px breit, und "Häufigster Klauenbefund" braucht
+   dort schon zwei Zeilen fuer die Ueberschrift allein - damit waere der
+   gewonnene Platz wieder weg. */
+@media (min-width: 1600px) {
+  .mw-kpi-grid--cow { grid-template-columns: repeat(7, 1fr); }
 }
 
 /* Ein Rasterelement hat min-width:auto und reicht damit die Breite seines
@@ -3701,7 +3811,7 @@ button.mw-nav-item {
 
 /* Raster statt Spalte: der Vergleich zum Vorzeitraum steht RECHTS neben der
    Zahl und nicht darunter. Als dritte Zeile machte er die eine Kachel, die
-   ihn hat, 15px hoeher als die anderen fuenf - und weil Rasterzeilen gleich
+   ihn hat, 15px hoeher als die anderen - und weil Rasterzeilen gleich
    hoch sind, die ganze Reihe. */
 .mw-kpi-grid--cow .mw-kpi {
   display: grid;
@@ -4098,6 +4208,53 @@ button.mw-nav-item {
   .mw-cow-filter__clear:hover { text-decoration: underline; }
 }
 
+/* Lely-Daten der Kuh (CowLelyInfo): eine Zeile, die bei Platzmangel
+   umbricht. Optisch verwandt mit .mw-cow-filter, aber ohne Farbkante - das
+   ist eine Auskunft, kein aktiver Zustand. */
+.mw-cow-lely {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 7px 12px;
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-r-lg);
+  background: var(--mw-tint);
+  font-size: 13px;
+  min-width: 0;
+}
+.mw-cow-lely__source {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--mw-muted);
+}
+.mw-cow-lely__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+  margin: 0;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.mw-cow-lely__item {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+}
+.mw-cow-lely__item dt { color: var(--mw-muted); }
+.mw-cow-lely__item dd {
+  margin: 0;
+  font-weight: 600;
+  color: var(--mw-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mw-cow-lely__item--wide { flex: 1 1 200px; }
+.mw-cow-lely__mono { font-variant-numeric: tabular-nums; }
+
 /* Die Anzahl hinter dem Tabnamen. Kein .mw-badge: das ist ein gefuellter
    Zaehler fuer den Filterknopf, hier soll die Zahl der Beschriftung
    nachgeordnet bleiben. */
@@ -4257,3 +4414,39 @@ a.mw-row-card { text-decoration: none; }
   gap: 8px;
   margin-top: 12px;
 }
+
+/* ============================================================
+   BEHANDLUNGSPLAENE   (Lasche "Plaene" der Kuh-Seite)
+
+   Die Karten sind .mw-row-card - dieselbe Karte wie in der
+   Mobilansicht der uebrigen Laschen. Hier stehen nur die drei
+   Teile, die es dort nicht gibt: Trennzeile, Fortschrittsbalken
+   und die zwei Status-Toenungen, die .mw-tag noch nicht kennt.
+   ============================================================ */
+.mw-plan-sep {
+  margin: 18px 0 10px;
+  font-family: var(--mw-font-display);
+  font-weight: 700;
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--mw-muted);
+}
+
+.mw-plan-bar {
+  height: 7px;
+  margin-top: 11px;
+  background: var(--mw-tint);
+  border-radius: var(--mw-r-pill);
+  overflow: hidden;
+}
+.mw-plan-bar__fill {
+  height: 100%;
+  background: var(--mw-primary);
+  border-radius: inherit;
+}
+/* Faellig heisst: der Balken selbst mahnt, nicht nur das Schildchen. */
+.mw-plan-bar__fill.is-due { background: var(--mw-warning); }
+
+.mw-tag--plan-due { background: rgba(var(--mw-warning-rgb), .14); color: var(--mw-warning); }
+.mw-tag--plan-off { background: var(--mw-tint);                   color: var(--mw-muted); }
