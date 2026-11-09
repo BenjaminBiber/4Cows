@@ -104,6 +104,9 @@ public sealed class HorizonSyncService : ICowSyncService
         };
 
         var failed = 0;
+        // Der erste Grund aus der Datenbank kommt mit in den Status - meist haben alle
+        // Fehlschlaege dieselbe Ursache, und ohne ihn steht sie nur im Server-Log.
+        string? firstFailure = null;
 
         foreach (var action in plan.Actions)
         {
@@ -141,14 +144,26 @@ public sealed class HorizonSyncService : ICowSyncService
             if (!ok)
             {
                 failed++;
-                result.Warnings.Add($"Kuh {action.CowId}: Schreiben fehlgeschlagen.");
+                var reason = _store.LastWriteError;
+                if (reason is null)
+                {
+                    result.Warnings.Add($"Kuh {action.CowId}: Schreiben fehlgeschlagen.");
+                }
+                else
+                {
+                    result.Warnings.Add($"Kuh {action.CowId}: Schreiben fehlgeschlagen ({reason}).");
+                    firstFailure ??= $"Kuh {action.CowId}: {reason}";
+                }
             }
         }
 
         LastSnapshotAnimalCount = snapshot.Animals?.Count ?? 0;
         LastSyncUtc = now;
         LastSyncSucceeded = failed == 0;
-        LastSyncError = failed == 0 ? null : $"{failed} Kühe konnten nicht geschrieben werden.";
+        LastSyncError = failed == 0
+            ? null
+            : $"{failed} Kühe konnten nicht geschrieben werden."
+              + (firstFailure is null ? "" : $" Erster Fehler – {firstFailure}");
 
         // Der Snapshot beantwortet eine offene Anforderung.
         _syncRequestedAt = null;

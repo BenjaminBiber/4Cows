@@ -45,17 +45,21 @@ public static class HorizonSyncPlanner
             return Rejected($"AnimalId {firstDuplicate.Key} kommt mehrfach vor.");
 
         // Die Herde vorab indizieren: jede Kuh wird hoechstens einmal getroffen.
+        // Ohrmarke und Cow_ID getrimmt: MariaDB vergleicht mit PAD SPACE, fuer die
+        // Datenbank sind "DE123 " und "DE123" derselbe Schluessel. Ohne Trim haelt der
+        // Planer eine Ohrmarke fuer frei, die der Unique-Index dann ablehnt - und das
+        // bei jedem Lauf wieder.
         var byLely = new Dictionary<string, Cow>(StringComparer.Ordinal);
         var byEarTag = new Dictionary<string, Cow>(StringComparer.OrdinalIgnoreCase);
         var calvesByCollar = new Dictionary<int, List<Cow>>();
         var cowIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var cow in cows)
         {
-            cowIds.Add(cow.CowId);
+            cowIds.Add(cow.CowId.Trim());
             if (!string.IsNullOrWhiteSpace(cow.LelyAnimalId))
-                byLely.TryAdd(cow.LelyAnimalId!, cow);
+                byLely.TryAdd(cow.LelyAnimalId!.Trim(), cow);
             if (!string.IsNullOrWhiteSpace(cow.EarTagNumber))
-                byEarTag.TryAdd(cow.EarTagNumber!, cow);
+                byEarTag.TryAdd(cow.EarTagNumber!.Trim(), cow);
             if (cow.IsCalv && !cow.IsGone && string.IsNullOrWhiteSpace(cow.EarTagNumber) && string.IsNullOrWhiteSpace(cow.LelyAnimalId))
             {
                 if (!calvesByCollar.TryGetValue(cow.CollarNumber, out var list))
@@ -205,6 +209,13 @@ public static class HorizonSyncPlanner
     private static HorizonSyncPlan Rejected(string reason)
         => new(reason, Array.Empty<HorizonCowAction>(), 0, 0, Array.Empty<string>());
 
+    // Spaltenlaengen der Cow-Tabelle (siehe [StringLength] am Modell). Laengere Werte
+    // lehnt MariaDB im Strict-Mode ab; gekuerzt wird deshalb schon hier, damit auch der
+    // Vergleich mit dem gespeicherten Wert beim naechsten Lauf stabil bleibt.
+    public const int MaxLocationLength = 100;
+    public const int MaxGroupLength = 100;
+    public const int MaxDescriptionLength = 500;
+
     // Leerzeichen weg, leer wird null - sonst zaehlt " " als Aenderung gegenueber null.
     private static HorizonAnimal Normalize(HorizonAnimal animal) => new()
     {
@@ -212,14 +223,18 @@ public static class HorizonSyncPlanner
         CollarNumber = animal.CollarNumber,
         EarTag = Clean(animal.EarTag),
         IsGone = animal.IsGone,
-        Location = Clean(animal.Location),
-        Group = Clean(animal.Group),
-        Description = Clean(animal.Description),
+        Location = Clean(animal.Location, MaxLocationLength),
+        Group = Clean(animal.Group, MaxGroupLength),
+        Description = Clean(animal.Description, MaxDescriptionLength),
     };
 
-    private static string? Clean(string? value)
+    private static string? Clean(string? value, int maxLength = int.MaxValue)
     {
         var trimmed = value?.Trim();
-        return string.IsNullOrEmpty(trimmed) ? null : trimmed;
+        if (string.IsNullOrEmpty(trimmed))
+            return null;
+        // Nach dem Kuerzen nochmal trimmen: endet der Rest auf ein Leerzeichen, schneidet
+        // MariaDB es beim Vergleich ohnehin ab.
+        return trimmed.Length <= maxLength ? trimmed : trimmed[..maxLength].TrimEnd();
     }
 }
