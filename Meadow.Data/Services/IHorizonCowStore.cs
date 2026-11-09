@@ -18,6 +18,13 @@ public interface IHorizonCowStore
     /// IsGone, Ort, Gruppe, Beschreibung, und die Ohrmarke nur, wenn earTag nicht leer ist
     /// (eine Ohrmarke wird nie geloescht).
     /// </summary>
+    /// <summary>
+    /// Grund des letzten fehlgeschlagenen Schreibversuchs (Datenbankmeldung), null nach
+    /// einem erfolgreichen. Nur zur Anzeige: ohne ihn steht im Status bloss "n Kuehe
+    /// konnten nicht geschrieben werden" und die Ursache nur im Server-Log.
+    /// </summary>
+    string? LastWriteError => null;
+
     Task<bool> ApplyHorizonAsync(string cowId, string lelyAnimalId, int collarNumber, string? earTag,
         bool isGone, string? location, string? group, string? description);
 }

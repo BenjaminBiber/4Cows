@@ -331,4 +331,56 @@ public class HorizonSyncPlannerTests
         Assert.Equal(HorizonActionKind.Create, plan.Actions[1].Kind);
         Assert.Equal("guid-1", plan.Actions[1].CowId);
     }
+
+    // MariaDB vergleicht mit PAD SPACE: "1001 " und "1001" sind fuer den Unique-Index
+    // derselbe Schluessel. Haelt der Planer die Ohrmarke fuer frei, scheitert das Anlegen
+    // bei jedem Lauf am Index - genau das lief als "n Kuehe konnten nicht geschrieben werden".
+    [Fact]
+    public void Ear_tag_with_trailing_space_in_meadow_is_linked_not_created()
+    {
+        var cow = new Cow("1001 ", "1001 ", 11, isCalv: false, isGone: false);
+
+        var plan = Plan([cow], Animal("A1", 11, earTag: "1001"));
+
+        var action = Assert.Single(plan.Actions);
+        Assert.Equal(HorizonActionKind.Link, action.Kind);
+        Assert.Equal("1001 ", action.CowId);
+    }
+
+    [Fact]
+    public void Cow_id_with_trailing_space_blocks_creating_the_same_id()
+    {
+        // Ohrmarke weg, Cow_ID mit Leerzeichen: die neue Kuh darf nicht Cow_ID "1001" bekommen.
+        var cow = new Cow("1001 ", null, 11, isCalv: false, isGone: true);
+
+        var plan = Plan([cow], Animal("A1", 11, earTag: "1001"));
+
+        var action = Assert.Single(plan.Actions);
+        Assert.Equal(HorizonActionKind.Create, action.Kind);
+        Assert.Equal("guid-1", action.CowId);
+    }
+
+    [Fact]
+    public void Texts_longer_than_the_columns_are_cut_and_then_count_as_unchanged()
+    {
+        var longText = new string('x', 600);
+        var first = Plan([WithLely(Tagged("1001", 11), "A1")],
+            Animal("A1", 11, earTag: "1001", location: longText, group: longText, description: longText));
+
+        var animal = Assert.Single(first.Actions).Animal;
+        Assert.Equal(HorizonSyncPlanner.MaxLocationLength, animal.Location!.Length);
+        Assert.Equal(HorizonSyncPlanner.MaxGroupLength, animal.Group!.Length);
+        Assert.Equal(HorizonSyncPlanner.MaxDescriptionLength, animal.Description!.Length);
+
+        // So wie geschrieben gespeichert: der naechste Lauf sieht keine Aenderung mehr.
+        var stored = WithLely(Tagged("1001", 11), "A1");
+        stored.Location = animal.Location;
+        stored.Group = animal.Group;
+        stored.Description = animal.Description;
+        var second = Plan([stored],
+            Animal("A1", 11, earTag: "1001", location: longText, group: longText, description: longText));
+
+        Assert.Empty(second.Actions);
+        Assert.Equal(1, second.Unchanged);
+    }
 }

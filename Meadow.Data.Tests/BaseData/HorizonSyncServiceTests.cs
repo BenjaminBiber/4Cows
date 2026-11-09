@@ -29,6 +29,18 @@ public class HorizonSyncServiceTests
         /// <summary>Cow_IDs, deren Schreibversuch false liefern soll.</summary>
         public HashSet<string> FailFor { get; } = new(StringComparer.OrdinalIgnoreCase);
 
+        /// <summary>Was LastWriteError nach einem Fehlschlag meldet (null = kein Grund bekannt).</summary>
+        public string? FailReason { get; set; }
+
+        public string? LastWriteError { get; private set; }
+
+        private bool Write(string cowId)
+        {
+            var ok = !FailFor.Contains(cowId);
+            LastWriteError = ok ? null : FailReason;
+            return ok;
+        }
+
         public IReadOnlyDictionary<string, Cow> Cows => _cows;
 
         public void Seed(params Cow[] cows)
@@ -46,7 +58,7 @@ public class HorizonSyncServiceTests
         public Task<bool> InsertDataAsync(Cow cow)
         {
             Calls.Add($"Insert:{cow.CowId}");
-            if (FailFor.Contains(cow.CowId))
+            if (!Write(cow.CowId))
                 return Task.FromResult(false);
             _cows[cow.CowId] = cow;
             return Task.FromResult(true);
@@ -55,14 +67,14 @@ public class HorizonSyncServiceTests
         public Task<bool> PromoteCalfAsync(string cowId, string earTagNumber)
         {
             Calls.Add($"Promote:{cowId}->{earTagNumber}");
-            return Task.FromResult(!FailFor.Contains(cowId));
+            return Task.FromResult(Write(cowId));
         }
 
         public Task<bool> ApplyHorizonAsync(string cowId, string lelyAnimalId, int collarNumber, string? earTag,
             bool isGone, string? location, string? group, string? description)
         {
             Calls.Add($"Apply:{cowId}");
-            return Task.FromResult(!FailFor.Contains(cowId));
+            return Task.FromResult(Write(cowId));
         }
     }
 
@@ -231,5 +243,26 @@ public class HorizonSyncServiceTests
         Assert.Contains("Kuh 1001: Schreiben fehlgeschlagen.", result.Warnings);
         Assert.False(service.LastSyncSucceeded);
         Assert.Equal("1 Kühe konnten nicht geschrieben werden.", service.LastSyncError);
+    }
+
+    [Fact]
+    public async Task Failed_store_write_reports_the_database_reason()
+    {
+        var store = new FakeHorizonCowStore { FailReason = "Duplicate entry '1001' for key 'PRIMARY'" };
+        store.Seed(
+            new Cow("1001", 11, false) { LelyAnimalId = "A1" },
+            new Cow("1002", 12, false) { LelyAnimalId = "A2" });
+        store.FailFor.Add("1001");
+        store.FailFor.Add("1002");
+        var service = new HorizonSyncService(store, new ManualTimeProvider());
+
+        var result = await service.ApplySnapshotAsync(Snapshot(
+            Animal("A1", 11, location: "Stall 2"),
+            Animal("A2", 12, location: "Stall 3")));
+
+        Assert.Contains("Kuh 1001: Schreiben fehlgeschlagen (Duplicate entry '1001' for key 'PRIMARY').", result.Warnings);
+        Assert.Equal(
+            "2 Kühe konnten nicht geschrieben werden. Erster Fehler – Kuh 1001: Duplicate entry '1001' for key 'PRIMARY'",
+            service.LastSyncError);
     }
 }

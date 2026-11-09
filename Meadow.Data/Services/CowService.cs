@@ -20,6 +20,18 @@ public class CowService : ICowService, IHorizonCowStore
         // nur das schmale Leseinterface braucht - derselbe Cache, zwei Sichten.
         IReadOnlyDictionary<string, Cow> IHorizonCowStore.Cows => _cachedCows;
 
+        // Fuer den Horizon-Abgleich: warum der letzte Insert/Promote/Apply nicht geschrieben hat.
+        // Die Methoden schlucken die Ausnahme (bool-Vertrag), der Grund ginge sonst verloren.
+        public string? LastWriteError { get; private set; }
+
+        private bool RecordWrite(bool isSuccess, string cowId)
+        {
+            LastWriteError = isSuccess ? null : $"keine Zeile mit Cow_ID '{cowId}' gefunden";
+            return isSuccess;
+        }
+
+        private void RecordWriteFailure(Exception ex) => LastWriteError = ex.GetBaseException().Message;
+
         public CowService(IDbContextFactory<DatabaseContext> contextFactory, DatabaseStatusService databaseStatusService)
         {
             _contextFactory = contextFactory;
@@ -63,11 +75,12 @@ public class CowService : ICowService, IHorizonCowStore
                     LoggerService.LogInformation(typeof(CowService), "Inserted cow: {@cow}.", cow);
                 }
 
-                return isSuccess;
+                return RecordWrite(isSuccess, cow.CowId);
             }
             catch (Exception ex)
             {
                 _databaseStatusService.ReportFailure();
+                RecordWriteFailure(ex);
                 LoggerService.LogError(typeof(CowService), "Failed to insert cow, with {@Message}", ex, ex.Message);
                 return false;
             }
@@ -207,11 +220,12 @@ public class CowService : ICowService, IHorizonCowStore
                     LoggerService.LogInformation(typeof(CowService), "Promoted calf {cowId} with ear tag number {earTagNumber}.", cowId, earTagNumber);
                 }
 
-                return isSuccess;
+                return RecordWrite(isSuccess, cowId);
             }
             catch (Exception ex)
             {
                 _databaseStatusService.ReportFailure();
+                RecordWriteFailure(ex);
                 LoggerService.LogError(typeof(CowService), "Failed to promote calf, with {@Message}", ex, ex.Message);
                 return false;
             }
@@ -261,11 +275,12 @@ public class CowService : ICowService, IHorizonCowStore
                     LoggerService.LogInformation(typeof(CowService), "Applied horizon values for cow {cowId} with lely animal id {lelyAnimalId}.", cowId, lelyAnimalId);
                 }
 
-                return isSuccess;
+                return RecordWrite(isSuccess, cowId);
             }
             catch (Exception ex)
             {
                 _databaseStatusService.ReportFailure();
+                RecordWriteFailure(ex);
                 LoggerService.LogError(typeof(CowService), "Failed to apply horizon values, with {@Message}", ex, ex.Message);
                 return false;
             }
